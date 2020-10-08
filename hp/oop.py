@@ -28,7 +28,6 @@ class Basic(object): #simple base class
     
     def __init__(self, 
                  logger         = mod_logger,
-                 db_f           = False,
                  out_dir        = None,
                  work_dir       = r'C:\LS\02_WORK\02_Mscripts\CoC_backcast\03_SOFT\03_py',
                  mod_name       = 'Simp',
@@ -36,24 +35,12 @@ class Basic(object): #simple base class
                  prec           = 2,
                  ):
         
+        
         self.logger=logger
-        self.db_f = db_f
-
         self.work_dir = work_dir
         self.mod_name = mod_name
         self.tag = tag
         self.prec=prec
-        
-        
-        #=======================================================================
-        # output directory
-        #=======================================================================
-
-        assert isinstance(out_dir, str), print(type(out_dir))
-        
-        if not os.path.exists(out_dir):
-            self.logger.info('passed out_dir does not exist. creating: \n    %s'%out_dir)
-            os.makedirs(out_dir)
             
         self.out_dir = out_dir
         

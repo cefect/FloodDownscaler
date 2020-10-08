@@ -58,5 +58,5 @@ class BuildLogr(object): #simple class to build a logger
         
         handler.level
         
-        self.logger.info('duplicate logger level = %i built: \n    %s'%(
+        self.logger.info('duplicate logger \'level = %i\' built: \n    %s'%(
             level, logger_file_path))
