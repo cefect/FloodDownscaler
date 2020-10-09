@@ -357,7 +357,7 @@ class Qproj(Basic):
                 selected_only = False, #selected features only on the comp_vlay
                 
                 #expectations
-                allow_none = False,
+                allow_none = True,
                 
                 logger = None,
 
@@ -394,7 +394,7 @@ class Qproj(Basic):
         #=======================================================================
         ins_d = { 
             'INPUT' : vlay, 
-            'INTERSECT' : comp_vlay, 
+            'INTERSECT' : intersect, 
             'METHOD' : meth_d[method], 
             'PREDICATE' : pred_l }
         
