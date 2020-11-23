@@ -844,11 +844,22 @@ def view(#view the vector data (or just a df) as a html frame
     logger.info('viewer closed')
     
     return
+
+
+def test_install(): #test your qgis install
+    
+    
+    
+    proj = Qproj()
+    proj.get_install_info()
+    
+    
+    
     
     
 if __name__ == '__main__':
 
-    Qproj()
+    test_install()
     
 
     

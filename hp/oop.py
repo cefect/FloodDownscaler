@@ -27,16 +27,20 @@ mod_logger.debug('initialized')
 class Basic(object): #simple base class
     
     def __init__(self, 
-                 logger         = mod_logger,
+                 logger         = None,
                  out_dir        = None,
-                 work_dir       = r'C:\LS\02_WORK\02_Mscripts\CoC_backcast\03_SOFT\03_py',
+                 work_dir       = r'C:\LS\03_TOOLS\misc',
                  mod_name       = 'Simp',
                  tag            = 'BasicTag',
                  prec           = 2,
                  ):
         
         
-        self.logger=logger
+        
+        
+        """
+        logger.info('test')
+        """
         self.work_dir = work_dir
         self.mod_name = mod_name
         self.tag = tag
@@ -44,8 +48,41 @@ class Basic(object): #simple base class
             
         self.out_dir = out_dir
         
+        #setup the logger
+        if logger is None:
+            from logr import BuildLogr
+            lwrkr = BuildLogr(work_dir)
+            logger=lwrkr.logger
+
+            
+        self.logger=logger
+            
+        
         
         self.logger.debug('finished Basic.__init__')
+        
+    def get_install_info(self,
+                         log = None): #print version info
+        if log is None: log = self.logger
+        
+        #verison info
+        
+        self.logger.info('main python version: \n    %s'%sys.version)
+        import numpy as np
+        self.logger.info('numpy version: %s'%np.__version__)
+        import pandas as pd
+        self.logger.info('pandas version: %s'%(pd.__version__))
+        
+        #directory info
+        self.logger.info('os.getcwd: %s'%os.getcwd())
+        
+        log.info('exe: %s'%sys.executable)
+
+        #systenm paths
+        log.info('system paths')
+        for k in sys.path: 
+            log.info('    %s'%k)
+        
     
     
     

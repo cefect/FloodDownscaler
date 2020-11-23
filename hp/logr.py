@@ -3,7 +3,7 @@ Created on Mar. 26, 2020
 
 @author: cefect
 '''
-import os, logging
+import os, logging, logging.config
 
 
 class BuildLogr(object): #simple class to build a logger
