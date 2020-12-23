@@ -51,7 +51,7 @@ class Qproj(Basic):
     common methods for Qgis projects
     """
     
-    crs_id = 'EPSG:4326'
+    crsID_default = 'EPSG:4326'
     
     driverName = 'SpatiaLite' #default data creation driver type
     out_dName = driverName #default output driver/file type
@@ -75,20 +75,17 @@ class Qproj(Basic):
             feedback = MyFeedBackQ()
         self.feedback = feedback
             
-        self.qap = self._init_qgis()
-        self.qproj = QgsProject.instance()
+        self._init_qgis(crs=crs)
+        
 
         self._init_algos()
         
         self._set_vdrivers()
         
-        self.mstore = QgsMapLayerStore() #build a new map store
+        
         
 
-        if crs is None: 
-            crs = QgsCoordinateReferenceSystem(self.crs_id)
-            
-        self.crs = crs
+
         
         
         
@@ -97,13 +94,14 @@ class Qproj(Basic):
         
 
         
-        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.crs.authid())
+        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
         
         return
     
     
     def _init_qgis(self, #instantiate qgis
+                   crs=None,
                   gui = False): 
         """
         WARNING: need to hold this app somewhere. call in the module you're working in (scripts)
@@ -123,10 +121,32 @@ class Qproj(Basic):
             """ was throwing unicode error"""
             log.info(u' QgsApplication.initQgis. version: %s, release: %s'%(
                 Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
-            return app
+            
         
         except:
             raise Error('QGIS failed to initiate')
+        
+        #=======================================================================
+        # store the references
+        #=======================================================================
+        self.qap = app
+        self.qproj = QgsProject.instance()
+        self.mstore = QgsMapLayerStore() #build a new map store
+        
+        #=======================================================================
+        # crs
+        #=======================================================================
+        if crs is None: 
+            crs = QgsCoordinateReferenceSystem(self.crsID_default)
+            
+            
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert crs.isValid()
+            
+        #self.crs = crs #just use the qproj
+        self.qproj.setCrs(crs)
+        
+        log.info('set project crs to %s'%self.qproj.crs().authid())
         
     def _init_algos(self): #initiilize processing and add providers
         """
@@ -183,14 +203,14 @@ class Qproj(Basic):
         
     def set_crs(self, #load, build, and set the project crs
                 authid =  None):
-        
+        raise Error('depreciated')
         #=======================================================================
         # setup and defaults
         #=======================================================================
         log = self.logger.getChild('set_crs')
         
         if authid is None: 
-            authid = self.crs_id
+            authid = self.crsID_default
         
         if not isinstance(authid, int):
             raise IOError('expected integer for crs')
@@ -266,7 +286,7 @@ class Qproj(Basic):
         vlay_raw = QgsVectorLayer(file_path,fname,providerLib)
 
 
-        self.mstore.addMapLayer(vlay_raw)
+        #self.mstore.addMapLayer(vlay_raw)
             
             
         #===========================================================================
@@ -290,9 +310,9 @@ class Qproj(Basic):
         if vlay_raw.crs().authid() == '':
             log.warning('bad crs')
         
-        if not vlay_raw.crs() == self.crs:
+        if not vlay_raw.crs() == self.qproj.crs():
             log.warning('crs: \'%s\' doesnt match project: %s'%(
-                vlay_raw.crs().authid(), self.crs.authid()))
+                vlay_raw.crs().authid(), self.qproj.crs().authid()))
             
             
         #=======================================================================

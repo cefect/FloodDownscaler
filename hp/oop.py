@@ -50,7 +50,7 @@ class Basic(object): #simple base class
         
         #setup the logger
         if logger is None:
-            from logr import BuildLogr
+            from hp.logr import BuildLogr
             lwrkr = BuildLogr(work_dir)
             logger=lwrkr.logger
 

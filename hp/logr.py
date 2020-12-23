@@ -12,15 +12,15 @@ class BuildLogr(object): #simple class to build a logger
             work_dir, 
             logcfg_file =r'C:\LS\03_TOOLS\coms\logger.conf',
             ):
-
+        """
+        creates a log file (according to the logger.conf parameters) in the passed working directory
+        """
         #===============================================================================
         # FILE SETUP
         #===============================================================================
         os.chdir(work_dir) #set this to the working directory
         print('working directory set to \"%s\''%os.getcwd())
         
-    
-    
         assert os.path.exists(logcfg_file), 'No logger Config File found at: \n   %s'%logcfg_file
     
         #===========================================================================
