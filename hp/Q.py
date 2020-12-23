@@ -177,7 +177,7 @@ class Qproj(Basic):
                 
         self.vlay_drivers = vlay_drivers
         
-        self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
+        self.logger.info('built driver:extensions dict: \n    %s'%vlay_drivers)
         
         return
         
