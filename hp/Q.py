@@ -336,8 +336,68 @@ class Qproj(Basic):
         
         return vlay
     
+    #===========================================================================
+    # AOI methods--------
+    #===========================================================================
+    def load_aoi(self,
+                 aoi_fp):
+        
+        log= self.logger.getChild('load_aoi')
+        vlay = self.vlay_load(aoi_fp)
+        self.check_aoi(vlay)
+        self.aoi_vlay = vlay
+        
+        log.info('loaded aoi \'%s\''%vlay.name())
+        self.aoi_vlay = vlay
+        
+        return vlay
     
+    def slice_aoi(self, vlay,
+                  aoi_vlay = None,
+                  sfx = 'aoi',
+                  logger=None):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if aoi_vlay is None: aoi_vlay = self.aoi_vlay
+        if logger is None: logger=self.logger
+        log = logger.getChild('slice_aoi')
+        
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        self.check_aoi(aoi_vlay)
+        
+        
+        #=======================================================================
+        # slice by aoi
+        #=======================================================================
+
+        vlay.removeSelection()
+        log.info('slicing finv \'%s\' and %i feats w/ aoi \'%s\''%(
+            vlay.name(),vlay.dataProvider().featureCount(), aoi_vlay.name()))
+        
+
+        
+        res_vlay =  self.selectbylocation(vlay, aoi_vlay, result_type='layer', logger=log)
+        
+        assert isinstance(res_vlay, QgsVectorLayer)
+        
+        
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        res_vlay.setName('%s_%s'%(vlay.name(), sfx))
+        vlay.removeSelection()
+        
+            
+        return res_vlay
     
+    #===========================================================================
+    # ALGOS----------
+    #===========================================================================
     def createspatialindex(self,
                      in_vlay,
                      logger = None,
@@ -502,6 +562,16 @@ class Qproj(Basic):
         res_vlay.setName(layname) #reset the name
 
         return res_vlay
+    
+    def check_aoi(self, #special c hecks for AOI layers
+                  vlay):
+        
+        assert isinstance(vlay, QgsVectorLayer)
+        assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
+        assert vlay.dataProvider().featureCount()==1
+        assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
+        
+        return 
     
     def _get_sel_obj(self, vlay): #get the processing object for algos with selections
         
@@ -859,7 +929,8 @@ def view(#view the vector data (or just a df) as a html frame
     else:
         raise Error('got unexpected object type: %s'%type(obj))
     
-    basic.view(df)
+    from hp.pd import view_web_df
+    view_web_df(df)
     
     logger.info('viewer closed')
     
