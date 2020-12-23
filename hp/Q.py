@@ -253,6 +253,97 @@ class Qproj(Basic):
         
         return True
     
+    #===========================================================================
+    # READ/WRITE-----
+    #===========================================================================
+    
+    def vlay_write(self, #write  a VectorLayer
+        vlay, out_fp, 
+
+        driverName='GPKG',
+        fileEncoding = "CP1250", 
+        opts = QgsVectorFileWriter.SaveVectorOptions(), #empty options object
+        overwrite=None,
+        logger=mod_logger):
+        """
+        help(QgsVectorFileWriter.SaveVectorOptions)
+        QgsVectorFileWriter.SaveVectorOptions.driverName='GPKG'
+        
+        
+        opt2 = QgsVectorFileWriter.BoolOption(QgsVectorFileWriter.CreateOrOverwriteFile)
+        
+        help(QgsVectorFileWriter)
+        
+
+        
+        """
+        
+        #==========================================================================
+        # defaults
+        #==========================================================================
+        log = logger.getChild('vlay_write')
+        if overwrite is None: overwrite=self.overwrite
+        
+    
+        
+        #===========================================================================
+        # assemble options
+        #===========================================================================
+        opts.driverName = driverName
+        opts.fileEncoding = fileEncoding
+        
+        
+        #===========================================================================
+        # checks
+        #===========================================================================
+        #file extension
+        fhead, ext = os.path.splitext(out_fp)
+        
+        if not 'gpkg' in ext:
+            raise Error('unexpected extension: %s'%ext)
+        
+        if os.path.exists(out_fp):
+            msg = 'requested file path already exists!. overwrite=%s \n    %s'%(
+                overwrite, out_fp)
+            if overwrite:
+                log.warning(msg)
+                os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
+            else:
+                raise Error(msg)
+            
+        
+        if vlay.dataProvider().featureCount() == 0:
+            raise Error('\'%s\' has no features!'%(
+                vlay.name()))
+            
+        if not vlay.isValid():
+            Error('passed invalid layer')
+            
+            
+            
+            
+        #=======================================================================
+        # write
+        #=======================================================================
+        
+        error = QgsVectorFileWriter.writeAsVectorFormatV2(
+                vlay, out_fp, 
+                QgsCoordinateTransformContext(),
+                opts,
+                )
+        
+        
+        #=======================================================================
+        # wrap and check
+        #=======================================================================
+          
+        if error[0] == QgsVectorFileWriter.NoError:
+            log.info('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
+            return 
+         
+        raise Error('FAILURE on writing layer \' %s \'  with code:\n    %s \n    %s'%(vlay.name(),error, out_fp))
+        
+    
     def vlay_load(self,
                   file_path,
 
@@ -344,7 +435,7 @@ class Qproj(Basic):
         
         log= self.logger.getChild('load_aoi')
         vlay = self.vlay_load(aoi_fp)
-        self.check_aoi(vlay)
+        self._check_aoi(vlay)
         self.aoi_vlay = vlay
         
         log.info('loaded aoi \'%s\''%vlay.name())
@@ -356,6 +447,9 @@ class Qproj(Basic):
                   aoi_vlay = None,
                   sfx = 'aoi',
                   logger=None):
+        """
+        also see misc.aoi_slicing
+        """
         
         #=======================================================================
         # defaults
@@ -367,7 +461,7 @@ class Qproj(Basic):
         #=======================================================================
         # prechecks
         #=======================================================================
-        self.check_aoi(aoi_vlay)
+        self._check_aoi(aoi_vlay)
         
         
         #=======================================================================
@@ -382,18 +476,28 @@ class Qproj(Basic):
         
         res_vlay =  self.selectbylocation(vlay, aoi_vlay, result_type='layer', logger=log)
         
-        assert isinstance(res_vlay, QgsVectorLayer)
-        
-        
-        
         #=======================================================================
         # wrap
         #=======================================================================
-        res_vlay.setName('%s_%s'%(vlay.name(), sfx))
         vlay.removeSelection()
+        #got some selection
+        if isinstance(res_vlay, QgsVectorLayer):
+            res_vlay.setName('%s_%s'%(vlay.name(), sfx))
+            
+        
         
             
         return res_vlay
+    
+    def _check_aoi(self, #special c hecks for AOI layers
+                  vlay):
+        
+        assert isinstance(vlay, QgsVectorLayer)
+        assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
+        assert vlay.dataProvider().featureCount()==1
+        assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
+        
+        return 
     
     #===========================================================================
     # ALGOS----------
@@ -563,15 +667,7 @@ class Qproj(Basic):
 
         return res_vlay
     
-    def check_aoi(self, #special c hecks for AOI layers
-                  vlay):
-        
-        assert isinstance(vlay, QgsVectorLayer)
-        assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
-        assert vlay.dataProvider().featureCount()==1
-        assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
-        
-        return 
+
     
     def _get_sel_obj(self, vlay): #get the processing object for algos with selections
         
@@ -645,6 +741,8 @@ class Qproj(Basic):
             raise Error('unexpected result_type kwarg')
             
         return result
+    
+    
    
         
         
@@ -753,7 +851,7 @@ def vlay_get_fdf( #pull all the feature data and place into a df
                     expect_all_real = False, #whether to expect all real results
                     allow_none = False,
                     
-                    db_f = False,
+                    #db_f = False,
                     logger=mod_logger,
                     feedback=MyFeedBackQ()):
     """
@@ -763,6 +861,8 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     
     this could be combined with vlay_get_feats()
     also see vlay_get_fdata() (for a single column)
+    
+    CanFlood.hlpr.Q
     
     
     RETURNS
@@ -782,9 +882,12 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     if fieldn_l is None: #use all the fields
         fieldn_l = all_fnl
         
-    else:
-        #TODO add field  name check
-        pass        
+   
+    #field name check
+    assert isinstance(fieldn_l, list)
+    miss_l = set(fieldn_l).difference(all_fnl)
+    assert len(miss_l)==0, '\'%s\' missing %i requested fields: %s'%(vlay.name(), len(miss_l), miss_l)
+  
 
     
     if allow_none:

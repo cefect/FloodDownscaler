@@ -33,6 +33,7 @@ class Basic(object): #simple base class
                  mod_name       = 'Simp',
                  tag            = 'BasicTag',
                  prec           = 2,
+                 overwrite      = False, #file overwriting control
                  ):
         
         
@@ -45,6 +46,7 @@ class Basic(object): #simple base class
         self.mod_name = mod_name
         self.tag = tag
         self.prec=prec
+        self.overwrite=overwrite
             
         self.out_dir = out_dir
         
