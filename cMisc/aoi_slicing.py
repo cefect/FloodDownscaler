@@ -87,6 +87,7 @@ class Sliceor(Qproj):
                         data_dir,  # top level directory to search
                         
                         search_patterns=('*.gpkg',),  # set of Unix shell-style wildcards
+                        ext='.gpkg',
                         logger=None,
                         ):
         
@@ -94,10 +95,10 @@ class Sliceor(Qproj):
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
-        log = logger.getChild('load_layers_dir')
+        log = logger.getChild('loadLD')
         assert os.path.exists(data_dir)
         
-        
+        log.info('loading w/ %s from %s'%(search_patterns, data_dir))
         
         #=======================================================================
         # walk and load
@@ -107,12 +108,20 @@ class Sliceor(Qproj):
         mdf = pd.DataFrame(columns = ('folderName', 'fp', 'geometry')) #metadata container
         
         
-        for dirpath, dirnames, filenames in os.walk(data_dir):
-            log.debug('%s    %s    %s' % (dirpath, dirnames, filenames))
+        for dirpath, dirnames, fns_raw in os.walk(data_dir):
+            log = logger.getChild('loadLD.%s'%os.path.basename(dirpath))
+            #log.debug('%s    %s    %s' % (dirpath, dirnames, filenames))
             
             # get the name of the current folder
             _, folderName = os.path.split(dirpath)
             assert folderName not in layers_d
+            
+            #clean out filenames
+            filenames = [fn for fn in fns_raw if fn.endswith(ext)]
+            
+            if len(filenames)==0: 
+                log.debug('no relevant files in %s'%dirpath)
+                continue
             
             log.info('loading from \'%s\' w/ %i files \n    %s' % (
                 folderName, len(filenames), filenames))
@@ -120,8 +129,8 @@ class Sliceor(Qproj):
             # load teh layers here
             #first = True
             for fileName in filenames:
-                baseFileName, ext = os.path.splitext(fileName)
-                
+                baseFileName, exti = os.path.splitext(fileName)
+                #if not ext == exti: continue #ignore this file
                 #===============================================================
                 # #check if this file matches the search patterns
                 #===============================================================
@@ -136,16 +145,7 @@ class Sliceor(Qproj):
                     continue #
 
                 
-                """just using one page
-                #start the page
-                if first:
-                    layers_d[folderName] = dict()
-                    first =False
-                    
-                    
-                if baseFileName in layers_d[folderName]:
-                    raise Error('file already there!: %s.%s'%(folderName, baseFileName))
-                """
+
                 assert not baseFileName in layers_d
                     
                 # load the file
@@ -176,6 +176,8 @@ class Sliceor(Qproj):
             #===================================================================
             log.info('finished \'%s\' w/ %i layers' % (folderName, layerCnt))
             
+        log = logger.getChild('loadLD')
+        assert len(layers_d)>0, 'no layers loaded!'
         #=======================================================================
         # wrap
         #=======================================================================
@@ -199,7 +201,7 @@ class Sliceor(Qproj):
         if logger is None: logger=self.logger
         log = logger.getChild('aoi_slice')
         
-
+        
         
         if delete_raw:
             mstore = QgsMapLayerStore() #build a new map store for removing the old layers
@@ -207,7 +209,7 @@ class Sliceor(Qproj):
         #=======================================================================
         # prechecks
         #=======================================================================
-        
+        assert len(layers_d)>0, 'got no layers'
         
         #=======================================================================
         # get raw counts
