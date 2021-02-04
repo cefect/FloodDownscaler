@@ -244,7 +244,9 @@ class Sliceor(Qproj):
             
             
             #cleanup
-            if not mstore is None: mstore.addMapLayer(vlayRaw)
+            if not mstore is None: 
+                mstore.addMapLayer(vlayRaw)
+                mstore.removeAllMapLayers()
             
             log.debug('%s w/ %i'%(loopName, cnt_df.loc[loopName, 'cnt_aoi']))
             
@@ -255,10 +257,7 @@ class Sliceor(Qproj):
         #combine results data
         cnt_df['cnt_aoi'] = cnt_df['cnt_aoi'].astype(int)
         
-        #memory clear
-        if not mstore is None:
-            mstore.removeAllMapLayers()
-            log.warning('cleared %i raw layers from memory'%len(layers_d))
+
         log.info('finished slicing %i'%len(res_d))
         
         return res_d, cnt_df

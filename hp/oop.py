@@ -48,9 +48,20 @@ class Basic(object): #simple base class
         self.prec=prec
         self.overwrite=overwrite
             
+        #=======================================================================
+        # output directory
+        #=======================================================================
+        if out_dir is None:
+            out_dir = os.path.join(work_dir, 'outs')
+            
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+            
         self.out_dir = out_dir
         
-        #setup the logger
+        #=======================================================================
+        # #setup the logger
+        #=======================================================================
         if logger is None:
             from hp.logr import BuildLogr
             lwrkr = BuildLogr(work_dir)
