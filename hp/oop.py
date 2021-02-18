@@ -5,8 +5,6 @@ Created on Mar 10, 2019
 
 object oriented programming
 
-
-py2.7
 '''
 
 

@@ -158,9 +158,13 @@ class Sliceor(Qproj):
                 layers_d[baseFileName] = layer
                 
                 #meta
+                """
+                todo: make this a series w/ dict
+                """
                 mdf.loc[baseFileName, 'folderName'] = folderName
                 mdf.loc[baseFileName, 'fp'] = fp
                 mdf.loc[baseFileName, 'geometry'] = QgsWkbTypes().displayString(layer.wkbType())
+                mdf.loc[baseFileName, 'fn'] = fileName
                 
                 
             """one page
@@ -237,9 +241,11 @@ class Sliceor(Qproj):
             else:
                 fcnt = vlaySlice.dataProvider().featureCount()
                 res_d[loopName] = vlaySlice
+                cnt_df.loc[loopName, 'fn_slice'] =  vlaySlice.name()
                 
             #store
             cnt_df.loc[loopName, 'cnt_aoi'] =  fcnt
+            
             
             
             
