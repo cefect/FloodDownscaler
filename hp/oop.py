@@ -29,7 +29,7 @@ class Basic(object): #simple base class
                  out_dir        = None,
                  work_dir       = r'C:\LS\03_TOOLS\misc',
                  mod_name       = 'Simp',
-                 tag            = 'BasicTag',
+                 tag            = '',
                  prec           = 2,
                  overwrite      = False, #file overwriting control
                  ):
