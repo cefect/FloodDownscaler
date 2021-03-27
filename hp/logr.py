@@ -18,6 +18,7 @@ class BuildLogr(object): #simple class to build a logger
         #===============================================================================
         # FILE SETUP
         #===============================================================================
+        assert os.path.exists(work_dir), work_dir
         os.chdir(work_dir) #set this to the working directory
         print('working directory set to \"%s\''%os.getcwd())
         
