@@ -18,6 +18,8 @@ import pandas as pd
 # import QGIS librarires
 #===============================================================================
 from qgis.core import *
+from qgis.gui import QgisInterface
+
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
 
@@ -34,6 +36,7 @@ import processing
 from hp.exceptions import Error
 
 from hp.oop import Basic
+from hp.dirz import get_valid_filename
 
 
 #===============================================================================
@@ -883,6 +886,167 @@ class Qproj(QAlgos, Basic):
                       file_path))
         
         return vlay
+    
+    def rlay_write(self, #make a local copy of the passed raster layer
+                   rlayer, #raster layer to make a local copy of
+                   extent = 'layer', #write extent control
+                        #'layer': use the current extent (default)
+                        #'mapCanvas': use the current map Canvas
+                        #QgsRectangle: use passed extents
+                   
+                   
+                   resolution = 'raw', #resolution for output
+                   
+                   
+                   opts = ["COMPRESS=LZW"], #QgsRasterFileWriter.setCreateOptions
+                   
+                   out_dir = None, #directory for puts
+                   newLayerName = None,
+                   
+                   logger=None,
+                   ):
+        """
+        taken from CanFlood.hlpr.Q
+        because  processing tools only work on local copies
+        
+        #=======================================================================
+        # coordinate transformation
+        #=======================================================================
+        NO CONVERSION HERE!
+        can't get native API to work. use gdal_warp instead
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        if out_dir is None: out_dir = self.out_dir
+        if newLayerName is None: newLayerName = rlayer.name()
+        
+        newFn = get_valid_filename('%s.tif'%newLayerName) #clean it
+        
+        out_fp = os.path.join(out_dir, newFn)
+
+        
+        log = logger.getChild('write_rlay')
+        
+        log.debug('on \'%s\' w/ \n    crs:%s \n    extents:%s\n    xUnits:%.4f'%(
+            rlayer.name(), rlayer.crs(), rlayer.extent(), rlayer.rasterUnitsPerPixelX()))
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(rlayer, QgsRasterLayer)
+        assert os.path.exists(out_dir)
+        
+        if os.path.exists(out_fp):
+            msg = 'requested file already exists! and overwrite=%s \n    %s'%(
+                self.overwrite, out_fp)
+            if self.overwrite:
+                log.warning(msg)
+            else:
+                raise Error(msg)
+
+        #=======================================================================
+        # extract info from layer
+        #=======================================================================
+        """consider loading the layer and duplicating the renderer?
+        renderer = rlayer.renderer()"""
+        provider = rlayer.dataProvider()
+        
+        
+        #build projector
+        projector = QgsRasterProjector()
+        #projector.setCrs(provider.crs(), provider.crs())
+        
+
+        #build and configure pipe
+        pipe = QgsRasterPipe()
+        if not pipe.set(provider.clone()): #Insert a new known interface in default place
+            raise Error("Cannot set pipe provider")
+             
+        if not pipe.insert(2, projector): #insert interface at specified index and connect
+            raise Error("Cannot set pipe projector")
+
+        #pipe = rlayer.pipe()
+            
+        
+        #coordinate transformation
+        """see note"""
+        transformContext = self.qproj.transformContext()
+        
+        #=======================================================================
+        # extents
+        #=======================================================================
+        if extent == 'layer':
+            extent = rlayer.extent()
+            
+        elif extent=='mapCanvas':
+            assert isinstance(self.iface, QgisInterface), 'bad key for StandAlone?'
+            
+            #get the extent, transformed to the current CRS
+            extent =  QgsCoordinateTransform(
+                self.qproj.crs(), 
+                rlayer.crs(), 
+                transformContext
+                    ).transformBoundingBox(self.iface.mapCanvas().extent())
+                
+        assert isinstance(extent, QgsRectangle), 'expected extent=QgsRectangle. got \"%s\''%extent
+        
+        #expect the requested extent to be LESS THAN what we have in the raw raster
+        assert rlayer.extent().width()>=extent.width(), 'passed extents too wide'
+        assert rlayer.extent().height()>=extent.height(), 'passed extents too tall'
+        #=======================================================================
+        # resolution
+        #=======================================================================
+        #use the resolution of the raw file
+        if resolution == 'raw':
+            """this respects the calculated extents"""
+            
+            nRows = int(extent.height()/rlayer.rasterUnitsPerPixelY())
+            nCols = int(extent.width()/rlayer.rasterUnitsPerPixelX())
+            
+
+            
+        else:
+            """dont think theres any decent API support for the GUI behavior"""
+            raise Error('not implemented')
+
+        
+
+        
+        #=======================================================================
+        # #build file writer
+        #=======================================================================
+
+        file_writer = QgsRasterFileWriter(out_fp)
+        #file_writer.Mode(1) #???
+        
+        if not opts is None:
+            file_writer.setCreateOptions(opts)
+        
+        log.debug('writing to file w/ \n    %s'%(
+            {'nCols':nCols, 'nRows':nRows, 'extent':extent, 'crs':rlayer.crs()}))
+        
+        #execute write
+        error = file_writer.writeRaster( pipe, nCols, nRows, extent, rlayer.crs(), transformContext)
+        
+        log.info('wrote to file \n    %s'%out_fp)
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        if not error == QgsRasterFileWriter.NoError:
+            raise Error(error)
+        
+        assert os.path.exists(out_fp)
+        
+        assert QgsRasterLayer.isValidRasterFileName(out_fp),  \
+            'requested file is not a valid raster file type: %s'%out_fp
+        
+        
+        return out_fp
+    
+    
     
     def rlay_load(self, fp,  #load a raster layer and apply an aoi clip
                   aoi_vlay = None,

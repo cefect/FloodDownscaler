@@ -8,14 +8,12 @@ Library of windows file/directory common operations
 
 
 # Import Python LIbraries 
-import os, time, shutil, logging, csv, re, itertools, copy
+import os, time, shutil, logging,  re, copy
 
 
 
 from datetime import datetime
 
-
-import pandas as pd
 
 """
 throws: ModuleNotFoundError: No module named '_tkinter'
@@ -23,8 +21,6 @@ throws: ModuleNotFoundError: No module named '_tkinter'
 2019 12 11: played with this a bit.
 seems to only throw during debugging
 """
-
-import numpy as np
 
 
 from hp.exceptions import Error
@@ -235,12 +231,13 @@ def copy_to_temp( #copy the file to a temporary directory
         return res  #should return the sh ape files
     
 
-def get_basefn(filepath):
-    ftail, fhead = os.path.split(filepath)
-    basefn, ext = os.path.splitext(fhead)
-    return basefn
 
 
+def get_valid_filename(s):
+    s = str(s).strip().replace(' ', '_')
+    s = re.sub(r'(?u)[^-\w.]', '', s)
+    s = re.sub(':','-', s)
+    return s
     
     
 if __name__ == '__main__':
