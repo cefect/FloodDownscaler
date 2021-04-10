@@ -9,7 +9,7 @@ Created on Oct. 8, 2020
 #===============================================================================
 # # standard imports -----------------------------------------------------------
 #===============================================================================
-import time, sys, os, logging, copy, shutil, re, inspect, weakref
+import time, sys, os, logging, datetime, inspect
 
 import numpy as np
 import pandas as pd
@@ -43,6 +43,38 @@ from hp.dirz import get_valid_filename
 # logging
 #===============================================================================
 mod_logger = logging.getLogger(__name__)
+
+
+#==============================================================================
+# globals
+#==============================================================================
+fieldn_max_d = {'SpatiaLite':50, 'ESRI Shapefile':10, 'Memory storage':50, 'GPKG':50}
+
+npc_pytype_d = {'?':bool,
+                'b':int,
+                'd':float,
+                'e':float,
+                'f':float,
+                'q':int,
+                'h':int,
+                'l':int,
+                'i':int,
+                'g':float,
+                'U':str,
+                'B':int,
+                'L':int,
+                'Q':int,
+                'H':int,
+                'I':int, 
+                'O':str, #this is the catchall 'object'
+                }
+
+type_qvar_py_d = {10:str, 2:int, 135:float, 6:float, 4:int, 1:bool, 16:datetime.datetime, 12:str} #QVariant.types to pythonic types
+
+#parameters for lots of statistic algos
+stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median': 5,
+                'St dev (pop)': 6, 'Minimum': 7, 'Maximum': 8, 'Range': 9, 'Minority': 10,
+                 'Majority': 11, 'Variety': 12, 'Q1': 13, 'Q3': 14, 'IQR': 15}
 
 
 #===============================================================================
@@ -521,10 +553,7 @@ class QAlgos(object):
             
         return result
     
-    
-   
-   
-   
+
 class Qproj(QAlgos, Basic):
     """
     common methods for Qgis projects
@@ -562,12 +591,6 @@ class Qproj(QAlgos, Basic):
         self._init_algos()
         
         self._set_vdrivers()
-        
-        
-        
-
-
-        
         
         
         if not self.proj_checks():
@@ -1173,6 +1196,183 @@ class Qproj(QAlgos, Basic):
         assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
         
         return 
+    
+    #===========================================================================
+    # vlay methods-------------
+    #===========================================================================
+    def vlay_new_df(self, #build a vlay from a df
+            df_raw,
+            
+            geo_d = None, #container of geometry objects {fid: QgsGeometry}
+
+            crs=None,
+            gkey = None, #data field linking with geo_d (if None.. uses df index)
+            
+            layname='df',
+            
+            index = False, #whether to include the index as a field
+            logger=None, 
+
+            ):
+        """
+        performance enhancement over vlay_new_df
+            simpler, clearer
+            although less versatile
+        """
+        #=======================================================================
+        # setup
+        #=======================================================================
+        if crs is None: crs = self.qproj.crs()
+        if logger is None: logger = self.logger
+            
+        log = logger.getChild('vlay_new_df')
+        
+        
+        #=======================================================================
+        # index fix
+        #=======================================================================
+        df = df_raw.copy()
+        
+        if index:
+            if not df.index.name is None:
+                coln = df.index.name
+                df.index.name = None
+            else:
+                coln = 'index'
+                
+            df[coln] = df.index
+            
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        
+        
+        #make sure none of hte field names execeed the driver limitations
+        max_len = fieldn_max_d[self.driverName]
+        
+        #check lengths
+        boolcol = df_raw.columns.str.len() >= max_len
+        
+        if np.any(boolcol):
+            log.warning('passed %i columns which exeed the max length=%i for driver \'%s\'.. truncating: \n    %s'%(
+                boolcol.sum(), max_len, self.driverName, df_raw.columns[boolcol].tolist()))
+            
+            
+            df.columns = df.columns.str.slice(start=0, stop=max_len-1)
+
+        
+        #make sure the columns are unique
+        assert df.columns.is_unique
+        
+        #check the geometry
+        if not geo_d is None:
+            assert isinstance(geo_d, dict)
+            if not gkey is None:
+                assert gkey in df_raw.columns
+        
+                #assert 'int' in df_raw[gkey].dtype.name
+                
+                #check gkey match
+                l = set(df_raw[gkey].drop_duplicates()).difference(geo_d.keys())
+                assert len(l)==0, 'missing %i \'%s\' keys in geo_d: %s'%(len(l), gkey, l)
+                
+            #against index
+            else:
+                
+                #check gkey match
+                l = set(df_raw.index).difference(geo_d.keys())
+                assert len(l)==0, 'missing %i (of %i) fid keys in geo_d: %s'%(len(l), len(df_raw), l)
+
+        #===========================================================================
+        # assemble the fields
+        #===========================================================================
+        #column name and python type
+        fields_d = {coln:np_to_pytype(col.dtype) for coln, col in df.items()}
+        
+        #fields container
+        qfields = fields_build_new(fields_d = fields_d, logger=log)
+        
+        #=======================================================================
+        # assemble the features
+        #=======================================================================
+        #convert form of data
+        
+        feats_d = dict()
+        for fid, row in df.iterrows():
+    
+            feat = QgsFeature(qfields, fid) 
+            
+            #loop and add data
+            for fieldn, value in row.items():
+    
+                #skip null values
+                if pd.isnull(value): continue
+                
+                #get the index for this field
+                findx = feat.fieldNameIndex(fieldn) 
+                
+                #get the qfield
+                qfield = feat.fields().at(findx)
+                
+                #make the type match
+                ndata = qtype_to_pytype(value, qfield.type(), logger=log)
+                
+                #set the attribute
+                if not feat.setAttribute(findx, ndata):
+                    raise Error('failed to setAttribute')
+                
+            #setgeometry
+            if not geo_d is None:
+                if gkey is None:
+                    gobj = geo_d[fid]
+                else:
+                    gobj = geo_d[row[gkey]]
+                
+                feat.setGeometry(gobj)
+            
+            #stor eit
+            feats_d[fid]=feat
+        
+        log.debug('built %i \'%s\'  features'%(
+            len(feats_d),
+            QgsWkbTypes.geometryDisplayString(feat.geometry().type()),
+            ))
+        
+        
+        #=======================================================================
+        # get the geo type
+        #=======================================================================\
+        if not geo_d is None:
+            gtype = QgsWkbTypes().displayString(next(iter(geo_d.values())).wkbType())
+        else:
+            gtype='None'
+
+            
+            
+        #===========================================================================
+        # buidl the new layer
+        #===========================================================================
+        vlay = vlay_new_mlay(gtype,
+                             crs, 
+                             layname,
+                             qfields,
+                             list(feats_d.values()),
+                             logger=log,
+                             )
+        self.createspatialindex(vlay, logger=log)
+        #=======================================================================
+        # post check
+        #=======================================================================
+        if not geo_d is None:
+            if vlay.wkbType() == 100:
+                raise Error('constructed layer has NoGeometry')
+
+
+
+        
+        return vlay
+    
+
  
 class MyFeedBackQ(QgsProcessingFeedback):
     """
@@ -1444,7 +1644,241 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     else:
         raise Error('unrecognized fmt kwarg')
 
+def vlay_get_geo( #get geometry dict from layer
+        vlay,
+        request = None, #additional requester (limiting fids). fieldn still required. additional flags added
+        selected = False,
+        logger=mod_logger,
+        ):
     
+    log = logger.getChild('vlay_get_geo')
+    
+    #===========================================================================
+    # build the request
+    #===========================================================================
+    
+    if request is None:
+        request = QgsFeatureRequest()
+    request = request.setNoAttributes() #dont get any attributes
+    
+    
+    if selected:
+        """
+        todo: check if there is already a fid filter placed on the reuqester
+        """
+        log.debug('limiting data pull to %i selected features on \'%s\''%(
+            vlay.selectedFeatureCount(), vlay.name()))
+        
+        sfids = vlay.selectedFeatureIds()
+        
+        request = request.setFilterFids(sfids)
+        
+        
+    #===========================================================================
+    # loop through and collect hte data
+    #===========================================================================
+
+    d = {f.id():f.geometry() for f in vlay.getFeatures(request)}
+    
+    log.debug('retrieved %i attributes from features on \'%s\''%(
+        len(d), vlay.name()))
+    
+    #===========================================================================
+    # checks
+    #===========================================================================
+    assert len(d)>0
+    
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    return d
+
+def vlay_new_mlay(#create a new mlay
+                      gtype, #"Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", or "MultiPolygon".
+                      crs,
+                      layname,
+                      qfields,
+                      feats_l,
+
+                      logger=mod_logger,
+                      ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log = logger.getChild('vlay_new_mlay')
+
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        if not isinstance(layname, str):
+            raise Error('expected a string for layname, isntead got %s'%type(layname))
+        
+        if gtype=='None':
+            log.warning('constructing mlay w/ \'None\' type')
+        #=======================================================================
+        # assemble into new layer
+        #=======================================================================
+        #initilzie the layer
+        EPSG_code=int(crs.authid().split(":")[1]) #get teh coordinate reference system of input_layer
+        uri = gtype+'?crs=epsg:'+str(EPSG_code)+'&index=yes'
+        
+        vlaym = QgsVectorLayer(uri, layname, "memory")
+        
+        # add fields
+        if not vlaym.dataProvider().addAttributes(qfields):
+            raise Error('failed to add fields')
+        
+        vlaym.updateFields()
+        
+        #add feats
+        if not vlaym.dataProvider().addFeatures(feats_l):
+            raise Error('failed to addFeatures')
+        
+        vlaym.updateExtents()
+        
+
+        
+        #=======================================================================
+        # checks
+        #=======================================================================
+        if vlaym.wkbType() == 100:
+            msg = 'constructed layer \'%s\' has NoGeometry'%vlaym.name()
+            if gtype == 'None':
+                log.debug(msg)
+            else:
+                raise Error(msg)
+
+        
+        log.debug('constructed \'%s\''%vlaym.name())
+        return vlaym
+    
+def field_new(fname, 
+              pytype=str, 
+              driverName = 'SpatiaLite', #desired driver (to check for field name length limitations)
+              fname_trunc = True, #whether to truncate field names tha texceed the limit
+              logger=mod_logger): #build a QgsField
+    
+    #===========================================================================
+    # precheck
+    #===========================================================================
+    if not isinstance(fname, str):
+        raise IOError('expected string for fname')
+    
+    #vector layer field name lim itation
+    max_len = fieldn_max_d[driverName]
+    """
+    fname = 'somereallylongname'
+    """
+    if len(fname) >max_len:
+        log = logger.getChild('field_new')
+        log.warning('got %i (>%i)characters for passed field name \'%s\'. truncating'%(len(fname), max_len, fname))
+        
+        if fname_trunc:
+            fname = fname[:max_len]
+        else:
+            raise Error('field name too long')
+        
+    
+    qtype = ptype_to_qtype(pytype)
+    
+    """
+    #check this type
+    QMetaType.typeName(QgsField(fname, qtype).type())
+    
+    QVariant.String
+    QVariant.Int
+    
+     QMetaType.typeName(new_qfield.type())
+    
+    """
+    #new_qfield = QgsField(fname, qtype)
+    new_qfield = QgsField(fname, qtype, typeName=QMetaType.typeName(QgsField(fname, qtype).type()))
+    
+    return new_qfield
+
+def fields_build_new( #build qfields from different data containers
+                    samp_d = None, #sample data from which to build qfields {fname: value}
+                    fields_d = None, #direct data from which to build qfields {fname: pytype}
+                    fields_l = None, #list of QgsField objects
+                    logger=mod_logger):
+
+    log = logger.getChild('fields_build_new')
+    #===========================================================================
+    # buidl the fields_d
+    #===========================================================================
+    if (fields_d is None) and (fields_l is None): #only if we have nothign better to start with
+        if samp_d is None: 
+            log.error('got no data to build fields on!')
+            raise IOError
+        
+        fields_l = []
+        for fname, value in samp_d.items():
+            if pd.isnull(value):
+                log.error('for field \'%s\' got null value')
+                raise IOError
+            
+            elif inspect.isclass(value):
+                raise IOError
+            
+            fields_l.append(field_new(fname, pytype=type(value)))
+            
+        log.debug('built %i fields from sample data'%len(fields_l))
+        
+    
+    
+    #===========================================================================
+    # buidl the fields set
+    #===========================================================================
+    elif fields_l is None:
+        fields_l = []
+        for fname, ftype in fields_d.items():
+            fields_l.append(field_new(fname, pytype=ftype))
+            
+        log.debug('built %i fields from explicit name/type'%len(fields_l))
+            
+        #check it 
+        if not len(fields_l) == len(fields_d):
+            raise Error('length mismatch')
+            
+    elif fields_d is None: #check we have the other
+        raise IOError
+    
+    
+    
+            
+    #===========================================================================
+    # build the Qfields
+    #===========================================================================
+    
+    Qfields = QgsFields()
+    
+    fail_msg_d = dict()
+    
+    for indx, field in enumerate(fields_l): 
+        if not Qfields.append(field):
+            fail_msg_d[indx] = ('%i failed to append field \'%s\''%(indx, field.name()), field)
+
+    #report
+    if len(fail_msg_d)>0:
+        for indx, (msg, field) in fail_msg_d.items():
+            log.error(msg)
+            
+        raise Error('failed to write %i fields'%len(fail_msg_d))
+    
+    """
+    field.name()
+    field.constraints().constraintDescription()
+    field.length()
+    
+    """
+    
+    
+    #check it 
+    if not len(Qfields) == len(fields_l):
+        raise Error('length mismatch')
+
+
+    return Qfields
     
 
 def view(#view the vector data (or just a df) as a html frame
@@ -1467,6 +1901,139 @@ def view(#view the vector data (or just a df) as a html frame
     
     return
 
+#==============================================================================
+# type conversions----------------
+#==============================================================================
+
+def np_to_pytype(npdobj, logger=mod_logger):
+    
+    if not isinstance(npdobj, np.dtype):
+        raise Error('not passed a numpy type')
+    
+    try:
+        return npc_pytype_d[npdobj.char]
+
+    except Exception as e:
+        log = logger.getChild('np_to_pytype')
+        
+        if not npdobj.char in npc_pytype_d.keys():
+            log.error('passed npdtype \'%s\' not found in the conversion dictionary'%npdobj.name)
+            
+        raise Error('failed oto convert w/ \n    %s'%e)
+    
+
+def qtype_to_pytype( #convert object to the pythonic type taht matches the passed qtype code
+        obj, 
+        qtype_code, #qtupe code (qfield.type())
+        logger=mod_logger): 
+    
+    if is_qtype_match(obj, qtype_code): #no conversion needed
+        return obj 
+    
+    
+    #===========================================================================
+    # shortcut for nulls
+    #===========================================================================
+    if qisnull(obj):
+        return None
+
+        
+    
+        
+    
+    
+    #get pythonic type for this code
+    py_type = type_qvar_py_d[qtype_code]
+    
+    try:
+        return py_type(obj)
+    except:
+        #datetime
+        if qtype_code == 16:
+            return obj.toPyDateTime()
+        
+        
+        log = logger.getChild('qtype_to_pytype')
+        if obj is None:
+            log.error('got NONE type')
+            
+        elif isinstance(obj, QVariant):
+            log.error('got a Qvariant object')
+            
+        else:
+            log.error('unable to map object \'%s\' of type \'%s\' to type \'%s\''
+                      %(obj, type(obj), py_type))
+            
+            
+            """
+            QMetaType.typeName(obj)
+            """
+        raise IOError
+    
+def ptype_to_qtype(py_type, logger=mod_logger): #get the qtype corresponding to the passed pytype
+    """useful for buildign Qt objects
+    
+    really, this is a reverse 
+    
+    py_type=str
+    
+    """
+    if not inspect.isclass(py_type):
+        logger.error('got unexpected type \'%s\''%type(py_type))
+        raise Error('bad type')
+    
+    #build a QVariant object from this python type class, then return its type
+    try:
+        qv = QVariant(py_type())
+    except:
+        logger.error('failed to build QVariant from \'%s\''%type(py_type))
+        raise IOError
+    
+    """
+    #get the type
+    QMetaType.typeName(qv.type())
+    """
+    
+    
+    return qv.type()
+
+#==============================================================================
+# type checks-----------------
+#==============================================================================
+
+def qisnull(obj):
+    if obj is None:
+        return True
+    
+    if isinstance(obj, QVariant):
+        if obj.isNull():
+            return True
+        else:
+            return False
+        
+    
+    if pd.isnull(obj):
+        return True
+    else:
+        return False
+    
+def is_qtype_match(obj, qtype_code, logger=mod_logger): #check if the object matches the qtype code
+    log = logger.getChild('is_qtype_match')
+    
+    #get pythonic type for this code
+    try:
+        py_type = type_qvar_py_d[qtype_code]
+    except:
+
+        if not qtype_code in type_qvar_py_d.keys():
+            log.error('passed qtype_code \'%s\' not in dict from \'%s\''%(qtype_code, type(obj)))
+            raise IOError
+    
+    if not isinstance(obj, py_type):
+        #log.debug('passed object of type \'%s\' does not match Qvariant.type \'%s\''%(type(obj), QMetaType.typeName(qtype_code)))
+        return False
+    else:
+        return True
 
 def test_install(): #test your qgis install
     
