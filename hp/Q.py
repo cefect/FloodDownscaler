@@ -76,6 +76,9 @@ stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median':
                 'St dev (pop)': 6, 'Minimum': 7, 'Maximum': 8, 'Range': 9, 'Minority': 10,
                  'Majority': 11, 'Variety': 12, 'Q1': 13, 'Q3': 14, 'IQR': 15}
 
+#spatial relation predicates
+predicate_d = {'intersects':0,'contains':1,'equals':2,'touches':3,'overlaps':4,'within':5, 'crosses':6}
+
 
 #===============================================================================
 # funcs
@@ -478,6 +481,90 @@ class QAlgos(object):
         log.debug('finished w/ %s'%res_rlay.name())
           
         return res_rlay
+    
+    def joinattributesbylocation(self, 
+         vlay, #base layer
+         jvlay, #layer to join
+         jvlay_fnl=[], #join layer field name list
+         predicate='intersects', 
+         prefix='',
+         method=0, #join type
+             # 0: Create separate feature for each matching feature (one-to-many)
+             #1: Take attributes of the first matching feature only (one-to-one)
+             #2: Take attributes of the feature with largest overlap only (one-to-one)
+        output='TEMPORARY_OUTPUT',
+             
+        logger=None,
+                                 ):
+        """
+        also see canflood.hlpr.Q for more sophisticated version
+        
+        dropped all the data checks and warnings here
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('joinattributesbylocation')
+        
+        algo_nm = 'qgis:joinattributesbylocation'
+        
+        #=======================================================================
+        # assemble parameters
+        #=======================================================================
+        assert predicate in predicate_d, 'unrecognized predicarte: %s' %predicate
+
+        
+        
+        pars_d = { 'DISCARD_NONMATCHING' : False, 
+                  'INPUT' : vlay, 
+                  'JOIN' : jvlay, 
+                  'JOIN_FIELDS' : jvlay_fnl, 
+                  'METHOD' : method, 
+                  'NON_MATCHING' : 'TEMPORARY_OUTPUT', 
+                  'OUTPUT' : output, 
+                  'PREDICATE' : [predicate_d[predicate]], #only accepting single predicate
+                  'PREFIX' : prefix }
+        
+
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.debug('%s w/ \n%s'%(algo_nm, pars_d))
+        res_d = processing.run(algo_nm, pars_d, feedback=self.feedback)
+        
+        """just leaving the output as is
+        #retriieve results
+        if os.path.exists(output):
+            res_vlay = self.vlay_load(output)
+        else:
+            res_vlay = res_d[output]
+            
+        assert isinstance(res_vlay, QgsVectorLayer)
+        """
+            
+        result = res_d['OUTPUT']
+        
+        join_cnt  = res_d['JOINED_COUNT']
+        
+        vlay_nomatch = res_d['NON_MATCHING'] #Unjoinable features from first layer
+        
+        #=======================================================================
+        # warp
+        #=======================================================================
+        ofcnt = vlay.dataProvider().featureCount()
+        jfcnt = jvlay.dataProvider().featureCount()
+        miss_cnt = ofcnt-join_cnt
+        
+        if not miss_cnt>=0:
+            log.warning('got negative miss_cnt: %i'%miss_cnt)
+            """this can happen when a base feature intersects multiple join features for method=0"""
+        
+        log.info('finished joining \'%s\' (%i feats) to \'%s\' (%i feats)\n    %i hits and %i misses'%(
+            vlay.name(), ofcnt, jvlay.name(), jfcnt, join_cnt, miss_cnt))
+        
+        return res_vlay, miss_cnt
+    
     
     
     def _get_sel_obj(self, vlay): #get the processing object for algos with selections

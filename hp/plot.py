@@ -324,6 +324,7 @@ class Plotr(Basic):
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
         #=======================================================================
         # precheck
         #=======================================================================
