@@ -381,25 +381,9 @@ class QAlgos(object):
         #=======================================================================
         # get the result
         #=======================================================================
-        if result == 'layer':
-            res_rlay = QgsRasterLayer(res_d['OUTPUT'], layname)
-    
-            #=======================================================================
-            # #post check
-            #=======================================================================
-            assert isinstance(res_rlay, QgsRasterLayer), 'got bad type: %s'%type(res_rlay)
-            assert res_rlay.isValid()
-               
-       
-            res_rlay.setName(layname) #reset the name
-               
-            log.debug('finished w/ %s'%res_rlay.name())
-          
-            return res_rlay
-        elif result == 'fp':
-            return res_d['OUTPUT']
-        else:
-            raise Error('unrecognzied result kwarg: %s'%result)
+        return self._get_rlay_res(res_d, result, layname=layname)
+ 
+
         
         
     def warpreproject(self, #repojrect a raster
@@ -563,8 +547,65 @@ class QAlgos(object):
         log.info('finished joining \'%s\' (%i feats) to \'%s\' (%i feats)\n    %i hits and %i misses'%(
             vlay.name(), ofcnt, jvlay.name(), jfcnt, join_cnt, miss_cnt))
         
-        return res_vlay, miss_cnt
+        return result, miss_cnt
     
+    def rasterize_value(self, #build a rastser with a fixed value from a polygon
+                bval, #fixed value to burn,
+                poly_vlay, #polygon layer with geometry
+                resolution=10,
+                output = 'TEMPORARY_OUTPUT',
+                result = 'layer', #type fo result to provide
+                #layer: default, returns a raster layuer
+                #fp: #returns the filepath result
+                layname=None,
+                logger=None,
+                  ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('rasterize')
+        if layname is None: layname = '%s_%.2f'%(poly_vlay.name(), bval)
+        algo_nm = 'gdal:rasterize'
+        
+        
+        
+        """
+        extents =  QgsRectangle(-127.6, 44.1, -106.5, 54.1)
+        """
+        #=======================================================================
+        # get extents
+        #=======================================================================
+        rect = poly_vlay.extent()
+        
+        extent = '%s,%s,%s,%s'%(rect.xMinimum(), rect.xMaximum(), rect.yMinimum(), rect.yMaximum())+ \
+                ' [%s]'%poly_vlay.crs().authid()
+
+        
+        #=======================================================================
+        # build pars
+        #=======================================================================
+        pars_d = { 'BURN' : bval, #fixed value to burn
+                  'EXTENT' : extent,
+                   #'EXTENT' : '1221974.375000000,1224554.125000000,466981.406300000,469354.031300000 [EPSG:3005]',
+                    'EXTRA' : '', 'FIELD' : '', 
+                    'HEIGHT' : resolution, 'WIDTH' : resolution, 'UNITS' : 1,  #Georeferenced units 
+                    'INIT' : None, #Pre-initialize the output image with value
+                     
+                      'INVERT' : False,
+                   'NODATA' : -9999, 'DATA_TYPE' : 5,'OPTIONS' : '',
+                   'INPUT' : poly_vlay, 'OUTPUT' : output,
+                    
+                     
+                      }
+        
+        log.debug('%s w/ \n    %s'%(algo_nm, pars_d))
+        res_d = processing.run(algo_nm, pars_d, feedback=self.feedback)
+        
+        #laod teh rlay
+        
+    
+        return self._get_rlay_res(res_d, result, layname=layname)
     
     
     def _get_sel_obj(self, vlay): #get the processing object for algos with selections
@@ -639,6 +680,28 @@ class QAlgos(object):
             raise Error('unexpected result_type kwarg')
             
         return result
+    
+    def _get_rlay_res(self, res_d, result, layname=None):
+        
+        if result == 'layer':
+            res_rlay = QgsRasterLayer(res_d['OUTPUT'], layname)
+    
+            #=======================================================================
+            # #post check
+            #=======================================================================
+            assert isinstance(res_rlay, QgsRasterLayer), 'got bad type: %s'%type(res_rlay)
+            assert res_rlay.isValid()
+               
+       
+            res_rlay.setName(layname) #reset the name
+               
+
+          
+            return res_rlay
+        elif result == 'fp':
+            return res_d['OUTPUT']
+        else:
+            raise Error('unrecognzied result kwarg: %s'%result)
     
 
 class Qproj(QAlgos, Basic):
