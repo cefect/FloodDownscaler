@@ -98,7 +98,13 @@ class QAlgos(object):
         super().__init__(**kwargs) #initilzie teh baseclass
         
         
-    def _init_algos(self): #initiilize processing and add providers
+    def _init_algos(self,
+                    context=None,
+                    invalidGeometry=QgsFeatureRequest.GeometrySkipInvalid,
+                        #GeometryNoCheck
+                        #GeometryAbortOnInvalid
+                        
+                    ): #initiilize processing and add providers
         """
         crashing without raising an Exception
         """
@@ -109,7 +115,22 @@ class QAlgos(object):
         if not isinstance(self.qap, QgsApplication):
             raise Error('qgis has not been properly initlized yet')
         
+        #=======================================================================
+        # build default co ntext
+        #=======================================================================
+        if context is None:
+
+            context=QgsProcessingContext()
+            context.setInvalidGeometryCheck(invalidGeometry)
+            
+        self.context=context
+        
+        #=======================================================================
+        # init p[rocessing]
+        #=======================================================================
         from processing.core.Processing import Processing
+
+        
     
         Processing.initialize() #crashing without raising an Exception
     
@@ -230,7 +251,178 @@ class QAlgos(object):
             %(vlay.selectedFeatureCount(),vlay.dataProvider().featureCount(), vlay.name()))
         
         return self._get_sel_res(vlay, result_type=result_type, logger=log, allow_none=allow_none)
+    
+    def dissolve(self, #select features (from main laye) by geoemtric relation with comp_vlay
+                vlay, #vlay to select features from
+
+                output='TEMPORARY_OUTPUT',
+                selected_only = False, #selected features only on the comp_vlay
+                
+
+                logger = None,
+
+                ):
         
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:dissolve'   
+        log = logger.getChild('dissolve')
+        
+        if selected_only:
+            alg_input = self._get_sel_obj(vlay)
+        else:
+            alg_input = vlay
+
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 'FIELD' : [], 
+                 'INPUT' : alg_input,
+                 'OUTPUT' : output,
+                 }
+        
+        #=======================================================================
+        # log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+        #     %(algo_nm, vlay.name(), ins_d))
+        #=======================================================================
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+
+    
+    def fixgeo(self, 
+                vlay, #vlay to select features from
+
+                output='TEMPORARY_OUTPUT',
+                selected_only = False, #selected features only on the comp_vlay
+
+                logger = None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:fixgeometries'   
+        log = logger.getChild('fixgeo')
+        
+        if selected_only:
+            alg_input = self._get_sel_obj(vlay)
+        else:
+            alg_input = vlay
+
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 
+                'INPUT' : alg_input,
+                 'OUTPUT' : output,
+                 }
+        
+        log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+            %(algo_nm, vlay.name(), ins_d))
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback)
+        
+
+        return res_d['OUTPUT']
+    
+    def centroids(self, 
+                vlay, #vlay to select features from
+
+                output='TEMPORARY_OUTPUT',
+                selected_only = False, #selected features only on the comp_vlay
+
+                logger = None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:centroids'   
+        log = logger.getChild('centroids')
+        
+        if selected_only:
+            alg_input = self._get_sel_obj(vlay)
+        else:
+            alg_input = vlay
+
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 'ALL_PARTS' : False, 
+                 'INPUT' : 'C:/LS/02_WORK/02_Mscripts/InsuranceCurves/04_CALC/QC/aoi/aoi_QC_0506.gpkg',
+                  'OUTPUT' : 'TEMPORARY_OUTPUT' }
+        
+        log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+            %(algo_nm, vlay.name(), ins_d))
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback)
+        
+
+        return res_d['OUTPUT']
+    
+    def pointonsurf(self, 
+                vlay, #vlay to select features from
+
+                output='TEMPORARY_OUTPUT',
+                selected_only = False, #selected features only on the comp_vlay
+                logger=None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:pointonsurface'   
+        log = logger.getChild('pointonsurf')
+        
+        if selected_only:
+            alg_input = self._get_sel_obj(vlay)
+        else:
+            alg_input = vlay
+
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 'ALL_PARTS' : False, 
+                 'INPUT' : alg_input,
+                  'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+            %(algo_nm, vlay.name(), ins_d))
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+    
     def saveselectedfeatures(self,#generate a memory layer from the current selection
                              vlay,
                              logger=None,
@@ -980,7 +1172,8 @@ class Qproj(QAlgos, Basic):
                   file_path,
 
                   providerLib='ogr',
-
+                  addSpatialIndex=True,
+                  dropZ=True,
 
                   logger = None,
                   ):
@@ -996,7 +1189,7 @@ class Qproj(QAlgos, Basic):
         assert os.path.exists(file_path)
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
-        
+        log.info('on %s'%file_path)
         #=======================================================================
         # defaults
         #=======================================================================
@@ -1040,10 +1233,23 @@ class Qproj(QAlgos, Basic):
             
             
         #=======================================================================
+        # clean
+        #=======================================================================
+        if addSpatialIndex and (not vlay_raw.hasSpatialIndex()==QgsFeatureSource.SpatialIndexPresent):
+            self.createspatialindex(vlay_raw, logger=log)
+            
+        vlay = vlay_raw
+            
+        if dropZ:
+
+            vlay = processing.run('native:dropmzvalues', 
+                                   {'INPUT':vlay, 'OUTPUT':'TEMPORARY_OUTPUT', 'DROP_Z_VALUES':True},  
+                                   feedback=self.feedback, context=self.context)['OUTPUT']
+            vlay.setName(vlay_raw.name())
+        
+        #=======================================================================
         # wrap
         #=======================================================================
-        self.createspatialindex(vlay_raw, logger=log)
-        vlay = vlay_raw
         #add to project
         'needed for some algorhithims. moved to algos'
         #vlay = self.qproj.addMapLayer(vlay, False)
