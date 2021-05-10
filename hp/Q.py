@@ -368,8 +368,8 @@ class QAlgos(object):
         # setup
         #=======================================================================
         ins_d = { 'ALL_PARTS' : False, 
-                 'INPUT' : 'C:/LS/02_WORK/02_Mscripts/InsuranceCurves/04_CALC/QC/aoi/aoi_QC_0506.gpkg',
-                  'OUTPUT' : 'TEMPORARY_OUTPUT' }
+                 'INPUT' : alg_input,
+                  'OUTPUT' : output}
         
         log.debug('executing \'%s\' on \'%s\' with: \n     %s'
             %(algo_nm, vlay.name(), ins_d))
@@ -410,6 +410,49 @@ class QAlgos(object):
         ins_d = { 'ALL_PARTS' : False, 
                  'INPUT' : alg_input,
                   'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+            %(algo_nm, vlay.name(), ins_d))
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+    def rastersampling(self, 
+                vlay, #vlay with sampling features
+                rlay, #raster to sample
+                pfx='sample_',
+
+                output='TEMPORARY_OUTPUT',
+                selected_only = False, #selected features only on the comp_vlay
+                logger=None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:rastersampling'   
+        log = logger.getChild('rastersampling')
+        
+        if selected_only:
+            alg_input = self._get_sel_obj(vlay)
+        else:
+            alg_input = vlay
+
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 'COLUMN_PREFIX' : pfx, 
+                 'INPUT' : alg_input,
+                 'OUTPUT' : output, 
+                 'RASTERCOPY' : rlay }
         
         log.debug('executing \'%s\' on \'%s\' with: \n     %s'
             %(algo_nm, vlay.name(), ins_d))
@@ -1999,6 +2042,42 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     
     else:
         raise Error('unrecognized fmt kwarg')
+    
+    
+def vlay_get_fdata(vlay, fieldn,  #get data from a field
+                   request=None,
+                   selected=False,
+                   ):
+    
+    #===========================================================================
+    # precheck
+    #===========================================================================
+    fnl = [fieldn.name() for fieldn in vlay.fields().toList()]
+    assert fieldn in fnl, 'requested field \'%s\' not on layer'%fieldn
+    
+    #===========================================================================
+    # build request
+    #===========================================================================
+    if request is None:
+        request = QgsFeatureRequest()
+        
+    request = request.setFlags(QgsFeatureRequest.NoGeometry)
+    request = request.setSubsetOfAttributes([fieldn],vlay.fields())
+    
+    
+    
+    
+    if selected:
+        """
+        todo: check if there is already a fid filter placed on the reuqester
+        """
+ 
+        sfids = vlay.selectedFeatureIds()
+        
+        request = request.setFilterFids(sfids)
+        
+    return {f.id():f.attribute(fieldn) for f in vlay.getFeatures(request)}
+    
 
 def vlay_get_geo( #get geometry dict from layer
         vlay,
