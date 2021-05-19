@@ -542,7 +542,8 @@ class QAlgos(object):
                              vlay,
                              logger=None,
                              allow_none = False,
-                             layname=None): 
+                             output='TEMPORARY_OUTPUT',
+                             ): 
         """
         TODO: add these intermediate layers to the store
         """
@@ -555,8 +556,7 @@ class QAlgos(object):
         log = logger.getChild('saveselectedfeatures')
         algo_nm = 'native:saveselectedfeatures'
         
-        if layname is None: 
-            layname = '%s_sel'%vlay.name()
+ 
               
         #=======================================================================
         # precheck
@@ -576,25 +576,17 @@ class QAlgos(object):
         # # build inputs
         #=======================================================================
         ins_d = {'INPUT' : vlay,
-                 'OUTPUT' : 'TEMPORARY_OUTPUT'}
+                 'OUTPUT' : output}
         
-        log.debug('\'native:saveselectedfeatures\' on \'%s\' with: \n   %s'
-            %(vlay.name(), ins_d))
+        log.debug('\'native:saveselectedfeatures\'  with: \n   %s'
+            %(ins_d))
         
         #execute
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback)
 
-        
-        res_vlay = res_d['OUTPUT']
-        
-        assert isinstance(res_vlay, QgsVectorLayer)
-        #===========================================================================
-        # wrap
-        #===========================================================================
+ 
 
-        res_vlay.setName(layname) #reset the name
-
-        return res_vlay
+        return res_d['OUTPUT']
     
     def cliprasterwithpolygon(self,
               rlay_raw,
@@ -1443,6 +1435,8 @@ class Qproj(QAlgos, Basic):
                   addSpatialIndex=True,
                   dropZ=True,
                   reproj=False, #whether to reproject hte layer to match the project
+                  
+                  set_proj_crs = False, #set the project crs from this layer
 
                   logger = None,
                   ):
@@ -1495,10 +1489,7 @@ class Qproj(QAlgos, Basic):
         
         if vlay_raw.crs().authid() == '':
             log.warning('bad crs')
-        
-
-            
-            
+ 
         #=======================================================================
         # clean
         #=======================================================================
@@ -1523,6 +1514,10 @@ class Qproj(QAlgos, Basic):
             
             if reproj:
                 vlay = self.reproject(vlay, layname=vlay_raw.name(), logger=log)
+                
+            elif set_proj_crs:
+                self.qproj.setCrs(vlay_raw.crs())
+ 
                 
         vlay.setName(vlay_raw.name())
  

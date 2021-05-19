@@ -39,6 +39,7 @@ class Basic(object): #simple base class
         
         """
         logger.info('test')
+        
         """
         self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         self.work_dir = work_dir
@@ -70,7 +71,7 @@ class Basic(object): #simple base class
             lwrkr = BuildLogr(work_dir)
             logger=lwrkr.logger
             lwrkr.duplicate(self.out_dir, 
-                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M.%S')))
+                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
 
             
         self.logger=logger
