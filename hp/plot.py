@@ -50,7 +50,7 @@ class Plotr(Basic):
     #===========================================================================
     # controls
     #===========================================================================
-
+    fignum = 0 #counter for figure numbers
     
     #===========================================================================
     # defaults
@@ -177,7 +177,7 @@ class Plotr(Basic):
         
         self.plt, self.matplotlib = plt, matplotlib
         
-
+        self.logger.info('matplotlib version = %s'%matplotlib.__version__)
         return {'plt':plt, 'matplotlib':matplotlib}
     
 

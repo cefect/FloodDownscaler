@@ -90,6 +90,21 @@ class QAlgos(object):
     made a separate class just for organization
     """
     
+    
+    #projection operations
+    """theres probably a nice way to get this from the users profile"""
+    proj_d = {#{from:{to:operation}}
+        'EPSG:4326':{
+            'EPSG:3979':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
+            'EPSG:3857':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
+            },
+        'EPSG:3979':{
+            'EPSG:3857':'+proj=pipeline +step +inv +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
+            },
+        'EPSG:3402':{
+            'EPSG:3857':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-115 +k=0.9992 +x_0=500000 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84'
+            }
+        }
 
     
     def __init__(self, 
@@ -169,6 +184,63 @@ class QAlgos(object):
         
         return
     
+    def reproject(self,
+                  vlay,
+                  output='TEMPORARY_OUTPUT',
+                  crsOut=None,
+                  logger=None,
+                  layname=None
+                  ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('reproject')
+        if layname is None: layname=vlay.name()
+        if crsOut is None: crsOut=self.qproj.crs()
+        
+        #=======================================================================
+        # get operation
+        #=======================================================================
+        inid = vlay.crs().authid()
+        outid = crsOut.authid()
+        
+        assert inid in self.proj_d, 'missing requested source crs: %s'%inid
+        
+        assert outid in self.proj_d[inid], 'missing requested op: %s to %s'%(inid, outid)
+        
+ 
+ 
+        #=======================================================================
+        # execute
+        #=======================================================================
+        vlay = processing.run('native:reprojectlayer', 
+                           { 'INPUT' : vlay,
+                             'OPERATION' : self.proj_d[inid][outid], 
+                             'OUTPUT' : output,
+                             'TARGET_CRS' : crsOut},  
+                           feedback=self.feedback, context=self.context)['OUTPUT']
+                           
+        vlay.setName(layname)
+                           
+        assert vlay.crs() == crsOut
+        
+        return vlay
+    
+    def layerextent(self,
+                    vlay,
+                    output='TEMPORARY_OUTPUT',
+                    precision=10, 
+                    ):
+        
+        algo_nm = 'native:polygonfromlayerextent'
+        
+        ins_d = { 'INPUT' : vlay,'OUTPUT' : output, 'ROUND_TO' : precision }
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
+    
     
     def selectbylocation(self, #select features (from main laye) by geoemtric relation with comp_vlay
                 vlay, #vlay to select features from
@@ -229,7 +301,7 @@ class QAlgos(object):
         #===========================================================================
         # #execute
         #===========================================================================
-        _ = processing.run(algo_nm, ins_d,  feedback=self.feedback)
+        _ = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
         
         #=======================================================================
@@ -331,7 +403,7 @@ class QAlgos(object):
                  }
         
         log.debug('executing \'%s\' on \'%s\' with: \n     %s'
-            %(algo_nm, vlay.name(), ins_d))
+            %(algo_nm, vlay, ins_d))
             
         #===========================================================================
         # #execute
@@ -784,6 +856,153 @@ class QAlgos(object):
         
         return result, miss_cnt
     
+    def joinbylocationsummary(self,
+            vlay, #layer to add stats to
+             join_vlay, #layer to extract stats from
+             jlay_fieldn_l, #list of field names to extract from the join_vlay
+             selected_only=False, #limit to selected only on the main
+             jvlay_selected_only = False, #only consider selected features on the join layer
+
+             predicate_l = ['intersects'],#list of geometric serach predicates
+             smry_l = ['sum'], #data summaries to apply
+             discard_nomatch = False, #Discard records which could not be joined
+             
+             use_raw_fn=False, #whether to convert names back to the originals
+             layname=None,
+                                 
+                     ):
+        """
+        WARNING: This ressets the fids
+        
+        discard_nomatch: 
+            TRUE: two resulting layers have no features in common
+            FALSE: in layer retains all non matchers, out layer only has the non-matchers?
+        
+        """
+        
+        """
+        view(join_vlay)
+        """
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:joinbylocationsummary'
+        
+        predicate_d = {'intersects':0,'contains':1,'equals':2,'touches':3,'overlaps':4,'within':5, 'crosses':6}
+        summaries_d = {'count':0, 'unique':1, 'min':2, 'max':3, 'range':4, 'sum':5, 'mean':6}
+
+        log = self.logger.getChild('joinbylocationsummary')
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if isinstance(jlay_fieldn_l, set):
+            jlay_fieldn_l = list(jlay_fieldn_l)
+            
+            
+        #convert predicate to code
+        pred_code_l = [predicate_d[pred_name] for pred_name in predicate_l]
+            
+        #convert summaries to code
+        sum_code_l = [summaries_d[smry_str] for smry_str in smry_l]
+        
+        
+        if layname is None:  layname = '%s_jsmry'%vlay.name()
+            
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        if not isinstance(jlay_fieldn_l, list):
+            raise Error('expected a list')
+        
+        #check requested join fields
+        fn_l = [f.name() for f in join_vlay.fields()]
+        s = set(jlay_fieldn_l).difference(fn_l)
+        assert len(s)==0, 'requested join fields not on layer: %s'%s
+        
+        #check crs
+        assert join_vlay.crs().authid() == vlay.crs().authid()
+                
+        #=======================================================================
+        # set selection
+        #=======================================================================
+        if selected_only:
+            main_input = self._get_sel_obj(vlay)
+        else:
+            main_input=vlay
+
+        if jvlay_selected_only:
+            join_input = self._get_sel_obj(join_vlay)
+        else:
+            join_input = join_vlay
+
+        #=======================================================================
+        # #assemble pars
+        #=======================================================================
+        ins_d = { 'DISCARD_NONMATCHING' : discard_nomatch,
+                  'INPUT' : main_input,
+                   'JOIN' : join_input,
+                   'JOIN_FIELDS' : jlay_fieldn_l,
+                  'OUTPUT' : 'TEMPORARY_OUTPUT', 
+                  'PREDICATE' : pred_code_l, 
+                  'SUMMARIES' : sum_code_l,
+                   }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+ 
+        res_vlay = res_d['OUTPUT']
+ 
+        #===========================================================================
+        # post formatting
+        #===========================================================================
+        res_vlay.setName(layname) #reset the name
+        
+        #get new field names
+        nfn_l = set([f.name() for f in res_vlay.fields()]).difference([f.name() for f in vlay.fields()])
+        
+        """
+        view(res_vlay)
+        """
+        #=======================================================================
+        # post check
+        #=======================================================================
+        #=======================================================================
+        # for fn in nfn_l:
+        #     rser = vlay_get_fdata(res_vlay, fn)
+        #     if rser.isna().all().all():
+        #         log.warning('%s \'%s\' got all nulls'%(vlay.name(), fn))
+        #=======================================================================
+
+        
+        #=======================================================================
+        # rename fields
+        #=======================================================================
+        if use_raw_fn:
+            raise Error('?')
+            #===================================================================
+            # assert len(smry_l)==1, 'rename only allowed for single sample stat'
+            # rnm_d = {s:s.replace('_%s'%smry_l[0],'') for s in nfn_l}
+            # 
+            # s = set(rnm_d.values()).symmetric_difference(jlay_fieldn_l)
+            # assert len(s)==0, 'failed to convert field names'
+            # 
+            # res_vlay = vlay_rename_fields(res_vlay, rnm_d, logger=log)
+            # 
+            # nfn_l = jlay_fieldn_l
+            #===================================================================
+        
+        
+        
+        log.info('sampled \'%s\' w/ \'%s\' (%i hits) and \'%s\'to get %i new fields \n    %s'%(
+            join_vlay.name(), vlay.name(), res_vlay.dataProvider().featureCount(), 
+            smry_l, len(nfn_l), nfn_l))
+        
+        return res_vlay, nfn_l
+
+    
+    
     def rasterize_value(self, #build a rastser with a fixed value from a polygon
                 bval, #fixed value to burn,
                 poly_vlay, #polygon layer with geometry
@@ -848,21 +1067,36 @@ class QAlgos(object):
         log = self.logger.getChild('_get_sel_obj')
         
         if vlay.selectedFeatureCount() == 0:
-            raise Error('Nothing selected. exepects some pre selection')
+            raise Error('Nothing selected on \'%s\'. exepects some pre selection'%(vlay.name()))
         
-        """consider moving this elsewhere"""
-        #handle project layer store
-        if QgsProject.instance().mapLayer(vlay.id()) is None:
-            #layer not on project yet. add it
-            if QgsProject.instance().addMapLayer(vlay, False) is None:
-                raise Error('failed to add map layer \'%s\''%vlay.name())
-
-        
-       
-        log.debug('based on %i selected features from \'%s\': %s'
-                  %(len(vlay.selectedFeatureIds()), vlay.name(), vlay.selectedFeatureIds()))
+        #=======================================================================
+        # """consider moving this elsewhere"""
+        # #handle project layer store
+        # if QgsProject.instance().mapLayer(vlay.id()) is None:
+        #     #layer not on project yet. add it
+        #     if QgsProject.instance().addMapLayer(vlay, False) is None:
+        #         raise Error('failed to add map layer \'%s\''%vlay.name())
+        #=======================================================================
             
-        return QgsProcessingFeatureSourceDefinition(vlay.id(), True)
+        
+        #handle project layer store
+        if self.qproj.mapLayer(vlay.id()) is None:
+            #layer not on project yet. add it
+            if self.qproj.addMapLayer(vlay, False) is None:
+                raise Error('failed to add map layer \'%s\''%vlay.name())
+            
+ 
+            
+       
+        log.debug('based on %i selected features from \'%s\''%(len(vlay.selectedFeatureIds()), vlay.name()))
+        
+        return QgsProcessingFeatureSourceDefinition(source=vlay.id(), 
+                                                    selectedFeaturesOnly=True, 
+                                                    featureLimit=-1, 
+                                                    geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid)
+        
+ 
+        #return QgsProcessingFeatureSourceDefinition(vlay.id(), True)
     
     
     def _get_sel_res(self, #handler for returning selection like results
@@ -1140,26 +1374,21 @@ class Qproj(QAlgos, Basic):
         opt2 = QgsVectorFileWriter.BoolOption(QgsVectorFileWriter.CreateOrOverwriteFile)
         
         help(QgsVectorFileWriter)
-        
 
-        
         """
-        
+
         #==========================================================================
         # defaults
         #==========================================================================
         log = logger.getChild('vlay_write')
         if overwrite is None: overwrite=self.overwrite
-        
-    
-        
+ 
         #===========================================================================
         # assemble options
         #===========================================================================
         opts.driverName = driverName
         opts.fileEncoding = fileEncoding
-        
-        
+
         #===========================================================================
         # checks
         #===========================================================================
@@ -1185,10 +1414,7 @@ class Qproj(QAlgos, Basic):
             
         if not vlay.isValid():
             Error('passed invalid layer')
-            
-            
-            
-            
+
         #=======================================================================
         # write
         #=======================================================================
@@ -1198,8 +1424,7 @@ class Qproj(QAlgos, Basic):
                 QgsCoordinateTransformContext(),
                 opts,
                 )
-        
-        
+
         #=======================================================================
         # wrap and check
         #=======================================================================
@@ -1217,6 +1442,7 @@ class Qproj(QAlgos, Basic):
                   providerLib='ogr',
                   addSpatialIndex=True,
                   dropZ=True,
+                  reproj=False, #whether to reproject hte layer to match the project
 
                   logger = None,
                   ):
@@ -1229,7 +1455,7 @@ class Qproj(QAlgos, Basic):
         
         
         #file
-        assert os.path.exists(file_path)
+        assert os.path.exists(file_path), file_path
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
         log.info('on %s'%file_path)
@@ -1270,31 +1496,41 @@ class Qproj(QAlgos, Basic):
         if vlay_raw.crs().authid() == '':
             log.warning('bad crs')
         
-        if not vlay_raw.crs() == self.qproj.crs():
-            log.warning('crs: \'%s\' doesnt match project: %s'%(
-                vlay_raw.crs().authid(), self.qproj.crs().authid()))
+
             
             
         #=======================================================================
         # clean
         #=======================================================================
+        #spatial index
         if addSpatialIndex and (not vlay_raw.hasSpatialIndex()==QgsFeatureSource.SpatialIndexPresent):
             self.createspatialindex(vlay_raw, logger=log)
             
         vlay = vlay_raw
-            
+
+        #zvalues
         if dropZ:
 
             vlay = processing.run('native:dropmzvalues', 
                                    {'INPUT':vlay, 'OUTPUT':'TEMPORARY_OUTPUT', 'DROP_Z_VALUES':True},  
                                    feedback=self.feedback, context=self.context)['OUTPUT']
-            vlay.setName(vlay_raw.name())
-        
+            
+
+        #CRS
+        if not vlay_raw.crs() == self.qproj.crs():
+            log.warning('\'%s\' crs: \'%s\' doesnt match project: %s. reproj=%s'%(
+                vlay_raw.name(), vlay_raw.crs().authid(), self.qproj.crs().authid(), reproj))
+            
+            if reproj:
+                vlay = self.reproject(vlay, layname=vlay_raw.name(), logger=log)
+                
+        vlay.setName(vlay_raw.name())
+ 
         #=======================================================================
         # wrap
         #=======================================================================
         #add to project
-        'needed for some algorhithims. moved to algos'
+        'needed for some algorhithims?. moved to algos'
         #vlay = self.qproj.addMapLayer(vlay, False)
         
 
@@ -1873,6 +2109,7 @@ def vlay_get_fdf( #pull all the feature data and place into a df
                     
                     #modifiers
                     reindex = None, #optinal field name to reindex df by
+                    selected=False, #for only get selected features
                     
                     #expectations
                     expect_all_real = False, #whether to expect all real results
@@ -1940,6 +2177,7 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     
     assert hasattr(feedback, 'setProgress')
     
+    
     #===========================================================================
     # build the request
     #===========================================================================
@@ -1950,7 +2188,13 @@ def vlay_get_fdf( #pull all the feature data and place into a df
             but this will re-key things
         
         request = QgsFeatureRequest().setSubsetOfAttributes(fieldn_l,vlay.fields())"""
+
         request = QgsFeatureRequest()
+        
+    #get selected only
+    if selected: 
+        request.setFilterFids(vlay.selectedFeatureIds())
+        assert vlay.selectedFeatureCount()>0, 'passed selected=True but nothing is selected!'
         
     #never want geometry   
     request = request.setFlags(QgsFeatureRequest.NoGeometry) 
@@ -2044,7 +2288,8 @@ def vlay_get_fdf( #pull all the feature data and place into a df
         raise Error('unrecognized fmt kwarg')
     
     
-def vlay_get_fdata(vlay, fieldn,  #get data from a field
+def vlay_get_fdata(vlay, 
+                   fieldn,  #get data from a field
                    request=None,
                    selected=False,
                    ):
@@ -2052,7 +2297,7 @@ def vlay_get_fdata(vlay, fieldn,  #get data from a field
     #===========================================================================
     # precheck
     #===========================================================================
-    fnl = [fieldn.name() for fieldn in vlay.fields().toList()]
+    fnl = [f.name() for f in vlay.fields().toList()]
     assert fieldn in fnl, 'requested field \'%s\' not on layer'%fieldn
     
     #===========================================================================

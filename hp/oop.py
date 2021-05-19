@@ -8,15 +8,14 @@ object oriented programming
 '''
 
 
-import os, copy, sys, time, re, logging
+import os, sys,  datetime
 
 
 
 from hp.exceptions import Error
 
 
-mod_logger = logging.getLogger(__name__)
-mod_logger.debug('initialized')
+ 
 
 #===============================================================================
 # functions------------------------------------------------------------------- 
@@ -29,6 +28,7 @@ class Basic(object): #simple base class
                  out_dir        = None,
                  work_dir       = r'C:\LS\03_TOOLS\misc',
                  mod_name       = 'Simp',
+                 name           = 'SessionName', 
                  tag            = '',
                  prec           = 2,
                  overwrite      = False, #file overwriting control
@@ -40,17 +40,22 @@ class Basic(object): #simple base class
         """
         logger.info('test')
         """
+        self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         self.work_dir = work_dir
         self.mod_name = mod_name
         self.tag = tag
         self.prec=prec
         self.overwrite=overwrite
+        self.name = name
             
         #=======================================================================
         # output directory
         #=======================================================================
         if out_dir is None:
-            out_dir = os.path.join(work_dir, 'outs')
+            if not tag == '':
+                out_dir = os.path.join(work_dir, 'outs', tag, self.today_str)
+            else:
+                out_dir = os.path.join(work_dir, 'outs', self.today_str)
             
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
@@ -64,6 +69,8 @@ class Basic(object): #simple base class
             from hp.logr import BuildLogr
             lwrkr = BuildLogr(work_dir)
             logger=lwrkr.logger
+            lwrkr.duplicate(self.out_dir, 
+                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M.%S')))
 
             
         self.logger=logger
