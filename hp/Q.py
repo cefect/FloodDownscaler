@@ -105,6 +105,12 @@ class QAlgos(object):
             'EPSG:3857':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-115 +k=0.9992 +x_0=500000 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84'
             }
         }
+    
+    compress_d =  {
+        'hiT':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.001', #nice for terrain
+        'hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
+        'none':None        
+        }
 
     
     def __init__(self, 
@@ -588,6 +594,45 @@ class QAlgos(object):
 
         return res_d['OUTPUT']
     
+    def fillnodata(self,
+                rlay,
+                fval = 0, #value to fill nodata w/
+                output='TEMPORARY_OUTPUT',
+ 
+                logger=None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:fillnodata'   
+        log = logger.getChild('fillnodata')
+ 
+    
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d = { 'BAND' : 1, 
+                 'FILL_VALUE' : fval,
+                  'INPUT' : rlay,
+                  'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' on \'%s\' with: \n     %s'
+            %(algo_nm, rlay, ins_d))
+            
+        #===========================================================================
+        # #execute
+        #===========================================================================
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+        
+        
+
+    
     def cliprasterwithpolygon(self,
               rlay_raw,
               poly_vlay,
@@ -690,11 +735,12 @@ class QAlgos(object):
                               
                               crsOut = None, #crs to re-project to
                               layname = None,
-                              options = 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                              compression = 'none',
                               output = 'TEMPORARY_OUTPUT',
                               logger = None,
                               ):
 
+        
         #=======================================================================
         # defaults
         #=======================================================================
@@ -729,7 +775,7 @@ class QAlgos(object):
              'INPUT' : rlay_raw,
              'MULTITHREADING' : False,
              'NODATA' : None,
-             'OPTIONS' : options,
+             'OPTIONS' : self.compress_d[compression],
              'OUTPUT' : output,
              'RESAMPLING' : 0,
              'SOURCE_CRS' : None,
@@ -764,6 +810,94 @@ class QAlgos(object):
         log.debug('finished w/ %s'%res_rlay.name())
           
         return res_rlay
+    
+    def mergeraster(self, #merge a set of raster layers
+                  rlays_l,
+                  crsOut = None, #crs to re-project to
+                  layname = None,
+                  compression = 'hiT',
+                  output = 'TEMPORARY_OUTPUT',
+                  logger = None,
+                              ):
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger = self.logger
+        log = logger.getChild('mergeraster')
+        
+        if layname is None:
+            layname = 'merge'
+            
+            
+        algo_nm = 'gdal:merge'
+            
+        if crsOut is None: crsOut = self.qproj.crs() #just take the project's
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        """the algo accepts 'None'... but not sure why we'd want to do this"""
+        assert isinstance(crsOut, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert isinstance(rlays_l, list)
+        assert (output == 'TEMPORARY_OUTPUT') or (output.endswith('.tif')) 
+        
+ 
+        first, bc = True, None
+        for r in rlays_l: 
+            if not os.path.exists(r):
+                assert isinstance(r, QgsRasterLayer)
+                assert r.crs() != crsOut, 'layer already on this CRS!'
+                
+                if first:
+                    first = False
+                else:
+                    assert r.bandCount() == bc
+                bc = r.bandCount()
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        ins_d = { 'DATA_TYPE' : 5, 
+                 'EXTRA' : '',
+                  'INPUT' : rlays_l, 
+                  #'NODATA_INPUT' : -9999, 
+                  'NODATA_OUTPUT' : -9999,
+                   'OPTIONS' : self.compress_d[compression],
+                  'OUTPUT' : output, 
+                  'PCT' : False, 'SEPARATE' : False }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.debug('finished w/ \n    %s'%res_d)
+        
+        if not os.path.exists(res_d['OUTPUT']):
+            """failing intermittently"""
+            raise Error('failed to get a result')
+        
+        
+        if output == 'TEMPORARY_OUTPUT':
+            res_rlay = QgsRasterLayer(res_d['OUTPUT'], layname)
+            
+
+            assert isinstance(res_rlay, QgsRasterLayer), 'got bad type: %s'%type(res_rlay)
+            assert res_rlay.isValid()
+            assert bc==res_rlay.bandCount(), 'band count mismatch'
+               
+       
+            res_rlay.setName(layname) #reset the name
+               
+            log.debug('finished w/ %s'%res_rlay.name())
+        else:
+            res_rlay = res_d['OUTPUT']
+          
+        return res_rlay
+        
+        
     
     def joinattributesbylocation(self, 
          vlay, #base layer
