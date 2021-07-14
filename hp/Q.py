@@ -9,7 +9,7 @@ Created on Oct. 8, 2020
 #===============================================================================
 # # standard imports -----------------------------------------------------------
 #===============================================================================
-import time, sys, os, logging, datetime, inspect
+import time, sys, os, logging, datetime, inspect, gc
 
 import numpy as np
 import pandas as pd
@@ -97,13 +97,21 @@ class QAlgos(object):
         'EPSG:4326':{
             'EPSG:3979':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
             'EPSG:3857':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
+            'EPSG:2950':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80',
             },
         'EPSG:3979':{
             'EPSG:3857':'+proj=pipeline +step +inv +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
             },
         'EPSG:3402':{
             'EPSG:3857':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-115 +k=0.9992 +x_0=500000 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84'
+            },
+        'EPSG:3857':{
+            'EPSG:2950':'+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80',
+            },
+        'EPSG:2950':{
+            'EPSG:3979':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
             }
+
         }
     
     compress_d =  {
@@ -195,14 +203,15 @@ class QAlgos(object):
                   output='TEMPORARY_OUTPUT',
                   crsOut=None,
                   logger=None,
-                  layname=None
+                  #layname=None,
+                  selected_only=False,
                   ):
         #=======================================================================
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('reproject')
-        if layname is None: layname=vlay.name()
+        #if layname is None: layname=vlay.name()
         if crsOut is None: crsOut=self.qproj.crs()
         
         #=======================================================================
@@ -215,23 +224,28 @@ class QAlgos(object):
         
         assert outid in self.proj_d[inid], 'missing requested op: %s to %s'%(inid, outid)
         
+        #selection handling
+        if selected_only:
+            """not working well"""
+            input_obj = self._get_sel_obj(vlay)
+        else:
+            input_obj = vlay
+        
  
  
         #=======================================================================
         # execute
         #=======================================================================
-        vlay = processing.run('native:reprojectlayer', 
-                           { 'INPUT' : vlay,
+        res_d = processing.run('native:reprojectlayer', 
+                           { 'INPUT' : input_obj,
                              'OPERATION' : self.proj_d[inid][outid], 
                              'OUTPUT' : output,
                              'TARGET_CRS' : crsOut},  
-                           feedback=self.feedback, context=self.context)['OUTPUT']
-                           
-        vlay.setName(layname)
-                           
-        assert vlay.crs() == crsOut
-        
-        return vlay
+                           feedback=self.feedback, context=self.context)
+
+
+        log.info('finished  w/ %s'%res_d)
+        return res_d
     
     def layerextent(self,
                     vlay,
@@ -276,7 +290,7 @@ class QAlgos(object):
         #===========================================================================
         # #set parameter translation dictoinaries
         #===========================================================================
-        meth_d = {'new':0}
+        meth_d = {'new':0, 'subselection':2}
             
         pred_d = {
                 'are within':6,
@@ -643,6 +657,9 @@ class QAlgos(object):
                 #fp: #returns the filepath result
               outResolution = None, #resultion for output. None = use input
               crsOut = None,
+              options = [],
+              dataType=0, # 0: Use Input Layer Data Type
+                #6: Float32
               logger = None,
                               ):
         """
@@ -696,14 +713,14 @@ class QAlgos(object):
         
         ins_d = {   'ALPHA_BAND' : False,
                     'CROP_TO_CUTLINE' : True,
-                    'DATA_TYPE' : 0,
+                    'DATA_TYPE' : dataType,
                     'EXTRA' : '',
                     'INPUT' : rlay_raw,
                     'KEEP_RESOLUTION' : True, 
                     'MASK' : poly_vlay,
-                    'MULTITHREADING' : False,
-                    'NODATA' : None,
-                    'OPTIONS' : '',
+                    'MULTITHREADING' : True,
+                    'NODATA' : -9999,
+                    'OPTIONS' : options,
                     'OUTPUT' : output,
                     'SET_RESOLUTION' : setResolution,
                     'SOURCE_CRS' : None,
@@ -726,7 +743,30 @@ class QAlgos(object):
         # get the result
         #=======================================================================
         return self._get_rlay_res(res_d, result, layname=layname)
+    
+    def extrapNoData(self,
+                     rlay,
+                     dist, #maximum pixes to search for interpolation values
+                     iterations=0,
+                     output='TEMPORARY_OUTPUT',
+                     options='',
+                     logger=None,
+                     ):
+        if logger is None: logger=self.logger
+        log = logger.getChild('extrapNoData')
+        
+        algo_nm = 'gdal:fillnodata'
+        
+        ins_d = { 'BAND' : 1, 
+                 'DISTANCE' : dist, 'EXTRA' : '',
+          'INPUT' : rlay,
+           'ITERATIONS' : iterations, 
+           'MASK_LAYER' : None, 'NO_MASK' : False,
+          'OPTIONS' : options, 
+          'OUTPUT' : output }
  
+        log.info('dist=%.2f on %s'%(dist, rlay))
+        return processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
 
         
         
@@ -1587,22 +1627,13 @@ class Qproj(QAlgos, Basic):
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
         log.info('on %s'%file_path)
-        #=======================================================================
-        # defaults
-        #=======================================================================
 
-        
         #===========================================================================
         # load the layer--------------
         #===========================================================================
 
-
         vlay_raw = QgsVectorLayer(file_path,fname,providerLib)
-
-
-        #self.mstore.addMapLayer(vlay_raw)
-            
-            
+  
         #===========================================================================
         # checks
         #===========================================================================
@@ -1816,7 +1847,9 @@ class Qproj(QAlgos, Basic):
             {'nCols':nCols, 'nRows':nRows, 'extent':extent, 'crs':rlayer.crs()}))
         
         #execute write
-        error = file_writer.writeRaster( pipe, nCols, nRows, extent, rlayer.crs(), transformContext)
+        error = file_writer.writeRaster( pipe, nCols, nRows, extent, rlayer.crs(), transformContext,
+                                         feedback=RasterFeedback(log), #not passing any feedback
+                                         )
         
         log.info('wrote to file \n    %s'%out_fp)
         #=======================================================================
@@ -1861,8 +1894,9 @@ class Qproj(QAlgos, Basic):
         #===========================================================================
         # check
         #===========================================================================
-        assert rlayer.isValid(), "Layer failed to load!"
+        
         assert isinstance(rlayer, QgsRasterLayer), 'failed to get a QgsRasterLayer'
+        assert rlayer.isValid(), "Layer failed to load!"
         
         if not rlayer.crs() == self.qproj.crs():
             log.warning('loaded layer \'%s\' crs mismatch!'%rlayer.name())
@@ -1892,15 +1926,15 @@ class Qproj(QAlgos, Basic):
     # AOI methods--------
     #===========================================================================
     def load_aoi(self,
-                 aoi_fp):
+                 aoi_fp, **kwargs):
         
         log= self.logger.getChild('load_aoi')
-        vlay = self.vlay_load(aoi_fp)
+        vlay = self.vlay_load(aoi_fp, **kwargs)
         self._check_aoi(vlay)
         self.aoi_vlay = vlay
         
         log.info('loaded aoi \'%s\''%vlay.name())
-        self.aoi_vlay = vlay
+
         
         return vlay
     
@@ -2137,6 +2171,59 @@ class Qproj(QAlgos, Basic):
         return vlay
     
 
+    
+    def __exit__(self, #destructor
+                 *args,**kwargs):
+        
+        #clear your map store
+        self.mstore.removeAllMapLayers()
+        
+        #remove data objects
+        del self.data_d
+        
+        #clear your children
+        for cn, wrkr in self.wrkr_d.items():
+            wrkr.__exit__(*args,**kwargs)
+        
+        #=======================================================================
+        # #remove temporary files
+        #=======================================================================
+        l = list()
+        for fp in self.trash_fps:
+            
+            try:
+                os.remove(fp)
+                
+            except Exception as e:
+                l.append(fp)
+                print('failed to remove local HRDEM from \n    %s \n    %s'%(fp, e))
+        
+        self.trash_fps = l
+        
+        super().__exit__(*args,**kwargs) #initilzie teh baseclass
+        gc.collect()
+        
+        
+        
+def Qchild(Qproj):
+    pass
+    
+class RasterFeedback(QgsRasterBlockFeedback):
+    prog=0
+    
+    def __init__(self,log):
+        
+        self.logger=log
+        
+        super().__init__()
+        
+        
+    def onNewData(self):
+        print('onNewData')
+        
+    def setProgress(self, newProg):
+        self.prog+=newProg
+        print(self.prog)
  
 class MyFeedBackQ(QgsProcessingFeedback):
     """
