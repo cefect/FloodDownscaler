@@ -8,7 +8,7 @@ object oriented programming
 '''
 
 
-import os, sys,  datetime
+import os, sys, datetime, gc
 
 
 
@@ -23,6 +23,8 @@ from hp.exceptions import Error
 
 class Basic(object): #simple base class
     
+    
+    
     def __init__(self, 
                  logger         = None,
                  out_dir        = None,
@@ -32,16 +34,16 @@ class Basic(object): #simple base class
                  tag            = '',
                  prec           = 2,
                  overwrite      = False, #file overwriting control
+                 
+                 #inheritancee
                  inher_d        = {}, #container of inheritance pars
+                 session        = None,
                  ):
         
+        #=======================================================================
+        # attachments
+        #=======================================================================
         
-        
-        
-        """
-        logger.info('test')
-        
-        """
         self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         self.work_dir = work_dir
         self.mod_name = mod_name
@@ -49,12 +51,14 @@ class Basic(object): #simple base class
         self.prec=prec
         self.overwrite=overwrite
         self.name = name
+        self.trash_fps = list() #container for files to delete on exit
         
         #setup inheritance handles
         self.inher_d = {**inher_d, #add all thosefrom parents 
                         **{'Basic':[ #add the basic
                             'work_dir', 'mod_name', 'tag', 'prec', 'overwrite']}, 
                         }
+        self.session=session
             
         #=======================================================================
         # output directory
@@ -108,6 +112,75 @@ class Basic(object): #simple base class
         log.info('system paths')
         for k in sys.path: 
             log.info('    %s'%k)
+            
+    def inherit(self,#inherit the passed parameters from the passed parent
+                session=None,
+                inher_d = None, #attribute names to inherit from session
+                logger=None,
+                ):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('%s.inherit'%self.__class__.__name__)
+        if session is None: session=self.session
+        if inher_d is None: inher_d = self.inher_d
+        
+        if session is None:
+            log.warning('no session! skipping')
+            return {}
+        else:
+            self.session = session #set
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.debug('\'%s\' inheriting %i groups from \'%s\''%(
+            self.__class__.__name__, len(inher_d), session.__class__.__name__))
+        
+        d = dict() #container for reporting
+        cnt = 0
+        for k,v in inher_d.items():
+            d[k] = dict()
+            assert isinstance(v, list)
+            for attn in v:
+                val = getattr(session, attn) #retrieve
+                setattr(self, attn, val) #set
+                
+                d[k][attn] = val
+                cnt+=1
+                
+            log.debug('set \'%s\' \n    %s'%(k, d[k]))
+            
+        log.info('inherited %i attributes from \'%s\''%(cnt, session.__class__.__name__) )
+        return d
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, #destructor
+             *args,**kwargs):
+        
+
+        #=======================================================================
+        # #remove temporary files
+        #=======================================================================
+        l = list()
+        for fp in self.trash_fps:
+            
+            try:
+                os.remove(fp)
+                
+            except Exception as e:
+                l.append(fp)
+                print('failed to remove local HRDEM from \n    %s \n    %s'%(fp, e))
+        
+        self.trash_fps = l
+        
+        gc.collect()
+        
+                
         
     
     

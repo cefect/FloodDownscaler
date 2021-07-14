@@ -101,6 +101,7 @@ class QAlgos(object):
             },
         'EPSG:3979':{
             'EPSG:3857':'+proj=pipeline +step +inv +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
+            'EPSG:2950':'+proj=pipeline +step +inv +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80',
             },
         'EPSG:3402':{
             'EPSG:3857':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-115 +k=0.9992 +x_0=500000 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84'
@@ -122,9 +123,13 @@ class QAlgos(object):
 
     
     def __init__(self, 
+                 inher_d = {},
                  **kwargs):
         
-        super().__init__(**kwargs) #initilzie teh baseclass
+        super().__init__(  #initilzie teh baseclassass
+            inher_d = {**inher_d,
+                **{'QAlgos':['context']}},
+                        **kwargs) 
         
         
     def _init_algos(self,
@@ -1349,17 +1354,28 @@ class Qproj(QAlgos, Basic):
     driverName = 'SpatiaLite' #default data creation driver type
     out_dName = driverName #default output driver/file type
     
+    
+    
     def __init__(self, 
                  feedback=None, 
                  crs = None,
                  crsID_default = None,
+                 
+                 #inheritance
+                 session=None, #parent session for child mode
+                 inher_d = {},
                  **kwargs):
 
         
         mod_logger.debug('Qproj super')
         
-        super().__init__(**kwargs) #initilzie teh baseclass
+        super().__init__(
+            inher_d = {**inher_d,
+                **{'Qproj':['qap', 'qproj', 'vlay_drivers']}},
+            
+            **kwargs) #initilzie teh baseclass
         
+
         
         #=======================================================================
         # setup qgis
@@ -1370,18 +1386,23 @@ class Qproj(QAlgos, Basic):
         
         if not crsID_default is None: self.crsID_default=crsID_default
             
-        self._init_qgis(crs=crs)
-        
-
-        self._init_algos()
-        
-        self._set_vdrivers()
+        #standalone
+        if session is None:
+            self._init_qgis(crs=crs)
+            
+            self._init_algos()
+            
+            self._set_vdrivers()
+            
+        #child mode
+        else:
+            self.inherit(session=session)
+            """having a separate mstore is one of the main reasons to use children"""
+            self.mstore = QgsMapLayerStore() #build a new map store 
         
         
         if not self.proj_checks():
             raise Error('failed checks')
-        
-
         
         self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
@@ -1398,16 +1419,19 @@ class Qproj(QAlgos, Basic):
         """
         log = self.logger.getChild('_init_qgis')
         
+        
+        #=======================================================================
+        # init the application
+        #=======================================================================
+        
         try:
             
             QgsApplication.setPrefixPath(r'C:/OSGeo4W64/apps/qgis-ltr', True)
             
             app = QgsApplication([], gui)
-            #   Update prefix path
-            #app.setPrefixPath(r"C:\OSGeo4W64\apps\qgis", True)
+
             app.initQgis()
-            #logging.debug(QgsApplication.showSettings())
-            """ was throwing unicode error"""
+
             log.info(u' QgsApplication.initQgis. version: %s, release: %s'%(
                 Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
             
@@ -1432,7 +1456,6 @@ class Qproj(QAlgos, Basic):
         assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
         assert crs.isValid()
             
-        #self.crs = crs #just use the qproj
         self.qproj.setCrs(crs)
         
         log.info('set project crs to %s'%self.qproj.crs().authid())
@@ -1468,37 +1491,7 @@ class Qproj(QAlgos, Basic):
         
         return
         
-    def set_crs(self, #load, build, and set the project crs
-                authid =  None):
-        raise Error('depreciated')
-        #=======================================================================
-        # setup and defaults
-        #=======================================================================
-        log = self.logger.getChild('set_crs')
-        
-        if authid is None: 
-            authid = self.crsID_default
-        
-        if not isinstance(authid, int):
-            raise IOError('expected integer for crs')
-        
-        #=======================================================================
-        # build it
-        #=======================================================================
-        self.crs = QgsCoordinateReferenceSystem(authid)
-        
-        if not self.crs.isValid():
-            raise IOError('CRS built from %i is invalid'%authid)
-        
-        #=======================================================================
-        # attach to project
-        #=======================================================================
-        self.qproj.setCrs(self.crs)
-        
-        if not self.qproj.crs().description() == self.crs.description():
-            raise Error('qproj crs does not match sessions')
-        
-        log.info('Session crs set to EPSG: %i, \'%s\''%(authid, self.crs.description()))
+
            
     def proj_checks(self):
         log = self.logger.getChild('proj_checks')
@@ -1508,14 +1501,10 @@ class Qproj(QAlgos, Basic):
         
         if not self.out_dName in self.vlay_drivers:
             raise Error('unrecognized driver name')
-        
-        
-
-        
+ 
         assert not self.feedback is None
         
-
-        
+ 
         log.info('project passed all checks')
         
         return True
@@ -1627,7 +1616,7 @@ class Qproj(QAlgos, Basic):
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
         log.info('on %s'%file_path)
-
+        mstore = QgsMapLayerStore() 
         #===========================================================================
         # load the layer--------------
         #===========================================================================
@@ -1656,35 +1645,49 @@ class Qproj(QAlgos, Basic):
             log.warning('bad crs')
  
         #=======================================================================
-        # clean
+        # clean------
         #=======================================================================
         #spatial index
         if addSpatialIndex and (not vlay_raw.hasSpatialIndex()==QgsFeatureSource.SpatialIndexPresent):
             self.createspatialindex(vlay_raw, logger=log)
             
-        vlay = vlay_raw
 
-        #zvalues
+
+        #=======================================================================
+        # #zvalues
+        #=======================================================================
         if dropZ:
-
-            vlay = processing.run('native:dropmzvalues', 
-                                   {'INPUT':vlay, 'OUTPUT':'TEMPORARY_OUTPUT', 'DROP_Z_VALUES':True},  
+            vlay1 = processing.run('native:dropmzvalues', 
+                                   {'INPUT':vlay_raw, 'OUTPUT':'TEMPORARY_OUTPUT', 'DROP_Z_VALUES':True},  
                                    feedback=self.feedback, context=self.context)['OUTPUT']
+            mstore.addMapLayer(vlay_raw)
+        else:
+            vlay1 = vlay_raw
             
-
-        #CRS
-        if not vlay_raw.crs() == self.qproj.crs():
-            log.warning('\'%s\' crs: \'%s\' doesnt match project: %s. reproj=%s'%(
-                vlay_raw.name(), vlay_raw.crs().authid(), self.qproj.crs().authid(), reproj))
+        #=======================================================================
+        # #CRS
+        #=======================================================================
+        if not vlay1.crs() == self.qproj.crs():
+            log.warning('\'%s\' crs: \'%s\' doesnt match project: %s. reproj=%s. set_proj_crs=%s'%(
+                vlay_raw.name(), vlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
             
             if reproj:
-                vlay = self.reproject(vlay, layname=vlay_raw.name(), logger=log)
+                vlay2 = self.reproject(vlay1, logger=log)['OUTPUT']
+                mstore.addMapLayer(vlay1)
+
                 
             elif set_proj_crs:
-                self.qproj.setCrs(vlay_raw.crs())
+                self.qproj.setCrs(vlay1.crs())
+                vlay2 = vlay1
+                
+            else:
+                vlay2 = vlay1
+                
+        else:
+            vlay2 = vlay1
  
                 
-        vlay.setName(vlay_raw.name())
+        vlay2.setName(vlay_raw.name())
  
         #=======================================================================
         # wrap
@@ -1694,16 +1697,18 @@ class Qproj(QAlgos, Basic):
         #vlay = self.qproj.addMapLayer(vlay, False)
         
 
-        dp = vlay.dataProvider()
+        dp = vlay2.dataProvider()
                 
         log.info('loaded \'%s\' as \'%s\' \'%s\'  with %i feats crs: \'%s\' from file: \n     %s'
-                    %(vlay.name(), dp.storageType(), 
-                      QgsWkbTypes().displayString(vlay.wkbType()), 
+                    %(vlay2.name(), dp.storageType(), 
+                      QgsWkbTypes().displayString(vlay2.wkbType()), 
                       dp.featureCount(), 
-                      vlay.crs().authid(),
+                      vlay2.crs().authid(),
                       file_path))
         
-        return vlay
+        mstore.removeAllMapLayers()
+        
+        return vlay2
     
     def rlay_write(self, #make a local copy of the passed raster layer
                    rlayer, #raster layer to make a local copy of
@@ -1764,35 +1769,13 @@ class Qproj(QAlgos, Basic):
                 log.warning(msg)
             else:
                 raise Error(msg)
-
-        #=======================================================================
-        # extract info from layer
-        #=======================================================================
-        """consider loading the layer and duplicating the renderer?
-        renderer = rlayer.renderer()"""
-        provider = rlayer.dataProvider()
-        
-        
-        #build projector
-        projector = QgsRasterProjector()
-        #projector.setCrs(provider.crs(), provider.crs())
-        
-
-        #build and configure pipe
-        pipe = QgsRasterPipe()
-        if not pipe.set(provider.clone()): #Insert a new known interface in default place
-            raise Error("Cannot set pipe provider")
-             
-        if not pipe.insert(2, projector): #insert interface at specified index and connect
-            raise Error("Cannot set pipe projector")
-
-        #pipe = rlayer.pipe()
             
-        
-        #coordinate transformation
+        #=======================================================================
+        # coordinate transformation
+        #=======================================================================
         """see note"""
         transformContext = self.qproj.transformContext()
-        
+            
         #=======================================================================
         # extents
         #=======================================================================
@@ -1830,8 +1813,27 @@ class Qproj(QAlgos, Basic):
             """dont think theres any decent API support for the GUI behavior"""
             raise Error('not implemented')
 
+        #=======================================================================
+        # extract info from layer
+        #=======================================================================
+        """consider loading the layer and duplicating the renderer?
+        renderer = rlayer.renderer()"""
+        provider = rlayer.dataProvider()
+        
+        
+        #build projector
+        projector = QgsRasterProjector()
+        #projector.setCrs(provider.crs(), provider.crs())
         
 
+        #build and configure pipe
+        pipe = QgsRasterPipe()
+        if not pipe.set(provider.clone()): #Insert a new known interface in default place
+            raise Error("Cannot set pipe provider")
+             
+        if not pipe.insert(2, projector): #insert interface at specified index and connect
+            raise Error("Cannot set pipe projector")
+ 
         
         #=======================================================================
         # #build file writer
@@ -2170,43 +2172,21 @@ class Qproj(QAlgos, Basic):
         
         return vlay
     
-
-    
     def __exit__(self, #destructor
                  *args,**kwargs):
         
         #clear your map store
         self.mstore.removeAllMapLayers()
-        
-        #remove data objects
-        del self.data_d
-        
-        #clear your children
-        for cn, wrkr in self.wrkr_d.items():
-            wrkr.__exit__(*args,**kwargs)
-        
-        #=======================================================================
-        # #remove temporary files
-        #=======================================================================
-        l = list()
-        for fp in self.trash_fps:
-            
-            try:
-                os.remove(fp)
-                
-            except Exception as e:
-                l.append(fp)
-                print('failed to remove local HRDEM from \n    %s \n    %s'%(fp, e))
-        
-        self.trash_fps = l
+        print('clearing mstore')
         
         super().__exit__(*args,**kwargs) #initilzie teh baseclass
-        gc.collect()
         
-        
-        
-def Qchild(Qproj):
-    pass
+    
+
+
+    
+    
+
     
 class RasterFeedback(QgsRasterBlockFeedback):
     prog=0
