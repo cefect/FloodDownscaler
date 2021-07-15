@@ -56,7 +56,7 @@ class Basic(object): #simple base class
         #setup inheritance handles
         self.inher_d = {**inher_d, #add all thosefrom parents 
                         **{'Basic':[ #add the basic
-                            'work_dir', 'mod_name', 'tag', 'prec', 'overwrite']}, 
+                            'work_dir', 'mod_name', 'tag', 'overwrite']}, 
                         }
         self.session=session
             

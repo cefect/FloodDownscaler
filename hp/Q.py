@@ -1361,6 +1361,10 @@ class Qproj(QAlgos, Basic):
                  crs = None,
                  crsID_default = None,
                  
+                 #aois
+                 aoi_fp = None,
+                 aoi_vlay = None,
+                 
                  #inheritance
                  session=None, #parent session for child mode
                  inher_d = {},
@@ -1403,6 +1407,19 @@ class Qproj(QAlgos, Basic):
         
         if not self.proj_checks():
             raise Error('failed checks')
+        """
+        self.tag
+        """
+        #=======================================================================
+        # aois
+        #=======================================================================
+        if not aoi_fp is None:
+            self.load_aoi(aoi_fp)
+        
+        if not aoi_vlay is None:
+            assert aoi_fp is None, 'cant pass a layer and a filepath'
+            self._check_aoi(aoi_vlay)
+            self.aoi_vlay= aoi_vlay
         
         self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
