@@ -8,7 +8,7 @@ object oriented programming
 '''
 
 
-import os, sys, datetime, gc
+import os, sys, datetime, gc, copy
 
 
 
@@ -162,23 +162,29 @@ class Basic(object): #simple base class
     def __exit__(self, #destructor
              *args,**kwargs):
         
-
+        print('opp.__exit__ on \'%s\''%self.__class__.__name__)
+        #clear all my attriburtes
+        for k in copy.copy(list(self.__dict__.keys())):
+            if not k=='trash_fps':
+                del self.__dict__[k]
+        
+        gc.collect()
         #=======================================================================
         # #remove temporary files
         #=======================================================================
+        """this fails pretty often... python doesnt seem to want to let go"""
         l = list()
         for fp in self.trash_fps:
             
             try:
                 os.remove(fp)
-                
             except Exception as e:
                 l.append(fp)
-                print('failed to remove local HRDEM from \n    %s \n    %s'%(fp, e))
+                print('failed to delete \n    %s \n    %s'%(fp, e))
         
         self.trash_fps = l
         
-        gc.collect()
+        
         
                 
         

@@ -261,6 +261,9 @@ def url_retrieve(
         
     if os.path.exists(ofp):
         assert overwrite
+        
+    #ensure base directory exists
+    if not os.path.exists(os.path.dirname(ofp)):os.makedirs(os.path.dirname(ofp))
     
     #===========================================================================
     # #download and copy over

@@ -331,7 +331,7 @@ class QAlgos(object):
     
     def dissolve(self, #select features (from main laye) by geoemtric relation with comp_vlay
                 vlay, #vlay to select features from
-
+                fields = [], 
                 output='TEMPORARY_OUTPUT',
                 selected_only = False, #selected features only on the comp_vlay
                 
@@ -356,7 +356,7 @@ class QAlgos(object):
         #=======================================================================
         # setup
         #=======================================================================
-        ins_d = { 'FIELD' : [], 
+        ins_d = { 'FIELD' : fields, 
                  'INPUT' : alg_input,
                  'OUTPUT' : output,
                  }
@@ -665,6 +665,63 @@ class QAlgos(object):
         
 
         return res_d['OUTPUT']
+    
+    def extractbyexpression(self,
+                vlay,
+                exp_str, #expression string to apply
+                output='TEMPORARY_OUTPUT',
+                fail_output = None, #how/if to output those failing the expression
+                logger=None,
+
+                ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:extractbyexpression'
+        log = logger.getChild('extractbyexpression')
+ 
+ 
+        #=======================================================================
+        # setup
+        #=======================================================================
+        ins_d =    { 'EXPRESSION' : exp_str, 'INPUT' : vlay, 'OUTPUT' : output,
+                    'FAIL_OUTPUT' : fail_output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d
+    
+    def multiparttosingleparts(self,
+            vlay,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:multiparttosingleparts'
+        log = logger.getChild('multiparttosingleparts')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d
+    
+    
+
     
     #===========================================================================
     # QGIS--------
