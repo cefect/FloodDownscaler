@@ -173,16 +173,13 @@ class Basic(object): #simple base class
         # #remove temporary files
         #=======================================================================
         """this fails pretty often... python doesnt seem to want to let go"""
-        l = list()
         for fp in self.trash_fps:
             
             try:
                 os.remove(fp)
             except Exception as e:
-                l.append(fp)
                 print('failed to delete \n    %s \n    %s'%(fp, e))
         
-        self.trash_fps = l
         
         
         

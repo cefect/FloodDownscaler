@@ -115,9 +115,12 @@ class QAlgos(object):
 
         }
     
+    #WARNING: some processing providers dont play well with high compression 
+        #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
     compress_d =  {
         'hiT':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.001', #nice for terrain
         'hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
+        'med':'COMPRESS=LZW',
         'none':None        
         }
 
@@ -720,9 +723,31 @@ class QAlgos(object):
 
         return res_d
     
+    def clip(self,
+            vlay,
+            vlay_top,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:clip'
+        log = logger.getChild('clip')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output, 'OVERLAY':vlay_top}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d
     
 
-    
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1321,7 +1346,9 @@ class QAlgos(object):
                   'EXTENT' : extent,
                    #'EXTENT' : '1221974.375000000,1224554.125000000,466981.406300000,469354.031300000 [EPSG:3005]',
                     'EXTRA' : '', 'FIELD' : '', 
-                    'HEIGHT' : resolution, 'WIDTH' : resolution, 'UNITS' : 1,  #Georeferenced units 
+                    'HEIGHT' : resolution, 
+                    'WIDTH' : resolution, 
+                    'UNITS' : 1,  #Georeferenced units 
                     'INIT' : None, #Pre-initialize the output image with value
                      
                       'INVERT' : False,
@@ -1995,11 +2022,13 @@ class Qproj(QAlgos, Basic):
         
         return out_fp
     
-    
-    
     def rlay_load(self, fp,  #load a raster layer and apply an aoi clip
                   aoi_vlay = None,
                   logger=None,
+                  
+                  #crs handling
+                  set_proj_crs = False, #set the project crs from this layer
+                  reproj=False,
                   **clipKwargs):
         
         #=======================================================================
@@ -2007,6 +2036,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('rlay_load')
+        mstore = QgsMapLayerStore() #build a new store
         
         assert os.path.exists(fp), 'requested file does not exist: %s'%fp
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
@@ -2014,40 +2044,64 @@ class Qproj(QAlgos, Basic):
         
         basefn = os.path.splitext(os.path.split(fp)[1])[0]
         
-
-        #Import a Raster Layer
-        rlayer = QgsRasterLayer(fp, basefn)
-        
-        
+        #=======================================================================
+        # load
+        #=======================================================================
+        rlay_raw = QgsRasterLayer(fp, basefn)
         
         #===========================================================================
         # check
         #===========================================================================
         
-        assert isinstance(rlayer, QgsRasterLayer), 'failed to get a QgsRasterLayer'
-        assert rlayer.isValid(), "Layer failed to load!"
+        assert isinstance(rlay_raw, QgsRasterLayer), 'failed to get a QgsRasterLayer'
+        assert rlay_raw.isValid(), "Layer failed to load!"
+        log.debug('loaded \'%s\' from \n    %s'%(rlay_raw.name(), fp))
         
-        if not rlayer.crs() == self.qproj.crs():
-            log.warning('loaded layer \'%s\' crs mismatch!'%rlayer.name())
+        #=======================================================================
+        # #CRS
+        #=======================================================================
+        if not rlay_raw.crs() == self.qproj.crs():
+            log.warning('\'%s\' crs: \'%s\' doesnt match project: %s. reproj=%s. set_proj_crs=%s'%(
+                rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
+            
+            if reproj:
+                raise Error('not implemented')
 
-        log.debug('loaded \'%s\' from \n    %s'%(rlayer.name(), fp))
+                mstore.addMapLayer(rlay_raw)
+
+                
+            elif set_proj_crs:
+                self.qproj.setCrs(rlay_raw.crs())
+                rlay1 = rlay_raw
+                
+            else:
+                rlay1 = rlay_raw
+                
+        else:
+            rlay1 = rlay_raw
         
         #=======================================================================
         # aoi
         #=======================================================================
-        rlay2 = rlayer
+
         if not aoi_vlay is None:
-            self._check_aoi(aoi_vlay, logger=log)
+
             log.debug('clipping with %s'%aoi_vlay.name())
-            assert isinstance(aoi_vlay, QgsVectorLayer)
-            rlay2 = self.cliprasterwithpolygon(rlayer,aoi_vlay, 
-                               logger=log, layname=rlayer.name(), **clipKwargs)
+
+            rlay2 = self.cliprasterwithpolygon(rlay1,aoi_vlay, 
+                               logger=log, layname=rlay1.name(), **clipKwargs)
             
             #remove the raw
-            mstore = QgsMapLayerStore() #build a new store
-            mstore.addMapLayers([rlayer]) #add the layers to the store
-            mstore.removeAllMapLayers() #remove all the layers
+            
+            mstore.addMapLayer(rlay1) #add the layers to the store
+            
+        else:
+            rlay2 = rlay1
 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        mstore.removeAllMapLayers() #remove all the layers
             
         
         return rlay2
