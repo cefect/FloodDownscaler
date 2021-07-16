@@ -26,6 +26,10 @@ import processing
 
 from qgis.analysis import QgsNativeAlgorithms
 
+#whitebox
+#from processing_wbt.wbtprovider import WbtProvider 
+
+
 """throws depceciationWarning"""
 import processing  
 
@@ -169,9 +173,17 @@ class QAlgos(object):
 
         
     
-        Processing.initialize() #crashing without raising an Exception
+        Processing.initialize()  
     
         QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+        #QgsApplication.processingRegistry().addProvider(WbtProvider())
+        
+        #=======================================================================
+        # #log all the agos
+        # for alg in QgsApplication.processingRegistry().algorithms():
+        #     log.debug("{}:{} --> {}".format(alg.provider().name(), alg.name(), alg.displayName()))
+        #=======================================================================
+        
         
         assert not self.feedback is None, 'instance needs a feedback method for algos to work'
         
@@ -179,6 +191,7 @@ class QAlgos(object):
         
 
         return True
+    
     
     #===========================================================================
     # NATIVE---------
@@ -1367,6 +1380,29 @@ class QAlgos(object):
         return self._get_rlay_res(res_d, result, layname=layname)
     
     #===========================================================================
+    # WHITEBOX------
+    #===========================================================================
+    def BreachDepressionsLeastCost(self,
+                                   rlay,
+                                   dist=100,
+                                   output='TEMPORARY_OUTPUT',
+                                   ):
+        raise Error('cant get the whitebox provider to work')
+        
+        ins_d = { 'dem' : rlay,
+                  'dist' : dist, 
+                  'fill' : True, 'flat_increment' : None, 'max_cost' : None, 
+                  'min_dist' : True,
+                   'output' : output }
+        
+        
+        
+        algo_nm='wbt:BreachDepressionsLeastCost'
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d
+    #===========================================================================
     # helpers-------
     #===========================================================================
     
@@ -2061,7 +2097,7 @@ class Qproj(QAlgos, Basic):
         # #CRS
         #=======================================================================
         if not rlay_raw.crs() == self.qproj.crs():
-            log.warning('\'%s\' crs: \'%s\' doesnt match project: %s. reproj=%s. set_proj_crs=%s'%(
+            log.warning('\'%s\'  match fail (%s v %s) \n    reproj=%s set_proj_crs=%s'%(
                 rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
             
             if reproj:
@@ -2358,7 +2394,7 @@ class Qproj(QAlgos, Basic):
         
         #clear your map store
         self.mstore.removeAllMapLayers()
-        print('clearing mstore')
+        #print('clearing mstore')
         
         super().__exit__(*args,**kwargs) #initilzie teh baseclass
         
