@@ -177,6 +177,7 @@ class Basic(object): #simple base class
             
             try:
                 os.remove(fp)
+                print('    deleted %s'%fp)
             except Exception as e:
                 print('failed to delete \n    %s \n    %s'%(fp, e))
         

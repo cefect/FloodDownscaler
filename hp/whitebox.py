@@ -105,12 +105,54 @@ class Whitebox(object):
         
         assert out_fp.endswith('.tif')
  
+        #=======================================================================
+        # setup
+        #=======================================================================
         args = [self.exe_fp,'-v','--run={}'.format(tool_nm),'--output={}'.format(out_fp),
                 '--dem={}'.format(dem_fp),
                 '--streams={}'.format(streams_fp),
                 ]
         
+        #=======================================================================
+        # execute
+        #=======================================================================
         log.info('executing \'%s\' on \'%s\''%(tool_nm, os.path.basename(dem_fp)))
+        self.__run__(args) #execute
+        
+        return out_fp
+    
+    def fillMissingData(self,
+                        rlay_fp,
+                        dist=11, #pixel length to infil
+                        logger=None, out_fp=None,
+                        ):
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        tool_nm = 'FillMissingData'
+        if logger is None: logger=self.logger
+        log=logger.getChild(tool_nm)
+        
+        if out_fp is None: 
+            out_fp = os.path.join(self.out_dir, os.path.splitext(os.path.basename(rlay_fp))[0]+'_fild.tif')
+        
+        assert out_fp.endswith('.tif')
+ 
+        #=======================================================================
+        # setup
+        #=======================================================================
+        args = [self.exe_fp,'-v','--run={}'.format(tool_nm),'--output={}'.format(out_fp),
+                '--input={}'.format(rlay_fp),
+                '--filter=%i'%dist,
+                '--weight=2.0',
+                '--no_edges=\'True\'',
+                ]
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.info('executing \'%s\' on \'%s\''%(tool_nm, os.path.basename(rlay_fp)))
         self.__run__(args) #execute
         
         return out_fp

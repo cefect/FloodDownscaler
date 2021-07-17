@@ -80,8 +80,6 @@ stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median':
                 'St dev (pop)': 6, 'Minimum': 7, 'Maximum': 8, 'Range': 9, 'Minority': 10,
                  'Majority': 11, 'Variety': 12, 'Q1': 13, 'Q3': 14, 'IQR': 15}
 
-#spatial relation predicates
-predicate_d = {'intersects':0,'contains':1,'equals':2,'touches':3,'overlaps':4,'within':5, 'crosses':6}
 
 
 #===============================================================================
@@ -127,6 +125,18 @@ class QAlgos(object):
         'med':'COMPRESS=LZW',
         'none':None        
         }
+
+    #===========================================================================
+    # input converters
+    #===========================================================================
+    #spatial relation predicates
+    predicate_d = {'intersects':0,'contains':1,'equals':2,'touches':3,'overlaps':4,'within':5, 'crosses':6}
+    
+    #statistical summaries
+    """2021-07-17: built from qgis:joinbylocationsummary"""
+    summaries_d = {'count': 0, 'unique': 1, 'min': 2, 'max': 3, 'range': 4, 'sum': 5,
+                    'mean': 6, 'median': 7, 'stddev': 8, 'minority': 9, 'majority': 10,
+                    'q1': 11, 'q3': 12, 'iqr': 13, 'empty': 14, 'filled': 15, 'min_length': 16, 'max_length': 17, 'mean_length': 18}
 
     
     def __init__(self, 
@@ -277,9 +287,7 @@ class QAlgos(object):
                 #expectations
                 allow_none = True,
                 
-                logger = None,
-
-                ):
+                logger = None,):
         
         #=======================================================================
         # setups and defaults
@@ -760,7 +768,178 @@ class QAlgos(object):
 
         return res_d
     
+    def pointsalonglines(self,
+            vlay,
+            spacing=100,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:pointsalonglines'
+        log = logger.getChild('pointsalonglines')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output,         
+                    'DISTANCE' : spacing, 'END_OFFSET' : 0, 'START_OFFSET' : 0}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
 
+        return res_d['OUTPUT']
+    
+    def buffer(self,
+            vlay,
+            dist=10,
+            dissolve=True,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:buffer'
+        log = logger.getChild('buffer')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output,         
+                    'DISSOLVE' : dissolve, 'DISTANCE' : dist, 'END_CAP_STYLE' : 0, 
+                    'JOIN_STYLE' : 0, 'MITER_LIMIT' : 2, 'SEGMENTS' : 5 
+                    }
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+ 
+    
+    def symmetricaldifference(self,
+            vlay,
+            vlay2,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:symmetricaldifference'
+        log = logger.getChild('symmetricaldifference')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output,         
+                    'OVERLAY' : vlay2, 'OVERLAY_FIELDS_PREFIX':'',
+                    }
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+    def intersection(self,
+            vlay,
+            vlay2,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:intersection'
+        log = logger.getChild('intersection')
+ 
+        ins_d =    {'INPUT' : vlay, 'OUTPUT' : output,         
+                    'OVERLAY' : vlay2, 'OVERLAY_FIELDS_PREFIX':'',
+                    'INPUT_FIELDS' : [],'OVERLAY_FIELDS' : []
+                    }
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+    def creategrid(self,
+            extent_layer, #layer with extents to use  to populate grid
+            spacing=1000, #grid spacing
+            crs=None,
+            
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:creategrid'
+        log = logger.getChild('creategrid')
+        
+        if crs is None: crs=self.qproj.crs()
+        
+        assert extent_layer.crs() == crs, 'crs mismatch'
+        
+ 
+        ins_d =    { 'CRS' :crs,
+                     'EXTENT' : extent_layer.extent(),
+                      'HOVERLAY' : 0, 'VOVERLAY' : 0,
+                     'HSPACING' : spacing, 'VSPACING' : spacing,
+                      'TYPE' : 2, #rectangle
+                       'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
+    
+ 
+    def renameField(self,
+            vlay,
+            old_fn, new_fn,
+            
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:renametablefield'
+        log = logger.getChild('renameField')
+ 
+        
+ 
+        ins_d = { 'FIELD' : old_fn, 'NEW_NAME' : new_fn,
+                  'INPUT' : vlay, 'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+            
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -777,8 +956,6 @@ class QAlgos(object):
         if logger is None: logger=self.logger
         #log = logger.getChild('createspatialindex')
 
-
- 
         #=======================================================================
         # assemble pars
         #=======================================================================
@@ -884,49 +1061,38 @@ class QAlgos(object):
              predicate_l = ['intersects'],#list of geometric serach predicates
              smry_l = ['sum'], #data summaries to apply
              discard_nomatch = False, #Discard records which could not be joined
-             
-             use_raw_fn=False, #whether to convert names back to the originals
-             layname=None,
+                 #TRUE: two resulting layers have no features in common
+                #FALSE: in layer retains all non matchers, out layer only has the non-matchers?
+ 
+             output='TEMPORARY_OUTPUT',
+             logger=None,
                                  
                      ):
         """
         WARNING: This ressets the fids
-        
-        discard_nomatch: 
-            TRUE: two resulting layers have no features in common
-            FALSE: in layer retains all non matchers, out layer only has the non-matchers?
-        
-        """
-        
-        """
-        view(join_vlay)
-        """
-        #=======================================================================
-        # presets
-        #=======================================================================
-        algo_nm = 'qgis:joinbylocationsummary'
-        
-        predicate_d = {'intersects':0,'contains':1,'equals':2,'touches':3,'overlaps':4,'within':5, 'crosses':6}
-        summaries_d = {'count':0, 'unique':1, 'min':2, 'max':3, 'range':4, 'sum':5, 'mean':6}
-
-        log = self.logger.getChild('joinbylocationsummary')
+          """
         
         #=======================================================================
         # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('joinbylocationsummary')
+        algo_nm = 'qgis:joinbylocationsummary'
+ 
+        #=======================================================================
+        # presets
         #=======================================================================
         if isinstance(jlay_fieldn_l, set):
             jlay_fieldn_l = list(jlay_fieldn_l)
             
             
         #convert predicate to code
-        pred_code_l = [predicate_d[pred_name] for pred_name in predicate_l]
+        pred_code_l = [self.predicate_d[pred_name] for pred_name in predicate_l]
             
         #convert summaries to code
-        sum_code_l = [summaries_d[smry_str] for smry_str in smry_l]
+        sum_code_l = [self.summaries_d[smry_str] for smry_str in smry_l]
+ 
         
-        
-        if layname is None:  layname = '%s_jsmry'%vlay.name()
-            
         #=======================================================================
         # prechecks
         #=======================================================================
@@ -961,7 +1127,7 @@ class QAlgos(object):
                   'INPUT' : main_input,
                    'JOIN' : join_input,
                    'JOIN_FIELDS' : jlay_fieldn_l,
-                  'OUTPUT' : 'TEMPORARY_OUTPUT', 
+                  'OUTPUT' : output, 
                   'PREDICATE' : pred_code_l, 
                   'SUMMARIES' : sum_code_l,
                    }
@@ -970,54 +1136,45 @@ class QAlgos(object):
  
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
  
-        res_vlay = res_d['OUTPUT']
- 
-        #===========================================================================
-        # post formatting
-        #===========================================================================
-        res_vlay.setName(layname) #reset the name
-        
-        #get new field names
-        nfn_l = set([f.name() for f in res_vlay.fields()]).difference([f.name() for f in vlay.fields()])
-        
-        """
-        view(res_vlay)
-        """
+        return res_d
+    
+    def deletecolumn(self, #Drop Field(s)
+                     vlay,
+                     fields_l, #field names to drop
+                     selected_only=False, #limit to selected only on the main
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
         #=======================================================================
-        # post check
+        # presets
         #=======================================================================
-        #=======================================================================
-        # for fn in nfn_l:
-        #     rser = vlay_get_fdata(res_vlay, fn)
-        #     if rser.isna().all().all():
-        #         log.warning('%s \'%s\' got all nulls'%(vlay.name(), fn))
-        #=======================================================================
+        algo_nm = 'qgis:deletecolumn'
+        if logger is None: logger=self.logger
+        #log = logger.getChild('createspatialindex')
 
         
+        assert isinstance(fields_l, list)
         #=======================================================================
-        # rename fields
+        # assemble pars
         #=======================================================================
-        if use_raw_fn:
-            raise Error('?')
-            #===================================================================
-            # assert len(smry_l)==1, 'rename only allowed for single sample stat'
-            # rnm_d = {s:s.replace('_%s'%smry_l[0],'') for s in nfn_l}
-            # 
-            # s = set(rnm_d.values()).symmetric_difference(jlay_fieldn_l)
-            # assert len(s)==0, 'failed to convert field names'
-            # 
-            # res_vlay = vlay_rename_fields(res_vlay, rnm_d, logger=log)
-            # 
-            # nfn_l = jlay_fieldn_l
-            #===================================================================
+        if selected_only:
+            main_input = self._get_sel_obj(vlay)
+        else:
+            main_input=vlay
+            
         
         
+        #assemble pars
+        ins_d = { 'COLUMN' : fields_l, 
+                 'INPUT' : main_input,
+                    'OUTPUT' : output }
         
-        log.info('sampled \'%s\' w/ \'%s\' (%i hits) and \'%s\'to get %i new fields \n    %s'%(
-            join_vlay.name(), vlay.name(), res_vlay.dataProvider().featureCount(), 
-            smry_l, len(nfn_l), nfn_l))
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
-        return res_vlay, nfn_l
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
 
     
     #===========================================================================
@@ -1379,6 +1536,74 @@ class QAlgos(object):
     
         return self._get_rlay_res(res_d, result, layname=layname)
     
+    
+    def rastercalculatorGDAL(self, #build a rastser with a fixed value from a polygon
+                rlayA, #fixed value to burn,
+ 
+                formula,
+                compression = 'none',
+                output = 'TEMPORARY_OUTPUT',
+                outType=5, #Float32 
+                logger=None,
+                  ):
+        """
+        TODO: more sophisticated handling of inputs
+            take a list of rasters from theu ser
+            assign each one in t he list to the letters
+            assign thecorresponding band values (assume 1 if not sdpecified)
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('rastercalculator')
+
+        algo_nm = 'gdal:rastercalculator'
+        
+        ins_d = { 'BAND_A' : 1, 'BAND_B' : None, 'BAND_C' : None,
+                  'BAND_D' : None, 'BAND_E' : None, 'BAND_F' : None,
+                  'EXTRA' : '',
+                   'FORMULA' : formula,
+                   'INPUT_A' : rlayA,
+                    'INPUT_B' : None, 'INPUT_C' : None, 'INPUT_D' : None, 'INPUT_E' : None,'INPUT_F' : None,
+                     'NO_DATA' : -9999, 
+                  'OPTIONS' : self.compress_d[compression], 
+                  'OUTPUT' : output, 
+                  'RTYPE' : outType, #int32
+                   }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d
+    
+    def polygonizeGDAL(self,
+                       rlay,
+                       output = 'TEMPORARY_OUTPUT',
+                       logger=None,
+                       ):
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('polygonize')
+
+        algo_nm = 'gdal:polygonize'
+        
+        ins_d = { 'BAND' : 1, 'EIGHT_CONNECTEDNESS' : True, 
+                 'EXTRA' : '', 'FIELD' : 'DN', 
+                 'INPUT' : rlay, 
+                 'OUTPUT' : output }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d
+    
     #===========================================================================
     # WHITEBOX------
     #===========================================================================
@@ -1410,6 +1635,7 @@ class QAlgos(object):
         
         log = self.logger.getChild('_get_sel_obj')
         
+        assert isinstance(vlay, QgsVectorLayer)
         if vlay.selectedFeatureCount() == 0:
             raise Error('Nothing selected on \'%s\'. exepects some pre selection'%(vlay.name()))
         
@@ -2074,7 +2300,7 @@ class Qproj(QAlgos, Basic):
         log = logger.getChild('rlay_load')
         mstore = QgsMapLayerStore() #build a new store
         
-        assert os.path.exists(fp), 'requested file does not exist: %s'%fp
+        assert os.path.exists(fp), 'requested file does not exist: \n    %s'%fp
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
             'requested file is not a valid raster file type: %s'%fp
         
@@ -2215,7 +2441,7 @@ class Qproj(QAlgos, Basic):
         return 
     
     #===========================================================================
-    # vlay methods-------------
+    # VLAY methods-------------
     #===========================================================================
     def vlay_new_df(self, #build a vlay from a df
             df_raw,
@@ -2384,11 +2610,129 @@ class Qproj(QAlgos, Basic):
             if vlay.wkbType() == 100:
                 raise Error('constructed layer has NoGeometry')
 
+        return vlay
+    
+    def vlay_rename_fields(self,
+        vlay_raw,
+        rnm_d, #field name conversions to apply {old FieldName:newFieldName}
+        #output='TEMPORARY_OUTPUT', #NO! need to load a layer
+        logger=None,
+ 
 
-
+        ):
+        """
+        for single field renames, better to use 'native:renametablefield'
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=mod_logger
+        log=logger.getChild('vlay_rename_fields')
+        
+        #=======================================================================
+        # #get a working layer
+        #=======================================================================
+        vlay_raw.selectAll()
+        vlay = processing.run('native:saveselectedfeatures', 
+                {'INPUT' : vlay_raw, 'OUTPUT' : 'TEMPORARY_OUTPUT'}, 
+                #feedback=self.feedback,
+                )['OUTPUT']
+        
+        #=======================================================================
+        # check and convert to index
+        #=======================================================================
+        #get fieldname index conversion for layer
+        fni_d = {f.name():vlay.dataProvider().fieldNameIndex(f.name()) for f in vlay.fields()}
+        
+        #check it
+        for k in rnm_d.keys():
+            assert k in fni_d.keys(), 'requested field \'%s\' not on layer'%k
+        
+        #re-index rename request
+        fiRn_d = {fni_d[k]:v for k,v in rnm_d.items()}
+    
+        #=======================================================================
+        # #apply renames
+        #=======================================================================
+        if not vlay.dataProvider().renameAttributes(fiRn_d):
+            raise Error('failed to rename')
+        vlay.updateFields()
+        
+        #=======================================================================
+        # #check it
+        #=======================================================================
+        fn_l = [f.name() for f in vlay.fields()]
+        s = set(rnm_d.values()).difference(fn_l)
+        assert len(s)==0, 'failed to rename %i fields: %s'%(len(s), s)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        vlay.setName(vlay_raw.name())
+        
+        log.debug('applied renames to \'%s\' \n    %s'%(vlay.name(), rnm_d))
+        
         
         return vlay
     
+    #===========================================================================
+    # def vlay_rename_fields(self, #rename fields in bulk
+    #                        vlay_raw,
+    #                        rnm_d, #{old field name: new}
+    #                        logger=None,
+    #                        ):
+    #     
+    #     """using the new algo
+    #     see canflood.hlpr.Q.vlay_rename_fields for """
+    #     
+    #     #=======================================================================
+    #     # defaults
+    #     #=======================================================================
+    #     if logger is None :logger=self.logger
+    #     log=logger.getChild('vrnm_fields')
+    #     
+    #     log.info('renaming %i fields on \'%s\''%(len(rnm_d), vlay_raw.name()))
+    #     
+    #     #=======================================================================
+    #     # precheck
+    #     #=======================================================================
+    #     miss_l = set(rnm_d.keys()).difference([f.name() for f in vlay_raw.fields()])
+    #     assert len(miss_l)==0, '%i requested old fields not on the layer \n    %s'%(len(miss_l), miss_l)
+    #     
+    #     #=======================================================================
+    #     # make the changes
+    #     #=======================================================================
+    #     mstore = QgsMapLayerStore()
+    #     vlay =vlay_raw
+    #     first = True
+    #     for fn_old, fn_new in rnm_d.items():
+    #         
+    #         #handle the store (only intermitent layers should be added
+    #         if first:
+    #             first=False
+    #         else:
+    #             mstore.addMapLayer(vlay)
+    #         
+    #         vlay = self.renameField(vlay, fn_old, fn_new, logger=log)
+    #         
+    #     #=======================================================================
+    #     # wrap
+    #     #=======================================================================
+    #     vlay.setName(vlay_raw.name())
+    #     
+    #     
+    #     #clean up store
+    #     mstore.removeAllMapLayers()
+    #     
+    #     assert isinstance(vlay, QgsVectorLayer)
+    #     assert isinstance(vlay_raw, QgsVectorLayer)
+    #     
+    #     log.debug('finished on %s'%vlay.name())
+    #         
+    #===========================================================================
+        
+        
+ 
     def __exit__(self, #destructor
                  *args,**kwargs):
         
@@ -2972,7 +3316,10 @@ def fields_build_new( #build qfields from different data containers
 
 
     return Qfields
-    
+
+
+
+
 
 def view(#view the vector data (or just a df) as a html frame
         obj, logger=mod_logger,
