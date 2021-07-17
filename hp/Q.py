@@ -581,7 +581,13 @@ class QAlgos(object):
         #===========================================================================
         # setups and defaults
         #===========================================================================
-        if logger is None: logger = self.logger
+        if logger is None: 
+            
+            logger = self.logger
+            """to avoid pushing lots of messages"""
+            feedback = QgsProcessingFeedback()
+        else:
+            feedback=self.feedback
         log = logger.getChild('saveselectedfeatures')
         algo_nm = 'native:saveselectedfeatures'
         
@@ -611,7 +617,7 @@ class QAlgos(object):
             %(ins_d))
         
         #execute
-        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback)
+        res_d = processing.run(algo_nm, ins_d,  feedback=feedback)
 
  
 
@@ -1243,7 +1249,13 @@ class QAlgos(object):
         #=======================================================================
         # defaults
         #=======================================================================
-        if logger is None: logger = self.logger
+        if logger is None: 
+            
+            logger = self.logger
+            """to avoid pushing lots of messages"""
+            feedback = QgsProcessingFeedback()
+        else:
+            feedback=self.feedback
         log = logger.getChild('cliprasterwithpolygon')
         
         if layname is None:
@@ -1306,7 +1318,7 @@ class QAlgos(object):
         
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
         
-        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        res_d = processing.run(algo_nm, ins_d, feedback=feedback)
         
         log.debug('finished w/ \n    %s'%res_d)
         
