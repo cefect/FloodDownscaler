@@ -24,7 +24,7 @@ from PyQt5.QtCore import QVariant, QMetaType
 import processing  
 
 
-from qgis.analysis import QgsNativeAlgorithms
+from qgis.analysis import QgsNativeAlgorithms, QgsRasterCalculatorEntry, QgsRasterCalculator
 
 #whitebox
 #from processing_wbt.wbtprovider import WbtProvider 
@@ -1176,7 +1176,47 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
 
-    
+    def distancematrix(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     vlay,
+                     ncnt=4, #number of neighroubs to include
+                     selected_only=False, #limit to selected only on the main
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:distancematrix'
+        if logger is None: logger=self.logger
+        log = logger.getChild('distancematrix')
+
+        
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+        if selected_only:
+            main_input = self._get_sel_obj(vlay)
+        else:
+            main_input=vlay
+            
+        
+        
+        #assemble pars
+        ins_d = { 'INPUT' : main_input,
+                  'INPUT_FIELD' : 'fid', 
+                  'MATRIX_TYPE' : 1, #standard distance matrix
+                   'NEAREST_POINTS' : 8,
+                   'OUTPUT' : 'TEMPORARY_OUTPUT',
+                    'TARGET' : vlay,
+                  'TARGET_FIELD' : 'fid' }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # GDAL---------
     #===========================================================================
@@ -2676,61 +2716,77 @@ class Qproj(QAlgos, Basic):
         return vlay
     
     #===========================================================================
-    # def vlay_rename_fields(self, #rename fields in bulk
-    #                        vlay_raw,
-    #                        rnm_d, #{old field name: new}
-    #                        logger=None,
-    #                        ):
-    #     
-    #     """using the new algo
-    #     see canflood.hlpr.Q.vlay_rename_fields for """
-    #     
-    #     #=======================================================================
-    #     # defaults
-    #     #=======================================================================
-    #     if logger is None :logger=self.logger
-    #     log=logger.getChild('vrnm_fields')
-    #     
-    #     log.info('renaming %i fields on \'%s\''%(len(rnm_d), vlay_raw.name()))
-    #     
-    #     #=======================================================================
-    #     # precheck
-    #     #=======================================================================
-    #     miss_l = set(rnm_d.keys()).difference([f.name() for f in vlay_raw.fields()])
-    #     assert len(miss_l)==0, '%i requested old fields not on the layer \n    %s'%(len(miss_l), miss_l)
-    #     
-    #     #=======================================================================
-    #     # make the changes
-    #     #=======================================================================
-    #     mstore = QgsMapLayerStore()
-    #     vlay =vlay_raw
-    #     first = True
-    #     for fn_old, fn_new in rnm_d.items():
-    #         
-    #         #handle the store (only intermitent layers should be added
-    #         if first:
-    #             first=False
-    #         else:
-    #             mstore.addMapLayer(vlay)
-    #         
-    #         vlay = self.renameField(vlay, fn_old, fn_new, logger=log)
-    #         
-    #     #=======================================================================
-    #     # wrap
-    #     #=======================================================================
-    #     vlay.setName(vlay_raw.name())
-    #     
-    #     
-    #     #clean up store
-    #     mstore.removeAllMapLayers()
-    #     
-    #     assert isinstance(vlay, QgsVectorLayer)
-    #     assert isinstance(vlay_raw, QgsVectorLayer)
-    #     
-    #     log.debug('finished on %s'%vlay.name())
-    #         
+    # RLAYs--------
     #===========================================================================
+    def rcalc1(self, #simple raster calculations with a single raster
+               rlay,
+               formula, #string formatted formula
+               rasterEntries, #list of QgsRasterCalculatorEntry
+               out_dir=None,
+               layname='result',
+               logger=None,
+               ):
+        """
+        see __rCalcEntry
+        """
         
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('rcalc1')
+        if out_dir is None: out_dir=self.out_dir
+
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        #=======================================================================
+        # assemble parameters
+        #=======================================================================
+ 
+        outputFile = os.path.join(out_dir,layname+'.tif' )
+        outputExtent  = rlay.extent()
+        outputFormat = 'GTiff'
+        nOutputColumns = rlay.width()
+        nOutputRows = rlay.height()
+ 
+        if os.path.exists(outputFile): assert self.overwrite
+        #=======================================================================
+        # execute
+        #=======================================================================
+        """throwing depreciation warning"""
+        rcalc = QgsRasterCalculator(formula, outputFile, outputFormat, outputExtent,
+                            nOutputColumns, nOutputRows, rasterEntries,
+                            QgsCoordinateTransformContext())
+        
+        result = rcalc.processCalculation(feedback=self.feedback)
+        
+        #=======================================================================
+        # check    
+        #=======================================================================
+        if not result == 0:
+            raise Error(rcalc.lastError())
+        
+        assert os.path.exists(outputFile)
+        
+        
+        log.info('saved result to: \n    %s'%outputFile)
+            
+        #=======================================================================
+        # retrieve result
+        #=======================================================================
+        
+        
+        return outputFile
+    
+    def _rCalcEntry(self, #helper for raster calculations 
+                         rlay, bandNumber=1):
+        rcentry = QgsRasterCalculatorEntry()
+        rcentry.raster=rlay
+        rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
+        rcentry.bandNumber=bandNumber
+        
+        return rcentry
+        
+
         
  
     def __exit__(self, #destructor
