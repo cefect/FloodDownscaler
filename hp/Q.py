@@ -2780,7 +2780,7 @@ class Qproj(QAlgos, Basic):
         assert os.path.exists(outputFile)
         
         
-        log.info('saved result to: \n    %s'%outputFile)
+        log.debug('saved result to: \n    %s'%outputFile)
             
         #=======================================================================
         # retrieve result
@@ -2791,6 +2791,7 @@ class Qproj(QAlgos, Basic):
     
     def _rCalcEntry(self, #helper for raster calculations 
                          rlay, bandNumber=1):
+        assert isinstance(rlay, QgsRasterLayer)
         rcentry = QgsRasterCalculatorEntry()
         rcentry.raster=rlay
         rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
