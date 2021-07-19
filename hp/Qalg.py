@@ -888,6 +888,30 @@ class QAlgos(object):
         
 
         return res_d['OUTPUT']
+    
+    
+    def deleteholes(self,
+            vlay,
+            hole_area,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:deleteholes'
+        log = logger.getChild('deleteholes')
+
+        ins_d = { 'MIN_AREA':hole_area,
+                  'INPUT' : vlay, 'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================
