@@ -15,7 +15,7 @@ import os, logging, logging.config
 class BuildLogr(object): #simple class to build a logger
     
     def __init__(self,
-            work_dir, 
+            #work_dir, 
             logcfg_file =r'C:\LS\03_TOOLS\coms\logger.conf',
             ):
         """
@@ -24,10 +24,12 @@ class BuildLogr(object): #simple class to build a logger
         #===============================================================================
         # FILE SETUP
         #===============================================================================
-        assert os.path.exists(work_dir), work_dir
-        os.chdir(work_dir) #set this to the working directory
-        print('working directory set to \"%s\''%os.getcwd())
-        
+        #=======================================================================
+        # assert os.path.exists(work_dir), work_dir
+        # os.chdir(work_dir) #set this to the working directory
+        # print('working directory set to \"%s\''%os.getcwd())
+        # 
+        #=======================================================================
         assert os.path.exists(logcfg_file), 'No logger Config File found at: \n   %s'%logcfg_file
     
         #===========================================================================

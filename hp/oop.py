@@ -79,7 +79,9 @@ class Basic(object): #simple base class
         #=======================================================================
         if logger is None:
             from hp.logr import BuildLogr
-            lwrkr = BuildLogr(work_dir)
+            lwrkr = BuildLogr(
+                #work_dir
+                )
             logger=lwrkr.logger
             lwrkr.duplicate(self.out_dir, 
                         basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
@@ -91,20 +93,20 @@ class Basic(object): #simple base class
         
         self.logger.debug('finished Basic.__init__')
         
-    def get_install_info(self,
+    def _install_info(self,
                          log = None): #print version info
         if log is None: log = self.logger
         
         #verison info
         
-        self.logger.info('main python version: \n    %s'%sys.version)
+        log.info('main python version: \n    %s'%sys.version)
         import numpy as np
-        self.logger.info('numpy version: %s'%np.__version__)
+        log.info('numpy version: %s'%np.__version__)
         import pandas as pd
-        self.logger.info('pandas version: %s'%(pd.__version__))
+        log.info('pandas version: %s'%(pd.__version__))
         
         #directory info
-        self.logger.info('os.getcwd: %s'%os.getcwd())
+        log.info('os.getcwd: %s'%os.getcwd())
         
         log.info('exe: %s'%sys.executable)
 

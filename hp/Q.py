@@ -26,6 +26,8 @@ import processing
 
 from qgis.analysis import QgsNativeAlgorithms, QgsRasterCalculatorEntry, QgsRasterCalculator
 
+
+
 #whitebox
 #from processing_wbt.wbtprovider import WbtProvider 
 
@@ -127,7 +129,11 @@ class Qproj(QAlgos, Basic):
         # setup qgis
         #=======================================================================
         if feedback is None:
-            feedback = MyFeedBackQ(logger=self.logger)
+            from hp.logr import BuildLogr
+            lwrkr = BuildLogr(logcfg_file=r'C:\LS\03_TOOLS\coms\Qlogger.conf')
+            
+            
+            feedback = MyFeedBackQ(logger=lwrkr.logger)
         self.feedback = feedback
         
         if not crsID_default is None: self.crsID_default=crsID_default
@@ -191,8 +197,7 @@ class Qproj(QAlgos, Basic):
 
             app.initQgis()
 
-            log.info(u' QgsApplication.initQgis. version: %s, release: %s'%(
-                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
+
             
         
         except:
@@ -246,7 +251,7 @@ class Qproj(QAlgos, Basic):
                 
         self.vlay_drivers = vlay_drivers
         
-        self.logger.info('built driver:extensions dict: \n    %s'%vlay_drivers)
+        self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
         
         return
         
@@ -264,7 +269,7 @@ class Qproj(QAlgos, Basic):
         assert not self.feedback is None
         
  
-        log.info('project passed all checks')
+        log.debug('project passed all checks')
         
         return True
     
@@ -415,10 +420,17 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # #zvalues
         #=======================================================================
-        if dropZ:
+        """
+        vlay2 = vlay_raw
+        """
+ 
+        
+        
+        if dropZ and vlay_raw.wkbType()>=1000:
             vlay1 = processing.run('native:dropmzvalues', 
                                    {'INPUT':vlay_raw, 'OUTPUT':'TEMPORARY_OUTPUT', 'DROP_Z_VALUES':True},  
-                                   feedback=self.feedback, context=self.context)['OUTPUT']
+                                   #feedback=self.feedback, 
+                                   context=self.context)['OUTPUT']
             mstore.addMapLayer(vlay_raw)
         else:
             vlay1 = vlay_raw
@@ -458,7 +470,7 @@ class Qproj(QAlgos, Basic):
 
         dp = vlay2.dataProvider()
                 
-        log.info('loaded \'%s\' as \'%s\' \'%s\'  with %i feats crs: \'%s\' from file: \n     %s'
+        log.debug('loaded \'%s\' as \'%s\' \'%s\'  with %i feats crs: \'%s\' from file: \n     %s'
                     %(vlay2.name(), dp.storageType(), 
                       QgsWkbTypes().displayString(vlay2.wkbType()), 
                       dp.featureCount(), 
@@ -1216,8 +1228,10 @@ class Qproj(QAlgos, Basic):
         
         return ofp
         
-        
-
+    #===========================================================================
+    # HELPERS---------
+    #===========================================================================
+ 
         
     def _rCalcEntry_d(self,  #intellignetly build a rcentry7 container
                       rlay_obj_d, 
@@ -1256,6 +1270,25 @@ class Qproj(QAlgos, Basic):
         rcentry.bandNumber=bandNumber
         
         return rcentry
+    
+    def _install_info(self, log=None, **kwargs):
+        if log is None: log = self.logger
+        
+        log.info(u'QGIS version: %s, release: %s'%(
+                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
+        
+        #=======================================================================
+        # pyqt
+        #=======================================================================
+        from PyQt5 import Qt
+        
+        vers = ['%s = %s' % (k,v) for k,v in vars(Qt).items() if k.lower().find('version') >= 0 and not inspect.isbuiltin(v)]
+        log.info('\n    '.join(sorted(vers)))
+        
+        
+        super()._install_info(**kwargs) #initilzie teh baseclass
+        
+
         
 
         
@@ -2007,7 +2040,7 @@ def test_install(): #test your qgis install
     
     
     proj = Qproj()
-    proj.get_install_info()
+    proj._install_info()
     
     
     
