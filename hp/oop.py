@@ -10,7 +10,7 @@ object oriented programming
 
 import os, sys, datetime, gc, copy
 
-
+from hp.dirz import delete_dir
 
 from hp.exceptions import Error
 
@@ -174,9 +174,12 @@ class Basic(object): #simple base class
         #=======================================================================
         """this fails pretty often... python doesnt seem to want to let go"""
         for fp in self.trash_fps:
-            
+            if not os.path.exists(fp): continue #ddeleted already
             try:
-                os.remove(fp)
+                if os.path.isdir(fp):
+                    delete_dir(fp)
+                else:
+                    os.remove(fp)
                 print('    deleted %s'%fp)
             except Exception as e:
                 print('failed to delete \n    %s \n    %s'%(fp, e))

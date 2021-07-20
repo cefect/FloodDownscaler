@@ -234,6 +234,33 @@ def copy_to_temp( #copy the file to a temporary directory
         
         return res  #should return the sh ape files
     
+    
+def delete_dir(dirpath): #remove directory AND contents
+    assert os.path.exists(dirpath)
+    
+    #collect all the files
+    fps = set()
+    for dirpath, _, fns in os.walk(dirpath):
+        fps.update([os.path.join(dirpath, e) for e in fns])
+        
+    assert len(fps)<100, 'safety check'
+    #remove all these files
+    for fp in fps:
+        try:
+            os.remove(fp)
+            #print('deleted %s'%fp)
+        except Exception as e:
+            print('failed to remove %s \n    %s'%(fp, e))
+        
+    #remove the driector yu
+    try:
+        os.rmdir(dirpath)
+        #print('deleted %s'%dirpath)
+    except Exception as e:
+        print('failed to remove directory %s /n    %s'%( dirpath, e))
+    
+    
+    
 
 
 

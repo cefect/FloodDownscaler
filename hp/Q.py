@@ -355,7 +355,7 @@ class Qproj(QAlgos, Basic):
 
                   providerLib='ogr',
                   addSpatialIndex=True,
-                  dropZ=True,
+                  dropZ=False,
                   reproj=False, #whether to reproject hte layer to match the project
                   
                   set_proj_crs = False, #set the project crs from this layer
@@ -374,7 +374,7 @@ class Qproj(QAlgos, Basic):
         assert os.path.exists(file_path), file_path
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
-        log.info('on %s'%file_path)
+        log.debug('on %s'%file_path)
         mstore = QgsMapLayerStore() 
         #===========================================================================
         # load the layer--------------
@@ -648,7 +648,8 @@ class Qproj(QAlgos, Basic):
             'requested file is not a valid raster file type: %s'%fp
         
         basefn = os.path.splitext(os.path.split(fp)[1])[0]
-        
+    
+        log.debug("QgsRasterLayer(%s, %s)"%(fp, basefn))
         #=======================================================================
         # load
         #=======================================================================
@@ -1022,15 +1023,20 @@ class Qproj(QAlgos, Basic):
     # RLAYs--------
     #===========================================================================
     def rcalc1(self, #simple raster calculations with a single raster
-               rlay,
+               ref_lay,
                formula, #string formatted formula
                rasterEntries, #list of QgsRasterCalculatorEntry
+               ofp=None,
                out_dir=None,
                layname='result',
                logger=None,
+               clear_all=False, #clear all rasters from memory
                ):
         """
         see __rCalcEntry
+        
+        memory handling:
+            would be easier to make a standalone worker
         """
         
         #=======================================================================
@@ -1038,27 +1044,51 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('rcalc1')
-        if out_dir is None: out_dir=self.out_dir
-
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        mstore = QgsMapLayerStore()
+        #=======================================================================
+        # output file
+        #=======================================================================
+        if ofp is None:
+            if out_dir is None: out_dir=self.out_dir
+    
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+            
+            ofp = os.path.join(out_dir,layname+'.tif' )
+            
+        if os.path.exists(ofp): 
+            assert self.overwrite
+            
+            try:
+                os.remove(ofp)
+            except Exception as e:
+                raise Error('failed to clear existing file.. unable to write \n    %s \n    %s'%(
+                    ofp, e))
+                
+        assert ofp.endswith('.tif')
         #=======================================================================
         # assemble parameters
         #=======================================================================
- 
-        outputFile = os.path.join(out_dir,layname+'.tif' )
+        if isinstance(ref_lay, str):
+            rlay = self.rlay_load(ref_lay, logger=log)
+            mstore.addMapLayer(rlay)
+        else:
+            rlay = ref_lay
+        
         outputExtent  = rlay.extent()
         outputFormat = 'GTiff'
         nOutputColumns = rlay.width()
         nOutputRows = rlay.height()
  
-        if os.path.exists(outputFile): assert self.overwrite
+        crsTrnsf = QgsCoordinateTransformContext()
         #=======================================================================
         # execute
         #=======================================================================
-        """throwing depreciation warning"""
-        rcalc = QgsRasterCalculator(formula, outputFile, outputFormat, outputExtent,
-                            nOutputColumns, nOutputRows, rasterEntries,
-                            QgsCoordinateTransformContext())
+        log.debug('on %s'%formula)
+ 
+        rcalc = QgsRasterCalculator(formula, ofp, outputFormat, outputExtent,
+                                    self.qproj.crs(),
+                            nOutputColumns, nOutputRows, rasterEntries,crsTrnsf)
         
         result = rcalc.processCalculation(feedback=self.feedback)
         
@@ -1068,23 +1098,160 @@ class Qproj(QAlgos, Basic):
         if not result == 0:
             raise Error(rcalc.lastError())
         
-        assert os.path.exists(outputFile)
+        assert os.path.exists(ofp)
         
         
-        log.debug('saved result to: \n    %s'%outputFile)
+        log.debug('saved result to: \n    %s'%ofp)
             
         #=======================================================================
-        # retrieve result
+        # wrap
+        #=======================================================================
+
+        if clear_all:
+            for rcentry in rasterEntries:
+                mstore.addMapLayer(rcentry.raster)
+        mstore.removeAllMapLayers()
+        
+        
+        return ofp
+     
+    def mask_invert(self, #take a mask layer, and invert it
+                    rlay,
+                    logger=None,
+                    ofp=None,
+                    layname='mask_invert',
+                    **kwargs):
+        """ surprised there isnt a builtin wayu to do this
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('mask_invert')
+ 
+
+        #=======================================================================
+        # add 2 to nodata
+        #=======================================================================
+        rlay1_fp= self.fillnodata(rlay, fval=2, logger=log)
+        
+        #=======================================================================
+        # subtract 1 from all
+        #=======================================================================
+        """were assuming the layer is already a mask"""
+        
+        rcentry = self._rCalcEntry(rlay1_fp)
+        
+        formula = '({0}-1)/({0}-1)'.format(rcentry.ref)
+        
+        """
+        rcentry.raster
+        """
+        
+        return self.rcalc1(rlay1_fp, formula, [rcentry], logger=log,ofp=ofp,
+                           layname=layname, **kwargs)
+        
+
+    def mask_apply(self, #apply a mask to a la yer
+                   rlay, #layer to mask
+                   mask_rlay, #mask raseter
+                        #1=dont mask; 0 or nan = mask 
+                   invert_mask=False,
+                   layname=None,
+                   logger=None,
+                   **kwargs):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('mask_apply')
+        
+        #=======================================================================
+        # handle inverstion
         #=======================================================================
         
+        if invert_mask:
+            mask_rlay1 = self.mask_invert(mask_rlay, logger=log)
+        else:
+            mask_rlay1 = mask_rlay
+        #===================================================================
+        # build the raster calc entries
+        #===================================================================
+        log.debug('building entries')
+        #load rasters
+ 
+        #=======================================================================
+        # rcentry_d = self._rCalcEntry_d({'raw':rlay, 'mask':mask_rlay1},
+        #                                logger=log)
+        #=======================================================================
+        rlay_obj_d = {'raw':rlay, 'mask':mask_rlay1}
+        rcentry_d = dict()
         
-        return outputFile
+        for k,obj in rlay_obj_d.items():
+            rcentry_d[k] = self._rCalcEntry(obj, logger=log)
+ 
+        
+        
+        if layname is None: 
+            layname = (rcentry_d['raw'].raster.name() + '_maskd').replace('@','')
+        #===================================================================
+        # build the formula
+        #===================================================================
+ 
+        formula = '(\"{0}\"/\"{1}\")'.format(rcentry_d['raw'].ref, rcentry_d['mask'].ref)
+ 
+        #=======================================================================
+        # execute
+        #=======================================================================
+        
+        ofp = self.rcalc1(rcentry_d['raw'].raster, formula,
+                          list(rcentry_d.values()),
+                          layname=layname,
+                          logger=log,**kwargs)
+        
+        log.debug('finished w/ %s'%ofp)
+        
+ 
+        
+        return ofp
+        
+        
+
+        
+    def _rCalcEntry_d(self,  #intellignetly build a rcentry7 container
+                      rlay_obj_d, 
+                      
+                      **kwargs):
+
+        return {k:self._rCalcEntry(obj, **kwargs) for k,obj in rlay_obj_d.items()}
     
     def _rCalcEntry(self, #helper for raster calculations 
-                         rlay, bandNumber=1):
+                         rlay_obj, bandNumber=1,
+ 
+                          **kwargs):
+        #=======================================================================
+        # load the object
+        #=======================================================================
+        
+        if isinstance(rlay_obj, str):
+            rlay = QgsRasterLayer(rlay_obj, os.path.basename(rlay_obj).replace('.tif', ''))
+            self.mstore.addMapLayer(rlay)
+ 
+        else:
+            rlay = rlay_obj
+ 
+        #=======================================================================
+        # check
+        #=======================================================================
         assert isinstance(rlay, QgsRasterLayer)
+        assert rlay.crs()==self.qproj.crs(), 'bad crs %s=%s'%(rlay.name(),rlay.crs().authid())
+        
+        #=======================================================================
+        # build the entry
+        #=======================================================================
         rcentry = QgsRasterCalculatorEntry()
-        rcentry.raster=rlay
+        rcentry.raster =rlay #not accesesible for some reason
         rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
         rcentry.bandNumber=bandNumber
         

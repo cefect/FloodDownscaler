@@ -598,7 +598,7 @@ class QAlgos(object):
         #===========================================================================
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
-
+        """returns a filepathf or some reason"""
         return res_d['OUTPUT']
     
     def mergevectorlayers(self,
@@ -912,6 +912,60 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+    
+    def simplifygeometries(self,
+            vlay,
+            simp_dist=1,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:simplifygeometries'
+        log = logger.getChild('simplifygeometries')
+
+        ins_d = { 'METHOD':0, #douglas pecker
+                 'TOLERANCE':simp_dist,
+                  'INPUT' : vlay, 'OUTPUT' : output}
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+    
+    def rasterlayerstatistics(self,
+            vlay,
+ 
+            logger=None,feedback='none',
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:rasterlayerstatistics'
+        #log = logger.getChild('simplifygeometries')
+        
+        if feedback =='none':
+            feedback=None
+        elif feedback is None: 
+            feedback=self.feedback
+            
+
+        ins_d = { 'BAND' : 1, 
+                 'INPUT' : vlay,
+                  'OUTPUT_HTML_FILE' : 'TEMPORARY_OUTPUT' }
+        
+        #log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
+        
+        return res_d 
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1189,6 +1243,59 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
         
         return res_d['OUTPUT']
+    
+    
+    def idwinterpolation(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     pts_vlay,
+                     fieldn, #field name with data 
+                     pixel_size,
+                     distP=2, #number of neighroubs to include
+ 
+                     extent_layer=None, #layer to pull raster extents from
+                        #None: use pts_vlay
+                    
+                     selected_only=False, #limit to selected only on the main
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:idwinterpolation'
+        if logger is None: logger=self.logger
+        log = logger.getChild('idwinterpolation')
+
+        raise Error('cant figure out how to configure INTERPOLATION_DATA')
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+        if selected_only:
+            main_input = self._get_sel_obj(pts_vlay)
+        else:
+            main_input=pts_vlay
+            
+        if extent_layer is None:
+            extent_layer=pts_vlay
+        
+            
+        
+        
+        #assemble pars
+        ins_d = { 'DISTANCE_COEFFICIENT' : distP,
+                  'EXTENT' : extent_layer.extent(),
+                   'INTERPOLATION_DATA' : main_input,
+                   'OUTPUT' : output, 
+                  'PIXEL_SIZE' : pixel_size }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
+    
+    
     #===========================================================================
     # GDAL---------
     #===========================================================================
@@ -1615,6 +1722,140 @@ class QAlgos(object):
                  'EXTRA' : '', 'FIELD' : 'DN', 
                  'INPUT' : rlay, 
                  'OUTPUT' : output }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+    
+    #===========================================================================
+    # GRASS--------
+    #===========================================================================
+    def vSurfIdw(self,
+                       pts_vlay,
+                       fieldName,
+                       distP=2, #distance coefficienct
+                       pts_cnt = 50, #number of points to include in seawrches
+                       cell_size=10,
+                       extent_layer=None,
+                       output = 'TEMPORARY_OUTPUT',
+                       logger=None,
+                       ):
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('vSurfIdw')
+
+        algo_nm = 'grass7:v.surf.idw'
+        
+        if isinstance(pts_vlay, QgsVectorLayer):
+            assert fieldName in [f.name() for f  in pts_vlay.fields()]
+        #=======================================================================
+        # pars
+        #=======================================================================
+        if extent_layer is None:
+            extent_layer=pts_vlay
+        
+        ins_d = { '-n' : False, 
+                 'GRASS_MIN_AREA_PARAMETER' : 0.0001,
+                  'GRASS_RASTER_FORMAT_META' : '', 'GRASS_RASTER_FORMAT_OPT' : '',
+                   'GRASS_REGION_CELLSIZE_PARAMETER' : cell_size,
+                    'GRASS_REGION_PARAMETER' : extent_layer.extent(),
+                     'GRASS_SNAP_TOLERANCE_PARAMETER' : -1,
+                      'column' : fieldName,
+                       'input' : pts_vlay,
+                  'npoints' : pts_cnt, 'power' :distP, 
+                   'output' : output,}
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d
+    
+    def rNeighbors(self,
+                       rlay,
+                       neighborhood_size=3, 
+                       circular_neighborhood=True,
+                       cell_size=0, #0= take in put?
+                       method='average',
+                       mask=None,
+                       output = 'TEMPORARY_OUTPUT',
+                       logger=None,
+                       feedback=None,
+                       ):
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('rNeighbors')
+
+        algo_nm = 'grass7:r.neighbors'
+        
+        if feedback =='none':
+            feedback=None
+        elif feedback is None: 
+            feedback=self.feedback
+ 
+        #=======================================================================
+        # pars
+        #=======================================================================
+ 
+        
+        ins_d = { '-a' : True, #dont align with input 
+                 '-c' : circular_neighborhood,
+                  'GRASS_RASTER_FORMAT_META' : '', 'GRASS_RASTER_FORMAT_OPT' : '',
+                   'GRASS_REGION_CELLSIZE_PARAMETER' : cell_size, 
+                   'GRASS_REGION_PARAMETER' : None, 
+                   'gauss' : None,
+                    'input' : rlay,
+                     'method' : {'average':0, 'range':5}[method], #average
+                     'output' : output, 
+                     'quantile' : '', 
+                     'selection' : mask, 
+                     'size' : neighborhood_size,
+                      'weight' : '' }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=feedback, context=self.context)
+        
+        return res_d['output']
+    
+    def rGrowDistance(self,
+                       rlay,
+ 
+                       output = 'TEMPORARY_OUTPUT',
+                       logger=None,
+                       ):
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('rGrowDistance')
+
+        algo_nm = 'grass7:r.grow.distance'
+ 
+        #=======================================================================
+        # pars
+        #=======================================================================
+ 
+        
+        ins_d = { '-' : False, '-m' : False, 'GRASS_RASTER_FORMAT_META' : '', 'GRASS_RASTER_FORMAT_OPT' : '', 
+                 'GRASS_REGION_CELLSIZE_PARAMETER' : 0, #inherit?
+                  'GRASS_REGION_PARAMETER' : None,
+                  'distance' : 'TEMPORARY_OUTPUT',
+                   'input' : rlay, 
+                 'metric' : 0, #euclidan
+                 'value' : output }
         
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
         

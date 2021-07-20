@@ -156,6 +156,43 @@ class Whitebox(object):
         self.__run__(args) #execute
         
         return out_fp
+    
+    def IdwInterpolation(self,
+                        vlay_pts_fp, fieldn, 
+                        weight=2, #IDW weight value
+                        cell_size=10, 
+                        logger=None, out_fp=None,
+                        ):
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        tool_nm = 'IdwInterpolation '
+        if logger is None: logger=self.logger
+        log=logger.getChild(tool_nm)
+        
+        if out_fp is None: 
+            out_fp = os.path.join(self.out_dir, os.path.splitext(os.path.basename(vlay_pts_fp))[0]+'_idw.tif')
+        
+        assert out_fp.endswith('.tif')
+ 
+        #=======================================================================
+        # setup
+        #=======================================================================
+        args = [self.exe_fp,'-v','--run={}'.format(tool_nm),'--output={}'.format(out_fp),
+                '--input={}'.format(vlay_pts_fp),
+                '--field=%s'%fieldn,
+                '--weight=%.2f'%weight,
+                '--cell_size=%.2f'%cell_size,
+                ]
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.info('executing \'%s\' on \'%s\''%(tool_nm, os.path.basename(vlay_pts_fp)))
+        self.__run__(args) #execute
+        
+        return out_fp
         
     def __run__(self, args):
         self.logger.debug(args)
