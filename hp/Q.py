@@ -44,7 +44,7 @@ from hp.exceptions import Error
 from hp.oop import Basic
 from hp.dirz import get_valid_filename
 from hp.Qalg import QAlgos
-
+from hp.logr import get_new_file_logger
 #===============================================================================
 # logging
 #===============================================================================
@@ -129,11 +129,15 @@ class Qproj(QAlgos, Basic):
         # setup qgis
         #=======================================================================
         if feedback is None:
-            from hp.logr import BuildLogr
-            lwrkr = BuildLogr(logcfg_file=r'C:\LS\03_TOOLS\coms\Qlogger.conf')
+            """
+            self.logger.info('test')
+            """
+            #build a separate logger to capture algorhtihim feedback
+            qlogger= get_new_file_logger('Qproj',
+                fp=os.path.join(self.work_dir, 'Qproj.log'))
+ 
+            feedback = MyFeedBackQ(logger=qlogger)
             
-            
-            feedback = MyFeedBackQ(logger=lwrkr.logger)
         self.feedback = feedback
         
         if not crsID_default is None: self.crsID_default=crsID_default
@@ -1108,7 +1112,7 @@ class Qproj(QAlgos, Basic):
         # check    
         #=======================================================================
         if not result == 0:
-            raise Error(rcalc.lastError())
+            raise Error('formula=%s failed w/ \n    %s'%rcalc.lastError())
         
         assert os.path.exists(ofp)
         
@@ -1126,6 +1130,38 @@ class Qproj(QAlgos, Basic):
         
         
         return ofp
+    
+    def mask_build(self, #get a mask from a raster with data
+                   rlay,
+                   logger=None,
+                   layname=None,
+                   zero_shift=False, #necessary for preserving zero values
+                   ofp=None, **kwargs):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('mask_invert')
+        
+        
+        
+        rcentry = self._rCalcEntry(rlay)
+        
+        
+        if layname is None: layname='%s_mask'%rcentry.raster.name()
+        
+        if zero_shift:
+            f1 = '(abs(\"{0}\")+1)'.format(rcentry.ref)
+            formula = f1 + '/' + f1
+        else:
+        
+            formula = '\"{0}\"/\"{0}\"'.format(rcentry.ref)
+ 
+        
+        return self.rcalc1(rlay, formula, [rcentry], logger=log,ofp=ofp,
+                           layname=layname, **kwargs)
+ 
      
     def mask_invert(self, #take a mask layer, and invert it
                     rlay,
@@ -1232,14 +1268,7 @@ class Qproj(QAlgos, Basic):
     # HELPERS---------
     #===========================================================================
  
-        
-    def _rCalcEntry_d(self,  #intellignetly build a rcentry7 container
-                      rlay_obj_d, 
-                      
-                      **kwargs):
-
-        return {k:self._rCalcEntry(obj, **kwargs) for k,obj in rlay_obj_d.items()}
-    
+     
     def _rCalcEntry(self, #helper for raster calculations 
                          rlay_obj, bandNumber=1,
  
@@ -1259,7 +1288,7 @@ class Qproj(QAlgos, Basic):
         # check
         #=======================================================================
         assert isinstance(rlay, QgsRasterLayer)
-        assert rlay.crs()==self.qproj.crs(), 'bad crs %s=%s'%(rlay.name(),rlay.crs().authid())
+        assert rlay.crs()==self.qproj.crs(), 'bad crs %s (%s)'%(rlay.name(),rlay.crs().authid())
         
         #=======================================================================
         # build the entry
@@ -1287,11 +1316,7 @@ class Qproj(QAlgos, Basic):
         
         
         super()._install_info(**kwargs) #initilzie teh baseclass
-        
-
-        
-
-        
+ 
  
     def __exit__(self, #destructor
                  *args,**kwargs):
@@ -1330,6 +1355,9 @@ class MyFeedBackQ(QgsProcessingFeedback):
     """
     wrapper for easier reporting and extended progress
     
+    2021-07-20: logging to a separate file
+        couldnt figure out how to query the sender's info
+    
     Dialogs:
         built by QprojPlug.qproj_setup()
     
@@ -1349,19 +1377,28 @@ class MyFeedBackQ(QgsProcessingFeedback):
         self.logger.debug(text)
 
     def pushInfo(self, info):
-        self.logger.info(info)
+        self.logger.debug(info)
 
     def pushCommandInfo(self, info):
-        self.logger.info(info)
+        self.logger.debug(info)
 
     def pushDebugInfo(self, info):
-        self.logger.info(info)
+        self.logger.debug(info)
 
     def pushConsoleInfo(self, info):
-        self.logger.info(info)
+        self.logger.debug(info)
+        
+    def pushVersionInfo(self, info):
+        self.logger.debug(info)
+    
+    def pushWarning(self, info):
+        self.logger.warning(info)
 
     def reportError(self, error, fatalError=False):
         self.logger.error(error)
+        
+    def log(self, msg):
+        self.logger.debug(msg)
         
     
     def upd_prog(self, #advanced progress handling

@@ -59,6 +59,13 @@ class Basic(object): #simple base class
                             'work_dir', 'mod_name', 'tag', 'overwrite']}, 
                         }
         self.session=session
+        
+        #=======================================================================
+        # working directory
+        #=======================================================================
+        """needed by logger"""
+        os.chdir(work_dir) #set this to the working directory
+        print('working directory set to \"%s\''%os.getcwd())
             
         #=======================================================================
         # output directory
@@ -79,9 +86,7 @@ class Basic(object): #simple base class
         #=======================================================================
         if logger is None:
             from hp.logr import BuildLogr
-            lwrkr = BuildLogr(
-                #work_dir
-                )
+            lwrkr = BuildLogr()
             logger=lwrkr.logger
             lwrkr.duplicate(self.out_dir, 
                         basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))

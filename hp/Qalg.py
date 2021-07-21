@@ -148,9 +148,7 @@ class QAlgos(object):
     #===========================================================================
     # NATIVE---------
     #===========================================================================
-    
-
-    
+   
     def reproject(self,
                   vlay,
                   output='TEMPORARY_OUTPUT',
@@ -714,7 +712,7 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
 
-        return res_d
+        return res_d['OUTPUT']
     
     def pointsalonglines(self,
             vlay,
@@ -761,7 +759,7 @@ class QAlgos(object):
                     'JOIN_STYLE' : 0, 'MITER_LIMIT' : 2, 'SEGMENTS' : 5 
                     }
         
-        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+        self.feedback.log('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
             
  
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
@@ -892,7 +890,7 @@ class QAlgos(object):
     
     def deleteholes(self,
             vlay,
-            hole_area,
+            hole_area=0, #0= delete all holes
             output='TEMPORARY_OUTPUT',
             logger=None,
             ):
