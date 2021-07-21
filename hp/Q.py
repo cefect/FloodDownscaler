@@ -353,7 +353,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
           
         if error[0] == QgsVectorFileWriter.NoError:
-            log.info('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
+            log.debug('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
             return 
          
         raise Error('FAILURE on writing layer \' %s \'  with code:\n    %s \n    %s'%(vlay.name(),error, out_fp))
@@ -1214,7 +1214,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('mask_apply')
-        
+
         #=======================================================================
         # handle inverstion
         #=======================================================================
@@ -1392,10 +1392,10 @@ class MyFeedBackQ(QgsProcessingFeedback):
         self.logger.debug(info)
     
     def pushWarning(self, info):
-        self.logger.warning(info)
+        self.logger.debug(info)
 
     def reportError(self, error, fatalError=False):
-        self.logger.error(error)
+        self.logger.debug(error)
         
     def log(self, msg):
         self.logger.debug(msg)
@@ -2033,6 +2033,31 @@ def ptype_to_qtype(py_type, logger=mod_logger): #get the qtype corresponding to 
     
     
     return qv.type()
+
+def rlay_to_npArray(lyr, dtype=np.dtype(float)): #Input: QgsRasterLayer
+    """silently crashing
+    
+    see hp.gdal.rlay_to_array
+    
+    """
+    assert isinstance(lyr, QgsRasterLayer)
+ 
+    provider= lyr.dataProvider()
+    block = provider.block(1,lyr.extent(),lyr.width(),lyr.height())
+    
+    
+    l = list()
+    for j in range(lyr.height()):
+        l.append([block.value(i,j) for i in range(lyr.width())])
+
+ 
+    
+ 
+    return np.array(l, dtype=dtype)
+
+ 
+        
+ 
 
 #==============================================================================
 # type checks-----------------

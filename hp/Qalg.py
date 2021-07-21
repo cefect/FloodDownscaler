@@ -665,7 +665,7 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
 
-        return res_d
+        return res_d['OUTPUT']
     
     def multiparttosingleparts(self,
             vlay,
@@ -688,7 +688,7 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
 
-        return res_d
+        return res_d['OUTPUT']
     
     def clip(self,
             vlay,
@@ -1736,7 +1736,7 @@ class QAlgos(object):
                        distP=2, #distance coefficienct
                        pts_cnt = 50, #number of points to include in seawrches
                        cell_size=10,
-                       extent_layer=None,
+                       extents=None,
                        output = 'TEMPORARY_OUTPUT',
                        logger=None,
                        ):
@@ -1755,14 +1755,15 @@ class QAlgos(object):
         #=======================================================================
         # pars
         #=======================================================================
-        if extent_layer is None:
-            extent_layer=pts_vlay
+        if extents is None:
+            extents = pts_vlay.extent()
+ 
         
         ins_d = { '-n' : False, 
                  'GRASS_MIN_AREA_PARAMETER' : 0.0001,
                   'GRASS_RASTER_FORMAT_META' : '', 'GRASS_RASTER_FORMAT_OPT' : '',
                    'GRASS_REGION_CELLSIZE_PARAMETER' : cell_size,
-                    'GRASS_REGION_PARAMETER' : extent_layer.extent(),
+                    'GRASS_REGION_PARAMETER' : extents,
                      'GRASS_SNAP_TOLERANCE_PARAMETER' : -1,
                       'column' : fieldName,
                        'input' : pts_vlay,
@@ -1787,7 +1788,9 @@ class QAlgos(object):
                        feedback=None,
                        ):
         
- 
+        """
+        only temporary output seems to be working
+        """
         #=======================================================================
         # defaults
         #=======================================================================
@@ -1822,6 +1825,7 @@ class QAlgos(object):
         
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
         
+        """this prints some things to std.out regardless"""
         res_d = processing.run(algo_nm, ins_d, feedback=feedback, context=self.context)
         
         return res_d['output']

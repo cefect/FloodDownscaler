@@ -12,7 +12,10 @@ gdal/ogr helpers
 #===============================================================================
 import time, sys, os, logging, copy
 
-from osgeo import ogr
+from osgeo import ogr, gdal_array, gdal
+
+import numpy as np
+
 
 from qgis.core import QgsVectorLayer, QgsMapLayerStore
 
@@ -155,6 +158,25 @@ def get_layer_gdb_dir( #extract a specific layer from all gdbs in a directory
     log.info('loaded %i layer \'%s\' from GDBs'%(len(d), layerName))
     
     return d
+
+
+def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
+    #get raw data
+    ds = gdal.Open(rlay_fp)
+    band = ds.GetRasterBand(1)
+    
+    
+    ar_raw = np.array(band.ReadAsArray(), dtype=dtype)
+    
+    #remove nodata values
+    ndval = band.GetNoDataValue()
+    
+    ar_raw[ar_raw==ndval]=np.nan
+    
+    return ar_raw
+
+    
+    
     
             
             
