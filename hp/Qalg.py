@@ -937,7 +937,7 @@ class QAlgos(object):
         return res_d['OUTPUT']
     
     def rasterlayerstatistics(self,
-            vlay,
+            rlay,
  
             logger=None,feedback='none',
             ):
@@ -956,7 +956,7 @@ class QAlgos(object):
             
 
         ins_d = { 'BAND' : 1, 
-                 'INPUT' : vlay,
+                 'INPUT' : rlay,
                   'OUTPUT_HTML_FILE' : 'TEMPORARY_OUTPUT' }
         
         #log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
@@ -966,7 +966,7 @@ class QAlgos(object):
         return res_d 
     
     def roundraster(self,
-            vlay,
+            rlay,
             prec=3,
             logger=None,
             output='TEMPORARY_OUTPUT',
@@ -984,7 +984,7 @@ class QAlgos(object):
             
 
         ins_d = { 'BAND' : 1, 'BASE_N' : 10, 'DECIMAL_PLACES' : prec,
-                  'INPUT' :vlay, 'OUTPUT' : output,
+                  'INPUT' :rlay, 'OUTPUT' : output,
                    'ROUNDING_DIRECTION' : 1, #round to nearest
                     }
         
