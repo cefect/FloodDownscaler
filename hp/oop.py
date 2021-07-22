@@ -169,7 +169,7 @@ class Basic(object): #simple base class
     def __exit__(self, #destructor
              *args,**kwargs):
         
-        print('opp.__exit__ on \'%s\''%self.__class__.__name__)
+        #print('opp.__exit__ on \'%s\''%self.__class__.__name__)
         #clear all my attriburtes
         for k in copy.copy(list(self.__dict__.keys())):
             if not k=='trash_fps':
@@ -187,9 +187,10 @@ class Basic(object): #simple base class
                     delete_dir(fp)
                 else:
                     os.remove(fp)
-                print('    deleted %s'%fp)
+                #print('    deleted %s'%fp)
             except Exception as e:
-                print('failed to delete \n    %s \n    %s'%(fp, e))
+                pass
+                #print('failed to delete \n    %s \n    %s'%(fp, e))
         
         
         

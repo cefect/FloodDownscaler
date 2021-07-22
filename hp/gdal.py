@@ -159,6 +159,14 @@ def get_layer_gdb_dir( #extract a specific layer from all gdbs in a directory
     
     return d
 
+def get_nodata_val(rlay_fp):
+    assert os.path.exists(rlay_fp)
+    ds = gdal.Open(rlay_fp)
+    band = ds.GetRasterBand(1)
+    return band.GetNoDataValue()
+    
+    
+
 
 def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
     #get raw data

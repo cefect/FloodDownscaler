@@ -240,24 +240,27 @@ def delete_dir(dirpath): #remove directory AND contents
     
     #collect all the files
     fps = set()
-    for dirpath, _, fns in os.walk(dirpath):
-        fps.update([os.path.join(dirpath, e) for e in fns])
+    for dir_i, _, fns in os.walk(dirpath):
+        fps.update([os.path.join(dir_i, e) for e in fns])
         
-    assert len(fps)<100, 'safety check'
+    assert len(fps)<500, 'safety check... %i files requested for removal in \n    %s'%(
+        len(fps), dirpath)
     #remove all these files
     for fp in fps:
         try:
             os.remove(fp)
             #print('deleted %s'%fp)
         except Exception as e:
-            print('failed to remove %s \n    %s'%(fp, e))
+            #print('failed to remove %s \n    %s'%(fp, e))
+            pass
         
     #remove the driector yu
     try:
         os.rmdir(dirpath)
         #print('deleted %s'%dirpath)
     except Exception as e:
-        print('failed to remove directory %s /n    %s'%( dirpath, e))
+        pass
+        #print('failed to remove directory %s /n    %s'%( dirpath, e))
     
     
     
@@ -287,7 +290,7 @@ def url_retrieve(
         ofp = os.path.join(out_dir, os.path.basename(url))
         
     if os.path.exists(ofp):
-        assert overwrite
+        assert overwrite, 'file exists: \n    %s'%ofp
         
     #ensure base directory exists
     if not os.path.exists(os.path.dirname(ofp)):os.makedirs(os.path.dirname(ofp))

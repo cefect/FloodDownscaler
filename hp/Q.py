@@ -9,7 +9,7 @@ Created on Oct. 8, 2020
 #===============================================================================
 # # standard imports -----------------------------------------------------------
 #===============================================================================
-import time, sys, os, logging, datetime, inspect, gc
+import time, sys, os, logging, datetime, inspect, gc, shutil
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ import pandas as pd
 #===============================================================================
 from qgis.core import *
 from qgis.gui import QgisInterface
+from hp.gdal import get_nodata_val
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -107,6 +108,7 @@ class Qproj(QAlgos, Basic):
                  
                  #aois
                  aoi_fp = None,
+                 aoi_set_proj_crs=False, #force hte project crs from the aoi
                  aoi_vlay = None,
                  
                  #inheritance
@@ -140,7 +142,11 @@ class Qproj(QAlgos, Basic):
             
         self.feedback = feedback
         
-        if not crsID_default is None: self.crsID_default=crsID_default
+        if aoi_set_proj_crs:
+            assert crs is None
+        
+        if not crsID_default is None: 
+            self.crsID_default=crsID_default
             
         #standalone
         if session is None:
@@ -166,7 +172,8 @@ class Qproj(QAlgos, Basic):
         # aois
         #=======================================================================
         if not aoi_fp is None:
-            self.load_aoi(aoi_fp)
+            self.aoi_fp=aoi_fp
+            self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
         
         if not aoi_vlay is None:
             assert aoi_fp is None, 'cant pass a layer and a filepath'
@@ -424,11 +431,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # #zvalues
         #=======================================================================
-        """
-        vlay2 = vlay_raw
-        """
  
-        
         
         if dropZ and vlay_raw.wkbType()>=1000:
             vlay1 = processing.run('native:dropmzvalues', 
@@ -494,18 +497,20 @@ class Qproj(QAlgos, Basic):
                    
                    
                    resolution = 'raw', #resolution for output
-                   
+                   nodata=-9999,
                    
                    opts = ["COMPRESS=LZW"], #QgsRasterFileWriter.setCreateOptions
                    
                    out_dir = None, #directory for puts
                    newLayerName = None,
+                   ofp=None,
                    
                    logger=None,
                    ):
         """
         taken from CanFlood.hlpr.Q
         because  processing tools only work on local copies
+            otherwise.. better to use gdalwarp or some other algo
         
         #=======================================================================
         # coordinate transformation
@@ -518,15 +523,23 @@ class Qproj(QAlgos, Basic):
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
-        if out_dir is None: out_dir = self.out_dir
+        
         if newLayerName is None: newLayerName = rlayer.name()
         
-        newFn = get_valid_filename('%s.tif'%newLayerName) #clean it
+        log = logger.getChild('write_rlay')
+        #=======================================================================
+        # filepaths
+        #=======================================================================
+        if ofp is None:
+            if out_dir is None: out_dir = self.out_dir
+            assert os.path.exists(out_dir)
+            
+            newFn = get_valid_filename('%s.tif'%newLayerName) #clean it
         
-        out_fp = os.path.join(out_dir, newFn)
+            ofp = os.path.join(out_dir, newFn)
 
         
-        log = logger.getChild('write_rlay')
+        
         
         log.debug('on \'%s\' w/ \n    crs:%s \n    extents:%s\n    xUnits:%.4f'%(
             rlayer.name(), rlayer.crs(), rlayer.extent(), rlayer.rasterUnitsPerPixelX()))
@@ -535,11 +548,11 @@ class Qproj(QAlgos, Basic):
         # precheck
         #=======================================================================
         assert isinstance(rlayer, QgsRasterLayer)
-        assert os.path.exists(out_dir)
         
-        if os.path.exists(out_fp):
+        
+        if os.path.exists(ofp):
             msg = 'requested file already exists! and overwrite=%s \n    %s'%(
-                self.overwrite, out_fp)
+                self.overwrite, ofp)
             if self.overwrite:
                 log.warning(msg)
             else:
@@ -614,7 +627,7 @@ class Qproj(QAlgos, Basic):
         # #build file writer
         #=======================================================================
 
-        file_writer = QgsRasterFileWriter(out_fp)
+        file_writer = QgsRasterFileWriter(ofp)
         #file_writer.Mode(1) #???
         
         if not opts is None:
@@ -628,20 +641,34 @@ class Qproj(QAlgos, Basic):
                                          feedback=RasterFeedback(log), #not passing any feedback
                                          )
         
-        log.info('wrote to file \n    %s'%out_fp)
-        #=======================================================================
-        # wrap
-        #=======================================================================
+        log.info('wrote to file \n    %s'%ofp)
+        
         if not error == QgsRasterFileWriter.NoError:
             raise Error(error)
         
-        assert os.path.exists(out_fp)
+        #=======================================================================
+        # handle nodata
+        #=======================================================================
+        """cant figure out how to specify nodata value"""
+        nodata_val_native = get_nodata_val(ofp)
+        if not nodata_val_native==nodata:
+            ofp1 = self.warpreproject(ofp, nodata_val=nodata, logger=log)
+            
+            #move file over
+            os.remove(ofp)
+            shutil.copy2(ofp1,ofp)
+            
         
-        assert QgsRasterLayer.isValidRasterFileName(out_fp),  \
-            'requested file is not a valid raster file type: %s'%out_fp
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert os.path.exists(ofp)
+        
+        assert QgsRasterLayer.isValidRasterFileName(ofp),  \
+            'requested file is not a valid raster file type: %s'%ofp
         
         
-        return out_fp
+        return ofp
     
     def rlay_load(self, fp,  #load a raster layer and apply an aoi clip
                   aoi_vlay = None,
@@ -1065,7 +1092,7 @@ class Qproj(QAlgos, Basic):
         # output file
         #=======================================================================
         if ofp is None:
-            if out_dir is None: out_dir=self.out_dir
+            if out_dir is None: out_dir=self.temp_dir
     
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
@@ -1112,7 +1139,7 @@ class Qproj(QAlgos, Basic):
         # check    
         #=======================================================================
         if not result == 0:
-            raise Error('formula=%s failed w/ \n    %s'%rcalc.lastError())
+            raise Error('formula=%s failed w/ \n    %s'%(formula, rcalc.lastError()))
         
         assert os.path.exists(ofp)
         
@@ -1136,6 +1163,9 @@ class Qproj(QAlgos, Basic):
                    logger=None,
                    layname=None,
                    zero_shift=False, #necessary for preserving zero values
+                   thresh=None, #optional threshold value with which to build raster
+                   thresh_type='lower', #specify whether threshold is a lower or an upper bound
+                   rval=None, #make a mask from a specific value
                    ofp=None, **kwargs):
         
         #=======================================================================
@@ -1144,21 +1174,47 @@ class Qproj(QAlgos, Basic):
         if logger is None: logger=self.logger
         log=logger.getChild('mask_invert')
         
-        
-        
         rcentry = self._rCalcEntry(rlay)
-        
-        
+
         if layname is None: layname='%s_mask'%rcentry.raster.name()
         
-        if zero_shift:
-            f1 = '(abs(\"{0}\")+1)'.format(rcentry.ref)
-            formula = f1 + '/' + f1
+        #=======================================================================
+        # build formula--
+        #=======================================================================
+        if rval is None:
+            #=======================================================================
+            # #from teh data as is
+            #=======================================================================
+            if thresh is None:
+                if zero_shift:
+                    """
+                    without this.. zero values will show up as null on the mask
+                    """
+                    f1 = '(abs(\"{0}\")+1)'.format(rcentry.ref)
+                    formula = f1 + '/' + f1
+                else:
+                
+                    formula = '\"{0}\"/\"{0}\"'.format(rcentry.ref)
+            #=======================================================================
+            # #apply a threshold to the data
+            #=======================================================================
+            else:
+                if thresh_type=='lower': # val=1 where greater than the lower bound
+                    f1 = '(\"{0}\">{1:.2f})'.format(rcentry.ref, thresh)
+                    
+                elif thresh_type=='upper':
+                    f1 = '(\"{0}\"<{1:.2f})'.format(rcentry.ref, thresh)
+                else:
+                    raise Error('bad thresh_type: %s'%thresh_type)
+                formula = f1 + '/' + f1
         else:
-        
-            formula = '\"{0}\"/\"{0}\"'.format(rcentry.ref)
+            """note... this is sensitivite to precision"""
+            f1 = '(\"{0}\"={1:.1f})'.format(rcentry.ref, rval)
+            formula = f1 + '/' + f1
  
-        
+        #=======================================================================
+        # get
+        #=======================================================================
         return self.rcalc1(rlay, formula, [rcentry], logger=log,ofp=ofp,
                            layname=layname, **kwargs)
  
@@ -1220,7 +1276,11 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         
         if invert_mask:
-            mask_rlay1 = self.mask_invert(mask_rlay, logger=log)
+
+            mask_rlay1 = self.mask_invert(mask_rlay, logger=log,
+                          ofp=os.path.join(self.temp_dir, 
+                           '%s_invert.tif'%os.path.basename(mask_rlay).replace('.tif', '')),
+                          )
         else:
             mask_rlay1 = mask_rlay
         #===================================================================
@@ -1242,7 +1302,8 @@ class Qproj(QAlgos, Basic):
         
         
         if layname is None: 
-            layname = (rcentry_d['raw'].raster.name() + '_maskd').replace('@','')
+            layname = (rcentry_d['raw'].raster.name() + '%s_maskd'%(
+                rcentry_d['raw'].raster.name())) 
         #===================================================================
         # build the formula
         #===================================================================
@@ -1278,6 +1339,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         
         if isinstance(rlay_obj, str):
+            assert os.path.exists(rlay_obj), rlay_obj
             rlay = QgsRasterLayer(rlay_obj, os.path.basename(rlay_obj).replace('.tif', ''))
             self.mstore.addMapLayer(rlay)
  
@@ -1288,7 +1350,7 @@ class Qproj(QAlgos, Basic):
         # check
         #=======================================================================
         assert isinstance(rlay, QgsRasterLayer)
-        assert rlay.crs()==self.qproj.crs(), 'bad crs %s (%s)'%(rlay.name(),rlay.crs().authid())
+        assert rlay.crs()==self.qproj.crs(), 'bad crs on \'%s\' (%s)'%(rlay.name(),rlay.crs().authid())
         
         #=======================================================================
         # build the entry
@@ -1395,6 +1457,9 @@ class MyFeedBackQ(QgsProcessingFeedback):
         self.logger.debug(info)
 
     def reportError(self, error, fatalError=False):
+        """
+        lots of useless junk
+        """
         self.logger.debug(error)
         
     def log(self, msg):

@@ -15,6 +15,7 @@ import subprocess, os, logging
 
 
 from hp.dirz import get_temp_dir
+from hp.gdal import get_nodata_val
 
 mod_logger = logging.getLogger(__name__)
 
@@ -31,11 +32,13 @@ class Whitebox(object):
     def __init__(self,
                  out_dir=None,
                  logger=mod_logger,
+                 overwrite=True,
                  ):
         
         if out_dir is None: out_dir = get_temp_dir()
         self.out_dir=out_dir
         self.logger=logger.getChild('wbt')
+        self.overwrite =overwrite
 
     def breachDepressionsLeastCost(self,
                                    dem_fp, #file path to fill
@@ -136,8 +139,19 @@ class Whitebox(object):
         
         if out_fp is None: 
             out_fp = os.path.join(self.out_dir, os.path.splitext(os.path.basename(rlay_fp))[0]+'_fild.tif')
+            
+
         
+        #=======================================================================
+        # checks
+        #=======================================================================
+        if os.path.exists(out_fp):
+            assert self.overwrite
+            os.remove(out_fp)
         assert out_fp.endswith('.tif')
+        
+        nan_val = get_nodata_val(rlay_fp)
+        assert nan_val==-9999,'got unsupported nodata val'
  
         #=======================================================================
         # setup
