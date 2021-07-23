@@ -597,6 +597,9 @@ class Qproj(QAlgos, Basic):
             
 
             
+        elif isinstance(resolution, int):
+            nRows = int(extent.height()/resolution)
+            nCols = int(extent.width()/resolution)
         else:
             """dont think theres any decent API support for the GUI behavior"""
             raise Error('not implemented')
@@ -1324,6 +1327,18 @@ class Qproj(QAlgos, Basic):
  
         
         return ofp
+    
+    def get_resolution(self,  
+                       rlay_fp):
+        
+        rlay = self.rlay_load(rlay_fp)
+        mstore=QgsMapLayerStore()
+        mstore.addMapLayer(rlay)
+        
+        res = (rlay.rasterUnitsPerPixelY() + rlay.rasterUnitsPerPixelX())*0.5
+        mstore.removeAllMapLayers()
+        
+        return res
         
     #===========================================================================
     # HELPERS---------

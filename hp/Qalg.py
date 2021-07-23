@@ -1496,12 +1496,20 @@ class QAlgos(object):
         # precheck
         #=======================================================================
         """the algo accepts 'None'... but not sure why we'd want to do this"""
-#===============================================================================
-#         assert isinstance(crsOut, QgsCoordinateReferenceSystem), 'bad crs type'
-#         assert isinstance(rlay_raw, QgsRasterLayer)
-# 
-#         assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
-#===============================================================================
+        if isinstance(rlay_raw, str):
+            assert os.path.exists(rlay_raw), 'requested file does not exist: \n    %s'%rlay_raw
+            assert QgsRasterLayer.isValidRasterFileName(rlay_raw),  \
+                'requested file is not a valid raster file type: %s'%rlay_raw
+        else:
+            
+            assert isinstance(crsOut, QgsCoordinateReferenceSystem), 'bad crs type'
+            assert isinstance(rlay_raw, QgsRasterLayer)
+     
+            assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
+            
+        if os.path.exists(output):
+            os.remove(output)
+
             
             
         #=======================================================================
