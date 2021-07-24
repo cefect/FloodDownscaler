@@ -175,7 +175,7 @@ class Basic(object): #simple base class
             if not k=='trash_fps':
                 del self.__dict__[k]
         
-        gc.collect()
+        #gc.collect()
         #=======================================================================
         # #remove temporary files
         #=======================================================================

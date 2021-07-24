@@ -125,7 +125,7 @@ class Qproj(QAlgos, Basic):
         
         super().__init__(
             inher_d = {**inher_d,
-                **{'Qproj':['qap', 'qproj', 'vlay_drivers']}},
+                **{'Qproj':['qap', 'qproj', 'vlay_drivers', 'feedback']}},
             
             **kwargs) #initilzie teh baseclass
         
@@ -1189,11 +1189,12 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
 
         if clear_all:
+            log.debug('clearing layers')
             for rcentry in rasterEntries:
                 mstore.addMapLayer(rcentry.raster)
         mstore.removeAllMapLayers()
         
-        
+        log.debug('finished')
         return ofp
     
     def mask_build(self, #get a mask from a raster with data
@@ -1216,6 +1217,8 @@ class Qproj(QAlgos, Basic):
 
         if layname is None: layname='%s_mask'%rcentry.raster.name()
         
+        log.debug('on %s w/ zero_shift=%s, thresh=%s'%(
+            rlay, zero_shift, thresh))
         #=======================================================================
         # build formula--
         #=======================================================================
@@ -1229,7 +1232,7 @@ class Qproj(QAlgos, Basic):
                     """
                     without this.. zero values will show up as null on the mask
                     """
-                    f1 = '(abs(\"{0}\")+1)'.format(rcentry.ref)
+                    f1 = '(abs(\"{0}\")+999)'.format(rcentry.ref)
                     formula = f1 + '/' + f1
                 else:
                 
@@ -1405,29 +1408,45 @@ class Qproj(QAlgos, Basic):
     def rlay_get_cellCnt(self,
                          rlay,
                          exclude_nulls=True,
+                         log=None,
                          ):
+        """surprised there is no builtin"""
         
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if log is None: log=self.logger.getChild('rlay_get_cellCnt')
         #setup
+
         mstore=QgsMapLayerStore()
         
         if isinstance(rlay, str):
-            rlay = self.rlay_load(rlay)
+ 
+            rlay = self.rlay_load(rlay, logger=log)
             mstore.addMapLayer(rlay)
-            
+ 
+
         assert isinstance(rlay, QgsRasterLayer)
+        
         if exclude_nulls:
-            mask = self.mask_build(rlay)
+            
+            mask = self.mask_build(rlay, zero_shift=True, logger=log)
             res= self.rasterlayerstatistics(mask)['SUM']
+
         else:
         
             res = rlay.width()*rlay.height()
         mstore.removeAllMapLayers()
         
+        log.debug('got %i'%res)
         return int(res)
         
     def rlay_uq_vals(self, rlay,
                      prec=None,
+                     log=None,
                      ):
+        if log is None: log=self.logger.getChild('rlay_uq_vals')
+        log.debug('on %s'%rlay)
         #pull array
         ar = rlay_to_array(rlay)
         """

@@ -4,6 +4,10 @@ Created on Jul. 15, 2021
 @author: cefect
 
 gdal/ogr helpers
+
+2021-07-24
+    was getting some strange phantom crashing
+    reverted and seems to be working again
 '''
 
 
