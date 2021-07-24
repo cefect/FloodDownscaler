@@ -82,6 +82,8 @@ class QAlgos(object):
                     'q1': 11, 'q3': 12, 'iqr': 13, 'empty': 14, 'filled': 15, 'min_length': 16, 'max_length': 17, 'mean_length': 18}
     
     raster_dtype_d={'Float32':5}
+    
+    selectionMeth_d =  {'new':0, 'add':1, 'subselection':2, }
 
     
     def __init__(self, 
@@ -242,7 +244,7 @@ class QAlgos(object):
         #===========================================================================
         # #set parameter translation dictoinaries
         #===========================================================================
-        meth_d = {'new':0, 'subselection':2}
+        
             
         pred_d = {
                 'are within':6,
@@ -264,7 +266,7 @@ class QAlgos(object):
         ins_d = { 
             'INPUT' : vlay, 
             'INTERSECT' : intersect, 
-            'METHOD' : meth_d[method], 
+            'METHOD' : self.selectionMeth_d[method], 
             'PREDICATE' : pred_l }
         
         log.debug('executing \'%s\' on \'%s\' with: \n     %s'
@@ -296,6 +298,9 @@ class QAlgos(object):
         
         return self._get_sel_res(vlay, result_type=result_type, logger=log, allow_none=allow_none)
     
+    
+    
+
     def dissolve(self, #select features (from main laye) by geoemtric relation with comp_vlay
                 vlay, #vlay to select features from
                 fields = [], 
@@ -1396,6 +1401,45 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
         
         return res_d['OUTPUT']
+    
+    def selectbyattribute(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     vlay,
+                     fieldName,
+                     value,
+                     method='add',
+
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:selectbyattribute'
+        if logger is None: logger=self.logger
+        log = logger.getChild('selectbyattribute')
+
+        assert isinstance(vlay, QgsVectorLayer)
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'FIELD' : fieldName, 
+                    'INPUT' : vlay, 
+                    'METHOD' : self.selectionMeth_d[method], 
+                    'OPERATOR' : 0,#equals to
+                     'VALUE' : str(value) }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
+ 
+    
+    
+    
+    
     #===========================================================================
     # GDAL---------
     #===========================================================================

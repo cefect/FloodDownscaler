@@ -1404,7 +1404,7 @@ class Qproj(QAlgos, Basic):
     
     def rlay_get_cellCnt(self,
                          rlay,
-                         exclude_nulls=False,
+                         exclude_nulls=True,
                          ):
         
         #setup
@@ -1416,12 +1416,14 @@ class Qproj(QAlgos, Basic):
             
         assert isinstance(rlay, QgsRasterLayer)
         if exclude_nulls:
-            raise Error('not imp[lemented')
+            mask = self.mask_build(rlay)
+            res= self.rasterlayerstatistics(mask)['SUM']
+        else:
         
-        res = rlay.width()*rlay.height()
+            res = rlay.width()*rlay.height()
         mstore.removeAllMapLayers()
         
-        return res
+        return int(res)
         
     def rlay_uq_vals(self, rlay,
                      prec=None,
