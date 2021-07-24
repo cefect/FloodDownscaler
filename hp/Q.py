@@ -1110,6 +1110,7 @@ class Qproj(QAlgos, Basic):
                layname='result',
                logger=None,
                clear_all=False, #clear all rasters from memory
+               compress='none', #optional compression. #usually we are deleting calc results
                ):
         """
         see __rCalcEntry
@@ -1124,6 +1125,7 @@ class Qproj(QAlgos, Basic):
         if logger is None: logger=self.logger
         log=logger.getChild('rcalc1')
         mstore = QgsMapLayerStore()
+        if compress is None: compress=self.compress
         #=======================================================================
         # output file
         #=======================================================================
@@ -1145,6 +1147,12 @@ class Qproj(QAlgos, Basic):
                     ofp, e))
                 
         assert ofp.endswith('.tif')
+        
+        #set based on whether we  want to applpy some post compression
+        if compress == 'none':
+            ofp1=ofp
+        else:
+            ofp1 = os.path.join(self.temp_dir,layname+'_raw.tif')
         #=======================================================================
         # assemble parameters
         #=======================================================================
@@ -1165,7 +1173,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         log.debug('on %s'%formula)
  
-        rcalc = QgsRasterCalculator(formula, ofp, 
+        rcalc = QgsRasterCalculator(formula, ofp1, 
                                     outputFormat, 
                                     outputExtent,
                                     self.qproj.crs(),
@@ -1179,11 +1187,19 @@ class Qproj(QAlgos, Basic):
         if not result == 0:
             raise Error('formula=%s failed w/ \n    %s'%(formula, rcalc.lastError()))
         
-        assert os.path.exists(ofp)
         
         
-        log.debug('saved result to: \n    %s'%ofp)
+        log.debug('saved result to: \n    %s'%ofp1)
+        
+        #=======================================================================
+        # compression
+        #=======================================================================
+        if not compress == 'none':
+            assert not ofp1==ofp
+            res = self.warpreproject(ofp1, compression=compress, output=ofp, logger=log)
+            assert ofp==res
             
+        assert os.path.exists(ofp)
         #=======================================================================
         # wrap
         #=======================================================================
