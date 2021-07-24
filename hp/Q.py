@@ -46,6 +46,8 @@ from hp.oop import Basic
 from hp.dirz import get_valid_filename
 from hp.Qalg import QAlgos
 from hp.logr import get_new_file_logger
+
+from hp.gdal import rlay_to_array
 #===============================================================================
 # logging
 #===============================================================================
@@ -111,6 +113,8 @@ class Qproj(QAlgos, Basic):
                  aoi_set_proj_crs=False, #force hte project crs from the aoi
                  aoi_vlay = None,
                  
+                 compress='med', #raster compression default
+                 
                  #inheritance
                  session=None, #parent session for child mode
                  inher_d = {},
@@ -125,7 +129,10 @@ class Qproj(QAlgos, Basic):
             
             **kwargs) #initilzie teh baseclass
         
-
+        #=======================================================================
+        # attach
+        #=======================================================================
+        self.compress=compress
         
         #=======================================================================
         # setup qgis
@@ -636,7 +643,7 @@ class Qproj(QAlgos, Basic):
         if not opts is None:
             file_writer.setCreateOptions(opts)
         
-        log.debug('writing to file w/ \n    %s'%(
+        log.info('writing to file w/ \n    %s'%(
             {'nCols':nCols, 'nRows':nRows, 'extent':extent, 'crs':rlayer.crs()}))
         
         #execute write
@@ -1065,6 +1072,32 @@ class Qproj(QAlgos, Basic):
         
         return vlay
     
+    def vlay_poly_tarea(self,#get the total area of polygons within the layer
+        vlay_raw,
+        logger=None):
+    
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('vlay_poly_tarea')
+        mstore = QgsMapLayerStore()
+        
+
+        #=======================================================================
+        # add the geometry
+        #=======================================================================
+        vlayg = self.addgeometry(vlay_raw, logger=log)
+        mstore.addMapLayer(vlayg)
+        
+        #=======================================================================
+        # pull the values
+        #=======================================================================
+        area_d = vlay_get_fdata(vlayg, 'area')
+        mstore.removeAllMapLayers()
+        
+        return pd.Series(area_d).sum()
+    
     #===========================================================================
     # RLAYs--------
     #===========================================================================
@@ -1132,7 +1165,9 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         log.debug('on %s'%formula)
  
-        rcalc = QgsRasterCalculator(formula, ofp, outputFormat, outputExtent,
+        rcalc = QgsRasterCalculator(formula, ofp, 
+                                    outputFormat, 
+                                    outputExtent,
                                     self.qproj.crs(),
                             nOutputColumns, nOutputRows, rasterEntries,crsTrnsf)
         
@@ -1189,6 +1224,7 @@ class Qproj(QAlgos, Basic):
             # #from teh data as is
             #=======================================================================
             if thresh is None:
+
                 if zero_shift:
                     """
                     without this.. zero values will show up as null on the mask
@@ -1201,15 +1237,27 @@ class Qproj(QAlgos, Basic):
             #=======================================================================
             # #apply a threshold to the data
             #=======================================================================
+
             else:
+                """
+                WARNING: strange treatment of values right around some specified threshold (e.g., rlay<1.01). 
+                I think the data has more precision than what is shown (even with using the raster rounder)
+                """
+                
                 if thresh_type=='lower': # val=1 where greater than the lower bound
-                    f1 = '(\"{0}\">{1:.2f})'.format(rcentry.ref, thresh)
+                    thresh_i = thresh-.001
+                    f1 = '(\"{0}\">={1:.3f})'.format(rcentry.ref, thresh_i)
                     
                 elif thresh_type=='upper':
-                    f1 = '(\"{0}\"<{1:.2f})'.format(rcentry.ref, thresh)
+                    thresh_i = thresh+.001
+                    f1 = '(\"{0}\"<={1:.3f})'.format(rcentry.ref, thresh_i)
                 else:
                     raise Error('bad thresh_type: %s'%thresh_type)
                 formula = f1 + '/' + f1
+        
+        #=======================================================================
+        # fixed values
+        #=======================================================================
         else:
             """note... this is sensitivite to precision"""
             f1 = '(\"{0}\"={1:.1f})'.format(rcentry.ref, rval)
@@ -1226,6 +1274,7 @@ class Qproj(QAlgos, Basic):
                     rlay,
                     logger=None,
                     ofp=None,
+                    include_nulls=False, #whether to treat nulls as postiive in the result
                     layname='mask_invert',
                     **kwargs):
         """ surprised there isnt a builtin wayu to do this
@@ -1237,7 +1286,8 @@ class Qproj(QAlgos, Basic):
         if logger is None: logger=self.logger
         log=logger.getChild('mask_invert')
  
-
+        if include_nulls: 
+            raise Error('not implememnted')
         #=======================================================================
         # add 2 to nodata
         #=======================================================================
@@ -1268,6 +1318,13 @@ class Qproj(QAlgos, Basic):
                    layname=None,
                    logger=None,
                    **kwargs):
+        """
+
+        mask=1: result = rlay
+        mask=0: result = nan
+        mask=nan: result=nan
+        rlay=nan: result=nan
+        """
         #=======================================================================
         # defaults
         #=======================================================================
@@ -1279,7 +1336,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         
         if invert_mask:
-
+ 
             mask_rlay1 = self.mask_invert(mask_rlay, logger=log,
                           ofp=os.path.join(self.temp_dir, 
                            '%s_invert.tif'%os.path.basename(mask_rlay).replace('.tif', '')),
@@ -1290,12 +1347,8 @@ class Qproj(QAlgos, Basic):
         # build the raster calc entries
         #===================================================================
         log.debug('building entries')
-        #load rasters
+
  
-        #=======================================================================
-        # rcentry_d = self._rCalcEntry_d({'raw':rlay, 'mask':mask_rlay1},
-        #                                logger=log)
-        #=======================================================================
         rlay_obj_d = {'raw':rlay, 'mask':mask_rlay1}
         rcentry_d = dict()
         
@@ -1310,7 +1363,7 @@ class Qproj(QAlgos, Basic):
         #===================================================================
         # build the formula
         #===================================================================
- 
+
         formula = '(\"{0}\"/\"{1}\")'.format(rcentry_d['raw'].ref, rcentry_d['mask'].ref)
  
         #=======================================================================
@@ -1329,17 +1382,74 @@ class Qproj(QAlgos, Basic):
         return ofp
     
     def get_resolution(self,  
-                       rlay_fp):
-        
-        rlay = self.rlay_load(rlay_fp)
+                       rlay):
+        #setup
         mstore=QgsMapLayerStore()
-        mstore.addMapLayer(rlay)
         
+        if isinstance(rlay, str):
+            rlay = self.rlay_load(rlay)
+            mstore.addMapLayer(rlay)
+            
+        assert isinstance(rlay, QgsRasterLayer)
+        
+        
+        
+        #get the resolution
         res = (rlay.rasterUnitsPerPixelY() + rlay.rasterUnitsPerPixelX())*0.5
+        
+        #wrap
+        mstore.removeAllMapLayers()
+        
+        return res
+    
+    def rlay_get_cellCnt(self,
+                         rlay,
+                         exclude_nulls=False,
+                         ):
+        
+        #setup
+        mstore=QgsMapLayerStore()
+        
+        if isinstance(rlay, str):
+            rlay = self.rlay_load(rlay)
+            mstore.addMapLayer(rlay)
+            
+        assert isinstance(rlay, QgsRasterLayer)
+        if exclude_nulls:
+            raise Error('not imp[lemented')
+        
+        res = rlay.width()*rlay.height()
         mstore.removeAllMapLayers()
         
         return res
         
+    def rlay_uq_vals(self, rlay,
+                     prec=None,
+                     ):
+        #pull array
+        ar = rlay_to_array(rlay)
+        """
+        this is giving some floats that don't quite match what is shown in QGIS
+        """
+        #collapse into series
+        ser_raw = pd.Series(ar.reshape(1, ar.size).tolist()[0]).dropna()
+        
+        if not prec is None:
+            ser= ser_raw.round(prec)
+        else:
+            ser=ser_raw
+ 
+        return np.unique(ser)
+    
+    def rlay_mround(self, #rounda  raster to some multiple
+                    rlay,
+                    multiple=0.2, #value to round to nearest multiple of
+                    **kwargs):
+        
+        return self.rastercalculatorGDAL(
+            rlay,
+            '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
+            **kwargs)
     #===========================================================================
     # HELPERS---------
     #===========================================================================
@@ -1865,6 +1975,13 @@ def vlay_new_mlay(#create a new mlay
         
         log.debug('constructed \'%s\''%vlaym.name())
         return vlaym
+    
+
+    
+    
+    
+    
+    
     
 def field_new(fname, 
               pytype=str, 

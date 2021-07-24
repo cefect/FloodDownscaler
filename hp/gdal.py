@@ -89,7 +89,7 @@ class GeoDataBase(object): #wrapper for GDB functions
             raise Error('bad crs')
         
         if vlay.crs().authid() == '':
-            raise Error('bad crs')
+            print('\'%s\' has a bad crs'%layerName)
             
         #=======================================================================
         # wrap

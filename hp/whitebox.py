@@ -40,10 +40,11 @@ class Whitebox(object):
         self.logger=logger.getChild('wbt')
         self.overwrite =overwrite
 
+
     def breachDepressionsLeastCost(self,
                                    dem_fp, #file path to fill
                                    dist=100, #pixe distance to fill
-                                   out_fp = None, #outpath
+                                   ofp = None, #outpath
                                    logger=None,
         
                                    ):
@@ -54,8 +55,8 @@ class Whitebox(object):
         if logger is None: logger=self.logger
         log=logger.getChild(tool_nm)
         
-        if out_fp is None: 
-            out_fp = os.path.join(self.out_dir, os.path.splitext(os.path.basename(dem_fp))[0]+'_hyd.tif')
+        if ofp is None: 
+            ofp = os.path.join(self.out_dir, os.path.splitext(os.path.basename(dem_fp))[0]+'_hyd.tif')
 
         #=======================================================================
         # configure        
@@ -66,7 +67,7 @@ class Whitebox(object):
                 '--dist=%i'%dist,
                 '--min_dist=\'True\'',
                 '--fill=\'True\'',
-                '--output={}'.format(out_fp),
+                '--output={}'.format(ofp),
                 '-v'
                 ]
         
@@ -85,10 +86,10 @@ class Whitebox(object):
         # wrap
         #=======================================================================
         log.debug(result.stdout)
-        log.info('finished w/ %s'%out_fp)
+        log.info('finished w/ %s'%ofp)
         
         
-        return out_fp
+        return ofp
     
     def elevationAboveStream(self,
                              dem_fp,
@@ -207,11 +208,122 @@ class Whitebox(object):
         self.__run__(args) #execute
         
         return out_fp
+    
+    def costDistance(self, #cost-distance or least-cost pathway analyses
+                       source_fp='', #source raster null=no source
+                        # (e.g., clipped DEM). 
+                       cost_fp='', #cost raster. nulls will be null in output. 
+                            #(e.g. mask of all 1s for neutral cost)
+                        logger=None, ofp=None,
+                     
+                     ):
         
-    def __run__(self, args):
-        self.logger.debug(args)
-        result = subprocess.run(args,capture_output=True,text=True,) 
-        self.logger.debug(result.stdout)
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        tool_nm='CostDistance'
+        if logger is None: logger=self.logger
+        log=logger.getChild(tool_nm)
+        
+        #filepathjs
+        if ofp is None:
+            ofp = os.path.join(self.out_dir, 
+                               os.path.splitext(os.path.basename(source_fp))[0]+'_costAccum.tif')
+        
+        if os.path.exists(ofp):
+            assert self.overwrite
+            os.remove(ofp)
+            
+        #filepath for backlink result
+        ofp2 = os.path.join(self.out_dir, 
+                               os.path.splitext(os.path.basename(source_fp))[0]+'_costBlink.tif')
+            
+        #=======================================================================
+        # setup
+        #=======================================================================
+        args = [self.exe_fp,'-v','--run={}'.format(tool_nm),
+                '--out_accum={}'.format(ofp),
+                '--out_backlink={}'.format(ofp2),
+                '--source={}'.format(source_fp),
+                '--cost={}'.format(cost_fp),
+                ]
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.debug('executing \'%s\' on \'%s\''%(tool_nm, os.path.basename(source_fp)))
+        self.__run__(args) #execute
+        
+        return ofp, ofp2
+    
+    def costAllocation(self,
+                       source_fp='', #source raster null=no source
+                        # (e.g., clipped DEM). 
+                        blink_fp='', #backlink raster (generally from  costDistance())
+                        logger=None, ofp=None,
+                        ):
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        tool_nm='CostAllocation'
+        if logger is None: logger=self.logger
+        log=logger.getChild(tool_nm)
+        
+        #filepathjs
+        if ofp is None:
+            ofp = os.path.join(self.out_dir, 
+                               os.path.splitext(os.path.basename(source_fp))[0]+'_costAlloc.tif')
+        
+        if os.path.exists(ofp):
+            assert self.overwrite
+            os.remove(ofp)
+
+        #=======================================================================
+        # setup
+        #=======================================================================
+        args = [self.exe_fp,'-v','--run={}'.format(tool_nm),
+                '--backlink={}'.format(blink_fp),
+                '--output={}'.format(ofp),
+                '--source={}'.format(source_fp),
+                ]
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.debug('executing \'%s\' on \'%s\''%(tool_nm, os.path.basename(source_fp)))
+        self.__run__(args) #execute
+        
+        return ofp
+        
+
+        
+    def __run__(self, args, logger=None):
+        #=======================================================================
+        # setup
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('r')
+        log.debug('executing w/ arge \n    %s'%args)
+        
+        #=======================================================================
+        # execute
+        #=======================================================================
+        result = subprocess.run(args,capture_output=True,text=True,)
+        
+        #=======================================================================
+        # #handle result
+        #=======================================================================
+        #failed
+        log.debug('finished w/ returncode=%i \n    %s'%(result.returncode, result.stdout))
+        
+        if not result.returncode==0: 
+            self.logger.error('failed w/ \n    %s'%result.stderr)
+            
+        result.check_returncode()
+        
+
+            
         return result
 
 

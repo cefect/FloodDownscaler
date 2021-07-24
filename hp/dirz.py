@@ -243,7 +243,7 @@ def delete_dir(dirpath): #remove directory AND contents
     for dir_i, _, fns in os.walk(dirpath):
         fps.update([os.path.join(dir_i, e) for e in fns])
         
-    assert len(fps)<500, 'safety check... %i files requested for removal in \n    %s'%(
+    assert len(fps)<1000, 'safety check... %i files requested for removal in \n    %s'%(
         len(fps), dirpath)
     #remove all these files
     for fp in fps:
@@ -276,6 +276,7 @@ def get_valid_filename(s):
 def url_retrieve(
         url, #url of file to download
         ofp=None, #output directory
+        use_cache=False, #if the file is already there.. just use it
         overwrite=False,
         logger=mod_logger,
         ):
@@ -289,8 +290,16 @@ def url_retrieve(
         
         ofp = os.path.join(out_dir, os.path.basename(url))
         
+    #===========================================================================
+    # check existance and chace
+    #===========================================================================
     if os.path.exists(ofp):
+        if use_cache:
+            log.info('using cache: %s'%ofp)
+            return ofp
+        
         assert overwrite, 'file exists: \n    %s'%ofp
+        os.remove(ofp)
         
     #ensure base directory exists
     if not os.path.exists(os.path.dirname(ofp)):os.makedirs(os.path.dirname(ofp))

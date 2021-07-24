@@ -52,6 +52,7 @@ class QAlgos(object):
             },
         'EPSG:3857':{
             'EPSG:2950':'+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80',
+            'EPSG:3979':'+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
             },
         'EPSG:2950':{
             'EPSG:3979':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
@@ -79,6 +80,8 @@ class QAlgos(object):
     summaries_d = {'count': 0, 'unique': 1, 'min': 2, 'max': 3, 'range': 4, 'sum': 5,
                     'mean': 6, 'median': 7, 'stddev': 8, 'minority': 9, 'majority': 10,
                     'q1': 11, 'q3': 12, 'iqr': 13, 'empty': 14, 'filled': 15, 'min_length': 16, 'max_length': 17, 'mean_length': 18}
+    
+    raster_dtype_d={'Float32':5}
 
     
     def __init__(self, 
@@ -993,6 +996,48 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+    def createconstantrasterlayer(self,
+            extent_layer,
+            burn_val=1, #value to burn
+            resolution=None, #output resolution. None=take from extent_layer
+            dtype='Float32',
+            logger=None,
+            output='TEMPORARY_OUTPUT',
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:createconstantrasterlayer'
+        log = logger.getChild('createconstantrasterlayer')
+        
+        mstore=QgsMapLayerStore()
+        
+        if isinstance(extent_layer, str):
+            extent_layer = self.rlay_load(extent_layer, logger=log)
+            mstore.addMapLayer(extent_layer)
+        
+        if resolution is None:
+            resolution = self.get_resolution(extent_layer)
+ 
+        feedback=self.feedback
+            
+
+        ins_d = { 'EXTENT' : extent_layer.extent(),
+                  'NUMBER' : burn_val,
+                   'OUTPUT' : output,
+                   'OUTPUT_TYPE' : self.raster_dtype_d[dtype],
+                    'PIXEL_SIZE' : resolution,
+                  'TARGET_CRS' : extent_layer.crs() }
+        
+        #log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
+        mstore.removeAllMapLayers()
+        return res_d['OUTPUT']
+    
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1322,7 +1367,35 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
-    
+    def addgeometry(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     vlay,
+ 
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:exportaddgeometrycolumns'
+        if logger is None: logger=self.logger
+        log = logger.getChild('addgeometry')
+
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'CALC_METHOD' : 0, #use layer crs
+                  'INPUT' : vlay, 
+                 'OUTPUT' : output }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # GDAL---------
     #===========================================================================
@@ -1340,7 +1413,8 @@ class QAlgos(object):
               crsOut = None,
               options = [],
               dataType=0, # 0: Use Input Layer Data Type
-                #6: Float32
+                #6: Float32.
+                #TODO: replace w/ raster_dtype_d
               logger = None,
                               ):
         """
@@ -1502,10 +1576,10 @@ class QAlgos(object):
                 'requested file is not a valid raster file type: %s'%rlay_raw
         else:
             
-            assert isinstance(crsOut, QgsCoordinateReferenceSystem), 'bad crs type'
+            #assert isinstance(crsOut, QgsCoordinateReferenceSystem), 'bad crs type'
             assert isinstance(rlay_raw, QgsRasterLayer)
      
-            assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
+            #assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
             
         if os.path.exists(output):
             os.remove(output)
@@ -1704,7 +1778,7 @@ class QAlgos(object):
                 formula,
                 compression = 'none',
                 output = 'TEMPORARY_OUTPUT',
-                outType=5, #Float32 
+                dtype='Float32', #Float32. TODO: replace w/ raster_dtype_d
                 logger=None,
                   ):
         """
@@ -1730,7 +1804,7 @@ class QAlgos(object):
                      'NO_DATA' : -9999, 
                   'OPTIONS' : self.compress_d[compression], 
                   'OUTPUT' : output, 
-                  'RTYPE' : outType, #int32
+                  'RTYPE' : self.raster_dtype_d[dtype], #int32
                    }
         
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
@@ -1778,7 +1852,9 @@ class QAlgos(object):
                        output = 'TEMPORARY_OUTPUT',
                        logger=None,
                        ):
+        """NOTE: this isnt matching the specified cellsize exactly
         
+        need to use gdalwarp"""
  
         #=======================================================================
         # defaults
@@ -1812,7 +1888,9 @@ class QAlgos(object):
         
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
         
-        return res_d
+        assert os.path.exists(res_d['output'])
+        
+        return res_d['output']
     
     def rNeighbors(self,
                        rlay,
