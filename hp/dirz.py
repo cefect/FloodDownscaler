@@ -10,9 +10,13 @@ Library of windows file/directory common operations
 # Import Python LIbraries 
 import os, time, shutil, logging,  re, copy
 
+import urllib.request as request
+from contextlib import closing
 
 
 from datetime import datetime
+
+
 
 
 """
@@ -230,6 +234,36 @@ def copy_to_temp( #copy the file to a temporary directory
         
         return res  #should return the sh ape files
     
+    
+def delete_dir(dirpath): #remove directory AND contents
+    assert os.path.exists(dirpath)
+    
+    #collect all the files
+    fps = set()
+    for dir_i, _, fns in os.walk(dirpath):
+        fps.update([os.path.join(dir_i, e) for e in fns])
+        
+    assert len(fps)<1000, 'safety check... %i files requested for removal in \n    %s'%(
+        len(fps), dirpath)
+    #remove all these files
+    for fp in fps:
+        try:
+            os.remove(fp)
+            #print('deleted %s'%fp)
+        except Exception as e:
+            #print('failed to remove %s \n    %s'%(fp, e))
+            pass
+        
+    #remove the driector yu
+    try:
+        os.rmdir(dirpath)
+        #print('deleted %s'%dirpath)
+    except Exception as e:
+        pass
+        #print('failed to remove directory %s /n    %s'%( dirpath, e))
+    
+    
+    
 
 
 
@@ -238,6 +272,53 @@ def get_valid_filename(s):
     s = re.sub(r'(?u)[^-\w.]', '', s)
     s = re.sub(':','-', s)
     return s
+
+def url_retrieve(
+        url, #url of file to download
+        ofp=None, #output directory
+        use_cache=False, #if the file is already there.. just use it
+        overwrite=False,
+        logger=mod_logger,
+        ):
+    log=logger.getChild('url_retrieve')
+    #===========================================================================
+    # #get output filepath
+    #===========================================================================
+    if ofp is None: 
+        
+        out_dir = get_temp_dir()
+        
+        ofp = os.path.join(out_dir, os.path.basename(url))
+        
+    #===========================================================================
+    # check existance and chace
+    #===========================================================================
+    if os.path.exists(ofp):
+        if use_cache:
+            log.info('using cache: %s'%ofp)
+            return ofp
+        
+        assert overwrite, 'file exists: \n    %s'%ofp
+        os.remove(ofp)
+        
+    #ensure base directory exists
+    if not os.path.exists(os.path.dirname(ofp)):os.makedirs(os.path.dirname(ofp))
+    
+    #===========================================================================
+    # #download and copy over
+    #===========================================================================
+    log.debug('downloading from \n    %s'%url)
+    
+    try:
+        with closing(request.urlopen(url.lower())) as r:
+            with open(ofp, 'wb') as f:
+                shutil.copyfileobj(r, f)
+    except Exception as e:
+        raise Error('failed to DL from %s w/ \n    %s'%(url, e))
+            
+    log.info('downloaded from %s'%url)
+            
+    return ofp
     
     
 if __name__ == '__main__':

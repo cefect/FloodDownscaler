@@ -304,10 +304,12 @@ class Plotr(Basic):
     #===========================================================================
     # OUTPUTTRS------
     #===========================================================================
-    def output_fig(self, fig,
+    def output_fig(self, 
+                   fig,
                    
                    #file controls
-                   out_dir = None, overwrite=None,
+                   out_dir = None, overwrite=None, 
+                   out_fp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
                    
                    #figure write controls
@@ -334,18 +336,21 @@ class Plotr(Basic):
         #======================================================================
         # output
         #======================================================================
-        #file setup
-        if fname is None:
-            try:
-                fname = fig._suptitle.get_text()
-            except:
-                fname = self.name
+        if out_fp is None:
+            #file setup
+            if fname is None:
+                try:
+                    fname = fig._suptitle.get_text()
+                except:
+                    fname = self.name
+                    
+                fname =str('%s_%s'%(fname, datetime.datetime.now().strftime('%Y%m%d'))).replace(' ','')
                 
-            fname =str('%s_%s'%(fname, datetime.datetime.now().strftime('%Y%m%d'))).replace(' ','')
+            out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
             
-        out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
-            
-        if os.path.exists(out_fp): assert overwrite
+        if os.path.exists(out_fp): 
+            assert overwrite
+            os.remove(out_fp)
 
             
         #write the file
