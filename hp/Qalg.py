@@ -2059,16 +2059,7 @@ class QAlgos(object):
         assert isinstance(vlay, QgsVectorLayer)
         if vlay.selectedFeatureCount() == 0:
             raise Error('Nothing selected on \'%s\'. exepects some pre selection'%(vlay.name()))
-        
-        #=======================================================================
-        # """consider moving this elsewhere"""
-        # #handle project layer store
-        # if QgsProject.instance().mapLayer(vlay.id()) is None:
-        #     #layer not on project yet. add it
-        #     if QgsProject.instance().addMapLayer(vlay, False) is None:
-        #         raise Error('failed to add map layer \'%s\''%vlay.name())
-        #=======================================================================
-            
+ 
         
         #handle project layer store
         if self.qproj.mapLayer(vlay.id()) is None:
@@ -2076,9 +2067,7 @@ class QAlgos(object):
             if self.qproj.addMapLayer(vlay, False) is None:
                 raise Error('failed to add map layer \'%s\''%vlay.name())
             
- 
-            
-       
+
         log.debug('based on %i selected features from \'%s\''%(len(vlay.selectedFeatureIds()), vlay.name()))
         
         return QgsProcessingFeatureSourceDefinition(source=vlay.id(), 
@@ -2087,7 +2076,6 @@ class QAlgos(object):
                                                     geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid)
         
  
-        #return QgsProcessingFeatureSourceDefinition(vlay.id(), True)
     
     
     def _get_sel_res(self, #handler for returning selection like results
