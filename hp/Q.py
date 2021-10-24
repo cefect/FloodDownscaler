@@ -139,7 +139,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if feedback is None:
             """
-            self.logger.info('test')
+            not being inherited?
             """
             #build a separate logger to capture algorhtihim feedback
             qlogger= get_new_file_logger('Qproj',
@@ -187,7 +187,7 @@ class Qproj(QAlgos, Basic):
             self._check_aoi(aoi_vlay)
             self.aoi_vlay= aoi_vlay
         
-        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
+        self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
         
         return
@@ -457,7 +457,7 @@ class Qproj(QAlgos, Basic):
                 vlay_raw.name(), vlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
             
             if reproj:
-                vlay2 = self.reproject(vlay1, logger=log)['OUTPUT']
+                vlay2 = self.reproject(vlay1, logger=log)
                 mstore.addMapLayer(vlay1)
 
                 
@@ -832,7 +832,7 @@ class Qproj(QAlgos, Basic):
         
         assert isinstance(vlay, QgsVectorLayer)
         assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
-        assert vlay.dataProvider().featureCount()==1
+        assert vlay.dataProvider().featureCount()==1, 'got multiple features'
         assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
         
         return 
