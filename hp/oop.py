@@ -28,16 +28,19 @@ class Basic(object): #simple base class
     def __init__(self, 
                  logger         = None,
                  out_dir        = None,
-                 work_dir       = r'C:\LS\03_TOOLS\misc',
-                 mod_name       = 'Simp',
-                 name           = 'SessionName', 
-                 tag            = '',
+
+                 name           = None, #task or function-based name ('e.g., clean)
+                 tag            = None, #session or run name (e.g., 0402)
                  prec           = 2,
-                 overwrite      = False, #file overwriting control
+                 layName_pfx    =None,
                  
                  #inheritancee
                  inher_d        = {}, #container of inheritance pars
                  session        = None,
+                 work_dir       = r'C:\LS\03_TOOLS\misc',
+                 mod_name       = 'Simp',
+                 overwrite      = False, #file overwriting control
+                 
                  ):
         
         #=======================================================================
@@ -47,26 +50,44 @@ class Basic(object): #simple base class
         self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         self.work_dir = work_dir
         self.mod_name = mod_name
-        self.tag = tag
+
         self.prec=prec
         self.overwrite=overwrite
-        self.name = name
+ 
         self.trash_fps = list() #container for files to delete on exit
+        self.start = datetime.datetime.now()
         
         #setup inheritance handles
         self.inher_d = {**inher_d, #add all thosefrom parents 
                         **{'Basic':[ #add the basic
-                            'work_dir', 'mod_name', 'tag', 'overwrite']}, 
+                            'work_dir', 'mod_name', 'overwrite']}, 
                         }
         self.session=session
         
         #=======================================================================
-        # working directory
+        # objet name
         #=======================================================================
-        """needed by logger"""
-        os.chdir(work_dir) #set this to the working directory
-        print('working directory set to \"%s\''%os.getcwd())
-            
+        if name is None:
+            name = self.__class__.__name__
+        self.name=name
+        
+        #=======================================================================
+        # run tag
+        #=======================================================================
+        if tag is None:
+            if not self.session is None:
+                tag = self.session.tag
+            else:
+                tag = 't'+datetime.datetime.today().strftime('%H%M')
+        self.tag=tag
+        
+        #=======================================================================
+        # labels
+        #=====================================================================
+        if layName_pfx is None:
+            layName_pfx = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
+        self.layName_pfx = layName_pfx
+
         #=======================================================================
         # output directory
         #=======================================================================
@@ -85,18 +106,31 @@ class Basic(object): #simple base class
         # #setup the logger
         #=======================================================================
         if logger is None:
+            os.chdir(work_dir) #set this to the working directory
+            print('working directory set to \"%s\''%os.getcwd())
+        
             from hp.logr import BuildLogr
             lwrkr = BuildLogr()
             logger=lwrkr.logger
             lwrkr.duplicate(self.out_dir, 
-                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H')))
+                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
 
             
         self.logger=logger
+        
+
             
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        d = dict()
+        for attn in ['name','tag','out_dir','prec','layName_pfx','session','mod_name','overwrite']:
+            assert hasattr(self, attn), attn
+            attv = getattr(self, attn)
+            #assert not attv is None, '%s got None'%attn #session can be none
+            d[attn] = attv
         
-        
-        self.logger.debug('finished Basic.__init__')
+        self.logger.debug('finished Basic.__init__ w/ \n    %s'%d)
         
     def _install_info(self,
                          log = None): #print version info
