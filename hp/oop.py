@@ -26,20 +26,28 @@ class Basic(object): #simple base class
     
     
     def __init__(self, 
-                 logger         = None,
-                 out_dir        = None,
 
+                 
+                 #directories
+                 out_dir        = None,
+                 temp_dir       = None,
+                 work_dir       = r'C:\LS\03_TOOLS\misc',
+                 
+                 #names/labels
                  name           = None, #task or function-based name ('e.g., clean)
                  tag            = None, #session or run name (e.g., 0402)
-                 prec           = 2,
+                 mod_name       = 'Simp',
                  layName_pfx    =None,
                  
                  #inheritancee
                  inher_d        = {}, #container of inheritance pars
                  session        = None,
-                 work_dir       = r'C:\LS\03_TOOLS\misc',
-                 mod_name       = 'Simp',
+                 
+                 #controls
+                 prec           = 2,
                  overwrite      = False, #file overwriting control
+                 
+                 logger         = None,
                  
                  ):
         
@@ -101,6 +109,22 @@ class Basic(object): #simple base class
             os.makedirs(out_dir)
             
         self.out_dir = out_dir
+        
+        #=======================================================================
+        # #temporary directory
+        #=======================================================================
+        """not removing this automatically"""
+        if temp_dir is None:
+            temp_dir = os.path.join(self.out_dir, 'temp_%s_%s'%(
+                self.__class__.__name__, datetime.datetime.now().strftime('%M%S')))
+            
+            if os.path.exists(temp_dir):
+                delete_dir(temp_dir)
+
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+            
+        self.temp_dir = temp_dir
         
         #=======================================================================
         # #setup the logger
