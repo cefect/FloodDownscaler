@@ -137,17 +137,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # setup qgis
         #=======================================================================
-        if feedback is None:
-            """
-            not being inherited?
-            """
-            #build a separate logger to capture algorhtihim feedback
-            qlogger= get_new_file_logger('Qproj',
-                fp=os.path.join(self.work_dir, 'Qproj.log'))
- 
-            feedback = MyFeedBackQ(logger=qlogger)
-            
-        self.feedback = feedback
+
         
         if aoi_set_proj_crs:
             assert crs is None
@@ -157,6 +147,16 @@ class Qproj(QAlgos, Basic):
             
         #standalone
         if session is None:
+            if feedback is None:
+                #build a separate logger to capture algorhtihim feedback
+                qlogger= get_new_file_logger('Qproj',
+                    fp=os.path.join(self.work_dir, 'Qproj.log'))
+     
+                feedback = MyFeedBackQ(logger=qlogger)
+            
+            self.feedback = feedback
+        
+        
             self._init_qgis(crs=crs)
             
             self._init_algos()
