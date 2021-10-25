@@ -1437,8 +1437,31 @@ class QAlgos(object):
         return res_d['OUTPUT']
  
     
-    
-    
+    def poleofinaccessibility(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     pinput,
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:poleofinaccessibility'
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'INPUT' : pinput, 
+                 'OUTPUT' : output, 
+                 'TOLERANCE' : 1 }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
     
     #===========================================================================
     # GDAL---------

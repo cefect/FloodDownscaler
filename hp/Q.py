@@ -147,6 +147,9 @@ class Qproj(QAlgos, Basic):
             
         #standalone
         if session is None:
+            #===================================================================
+            # feedback
+            #===================================================================
             if feedback is None:
                 #build a separate logger to capture algorhtihim feedback
                 qlogger= get_new_file_logger('Qproj',
@@ -156,12 +159,28 @@ class Qproj(QAlgos, Basic):
             
             self.feedback = feedback
         
-        
+            #===================================================================
+            # setups
+            #===================================================================
             self._init_qgis(crs=crs)
             
             self._init_algos()
             
             self._set_vdrivers()
+            
+            #=======================================================================
+            # aois
+            #=======================================================================
+            if not aoi_fp is None:
+                self.aoi_fp=aoi_fp
+                self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
+            
+            if not aoi_vlay is None:
+                assert aoi_fp is None, 'cant pass a layer and a filepath'
+                self._check_aoi(aoi_vlay)
+                self.aoi_vlay= aoi_vlay
+            
+            
             
         #child mode
         else:
@@ -175,17 +194,7 @@ class Qproj(QAlgos, Basic):
         """
         self.tag
         """
-        #=======================================================================
-        # aois
-        #=======================================================================
-        if not aoi_fp is None:
-            self.aoi_fp=aoi_fp
-            self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
-        
-        if not aoi_vlay is None:
-            assert aoi_fp is None, 'cant pass a layer and a filepath'
-            self._check_aoi(aoi_vlay)
-            self.aoi_vlay= aoi_vlay
+
         
         self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
