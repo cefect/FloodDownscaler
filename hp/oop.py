@@ -101,9 +101,9 @@ class Basic(object): #simple base class
         #=======================================================================
         if out_dir is None:
             if not tag == '':
-                out_dir = os.path.join(work_dir, 'outs', tag, self.today_str)
+                out_dir = os.path.join(work_dir, 'outs', name, tag, self.today_str)
             else:
-                out_dir = os.path.join(work_dir, 'outs', self.today_str)
+                out_dir = os.path.join(work_dir, 'outs', name, self.today_str)
             
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
