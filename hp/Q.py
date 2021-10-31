@@ -79,6 +79,8 @@ npc_pytype_d = {'?':bool,
                 }
 
 type_qvar_py_d = {10:str, 2:int, 135:float, 6:float, 4:int, 1:bool, 16:datetime.datetime, 12:str} #QVariant.types to pythonic types
+qvar_types_d = {'int':QVariant.LongLong, 'float':QVariant.Double, 'object':QVariant.String}
+
 
 #parameters for lots of statistic algos
 stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median': 5,
@@ -86,7 +88,17 @@ stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median':
                  'Majority': 11, 'Variety': 12, 'Q1': 13, 'Q3': 14, 'IQR': 15}
 
 
+def np_to_qt(dtype): #helper to retrieve a qvariant type from a numpy dtype
+    
+    for search, qtval in qvar_types_d.items():
+        if search in dtype.name:
+            return qtval
+            
 
+    raise Error('failed to match %s'%dtype) 
+            
+
+                    
 #===============================================================================
 # workers
 #===============================================================================
@@ -96,36 +108,36 @@ class Qproj(QAlgos, Basic):
     common methods for Qgis projects
     """
     
-    crsID_default = 'EPSG:4326'
+ 
     
     driverName = 'SpatiaLite' #default data creation driver type
     out_dName = driverName #default output driver/file type
     
-    
+    aoi_vlay=None
     
     def __init__(self, 
-                 feedback=None, 
-                 crs = None,
-                 crsID_default = None,
+                 feedback           =None, 
+                 crs                = None,
+ 
                  
                  #aois
-                 aoi_fp = None,
-                 aoi_set_proj_crs=False, #force hte project crs from the aoi
-                 aoi_vlay = None,
+                 aoi_fp             = None,
+                 aoi_set_proj_crs   = False, #force hte project crs from the aoi
+                 aoi_vlay           = None,
                  
-                 compress='med', #raster compression default
+                 compress           ='med', #raster compression default
                  
                  #inheritance
-                 session=None, #parent session for child mode
-                 inher_d = {},
+                 session            =None, #parent session for child mode
+                 inher_d            = {},
                  **kwargs):
 
         
-        mod_logger.debug('Qproj super')
-        
-        super().__init__(
+ 
+        #init cascade
+        super().__init__(session=session,
             inher_d = {**inher_d,
-                **{'Qproj':['qap', 'qproj', 'vlay_drivers', 'feedback']}},
+                **{'Qproj':['compress', 'aoi_fp', 'aoi_vlay', ]}},
             
             **kwargs) #initilzie teh baseclass
         
@@ -142,8 +154,7 @@ class Qproj(QAlgos, Basic):
         if aoi_set_proj_crs:
             assert crs is None
         
-        if not crsID_default is None: 
-            self.crsID_default=crsID_default
+ 
             
         #standalone
         if session is None:
@@ -184,17 +195,27 @@ class Qproj(QAlgos, Basic):
             
         #child mode
         else:
-            self.inherit(session=session)
-            """having a separate mstore is one of the main reasons to use children"""
-            self.mstore = QgsMapLayerStore() #build a new map store 
+            """automating inheritance here
+            may be better to add these to init default variables, then load when None
+                but these are always/only called during Q startup
+            """
+            
+            assert crs is None, 'not letting crs pass to children'
+            
+            for attn in [
+                'qap',  'qproj', 'vlay_drivers', 'feedback','context',
+                ]:
+                val = getattr(session, attn) #retrieve
+                assert not val is None, attn
+                setattr(self, attn, val) #set
+            
+            #build a new map store 
+            self.mstore = QgsMapLayerStore() 
         
         
         if not self.proj_checks():
             raise Error('failed checks')
-        """
-        self.tag
-        """
-
+ 
         
         self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
@@ -240,11 +261,10 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # crs
         #=======================================================================
-        if crs is None: 
-            crs = QgsCoordinateReferenceSystem(self.crsID_default)
+ 
             
             
-        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type: %s'%type(crs)
         assert crs.isValid()
             
         self.qproj.setCrs(crs)
@@ -376,7 +396,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
           
         if error[0] == QgsVectorFileWriter.NoError:
-            log.debug('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
+            log.info('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
             return out_fp
          
         raise Error('FAILURE on writing layer \' %s \'  with code:\n    %s \n    %s'%(vlay.name(),error, out_fp))
@@ -815,7 +835,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
 
         vlay.removeSelection()
-        log.info('slicing finv \'%s\' and %i feats w/ aoi \'%s\''%(
+        log.info('slicing \'%s\' and %i feats w/ aoi \'%s\''%(
             vlay.name(),vlay.dataProvider().featureCount(), aoi_vlay.name()))
         
 
@@ -894,8 +914,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # precheck
         #=======================================================================
-        
-        
+
         #make sure none of hte field names execeed the driver limitations
         max_len = fieldn_max_d[self.driverName]
         
@@ -916,6 +935,7 @@ class Qproj(QAlgos, Basic):
         #check the geometry
         if not geo_d is None:
             assert isinstance(geo_d, dict)
+            assert len(geo_d)==len(df)
             if not gkey is None:
                 assert gkey in df_raw.columns
         
@@ -935,17 +955,26 @@ class Qproj(QAlgos, Basic):
         #===========================================================================
         # assemble the fields
         #===========================================================================
-        #column name and python type
-        fields_d = {coln:np_to_pytype(col.dtype) for coln, col in df.items()}
-        
-        #fields container
-        qfields = fields_build_new(fields_d = fields_d, logger=log)
+        field_d = dict()
+        for colName, dtype in df.dtypes.items():
+            qvtype = np_to_qt(dtype)
+ 
+            #build the new field
+            field_d[colName] = QgsField(colName, 
+                                         qvtype, 
+                                         typeName=QMetaType.typeName(qvtype),
+                                         len=fieldn_max_d[self.driverName], #just using max length
+                                         prec=6,
+                                         )
+            
+        #assemble the constructor
+        qfields = QgsFields()
+        for fieldName, field in field_d.items():
+            assert qfields.append(field), fieldName
         
         #=======================================================================
         # assemble the features
         #=======================================================================
-        #convert form of data
-        
         feats_d = dict()
         for fid, row in df.iterrows():
     
@@ -953,10 +982,11 @@ class Qproj(QAlgos, Basic):
             
             #loop and add data
             for fieldn, value in row.items():
-    
                 #skip null values
                 if pd.isnull(value): continue
                 
+                """could add a field length ccheck here.. but would be slow"""
+
                 #get the index for this field
                 findx = feat.fieldNameIndex(fieldn) 
                 
@@ -978,7 +1008,8 @@ class Qproj(QAlgos, Basic):
                     gobj = geo_d[row[gkey]]
                 
                 feat.setGeometry(gobj)
-            
+            #check it
+            assert feat.isValid(), fid
             #stor eit
             feats_d[fid]=feat
         
@@ -987,7 +1018,7 @@ class Qproj(QAlgos, Basic):
             QgsWkbTypes.geometryDisplayString(feat.geometry().type()),
             ))
         
-        
+        assert len(feats_d)==len(df_raw)
         #=======================================================================
         # get the geo type
         #=======================================================================\
@@ -1001,6 +1032,7 @@ class Qproj(QAlgos, Basic):
         #===========================================================================
         # buidl the new layer
         #===========================================================================
+        
         vlay = vlay_new_mlay(gtype,
                              crs, 
                              layname,
@@ -1008,6 +1040,7 @@ class Qproj(QAlgos, Basic):
                              list(feats_d.values()),
                              logger=log,
                              )
+        
         self.createspatialindex(vlay, logger=log)
         #=======================================================================
         # post check
@@ -1015,7 +1048,8 @@ class Qproj(QAlgos, Basic):
         if not geo_d is None:
             if vlay.wkbType() == 100:
                 raise Error('constructed layer has NoGeometry')
-
+        
+        assert vlay.dataProvider().featureCount()==len(df_raw)
         return vlay
     
     def vlay_rename_fields(self,
@@ -1563,6 +1597,7 @@ class Qproj(QAlgos, Basic):
     
 
 
+
     
     
 
@@ -1887,7 +1922,9 @@ def vlay_get_fdata(vlay,
     #===========================================================================
     # precheck
     #===========================================================================
+    assert isinstance(fieldn, str), 'got bad type on fieldn: %s'%type(fieldn)
     fnl = [f.name() for f in vlay.fields().toList()]
+    
     assert fieldn in fnl, 'requested field \'%s\' not on layer'%fieldn
     
     #===========================================================================
@@ -1918,10 +1955,10 @@ def vlay_get_geo( #get geometry dict from layer
         vlay,
         request = None, #additional requester (limiting fids). fieldn still required. additional flags added
         selected = False,
-        logger=mod_logger,
+        logger=None,
         ):
     
-    log = logger.getChild('vlay_get_geo')
+ 
     
     #===========================================================================
     # build the request
@@ -1936,8 +1973,7 @@ def vlay_get_geo( #get geometry dict from layer
         """
         todo: check if there is already a fid filter placed on the reuqester
         """
-        log.debug('limiting data pull to %i selected features on \'%s\''%(
-            vlay.selectedFeatureCount(), vlay.name()))
+ 
         
         sfids = vlay.selectedFeatureIds()
         
@@ -1949,18 +1985,10 @@ def vlay_get_geo( #get geometry dict from layer
     #===========================================================================
 
     d = {f.id():f.geometry() for f in vlay.getFeatures(request)}
-    
-    log.debug('retrieved %i attributes from features on \'%s\''%(
-        len(d), vlay.name()))
-    
-    #===========================================================================
-    # checks
-    #===========================================================================
+ 
     assert len(d)>0
     
-    #===========================================================================
-    # wrap
-    #===========================================================================
+ 
     return d
 
 def vlay_new_mlay(#create a new mlay
@@ -1985,6 +2013,11 @@ def vlay_new_mlay(#create a new mlay
         
         if gtype=='None':
             log.warning('constructing mlay w/ \'None\' type')
+            
+        #check for fid duplicates
+        fid_ser = pd.Series([f.id() for f in feats_l], name='fids')
+        assert not fid_ser.duplicated().any()
+
         #=======================================================================
         # assemble into new layer
         #=======================================================================
@@ -2001,13 +2034,14 @@ def vlay_new_mlay(#create a new mlay
         vlaym.updateFields()
         
         #add feats
-        if not vlaym.dataProvider().addFeatures(feats_l):
+        success, feats = vlaym.dataProvider().addFeatures(feats_l)
+        if not success:
             raise Error('failed to addFeatures')
         
         vlaym.updateExtents()
         
 
-        
+        assert len(feats_l)==vlaym.dataProvider().featureCount(), 'failed to add all features'
         #=======================================================================
         # checks
         #=======================================================================
@@ -2018,6 +2052,7 @@ def vlay_new_mlay(#create a new mlay
             else:
                 raise Error(msg)
 
+        
         
         log.debug('constructed \'%s\''%vlaym.name())
         return vlaym
@@ -2217,10 +2252,7 @@ def qtype_to_pytype( #convert object to the pythonic type taht matches the passe
     if qisnull(obj):
         return None
 
-        
-    
-        
-    
+
     
     #get pythonic type for this code
     py_type = type_qvar_py_d[qtype_code]

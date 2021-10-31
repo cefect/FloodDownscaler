@@ -5,6 +5,21 @@ Created on Mar 10, 2019
 
 object oriented programming
 
+#===============================================================================
+# INHERITANCE
+#===============================================================================
+I've spent far too many weeks of my life strugglig with inheritance
+    seems to difficult to balance simplicity, flexibility, and functionality
+    
+2021-10-31: settled on top down control
+    force the caller object to first extract any attributes they want to pass down
+    then run these through the childs init
+    i.e., the child is agnostic to the source of the attribute
+    this keeps the majority of scripts simple
+        scripts that want to get complicated with inheritance can do this at the caller level
+    
+    using the 'inher_d' attribute to store attn:source meta that a potential caller would want
+
 '''
 
 
@@ -23,7 +38,7 @@ from hp.exceptions import Error
 
 class Basic(object): #simple base class
     
-    
+ 
     
     def __init__(self, 
 
@@ -34,9 +49,9 @@ class Basic(object): #simple base class
                  work_dir       = r'C:\LS\03_TOOLS\misc',
                  
                  #names/labels
-                 name           = None, #task or function-based name ('e.g., clean)
+                 name           = None, #task or function-based name ('e.g., Clean). nice to capitalize
                  tag            = None, #session or run name (e.g., 0402)
-                 mod_name       = 'Simp',
+                 mod_name       = 'oop',
                  layName_pfx    =None,
                  
                  #inheritancee
@@ -51,49 +66,50 @@ class Basic(object): #simple base class
                  
                  ):
         
-        #=======================================================================
-        # attachments
-        #=======================================================================
         
-        self.today_str = datetime.datetime.today().strftime('%Y%m%d')
-        self.work_dir = work_dir
-        self.mod_name = mod_name
-
-        self.prec=prec
-        self.overwrite=overwrite
- 
+        #=======================================================================
+        # personal
+        #=======================================================================
         self.trash_fps = list() #container for files to delete on exit
         self.start = datetime.datetime.now()
-        
-        #setup inheritance handles
-        self.inher_d = {**inher_d, #add all thosefrom parents 
-                        **{'Basic':[ #add the basic
-                            'work_dir', 'mod_name', 'overwrite']}, 
-                        }
-        self.session=session
+        self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         
         #=======================================================================
-        # objet name
+        # basic attachments
+        #=======================================================================
+        self.session=session
+        self.work_dir=work_dir
+        self.mod_name=mod_name
+        self.overwrite=overwrite
+        self.prec=prec
+        
+        #=======================================================================
+        # complex attachments
         #=======================================================================
         if name is None:
             name = self.__class__.__name__
         self.name=name
         
-        #=======================================================================
-        # run tag
-        #=======================================================================
-        if tag is None:
-            if not self.session is None:
-                tag = self.session.tag
-            else:
-                tag = 't'+datetime.datetime.today().strftime('%H%M')
-        self.tag=tag
+ 
+        #potential inheritance handles
+        """see note at script head""" 
+        self.inher_d = {**inher_d, #add all thosefrom parents 
+                        **{'Basic':[ #add the basic
+                            'work_dir', 'mod_name', 'overwrite']}, 
+                        }
         
-        #=======================================================================
+ 
+ 
+        # run tag
+        if tag is None:
+            tag = 't'+datetime.datetime.today().strftime('%H%M')
+            
+        self.tag=tag
+ 
         # labels
-        #=====================================================================
         if layName_pfx is None:
             layName_pfx = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
+                
         self.layName_pfx = layName_pfx
 
         #=======================================================================
@@ -104,23 +120,25 @@ class Basic(object): #simple base class
                 out_dir = os.path.join(work_dir, 'outs', name, tag, self.today_str)
             else:
                 out_dir = os.path.join(work_dir, 'outs', name, self.today_str)
-            
+                
+
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
-            
-        self.out_dir = out_dir
+                
+        self.out_dir=out_dir 
         
         #=======================================================================
         # #temporary directory
         #=======================================================================
         """not removing this automatically"""
         if temp_dir is None:
+ 
             temp_dir = os.path.join(self.out_dir, 'temp_%s_%s'%(
                 self.__class__.__name__, datetime.datetime.now().strftime('%M%S')))
             
             if os.path.exists(temp_dir):
                 delete_dir(temp_dir)
-
+ 
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
             
@@ -130,20 +148,23 @@ class Basic(object): #simple base class
         # #setup the logger
         #=======================================================================
         if logger is None:
-            os.chdir(work_dir) #set this to the working directory
-            print('working directory set to \"%s\''%os.getcwd())
-        
-            from hp.logr import BuildLogr
-            lwrkr = BuildLogr()
-            logger=lwrkr.logger
-            lwrkr.duplicate(self.out_dir, 
-                        basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
+ 
+            if not session is None:
+                logger=session.logger.getChild(name)
+            else:
+                
+                os.chdir(work_dir) #set this to the working directory
+                print('working directory set to \"%s\''%os.getcwd())
+            
+                from hp.logr import BuildLogr
+                lwrkr = BuildLogr()
+                logger=lwrkr.logger
+                lwrkr.duplicate(self.out_dir, 
+                            basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
 
             
         self.logger=logger
-        
 
-            
         #=======================================================================
         # wrap
         #=======================================================================
@@ -151,10 +172,45 @@ class Basic(object): #simple base class
         for attn in ['name','tag','out_dir','prec','layName_pfx','session','mod_name','overwrite']:
             assert hasattr(self, attn), attn
             attv = getattr(self, attn)
-            #assert not attv is None, '%s got None'%attn #session can be none
+ 
             d[attn] = attv
         
         self.logger.debug('finished Basic.__init__ w/ \n    %s'%d)
+        
+    def get_inher_atts(self, #return a container with the attribute values from your inher_d
+                       inher_d=None,
+                       logger=None,
+                       ):
+        """used by parents to retrieve kwargs to pass to children"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('get_inher_atts')
+        if inher_d is None:
+            inher_d = self.inher_d
+            
+        #=======================================================================
+        # retrieve
+        #=======================================================================
+        att_d = dict()
+ 
+        
+        for className, attn_l in inher_d.items():
+            d = dict()
+            for attn in attn_l:
+                attv = getattr(self, attn)
+                assert not attv is None, attn
+                
+                att_d[attn] = attv
+                d[attn] = attv
+                
+            log.debug('got %i atts from \'%s\'\n    %s'%(
+                len(d), className, d))
+        
+        return att_d
+            
+        
         
     def _install_info(self,
                          log = None): #print version info
@@ -178,48 +234,8 @@ class Basic(object): #simple base class
         for k in sys.path: 
             log.info('    %s'%k)
             
-    def inherit(self,#inherit the passed parameters from the passed parent
-                session=None,
-                inher_d = None, #attribute names to inherit from session
-                logger=None,
-                ):
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log = logger.getChild('%s.inherit'%self.__class__.__name__)
-        if session is None: session=self.session
-        if inher_d is None: inher_d = self.inher_d
-        
-        if session is None:
-            log.warning('no session! skipping')
-            return {}
-        else:
-            self.session = session #set
-        
-        #=======================================================================
-        # execute
-        #=======================================================================
-        log.debug('\'%s\' inheriting %i groups from \'%s\''%(
-            self.__class__.__name__, len(inher_d), session.__class__.__name__))
-        
-        d = dict() #container for reporting
-        cnt = 0
-        for k,v in inher_d.items():
-            d[k] = dict()
-            assert isinstance(v, list)
-            for attn in v:
-                val = getattr(session, attn) #retrieve
-                setattr(self, attn, val) #set
-                
-                d[k][attn] = val
-                cnt+=1
-                
-            log.debug('set \'%s\' \n    %s'%(k, d[k]))
             
-        log.info('inherited %i attributes from \'%s\''%(cnt, session.__class__.__name__) )
-        return d
+            
     
     def __enter__(self):
         return self
