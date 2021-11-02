@@ -79,7 +79,7 @@ npc_pytype_d = {'?':bool,
                 }
 
 type_qvar_py_d = {10:str, 2:int, 135:float, 6:float, 4:int, 1:bool, 16:datetime.datetime, 12:str} #QVariant.types to pythonic types
-qvar_types_d = {'int':QVariant.LongLong, 'float':QVariant.Double, 'object':QVariant.String}
+qvar_types_d = {'int':QVariant.LongLong, 'float':QVariant.Double, 'object':QVariant.String, 'bool':QVariant.Bool}
 
 
 #parameters for lots of statistic algos
@@ -137,7 +137,7 @@ class Qproj(QAlgos, Basic):
         #init cascade
         super().__init__(session=session,
             inher_d = {**inher_d,
-                **{'Qproj':['compress', 'aoi_fp', 'aoi_vlay', ]}},
+                **{'Qproj':['compress',  'aoi_vlay', ]}},
             
             **kwargs) #initilzie teh baseclass
         
@@ -179,19 +179,7 @@ class Qproj(QAlgos, Basic):
             
             self._set_vdrivers()
             
-            #=======================================================================
-            # aois
-            #=======================================================================
-            if not aoi_fp is None:
-                self.aoi_fp=aoi_fp
-                self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
-            
-            if not aoi_vlay is None:
-                assert aoi_fp is None, 'cant pass a layer and a filepath'
-                self._check_aoi(aoi_vlay)
-                self.aoi_vlay= aoi_vlay
-            
-            
+
             
         #child mode
         else:
@@ -215,6 +203,23 @@ class Qproj(QAlgos, Basic):
         
         if not self.proj_checks():
             raise Error('failed checks')
+        
+        #=======================================================================
+        # aois
+        #=======================================================================
+
+        #load from file
+        if aoi_vlay is None:
+            if not aoi_fp is None:
+                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
+            
+        else:
+            assert aoi_fp is None, 'cant pass a layer and a filepath'
+            
+        #assign/check
+        if not aoi_vlay is None:
+            self._check_aoi(aoi_vlay)
+            self.aoi_vlay= aoi_vlay #redundant if loaded from file
  
         
         self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
@@ -224,7 +229,7 @@ class Qproj(QAlgos, Basic):
     
     
     def _init_qgis(self, #instantiate qgis
-                   crs=None,
+                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
                   gui = False): 
         """
         WARNING: need to hold this app somewhere. call in the module you're working in (scripts)
@@ -262,7 +267,6 @@ class Qproj(QAlgos, Basic):
         # crs
         #=======================================================================
  
-            
             
         assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type: %s'%type(crs)
         assert crs.isValid()
@@ -423,7 +427,7 @@ class Qproj(QAlgos, Basic):
         
         
         #file
-        assert os.path.exists(file_path), file_path
+        assert os.path.exists(file_path), 'got bad filepath \'%s\''%file_path
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
         log.debug('on %s'%file_path)
@@ -935,7 +939,7 @@ class Qproj(QAlgos, Basic):
         #check the geometry
         if not geo_d is None:
             assert isinstance(geo_d, dict)
-            assert len(geo_d)==len(df)
+            assert len(geo_d)>=len(df) #letting extr geos pass
             if not gkey is None:
                 assert gkey in df_raw.columns
         
@@ -951,6 +955,15 @@ class Qproj(QAlgos, Basic):
                 #check gkey match
                 l = set(df_raw.index).difference(geo_d.keys())
                 assert len(l)==0, 'missing %i (of %i) fid keys in geo_d: %s'%(len(l), len(df_raw), l)
+                
+        #force max string length
+        for coln, col in df.copy().items():
+            
+            if col.dtype.char=='O':
+                try:
+                    df.loc[:, coln] = col.str.slice(stop=40)
+                except Exception as e:
+                    log.error('failed to slice strings on coln \'%s\' %s'%(coln, col.dtype))
 
         #===========================================================================
         # assemble the fields

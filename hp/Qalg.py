@@ -1427,7 +1427,9 @@ class QAlgos(object):
         
         #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
-        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, 
+                               #context=self.context,
+                               )
         
         return res_d['OUTPUT']
     

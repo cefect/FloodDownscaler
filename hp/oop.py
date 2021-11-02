@@ -200,7 +200,7 @@ class Basic(object): #simple base class
             d = dict()
             for attn in attn_l:
                 attv = getattr(self, attn)
-                assert not attv is None, attn
+                #assert not attv is None, attn #allowing Nones to pass
                 
                 att_d[attn] = attv
                 d[attn] = attv
@@ -243,7 +243,7 @@ class Basic(object): #simple base class
     def __exit__(self, #destructor
              *args,**kwargs):
         
-        #print('opp.__exit__ on \'%s\''%self.__class__.__name__)
+        print('opp.__exit__ on \'%s\''%self.__class__.__name__)
         #clear all my attriburtes
         for k in copy.copy(list(self.__dict__.keys())):
             if not k=='trash_fps':
