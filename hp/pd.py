@@ -3902,7 +3902,7 @@ def big_splitter( #helper function to split large data sets, run some func, then
 
 def data_report( #generate a data report on a frame
         df,
-        out_filepath = None, #Optional filename for writing the report xls to file
+        ofp = None, #Optional filename for writing the report xls to file
         
         
         
@@ -4012,9 +4012,9 @@ def data_report( #generate a data report on a frame
     #===========================================================================
     # write
     #===========================================================================
-    if not out_filepath is None:
-        log.debug('sending report to file:\n    %s'%out_filepath)
-        hp.pd.write_to_xls(out_filepath, res_d1, logger=log, allow_fail=True)
+    if not ofp is None:
+        log.debug('sending report to file:\n    %s'%ofp)
+        hp.pd.write_to_xls(ofp, res_d1, logger=log, allow_fail=True)
     
     
     return res_d1
