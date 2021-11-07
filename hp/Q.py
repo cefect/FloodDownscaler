@@ -1787,6 +1787,8 @@ def vlay_get_fdf( #pull all the feature data and place into a df
    
     #field name check
     assert isinstance(fieldn_l, list)
+    for e in fieldn_l:
+        assert isinstance(e, str), 'bad type on %s: %s'%(e, type(e))
     miss_l = set(fieldn_l).difference(all_fnl)
     assert len(miss_l)==0, '\'%s\' missing %i requested fields: %s'%(vlay.name(), len(miss_l), miss_l)
   
