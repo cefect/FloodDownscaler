@@ -936,7 +936,10 @@ class Qproj(QAlgos, Basic):
 
         
         #make sure the columns are unique
-        assert df.columns.is_unique, 'got duplicate columns \n    %s'%df.columns.values.tolist()
+        if not df.columns.is_unique:
+            dupes = df.columns[df.columns.duplicated()]
+            raise Error('got %i duplicate columns \n    %s\n    %s'%(
+                len(dupes), dupes.values.tolist(), df.columns.values.tolist()))
         
         #check the geometry
         if not geo_d is None:

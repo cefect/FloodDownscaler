@@ -3900,6 +3900,51 @@ def big_splitter( #helper function to split large data sets, run some func, then
     
     return res_df
 
+def link_report( #report value_counts on two linked columns
+                 df_raw,
+                 kcoln,
+                 link_colns=[], #additional columns to include in report
+                 
+                 #report controls
+                 dropna=True,
+                 
+                 logger=mod_logger,
+        
+        ):
+    
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    log=logger.getChild('link_report')
+    
+    
+    
+    assert len(link_colns)>0
+    #check
+    for coln in link_colns + [kcoln]:
+        assert coln in df_raw.columns, coln
+    
+    #===========================================================================
+    # prep data
+    #===========================================================================
+    df1 = df_raw.loc[:, [kcoln]+link_colns].dropna(subset=[kcoln], axis=0)
+    
+    jdf = df1.drop_duplicates(subset=[kcoln]).set_index(kcoln, drop=True)
+        
+    #===========================================================================
+    # get report
+    #===========================================================================
+    rdf1 = df1[kcoln].value_counts(dropna=dropna).rename('value_counts').to_frame(
+        ).reset_index().rename(columns={'index':kcoln})
+    
+    #join back linkers
+    log.info('got %i unique \'%s\''%(len(rdf1), kcoln))
+    return rdf1.join(jdf, how='left', on=kcoln)
+        
+ 
+    
+
 def data_report( #generate a data report on a frame
         df,
         out_filepath = None, #Optional filename for writing the report xls to file
