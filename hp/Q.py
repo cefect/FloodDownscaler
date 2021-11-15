@@ -918,6 +918,8 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # precheck
         #=======================================================================
+        assert isinstance(df_raw.columns, pd.Index)
+        assert isinstance(df_raw.index, pd.Index)
 
         #make sure none of hte field names execeed the driver limitations
         max_len = fieldn_max_d[self.driverName]
@@ -934,7 +936,7 @@ class Qproj(QAlgos, Basic):
 
         
         #make sure the columns are unique
-        assert df.columns.is_unique
+        assert df.columns.is_unique, 'got duplicate columns \n    %s'%df.columns.values.tolist()
         
         #check the geometry
         if not geo_d is None:
@@ -1973,7 +1975,10 @@ def vlay_get_geo( #get geometry dict from layer
         logger=None,
         ):
     
- 
+    #===========================================================================
+    # chekc
+    #===========================================================================
+    assert isinstance(vlay, QgsVectorLayer), 'bad type on passed vlay: %s'%type(vlay)
     
     #===========================================================================
     # build the request
