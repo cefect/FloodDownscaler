@@ -153,6 +153,9 @@ class Qproj(QAlgos, Basic):
         
         if aoi_set_proj_crs:
             assert crs is None
+            
+        if crs is None:
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
         
  
             

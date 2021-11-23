@@ -18,8 +18,8 @@ I've spent far too many weeks of my life strugglig with inheritance
     this keeps the majority of scripts simple
         scripts that want to get complicated with inheritance can do this at the caller level
     
-    using the 'inher_d' attribute to store attn:source meta that a potential caller would want
-
+    using the 'inher_d'  to store 'object adding the requirement':[attn] the object to use if it wants to spawn children
+        see get_inher_atts
 '''
 
 
