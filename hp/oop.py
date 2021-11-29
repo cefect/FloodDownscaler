@@ -111,6 +111,7 @@ class Basic(object): #simple base class
             layName_pfx = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
                 
         self.layName_pfx = layName_pfx
+        self.resname = layName_pfx #consistnecy w/ CanFlood
 
         #=======================================================================
         # output directory

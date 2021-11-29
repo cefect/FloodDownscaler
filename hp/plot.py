@@ -89,7 +89,7 @@ class Plotr(Basic):
                     h_color = 'blue',
                     h_alpha = 0.1,
                     
-                    impactFmtFunc=None, #function for formatting the impact results
+                    #impactFmtFunc=None, #function for formatting the impact results
                         
                         #Option1: pass a raw function here
                         #Option2: pass function to init_fmtFunc

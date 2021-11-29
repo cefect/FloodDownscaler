@@ -154,13 +154,15 @@ class Qproj(QAlgos, Basic):
         if aoi_set_proj_crs:
             assert crs is None
             
-        if crs is None:
-            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+
         
  
             
         #standalone
         if session is None:
+            if crs is None:
+                crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            
             #===================================================================
             # feedback
             #===================================================================
@@ -191,7 +193,8 @@ class Qproj(QAlgos, Basic):
                 but these are always/only called during Q startup
             """
             
-            assert crs is None, 'not letting crs pass to children'
+            if not crs is None:
+                raise Error('not letting crs pass to children')
             
             for attn in [
                 'qap',  'qproj', 'vlay_drivers', 'feedback','context',
