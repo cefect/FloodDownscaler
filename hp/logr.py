@@ -35,9 +35,15 @@ class BuildLogr(object): #simple class to build a logger
         #===========================================================================
         
         logger = logging.getLogger() #get the root logger
+        
+ 
+        
         logging.config.fileConfig(logcfg_file) #load the configuration file
         'usually adds a log file to the working directory/_outs/root.log'
         logger.info('root logger initiated and configured from file: %s'%(logcfg_file))
+        
+        
+        
         
         self.logger = logger
         
@@ -57,7 +63,7 @@ class BuildLogr(object): #simple class to build a logger
         
         #build the handler
         formatter = logging.Formatter('%(asctime)s.%(levelname)s.%(name)s:  %(message)s')        
-        handler = logging.FileHandler(logger_file_path) #Create a file handler at the passed filename 
+        handler = logging.FileHandler(logger_file_path, mode='w') #Create a file handler at the passed filename 
         handler.setFormatter(formatter) #attach teh formater object
         handler.setLevel(level) #set the level of the handler
         
