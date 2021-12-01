@@ -379,7 +379,11 @@ class Qproj(QAlgos, Basic):
                 overwrite, out_fp)
             if overwrite:
                 log.warning(msg)
-                os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
+                try:
+                    os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
+                except Exception as e:
+                    log.error('failed to remove w/ %s... ammmending filename')
+                    out_fp = fhead+'_exists' + ext
             else:
                 raise Error(msg)
             
