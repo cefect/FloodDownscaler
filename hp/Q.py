@@ -1169,6 +1169,71 @@ class Qproj(QAlgos, Basic):
         
         return pd.Series(area_d).sum()
     
+    def vlay_exp_feats(self, #evaluate features on a vlay using an expression string
+                        exp_str,
+                        layer,
+                        request=None,
+                        result ='fids',
+                        
+                        
+                        ):
+        
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if request is None:
+            request = QgsFeatureRequest()
+        
+        #=======================================================================
+        # prechek    
+        #=======================================================================
+        assert isinstance(layer, QgsVectorLayer)
+        assert isinstance(exp_str, str)
+        #=======================================================================
+        # build expression
+        #=======================================================================
+        #build the expression
+        qexp = QgsExpression(exp_str)
+        
+        #check the expression for errors
+        if qexp.hasParserError():
+            raise Exception(qexp.parserErrorString())
+        
+        #build the context and scope
+        """not sure why this is necessary"""
+        context = QgsExpressionContext()
+        scope = QgsExpressionContextScope()
+        context.appendScope(scope)
+    
+        #prepare the expression
+        _ = qexp.prepare(context)
+        """returns False for some reason"""
+    
+        #=======================================================================
+        # evaluts
+        #=======================================================================
+        #loop through the features and evaluate the expression, then collect results
+        fnd_d = dict()
+        for feature in layer.getFeatures(request):
+            scope.setFeature(feature) 
+ 
+            if bool(qexp.evaluate(context)): #expression is true. add this feature to the dicrt
+                fnd_d[feature.id()] = feature
+                
+        #=======================================================================
+        # retrieve result
+        #=======================================================================
+        if result == 'fids':
+            return list(fnd_d.keys())
+        elif result == 'feat_d':
+            return fnd_d
+        elif result == 'selection':
+            layer.selectByIds(list(fnd_d.keys())) #select those we want to drop
+            return
+        else:
+            raise Error('unrecognized result key: %s'%result)
+            
     #===========================================================================
     # RLAYs--------
     #===========================================================================

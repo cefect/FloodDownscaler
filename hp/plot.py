@@ -178,7 +178,14 @@ class Plotr(Basic):
         self.plt, self.matplotlib = plt, matplotlib
         
         self.logger.info('matplotlib version = %s'%matplotlib.__version__)
-        return {'plt':plt, 'matplotlib':matplotlib}
+        
+        #=======================================================================
+        # seaborn
+        #=======================================================================
+        import seaborn as sns
+        self.sns = sns
+        
+        return {'plt':plt, 'matplotlib':matplotlib, 'sns':sns}
     
 
         
@@ -344,7 +351,7 @@ class Plotr(Basic):
                 except:
                     fname = self.name
                     
-                fname =str('%s_%s'%(fname, datetime.datetime.now().strftime('%Y%m%d'))).replace(' ','')
+                fname =str('%s_%s'%(fname, self.resname)).replace(' ','')
                 
             out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
             

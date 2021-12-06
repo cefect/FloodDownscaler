@@ -245,10 +245,8 @@ class Basic(object): #simple base class
              *args,**kwargs):
         
         print('opp.__exit__ on \'%s\''%self.__class__.__name__)
-        #clear all my attriburtes
-        for k in copy.copy(list(self.__dict__.keys())):
-            if not k=='trash_fps':
-                del self.__dict__[k]
+        
+
         
         #gc.collect()
         #=======================================================================
@@ -267,7 +265,19 @@ class Basic(object): #simple base class
                 pass
                 #print('failed to delete \n    %s \n    %s'%(fp, e))
         
+        #=======================================================================
+        # remporary directory
+        #=======================================================================
+        try:
+            delete_dir(self.temp_dir)
+        except:
+            pass
         
+    
+        #clear all my attriburtes
+        for k in copy.copy(list(self.__dict__.keys())):
+            if not k=='trash_fps':
+                del self.__dict__[k]
         
         
                 
