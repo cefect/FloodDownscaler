@@ -9,6 +9,7 @@ Created on Oct. 8, 2020
 #===============================================================================
 # # standard imports -----------------------------------------------------------
 #===============================================================================
+
 import time, sys, os, logging, datetime, inspect, gc, shutil
 
 import numpy as np
@@ -17,9 +18,12 @@ import pandas as pd
 #===============================================================================
 # import QGIS librarires
 #===============================================================================
+
 from qgis.core import *
+ 
 from qgis.gui import QgisInterface
 from hp.gdal import get_nodata_val
+
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -132,7 +136,7 @@ class Qproj(QAlgos, Basic):
                  inher_d            = {},
                  **kwargs):
 
-        
+ 
  
         #init cascade
         super().__init__(session=session,
@@ -1663,16 +1667,25 @@ class Qproj(QAlgos, Basic):
     def _install_info(self, log=None, **kwargs):
         if log is None: log = self.logger
         
-        log.info(u'QGIS version: %s, release: %s'%(
-                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
-        
         #=======================================================================
         # pyqt
         #=======================================================================
+        log.info('QT_PLUGIN_PATH=%s'%os.environ['QT_PLUGIN_PATH'])
         from PyQt5 import Qt
         
         vers = ['%s = %s' % (k,v) for k,v in vars(Qt).items() if k.lower().find('version') >= 0 and not inspect.isbuiltin(v)]
         log.info('\n    '.join(sorted(vers)))
+        
+        from PyQt5.QtWidgets import QApplication
+ 
+        
+        #=======================================================================
+        # QGIS
+        #=======================================================================
+        log.info(u'QGIS version: %s, release: %s'%(
+                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
+        
+
         
         
         super()._install_info(**kwargs) #initilzie teh baseclass

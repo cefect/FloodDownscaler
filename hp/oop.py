@@ -46,7 +46,7 @@ class Basic(object): #simple base class
                  #directories
                  out_dir        = None,
                  temp_dir       = None,
-                 work_dir       = r'C:\LS\03_TOOLS\misc',
+                 work_dir       = r'C:\LS\09_REPOS\01_COMMON\misc',
                  
                  #names/labels
                  name           = None, #task or function-based name ('e.g., Clean). nice to capitalize
