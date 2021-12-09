@@ -63,10 +63,11 @@ class QAlgos(object):
     #WARNING: some processing providers dont play well with high compression 
         #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
     compress_d =  {
-        'hiT':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.001', #nice for terrain
-        'hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
+        'topo_hi':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.01', #nice for terrain
+        'topo_lo':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=6|MAX_Z_ERRROR=0.001', #nice for terrain
+        'qgis_hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
         'med':'COMPRESS=LZW',
-        'none':None        
+        'none':None,        
         }
 
     #===========================================================================
