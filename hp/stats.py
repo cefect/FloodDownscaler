@@ -12,10 +12,18 @@ import numpy as np
 
 import scipy.stats
 import sklearn
+import sklearn.linear_model
 import statsmodels.api as sm
 
 
 from hp.plot import Plotr, view
+
+
+def get_confusionMat(yt, preds, classes_ar):
+            
+    return pd.DataFrame(sklearn.metrics.confusion_matrix(yt, preds), 
+                 columns=['pred_'+e for e in classes_ar],
+                 index=classes_ar)
 
 class SimpleRegression(Plotr):
     
@@ -280,11 +288,29 @@ class SimpleRegression(Plotr):
         
  
     
+
+    def sm_prepData(self, df_raw, ycoln, intercept):
+        #=======================================================================
+    # setup data
+    #=======================================================================
+        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
+        xtrain = df_train.drop(ycoln, axis=1)
+        ytrain = df_train[ycoln]
+    #=======================================================================
+    # OLS model
+    #=======================================================================
+        if intercept:
+            X = sm.add_constant(xtrain)
+        else:
+            X = xtrain
+        return ytrain, X
+
     def sm_linregres(self,
                 df_raw,
+                ycoln,
                 intercept=True,
-                       xcoln='area',
-                       ycoln='gvimp_gf',
+
+ 
 
                ):
         """
@@ -296,20 +322,7 @@ class SimpleRegression(Plotr):
         
         log = self.logger.getChild('sm_linregres')
         
-        #=======================================================================
-        # setup dataTrue
-        #=======================================================================
-        df1 = df_raw.loc[:, [xcoln, ycoln]].dropna(how='any', axis=0)
-        xtrain, ytrain=df1[xcoln].values, df1[ycoln].values
-        
-        
-        #=======================================================================
-        # OLS model
-        #=======================================================================
-        if intercept:
-            X = sm.add_constant(xtrain)
-        else:
-            X = xtrain
+        ytrain, X = self.sm_prepData(df_raw, ycoln, intercept)
         
         #init the model
         model = sm.OLS(ytrain, X)
@@ -339,6 +352,205 @@ class SimpleRegression(Plotr):
                         
  
         return pfunc, {'rvalue':regRes.rsquared, 'stderr':regRes.bse[0],'regRes':regRes, **res_d}
+    
+    
+    def sm_MNLogit(self,
+                df_raw,
+                ycoln,
+                intercept=False, #not sure what it means to not have an intercept
+                logger=None):
+        """
+        couldn't get this to work
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sm_MNLogit')
+        
+        #=======================================================================
+        # setup data
+        #=======================================================================
+        yt_raw, X = self.sm_prepData(df_raw, ycoln, intercept)
+        
+ #==============================================================================
+ #        #dummie test
+ #        def dums(ser):
+ #            x=ser[0]
+ # 
+ #            if x < X.quantile(0.33)[0]:
+ #                return 'low'
+ #            if x > X.quantile(0.66)[0]:
+ #                return 'hi'
+ #            else:
+ #                return 'med'
+ #        
+ #        ytrain = X.apply(dums, axis=1).rename('size').to_frame()
+ #==============================================================================
+        
+        #=======================================================================
+        # #switch to integers
+        # int_d = dict(zip(yt_raw.unique(), range(len(yt_raw.unique()))))
+        # 
+        # ytrain = yt_raw.replace(int_d)
+        #=======================================================================
+        
+        ytrain=yt_raw
+ 
+        
+        model = sm.MNLogit(ytrain, X, missing='raise')
+        model.data.ynames
+         
+         
+        #fit with data
+        regRes = model.fit()
+        log.info(regRes.summary())
+        
+        if intercept:
+            raise IOError('dome')
+            res_d = {'intercept':regRes.params[0],
+             'slope':regRes.params[1],
+             'slope_conf':regRes.conf_int()[1],
+             'inter_conf':regRes.conf_int()[0],
+             }
+ 
+            
+            pfunc = lambda x:regRes.predict(sm.add_constant(x))
+        else:
+            #regRes.predict(X).sum(axis=1)
+            regRes.predict(X).eq(regRes.predict(X).max(axis=1), axis=0).sum()
+            model.endog_names
+            regRes.pred_table()
+            regRes.cov_params()
+            regRes.summary()
+            regRes.conf_int()
+
+            preds = regRes.predict(X)
+            
+            
+            
+            #identify the column with the maximum value
+            np.asarray(preds).argmax(1)
+            
+            miss_rat = float(regRes.resid_misclassified.sum())/len(ytrain)
+            
+            pfunc = lambda x:regRes.predict(x)
+ 
+            res_d = {
+                'intercept':0,
+                 'slope':regRes.params[0],
+                 'slope_conf':regRes.conf_int()[0],
+                 'inter_conf':np.array([0,0]),
+                 }
+        
+
+    def get_logit_dummies(self, X):
+                #dummie test
+        def dums(ser):
+            x=ser[0]
+ 
+            if x < X.quantile(0.33)[0]:
+                return 'low'
+            if x > X.quantile(0.66)[0]:
+                return 'hi'
+            else:
+                return 'med'
+            
+        ytrain = X.apply(dums, axis=1).rename('size').to_frame()
+        return ytrain
+
+
+    def sk_prepData(self, df_raw, ycoln):
+        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
+
+        return df_train.drop(ycoln, axis=1).values, df_train[ycoln].values.reshape(1,-1)[0]
+
+    def sk_MNLogit(self, #multinomal logistic regression with sklearn
+                df_raw,
+                ycoln,
+                intercept=True, #not sure what it means to not have an intercept
+                logger=None):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sk_MNLogit')
+ 
+        #=======================================================================
+        # setup data
+        #=======================================================================
+        
+        xtrain, ytrain = self.sk_prepData(df_raw, ycoln)
+        """
+        self.sns.pairplot(df_raw, hue=ycoln)
+        """
+        
+        
+        log.info('LogisticRegression on \'%s\' w/ %s'%(
+            ycoln, str(xtrain.shape)))
+        
+        """throwing warnings but still returning predictions?"""
+        clf = sklearn.linear_model.LogisticRegression(multi_class='multinomial',
+                                                solver ='newton-cg',
+                                                max_iter=1000,
+                                                ).fit(xtrain,ytrain)
+                                                
+ 
+        
+        
+        clf.get_params()
+        
+        
+        plt = self.plt
+        #confusion matrix on training data
+        conf_df = get_confusionMat(ytrain, clf.predict(xtrain), clf.classes_)
+        
+        # Plot the decision boundary. For that, we will assign a color to each
+        
+        #retrieve the color map
+        cmap = plt.cm.get_cmap(name='Paired')
+ 
+                    
+        d1 = dict(zip(np.unique(ytrain), range(len(np.unique(ytrain)))))
+        
+        colors_d = {k:cmap(np.linspace(0, 1, len(d1))[i]) for k,i in d1.items()}
+        
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        X = df_raw.drop(ycoln, axis=1)
+        x_min, x_max = xtrain[:, 0].min() - 0.5, xtrain[:, 0].max() + 0.5
+        y_min, y_max = xtrain[:, 1].min() - 0.5, xtrain[:, 1].max() + 0.5
+        #h = 10  # step size in the mesh
+        xx, yy = np.meshgrid(np.arange(x_min, x_max, 10), np.arange(y_min, y_max, 1000))
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+        
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        self.plt.figure(1, figsize=(6,6))
+        
+        raise Error('stopped here... need to remap colors on to prediction')
+        pd.DataFrame(Z).replace(colors_d)
+        
+        plt.pcolormesh(xx, yy, Z, cmap=cmap)
+        
+        plt.scatter(xtrain[:, 0], xtrain[:, 1], 
+                    #c=ytrain, edgecolors="k", cmap=plt.cm.Paired,
+                    )
+ 
+ 
+        
+        if intercept:
+ 
+            res_d = {
+             'score':clf.score(xtrain, ytrain),
+             'confusion':conf_df,
+             }
+ 
+            
+            pfunc = lambda x:clf.predict(x)
+        else:
+            raise IOError('not implemented')
+ 
+        return res_d, pfunc
         
     
     def add_anno(self,
