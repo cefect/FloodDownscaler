@@ -63,10 +63,11 @@ class QAlgos(object):
     #WARNING: some processing providers dont play well with high compression 
         #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
     compress_d =  {
-        'hiT':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.001', #nice for terrain
-        'hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
+        'topo_hi':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.01', #nice for terrain
+        'topo_lo':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=6|MAX_Z_ERRROR=0.001', #nice for terrain
+        'qgis_hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
         'med':'COMPRESS=LZW',
-        'none':None        
+        'none':None,        
         }
 
     #===========================================================================
@@ -92,7 +93,7 @@ class QAlgos(object):
         
         super().__init__(  #initilzie teh baseclassass
             inher_d = {**inher_d,
-                **{'QAlgos':['context']}},
+                **{'QAlgos':[]}},
                         **kwargs) 
         
         
@@ -144,7 +145,7 @@ class QAlgos(object):
         
         assert not self.feedback is None, 'instance needs a feedback method for algos to work'
         
-        log.info('processing initilzied w/ feedback: \'%s\''%(type(self.feedback).__name__))
+        log.debug('processing initilzied w/ feedback: \'%s\''%(type(self.feedback).__name__))
         
 
         return True
@@ -1082,20 +1083,16 @@ class QAlgos(object):
              #1: Take attributes of the first matching feature only (one-to-one)
              #2: Take attributes of the feature with largest overlap only (one-to-one)
         output='TEMPORARY_OUTPUT',
+        output_nom = 'TEMPORARY_OUTPUT',
              
         logger=None,
                                  ):
-        """
-        also see canflood.hlpr.Q for more sophisticated version
-        
-        dropped all the data checks and warnings here
-        """
         #=======================================================================
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
         log = logger.getChild('joinattributesbylocation')
-        
+ 
         algo_nm = 'qgis:joinattributesbylocation'
         
         #=======================================================================
@@ -1105,12 +1102,12 @@ class QAlgos(object):
 
         
         
-        pars_d = { 'DISCARD_NONMATCHING' : False, 
+        pars_d = { 'DISCARD_NONMATCHING' : True, #only want matching records in here
                   'INPUT' : vlay, 
                   'JOIN' : jvlay, 
                   'JOIN_FIELDS' : jvlay_fnl, 
                   'METHOD' : method, 
-                  'NON_MATCHING' : 'TEMPORARY_OUTPUT', 
+                  'NON_MATCHING' : output_nom, 
                   'OUTPUT' : output, 
                   'PREDICATE' : [self.predicate_d[predicate]], #only accepting single predicate
                   'PREFIX' : prefix }
@@ -1120,39 +1117,11 @@ class QAlgos(object):
         # execute
         #=======================================================================
         log.debug('%s w/ \n%s'%(algo_nm, pars_d))
-        res_d = processing.run(algo_nm, pars_d, feedback=self.feedback)
+        res_d = processing.run(algo_nm, pars_d, feedback=self.feedback, context=self.context)
         
-        """just leaving the output as is
-        #retriieve results
-        if os.path.exists(output):
-            res_vlay = self.vlay_load(output)
-        else:
-            res_vlay = res_d[output]
-            
-        assert isinstance(res_vlay, QgsVectorLayer)
-        """
-            
-        result = res_d['OUTPUT']
+
         
-        join_cnt  = res_d['JOINED_COUNT']
-        
-        vlay_nomatch = res_d['NON_MATCHING'] #Unjoinable features from first layer
-        
-        #=======================================================================
-        # warp
-        #=======================================================================
-        ofcnt = vlay.dataProvider().featureCount()
-        jfcnt = jvlay.dataProvider().featureCount()
-        miss_cnt = ofcnt-join_cnt
-        
-        if not miss_cnt>=0:
-            log.warning('got negative miss_cnt: %i'%miss_cnt)
-            """this can happen when a base feature intersects multiple join features for method=0"""
-        
-        log.info('finished joining \'%s\' (%i feats) to \'%s\' (%i feats)\n    %i hits and %i misses'%(
-            vlay.name(), ofcnt, jvlay.name(), jfcnt, join_cnt, miss_cnt))
-        
-        return result, miss_cnt
+        return res_d
     
     def joinbylocationsummary(self,
             vlay, #layer to add stats to
@@ -1437,8 +1406,33 @@ class QAlgos(object):
         return res_d['OUTPUT']
  
     
-    
-    
+    def poleofinaccessibility(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     pinput,
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:poleofinaccessibility'
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'INPUT' : pinput, 
+                 'OUTPUT' : output, 
+                 'TOLERANCE' : 1 }
+        
+        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, 
+                               #context=self.context,
+                               )
+        
+        return res_d['OUTPUT']
     
     #===========================================================================
     # GDAL---------

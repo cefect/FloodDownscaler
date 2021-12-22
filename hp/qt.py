@@ -5,11 +5,18 @@ Created on Jul. 20, 2021
 
 PyQt helpers
 '''
-from PyQt5 import QtCore, QtGui
+import qgis.core #needed to init PyQt5 properly
 
+import sys
+for k in sys.path: 
+    print('    %s'%k)
+
+from PyQt5.QtWidgets import QApplication
+#from PyQt5 import QtCore, QtGui
+ 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QLineEdit,\
      QMessageBox, QDesktopWidget, QLabel
-
+ 
 from PyQt5.QtCore import pyqtSlot
  
 import sys, time
@@ -63,26 +70,7 @@ class Window(QMainWindow):
         
         
         
-    #===========================================================================
-    #     # Create a button in the window
-    #     self.button = QPushButton('Show text', self)
-    #     self.button.move(20,80)
-    #     
-    #     # connect button to function on_click
-    #     self.button.clicked.connect(self.on_click)
-    #     self.show()
-    # 
-    # @pyqtSlot()
-    # def on_click(self):
-    #     textboxValue = self.textbox.text()
-    #     QMessageBox.question(self, 
-    #                          'Message - pythonspot.com',
-    #                           "You typed: " + textboxValue, 
-    #                           QMessageBox.Ok,
-    #                            QMessageBox.Ok)
-    #     
-    #     self.textbox.setText("")
-    #===========================================================================
+ 
  
         
         

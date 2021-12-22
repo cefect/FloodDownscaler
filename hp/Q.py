@@ -9,6 +9,7 @@ Created on Oct. 8, 2020
 #===============================================================================
 # # standard imports -----------------------------------------------------------
 #===============================================================================
+
 import time, sys, os, logging, datetime, inspect, gc, shutil
 
 import numpy as np
@@ -17,9 +18,12 @@ import pandas as pd
 #===============================================================================
 # import QGIS librarires
 #===============================================================================
+
 from qgis.core import *
+ 
 from qgis.gui import QgisInterface
 from hp.gdal import get_nodata_val
+
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -79,6 +83,8 @@ npc_pytype_d = {'?':bool,
                 }
 
 type_qvar_py_d = {10:str, 2:int, 135:float, 6:float, 4:int, 1:bool, 16:datetime.datetime, 12:str} #QVariant.types to pythonic types
+qvar_types_d = {'int':QVariant.LongLong, 'float':QVariant.Double, 'object':QVariant.String, 'bool':QVariant.Bool}
+
 
 #parameters for lots of statistic algos
 stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median': 5,
@@ -86,7 +92,17 @@ stat_pars_d = {'First': 0, 'Last': 1, 'Count': 2, 'Sum': 3, 'Mean': 4, 'Median':
                  'Majority': 11, 'Variety': 12, 'Q1': 13, 'Q3': 14, 'IQR': 15}
 
 
+def np_to_qt(dtype): #helper to retrieve a qvariant type from a numpy dtype
+    
+    for search, qtval in qvar_types_d.items():
+        if search in dtype.name:
+            return qtval
+            
 
+    raise Error('failed to match %s'%dtype) 
+            
+
+                    
 #===============================================================================
 # workers
 #===============================================================================
@@ -96,36 +112,36 @@ class Qproj(QAlgos, Basic):
     common methods for Qgis projects
     """
     
-    crsID_default = 'EPSG:4326'
+ 
     
     driverName = 'SpatiaLite' #default data creation driver type
     out_dName = driverName #default output driver/file type
     
-    
+    aoi_vlay=None
     
     def __init__(self, 
-                 feedback=None, 
-                 crs = None,
-                 crsID_default = None,
+                 feedback           =None, 
+                 crs                = None,
+ 
                  
                  #aois
-                 aoi_fp = None,
-                 aoi_set_proj_crs=False, #force hte project crs from the aoi
-                 aoi_vlay = None,
+                 aoi_fp             = None,
+                 aoi_set_proj_crs   = False, #force hte project crs from the aoi
+                 aoi_vlay           = None,
                  
-                 compress='med', #raster compression default
+                 compress           ='med', #raster compression default
                  
                  #inheritance
-                 session=None, #parent session for child mode
-                 inher_d = {},
+                 session            =None, #parent session for child mode
+                 inher_d            = {},
                  **kwargs):
 
-        
-        mod_logger.debug('Qproj super')
-        
-        super().__init__(
+ 
+ 
+        #init cascade
+        super().__init__(session=session,
             inher_d = {**inher_d,
-                **{'Qproj':['qap', 'qproj', 'vlay_drivers', 'feedback']}},
+                **{'Qproj':['compress',  'aoi_vlay', ]}},
             
             **kwargs) #initilzie teh baseclass
         
@@ -137,64 +153,93 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # setup qgis
         #=======================================================================
-        if feedback is None:
-            """
-            self.logger.info('test')
-            """
-            #build a separate logger to capture algorhtihim feedback
-            qlogger= get_new_file_logger('Qproj',
-                fp=os.path.join(self.work_dir, 'Qproj.log'))
- 
-            feedback = MyFeedBackQ(logger=qlogger)
-            
-        self.feedback = feedback
+
         
         if aoi_set_proj_crs:
             assert crs is None
+            
+
         
-        if not crsID_default is None: 
-            self.crsID_default=crsID_default
+ 
             
         #standalone
         if session is None:
+            if crs is None:
+                crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            
+            #===================================================================
+            # feedback
+            #===================================================================
+            if feedback is None:
+                #build a separate logger to capture algorhtihim feedback
+                qlogger= get_new_file_logger('Qproj',
+                    fp=os.path.join(self.work_dir, 'Qproj.log'))
+     
+                feedback = MyFeedBackQ(logger=qlogger)
+            
+            self.feedback = feedback
+        
+            #===================================================================
+            # setups
+            #===================================================================
             self._init_qgis(crs=crs)
             
             self._init_algos()
             
             self._set_vdrivers()
             
+
+            
         #child mode
         else:
-            self.inherit(session=session)
-            """having a separate mstore is one of the main reasons to use children"""
-            self.mstore = QgsMapLayerStore() #build a new map store 
+            """automating inheritance here
+            may be better to add these to init default variables, then load when None
+                but these are always/only called during Q startup
+            """
+            
+            if not crs is None:
+                raise Error('not letting crs pass to children')
+            
+            for attn in [
+                'qap',  'qproj', 'vlay_drivers', 'feedback','context',
+                ]:
+                val = getattr(session, attn) #retrieve
+                assert not val is None, attn
+                setattr(self, attn, val) #set
+            
+            #build a new map store 
+            self.mstore = QgsMapLayerStore() 
         
         
         if not self.proj_checks():
             raise Error('failed checks')
-        """
-        self.tag
-        """
+        
         #=======================================================================
         # aois
         #=======================================================================
-        if not aoi_fp is None:
-            self.aoi_fp=aoi_fp
-            self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
-        
-        if not aoi_vlay is None:
+
+        #load from file
+        if aoi_vlay is None:
+            if not aoi_fp is None:
+                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
+            
+        else:
             assert aoi_fp is None, 'cant pass a layer and a filepath'
+            
+        #assign/check
+        if not aoi_vlay is None:
             self._check_aoi(aoi_vlay)
-            self.aoi_vlay= aoi_vlay
+            self.aoi_vlay= aoi_vlay #redundant if loaded from file
+ 
         
-        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
+        self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
         
         
         return
     
     
     def _init_qgis(self, #instantiate qgis
-                   crs=None,
+                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
                   gui = False): 
         """
         WARNING: need to hold this app somewhere. call in the module you're working in (scripts)
@@ -231,11 +276,9 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # crs
         #=======================================================================
-        if crs is None: 
-            crs = QgsCoordinateReferenceSystem(self.crsID_default)
+ 
             
-            
-        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type: %s'%type(crs)
         assert crs.isValid()
             
         self.qproj.setCrs(crs)
@@ -340,7 +383,11 @@ class Qproj(QAlgos, Basic):
                 overwrite, out_fp)
             if overwrite:
                 log.warning(msg)
-                os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
+                try:
+                    os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
+                except Exception as e:
+                    log.error('failed to remove w/ %s... ammmending filename')
+                    out_fp = fhead+'_exists' + ext
             else:
                 raise Error(msg)
             
@@ -367,7 +414,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
           
         if error[0] == QgsVectorFileWriter.NoError:
-            log.debug('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
+            log.info('layer \' %s \' written to: \n     %s'%(vlay.name(),out_fp))
             return out_fp
          
         raise Error('FAILURE on writing layer \' %s \'  with code:\n    %s \n    %s'%(vlay.name(),error, out_fp))
@@ -394,7 +441,7 @@ class Qproj(QAlgos, Basic):
         
         
         #file
-        assert os.path.exists(file_path), file_path
+        assert os.path.exists(file_path), 'got bad filepath \'%s\''%file_path
         fname, ext = os.path.splitext(os.path.split(file_path)[1])
         assert not ext in ['tif'], 'passed invalid filetype: %s'%ext
         log.debug('on %s'%file_path)
@@ -457,7 +504,7 @@ class Qproj(QAlgos, Basic):
                 vlay_raw.name(), vlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
             
             if reproj:
-                vlay2 = self.reproject(vlay1, logger=log)['OUTPUT']
+                vlay2 = self.reproject(vlay1, logger=log)
                 mstore.addMapLayer(vlay1)
 
                 
@@ -806,7 +853,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
 
         vlay.removeSelection()
-        log.info('slicing finv \'%s\' and %i feats w/ aoi \'%s\''%(
+        log.info('slicing \'%s\' and %i feats w/ aoi \'%s\''%(
             vlay.name(),vlay.dataProvider().featureCount(), aoi_vlay.name()))
         
 
@@ -832,7 +879,7 @@ class Qproj(QAlgos, Basic):
         
         assert isinstance(vlay, QgsVectorLayer)
         assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
-        assert vlay.dataProvider().featureCount()==1
+        assert vlay.dataProvider().featureCount()==1, 'got multiple features'
         assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
         
         return 
@@ -885,8 +932,9 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # precheck
         #=======================================================================
-        
-        
+        assert isinstance(df_raw.columns, pd.Index)
+        assert isinstance(df_raw.index, pd.Index)
+
         #make sure none of hte field names execeed the driver limitations
         max_len = fieldn_max_d[self.driverName]
         
@@ -902,11 +950,15 @@ class Qproj(QAlgos, Basic):
 
         
         #make sure the columns are unique
-        assert df.columns.is_unique
+        if not df.columns.is_unique:
+            dupes = df.columns[df.columns.duplicated()]
+            raise Error('got %i duplicate columns \n    %s\n    %s'%(
+                len(dupes), dupes.values.tolist(), df.columns.values.tolist()))
         
         #check the geometry
         if not geo_d is None:
             assert isinstance(geo_d, dict)
+            assert len(geo_d)>=len(df) #letting extr geos pass
             if not gkey is None:
                 assert gkey in df_raw.columns
         
@@ -922,21 +974,39 @@ class Qproj(QAlgos, Basic):
                 #check gkey match
                 l = set(df_raw.index).difference(geo_d.keys())
                 assert len(l)==0, 'missing %i (of %i) fid keys in geo_d: %s'%(len(l), len(df_raw), l)
+                
+        #force max string length
+        for coln, col in df.copy().items():
+            
+            if col.dtype.char=='O':
+                try:
+                    df.loc[:, coln] = col.str.slice(stop=40)
+                except Exception as e:
+                    log.error('failed to slice strings on coln \'%s\' %s'%(coln, col.dtype))
 
         #===========================================================================
         # assemble the fields
         #===========================================================================
-        #column name and python type
-        fields_d = {coln:np_to_pytype(col.dtype) for coln, col in df.items()}
-        
-        #fields container
-        qfields = fields_build_new(fields_d = fields_d, logger=log)
+        field_d = dict()
+        for colName, dtype in df.dtypes.items():
+            qvtype = np_to_qt(dtype)
+ 
+            #build the new field
+            field_d[colName] = QgsField(colName, 
+                                         qvtype, 
+                                         typeName=QMetaType.typeName(qvtype),
+                                         len=fieldn_max_d[self.driverName], #just using max length
+                                         prec=6,
+                                         )
+            
+        #assemble the constructor
+        qfields = QgsFields()
+        for fieldName, field in field_d.items():
+            assert qfields.append(field), fieldName
         
         #=======================================================================
         # assemble the features
         #=======================================================================
-        #convert form of data
-        
         feats_d = dict()
         for fid, row in df.iterrows():
     
@@ -944,10 +1014,11 @@ class Qproj(QAlgos, Basic):
             
             #loop and add data
             for fieldn, value in row.items():
-    
                 #skip null values
                 if pd.isnull(value): continue
                 
+                """could add a field length ccheck here.. but would be slow"""
+
                 #get the index for this field
                 findx = feat.fieldNameIndex(fieldn) 
                 
@@ -969,7 +1040,8 @@ class Qproj(QAlgos, Basic):
                     gobj = geo_d[row[gkey]]
                 
                 feat.setGeometry(gobj)
-            
+            #check it
+            assert feat.isValid(), fid
             #stor eit
             feats_d[fid]=feat
         
@@ -978,7 +1050,7 @@ class Qproj(QAlgos, Basic):
             QgsWkbTypes.geometryDisplayString(feat.geometry().type()),
             ))
         
-        
+        assert len(feats_d)==len(df_raw)
         #=======================================================================
         # get the geo type
         #=======================================================================\
@@ -992,6 +1064,7 @@ class Qproj(QAlgos, Basic):
         #===========================================================================
         # buidl the new layer
         #===========================================================================
+        
         vlay = vlay_new_mlay(gtype,
                              crs, 
                              layname,
@@ -999,6 +1072,7 @@ class Qproj(QAlgos, Basic):
                              list(feats_d.values()),
                              logger=log,
                              )
+        
         self.createspatialindex(vlay, logger=log)
         #=======================================================================
         # post check
@@ -1006,7 +1080,8 @@ class Qproj(QAlgos, Basic):
         if not geo_d is None:
             if vlay.wkbType() == 100:
                 raise Error('constructed layer has NoGeometry')
-
+        
+        assert vlay.dataProvider().featureCount()==len(df_raw)
         return vlay
     
     def vlay_rename_fields(self,
@@ -1098,6 +1173,71 @@ class Qproj(QAlgos, Basic):
         
         return pd.Series(area_d).sum()
     
+    def vlay_exp_feats(self, #evaluate features on a vlay using an expression string
+                        exp_str,
+                        layer,
+                        request=None,
+                        result ='fids',
+                        
+                        
+                        ):
+        
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if request is None:
+            request = QgsFeatureRequest()
+        
+        #=======================================================================
+        # prechek    
+        #=======================================================================
+        assert isinstance(layer, QgsVectorLayer)
+        assert isinstance(exp_str, str)
+        #=======================================================================
+        # build expression
+        #=======================================================================
+        #build the expression
+        qexp = QgsExpression(exp_str)
+        
+        #check the expression for errors
+        if qexp.hasParserError():
+            raise Exception(qexp.parserErrorString())
+        
+        #build the context and scope
+        """not sure why this is necessary"""
+        context = QgsExpressionContext()
+        scope = QgsExpressionContextScope()
+        context.appendScope(scope)
+    
+        #prepare the expression
+        _ = qexp.prepare(context)
+        """returns False for some reason"""
+    
+        #=======================================================================
+        # evaluts
+        #=======================================================================
+        #loop through the features and evaluate the expression, then collect results
+        fnd_d = dict()
+        for feature in layer.getFeatures(request):
+            scope.setFeature(feature) 
+ 
+            if bool(qexp.evaluate(context)): #expression is true. add this feature to the dicrt
+                fnd_d[feature.id()] = feature
+                
+        #=======================================================================
+        # retrieve result
+        #=======================================================================
+        if result == 'fids':
+            return list(fnd_d.keys())
+        elif result == 'feat_d':
+            return fnd_d
+        elif result == 'selection':
+            layer.selectByIds(list(fnd_d.keys())) #select those we want to drop
+            return
+        else:
+            raise Error('unrecognized result key: %s'%result)
+            
     #===========================================================================
     # RLAYs--------
     #===========================================================================
@@ -1527,16 +1667,25 @@ class Qproj(QAlgos, Basic):
     def _install_info(self, log=None, **kwargs):
         if log is None: log = self.logger
         
-        log.info(u'QGIS version: %s, release: %s'%(
-                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
-        
         #=======================================================================
         # pyqt
         #=======================================================================
+        log.info('QT_PLUGIN_PATH=%s'%os.environ['QT_PLUGIN_PATH'])
         from PyQt5 import Qt
         
         vers = ['%s = %s' % (k,v) for k,v in vars(Qt).items() if k.lower().find('version') >= 0 and not inspect.isbuiltin(v)]
         log.info('\n    '.join(sorted(vers)))
+        
+        from PyQt5.QtWidgets import QApplication
+ 
+        
+        #=======================================================================
+        # QGIS
+        #=======================================================================
+        log.info(u'QGIS version: %s, release: %s'%(
+                Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
+        
+
         
         
         super()._install_info(**kwargs) #initilzie teh baseclass
@@ -1552,6 +1701,7 @@ class Qproj(QAlgos, Basic):
         super().__exit__(*args,**kwargs) #initilzie teh baseclass
         
     
+
 
 
     
@@ -1730,6 +1880,8 @@ def vlay_get_fdf( #pull all the feature data and place into a df
    
     #field name check
     assert isinstance(fieldn_l, list)
+    for e in fieldn_l:
+        assert isinstance(e, str), 'bad type on %s: %s'%(e, type(e))
     miss_l = set(fieldn_l).difference(all_fnl)
     assert len(miss_l)==0, '\'%s\' missing %i requested fields: %s'%(vlay.name(), len(miss_l), miss_l)
   
@@ -1842,8 +1994,12 @@ def vlay_get_fdf( #pull all the feature data and place into a df
         
         
         #handle column slicing and Qnulls
-        """if the requester worked... we probably  wouldnt have to do this"""
-        df = df_raw.loc[:, tuple(fieldn_l)].replace(NULL, np.nan)
+        """if the requester worked... we probably  wouldnt have to do this
+        
+        not working anymore... pandas update?
+        
+        """
+        df = df_raw.loc[:, tuple(fieldn_l)].replace([NULL], np.nan)
         
         feedback.setProgress(95)
         
@@ -1878,7 +2034,9 @@ def vlay_get_fdata(vlay,
     #===========================================================================
     # precheck
     #===========================================================================
+    assert isinstance(fieldn, str), 'got bad type on fieldn: %s'%type(fieldn)
     fnl = [f.name() for f in vlay.fields().toList()]
+    
     assert fieldn in fnl, 'requested field \'%s\' not on layer'%fieldn
     
     #===========================================================================
@@ -1909,10 +2067,13 @@ def vlay_get_geo( #get geometry dict from layer
         vlay,
         request = None, #additional requester (limiting fids). fieldn still required. additional flags added
         selected = False,
-        logger=mod_logger,
+        logger=None,
         ):
     
-    log = logger.getChild('vlay_get_geo')
+    #===========================================================================
+    # chekc
+    #===========================================================================
+    assert isinstance(vlay, QgsVectorLayer), 'bad type on passed vlay: %s'%type(vlay)
     
     #===========================================================================
     # build the request
@@ -1927,8 +2088,7 @@ def vlay_get_geo( #get geometry dict from layer
         """
         todo: check if there is already a fid filter placed on the reuqester
         """
-        log.debug('limiting data pull to %i selected features on \'%s\''%(
-            vlay.selectedFeatureCount(), vlay.name()))
+ 
         
         sfids = vlay.selectedFeatureIds()
         
@@ -1940,18 +2100,10 @@ def vlay_get_geo( #get geometry dict from layer
     #===========================================================================
 
     d = {f.id():f.geometry() for f in vlay.getFeatures(request)}
-    
-    log.debug('retrieved %i attributes from features on \'%s\''%(
-        len(d), vlay.name()))
-    
-    #===========================================================================
-    # checks
-    #===========================================================================
+ 
     assert len(d)>0
     
-    #===========================================================================
-    # wrap
-    #===========================================================================
+ 
     return d
 
 def vlay_new_mlay(#create a new mlay
@@ -1976,6 +2128,11 @@ def vlay_new_mlay(#create a new mlay
         
         if gtype=='None':
             log.warning('constructing mlay w/ \'None\' type')
+            
+        #check for fid duplicates
+        fid_ser = pd.Series([f.id() for f in feats_l], name='fids')
+        assert not fid_ser.duplicated().any()
+
         #=======================================================================
         # assemble into new layer
         #=======================================================================
@@ -1992,13 +2149,14 @@ def vlay_new_mlay(#create a new mlay
         vlaym.updateFields()
         
         #add feats
-        if not vlaym.dataProvider().addFeatures(feats_l):
+        success, feats = vlaym.dataProvider().addFeatures(feats_l)
+        if not success:
             raise Error('failed to addFeatures')
         
         vlaym.updateExtents()
         
 
-        
+        assert len(feats_l)==vlaym.dataProvider().featureCount(), 'failed to add all features'
         #=======================================================================
         # checks
         #=======================================================================
@@ -2009,6 +2167,7 @@ def vlay_new_mlay(#create a new mlay
             else:
                 raise Error(msg)
 
+        
         
         log.debug('constructed \'%s\''%vlaym.name())
         return vlaym
@@ -2208,10 +2367,7 @@ def qtype_to_pytype( #convert object to the pythonic type taht matches the passe
     if qisnull(obj):
         return None
 
-        
-    
-        
-    
+
     
     #get pythonic type for this code
     py_type = type_qvar_py_d[qtype_code]

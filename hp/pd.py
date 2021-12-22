@@ -13,6 +13,7 @@ pd.__version__
 import logging, copy, os, time, re, xlrd, math, gc, inspect
 import numpy as np
 import pandas as pd
+import warnings
 
 #===============================================================================
 # pandas global options
@@ -28,26 +29,7 @@ pd.set_option("display.min_rows", 15)
 pd.set_option("display.min_rows", 15)
 pd.set_option('display.width', 100)
 
-"""
-df = pd.DataFrame({"column1": ["foofoofoofoofoofoofoofofofoooofofofofofofofofoof  fofooffof offoff", "foo", "foo", "foo", "foo",
-                         "bar", "bar", "bar", "bar"],
-                   "columnB": ["one", "one", "one", "two", "two",
-                         "one", "one", "two", "two"],
-                   "columnC": ["small", "large", "large", "small",
-                         "small", "large", "small", "small",
-                         "large"],
-                   "columnD": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-                   "columnE": [2, 4, 5, 5, 6, 6, 8, 9, 9]})
-                   
-                   
-pd.get_option('display.max_rows')#60
-pd.get_option('display.max_columns')#0
-pd.get_option('display.chop_threshold')
-pd.get_option('display.width')#80 #Width of the display in characters
-pd.get_option('display.max_colwidth')#50
-pd.get_option('display.min_rows') #10
-"""
-
+ 
 #===============================================================================
 # custom imports
 #===============================================================================
@@ -122,6 +104,7 @@ def load_csv_df(#load a csv to a dataframe
                 **kwargs #special kwqargs to pass to read_csv
                 ):
     
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # defaults
     #===========================================================================
@@ -267,6 +250,7 @@ def load_xls_df(filepath,
     
     
     """
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # defaults
     #===========================================================================
@@ -375,7 +359,7 @@ def load_xls_d(  #load a xls collection of tabs to spreadsheet
                 mixed_colns_d=None,
                 logger=mod_logger,                
                 **kwargs):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     if mixed_colns_d is None:
         mixed_colns_d = dict()
@@ -439,210 +423,212 @@ def load_xls_d(  #load a xls collection of tabs to spreadsheet
 #===============================================================================
 
 
-def col_typeset( #format columns based on passed dictionary
-        df_raw, 
-        colnt_d_raw, #{column name: type function}
-        fail_hndl_d = dict(), #handlese for failed typsetting {coln, handle key}
-        errors='raise',
-        drop = False, #whether to drop those columns not in the colnt_d
-        logger=mod_logger):
-    
-    #===========================================================================
-    # setups and defaults
-    #===========================================================================
-    log = logger.getChild('col_typeset')
-    
-    #stnadard handle celaning
-    colnt_d = hndl_d_cleaner(colnt_d_raw, logger=log)
-    
-    
-    log.debug('typesetting %s with %s'%(str(df_raw.shape), colnt_d))
-    
-    
-    #===========================================================================
-    # loop through each columna nd apply typesetting
-    #===========================================================================
-    df = df_raw.copy()
-    
-    #record of those entries to drop
-    boolidx_drop = pd.Series(index = df_raw.index, dtype=bool)
-    
-    
-    for coln, typeset_str in colnt_d.items():
-        
-        #===========================================================================
-        # check column names are there
-        #===========================================================================
-        if not coln in df_raw.columns:
-            log.warning('passed column name \'%s\' nto found in the frame'%coln)
-            continue
-        
-        if pd.isnull(typeset_str):
-            log.debug('coln \'%s\' got a null typeset_str. skipping'%coln)
-            continue
-        
-        if np.any(pd.isnull(df_raw[coln])):
-            log.warning('column \'%s\' has %i nulls. may result in unexpected behavior during typsetting'
-                        %(coln, pd.isnull(df_raw[coln]).sum()))
-        
-        #===========================================================================
-        #special typesetting
-        #===========================================================================
-        if typeset_str.startswith('*'):
-            #===================================================================
-            # datetime
-            #===================================================================
-            if typeset_str.startswith('*date'):
-                """nulls here are switched to NaT
-                pd.isnull(df[coln]).sum()
-                
-                """
-                #auto/lazy date time setting
-                if typeset_str == '*date':
-                    log.debug('setting lazy datetime')
-                    df.loc[:, coln] = pd.to_datetime(df_raw[coln])
-                    
-                #using explicit strftime  time codes (http://strftime.org/)
-                else:
-                    
-                    strftime_str =  typeset_str[6:-1] #drop everything else
-                    log.debug('setting datetime with strftime \'%s\''%strftime_str)
-                    df.loc[:, coln] = pd.to_datetime(df_raw[coln], format=strftime_str)
-                    
-            #===================================================================
-            # strings
-            #===================================================================
-            elif typeset_str.startswith('*str'):
-                #conveert to a string
-                df.loc[:,coln] = df[coln].astype(str)
-                
-                ncode = re.sub('str','',typeset_str[1:])[1:-1] #drop the special string
-                
-                if ',' in ncode: raise IOError('todo: allow for multiple codes')
-                
-                if ncode == 'lower':
-                    log.debug('for coln \'%s\' dropping everything to lower case'%coln)
-                    df.loc[:,coln] = df[coln].str.lower()
-                
-                else:
-                    raise IOError
-                
-            #===================================================================
-            # tuple like
-            #===================================================================
-            elif typeset_str.startswith('*tlike'):
-
-                
-                #get the sub type
-                sub_dtype = re.sub('tlike','',typeset_str[1:])[1:-1] #drop the special string
-                
-                #do the cleaning
-                df.loc[:,coln] = tlike_ser_clean(df[coln], sub_dtype=sub_dtype, logger=log)
-
-                    
-            else: 
-                log.error('got unrecognized special key: \'%s\''%typeset_str)
-                raise IOError
-                
-
-            
-        #=======================================================================
-        # normal typesetting
-        #=======================================================================
-        else:
-            #check for uncessary attempts
-            if typeset_str in df[coln].dtype.name:
-                log.debug('column \'%s\' is already type \'%s\'. skipping'%(coln, typeset_str))
-                continue
-            
-            #try and do the typesetting, with some fancy error handling
-            try:
-                df.loc[:, coln] = df[coln].astype(typeset_str, errors=errors)
-                'this will only throw an error when error = error'
-
-            except:
-                """
-                I dont really like using this anymore
-                need to idetify, then handle those items failing the typesetting
-                """
-                if np.any(pd.isnull(df[coln])): #should clear these with the null handler first
-                    log.error('found %i null values on column \'%s\''%(pd.isnull(df[coln]).sum(), coln))
-                    raise IOError
-                
-                if not coln in fail_hndl_d.keys():
-                    'defaults to *error really'
-                    raise IOError('failed to cast type %s on to column \'%s\' (no handel provided)'%(typeset_str, coln))
-                else:
-                    #===================================================================
-                    # handel failed typesetting
-                    #===================================================================
-                    fhndl = fail_hndl_d[coln]  #get thsi handle
-                    
-                    #identify which entries are failing tye typesetting
-                    boolidx = hp.np3.typeset_fail_bool(df[coln].values, typeset_str, logger=log)
-                    
-                    #apply the value handeler
-                    newv, boolidx_drop = value_handler(fhndl, coln, boolidx,
-                                   boolidx_drop  = boolidx_drop, log=log)
-                    
-                    #set the new value (wont matter if were dropping everything)
-                    df.loc[boolidx, coln] = newv
-                    
-                    #drop and try again
-                    if np.any(boolidx_drop):
-                        df = df.loc[np.invert(boolidx_drop), :]
-                        
-                    try:
-                        df.loc[:, coln] = df[coln].astype(typeset_str, errors=errors)
-                    except:
-                        log.error('failed to typeset \'%s\' on \'%s\' even after dropping %i'
-                                  %(typeset_str, coln, boolidx_drop.sum()))
-                        raise IOError
-                    
-
-        #=======================================================================
-        # post checks
-        #=======================================================================
-        if 'int' == typeset_str:
-            #see if you set an int thats too short for the data
-            if not df_raw[coln].sum() == df[coln].sum():
-                raise ValueError('on \'%s\' during conversion from %s to %s. Try using \'int64\''%
-                                 (coln, df_raw[coln].dtype.name, df[coln].dtype.name))
-            
-            
-
-        #end column loop
-        log.debug('changed column \'%s\' from %s to %s'%
-                  (coln, df_raw[coln].dtype.name, df[coln].dtype.name))
-                
-            
-            
-            
-
-        
-    #===========================================================================
-    # drop other columns
-    #===========================================================================
-    if drop:
-        boolcol = df.columns.isin(colnt_d.keys()) #find those in teh list
-        df1 = df.loc[:, boolcol]
-        
-        log.debug('dropped %i columns'%(len(df.columns) - len(df1.columns)))
-    
-    else: 
-        df1 = df
-        
-    #===========================================================================
-    # wrap up
-    #===========================================================================
-    
-    res_d = dict()
-    for coln, col in df1.iteritems():
-        res_d[coln] = col.dtype.name
-        
-    log.debug('finished with column types set to\n     %s '%res_d)
-    
-    return df1
+#===============================================================================
+# def col_typeset( #format columns based on passed dictionary
+#         df_raw, 
+#         colnt_d_raw, #{column name: type function}
+#         fail_hndl_d = dict(), #handlese for failed typsetting {coln, handle key}
+#         errors='raise',
+#         drop = False, #whether to drop those columns not in the colnt_d
+#         logger=mod_logger):
+#     warnings.warn('2021-12-13', DeprecationWarning)
+#     #===========================================================================
+#     # setups and defaults
+#     #===========================================================================
+#     log = logger.getChild('col_typeset')
+#     
+#     #stnadard handle celaning
+#     colnt_d = hndl_d_cleaner(colnt_d_raw, logger=log)
+#     
+#     
+#     log.debug('typesetting %s with %s'%(str(df_raw.shape), colnt_d))
+#     
+#     
+#     #===========================================================================
+#     # loop through each columna nd apply typesetting
+#     #===========================================================================
+#     df = df_raw.copy()
+#     
+#     #record of those entries to drop
+#     boolidx_drop = pd.Series(index = df_raw.index, dtype=bool)
+#     
+#     
+#     for coln, typeset_str in colnt_d.items():
+#         
+#         #===========================================================================
+#         # check column names are there
+#         #===========================================================================
+#         if not coln in df_raw.columns:
+#             log.warning('passed column name \'%s\' nto found in the frame'%coln)
+#             continue
+#         
+#         if pd.isnull(typeset_str):
+#             log.debug('coln \'%s\' got a null typeset_str. skipping'%coln)
+#             continue
+#         
+#         if np.any(pd.isnull(df_raw[coln])):
+#             log.warning('column \'%s\' has %i nulls. may result in unexpected behavior during typsetting'
+#                         %(coln, pd.isnull(df_raw[coln]).sum()))
+#         
+#         #===========================================================================
+#         #special typesetting
+#         #===========================================================================
+#         if typeset_str.startswith('*'):
+#             #===================================================================
+#             # datetime
+#             #===================================================================
+#             if typeset_str.startswith('*date'):
+#                 """nulls here are switched to NaT
+#                 pd.isnull(df[coln]).sum()
+#                 
+#                 """
+#                 #auto/lazy date time setting
+#                 if typeset_str == '*date':
+#                     log.debug('setting lazy datetime')
+#                     df.loc[:, coln] = pd.to_datetime(df_raw[coln])
+#                     
+#                 #using explicit strftime  time codes (http://strftime.org/)
+#                 else:
+#                     
+#                     strftime_str =  typeset_str[6:-1] #drop everything else
+#                     log.debug('setting datetime with strftime \'%s\''%strftime_str)
+#                     df.loc[:, coln] = pd.to_datetime(df_raw[coln], format=strftime_str)
+#                     
+#             #===================================================================
+#             # strings
+#             #===================================================================
+#             elif typeset_str.startswith('*str'):
+#                 #conveert to a string
+#                 df.loc[:,coln] = df[coln].astype(str)
+#                 
+#                 ncode = re.sub('str','',typeset_str[1:])[1:-1] #drop the special string
+#                 
+#                 if ',' in ncode: raise IOError('todo: allow for multiple codes')
+#                 
+#                 if ncode == 'lower':
+#                     log.debug('for coln \'%s\' dropping everything to lower case'%coln)
+#                     df.loc[:,coln] = df[coln].str.lower()
+#                 
+#                 else:
+#                     raise IOError
+#                 
+#             #===================================================================
+#             # tuple like
+#             #===================================================================
+#             elif typeset_str.startswith('*tlike'):
+# 
+#                 
+#                 #get the sub type
+#                 sub_dtype = re.sub('tlike','',typeset_str[1:])[1:-1] #drop the special string
+#                 
+#                 #do the cleaning
+#                 df.loc[:,coln] = tlike_ser_clean(df[coln], sub_dtype=sub_dtype, logger=log)
+# 
+#                     
+#             else: 
+#                 log.error('got unrecognized special key: \'%s\''%typeset_str)
+#                 raise IOError
+#                 
+# 
+#             
+#         #=======================================================================
+#         # normal typesetting
+#         #=======================================================================
+#         else:
+#             #check for uncessary attempts
+#             if typeset_str in df[coln].dtype.name:
+#                 log.debug('column \'%s\' is already type \'%s\'. skipping'%(coln, typeset_str))
+#                 continue
+#             
+#             #try and do the typesetting, with some fancy error handling
+#             try:
+#                 df.loc[:, coln] = df[coln].astype(typeset_str, errors=errors)
+#                 'this will only throw an error when error = error'
+# 
+#             except:
+#                 """
+#                 I dont really like using this anymore
+#                 need to idetify, then handle those items failing the typesetting
+#                 """
+#                 if np.any(pd.isnull(df[coln])): #should clear these with the null handler first
+#                     log.error('found %i null values on column \'%s\''%(pd.isnull(df[coln]).sum(), coln))
+#                     raise IOError
+#                 
+#                 if not coln in fail_hndl_d.keys():
+#                     'defaults to *error really'
+#                     raise IOError('failed to cast type %s on to column \'%s\' (no handel provided)'%(typeset_str, coln))
+#                 else:
+#                     #===================================================================
+#                     # handel failed typesetting
+#                     #===================================================================
+#                     fhndl = fail_hndl_d[coln]  #get thsi handle
+#                     
+#                     #identify which entries are failing tye typesetting
+#                     boolidx = hp.np3.typeset_fail_bool(df[coln].values, typeset_str, logger=log)
+#                     
+#                     #apply the value handeler
+#                     newv, boolidx_drop = value_handler(fhndl, coln, boolidx,
+#                                    boolidx_drop  = boolidx_drop, log=log)
+#                     
+#                     #set the new value (wont matter if were dropping everything)
+#                     df.loc[boolidx, coln] = newv
+#                     
+#                     #drop and try again
+#                     if np.any(boolidx_drop):
+#                         df = df.loc[np.invert(boolidx_drop), :]
+#                         
+#                     try:
+#                         df.loc[:, coln] = df[coln].astype(typeset_str, errors=errors)
+#                     except:
+#                         log.error('failed to typeset \'%s\' on \'%s\' even after dropping %i'
+#                                   %(typeset_str, coln, boolidx_drop.sum()))
+#                         raise IOError
+#                     
+# 
+#         #=======================================================================
+#         # post checks
+#         #=======================================================================
+#         if 'int' == typeset_str:
+#             #see if you set an int thats too short for the data
+#             if not df_raw[coln].sum() == df[coln].sum():
+#                 raise ValueError('on \'%s\' during conversion from %s to %s. Try using \'int64\''%
+#                                  (coln, df_raw[coln].dtype.name, df[coln].dtype.name))
+#             
+#             
+# 
+#         #end column loop
+#         log.debug('changed column \'%s\' from %s to %s'%
+#                   (coln, df_raw[coln].dtype.name, df[coln].dtype.name))
+#                 
+#             
+#             
+#             
+# 
+#         
+#     #===========================================================================
+#     # drop other columns
+#     #===========================================================================
+#     if drop:
+#         boolcol = df.columns.isin(colnt_d.keys()) #find those in teh list
+#         df1 = df.loc[:, boolcol]
+#         
+#         log.debug('dropped %i columns'%(len(df.columns) - len(df1.columns)))
+#     
+#     else: 
+#         df1 = df
+#         
+#     #===========================================================================
+#     # wrap up
+#     #===========================================================================
+#     
+#     res_d = dict()
+#     for coln, col in df1.iteritems():
+#         res_d[coln] = col.dtype.name
+#         
+#     log.debug('finished with column types set to\n     %s '%res_d)
+#     
+#     return df1
+#===============================================================================
 
 def coln_convert( #converts the passed header names to those in the dictionary and reorders
         df_raw, 
@@ -654,7 +640,7 @@ def coln_convert( #converts the passed header names to those in the dictionary a
     thsi sorts teh new headers alphabetically as the dictionary has no order
     
     """
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     log = logger.getChild('coln_convert')
     df = df_raw.copy(deep=True)
@@ -784,7 +770,7 @@ def hndl_nulls( #run value_handles on null values in columns
     #===========================================================================
     """special value treatment"""
     hnull_d = hndl_d_cleaner(hnull_d_raw, logger=log)
-
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     #=======================================================================
     # identify columns with nulls
@@ -837,7 +823,7 @@ def value_handler( #treat a value according to the passed handle
         boolidx_drop = None, #boolidx to store drop info in
         log = mod_logger,
         ):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     newv = None
     if isinstance(hnd, str):
@@ -878,7 +864,7 @@ def typeset_fail_bool( #identify where in the data the typeset is failing
     """
     seems like there should be a built in function to do this
     """
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('typeset_fail_bool')
     
     typef = eval(typeset_str)
@@ -906,6 +892,7 @@ def clean_nulls( #replace non standard null values with NaN
         search_l = ['none'], #list of values to search and replace with null
         logger=mod_logger
         ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     log = logger.getChild('detect_nulls')
     ser = ser_raw.copy()
@@ -943,6 +930,7 @@ def cleaner_report(df_raw, df_clean,logger=mod_logger):
     
     len(df_raw.index)
     """
+    warnings.warn('2021-12-13', DeprecationWarning)
     logger = logger.getChild('report')
         
     #get deltas
@@ -1001,6 +989,7 @@ def resolve_conf(
                 resl_od, #dictionary of {field: ranked values}
                 logger = mod_logger,
                 ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     log = logger.getChild('resolve_conf')
     
@@ -1047,7 +1036,7 @@ def resolve_conf(
 def hndl_d_cleaner( #standard handle cleaning    
         d_raw, #raw handles to clean
         logger=mod_logger):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('hndl_d_cleaner')
     
     if not isinstance(d_raw, dict):
@@ -1084,6 +1073,7 @@ def reorder_coln(  #move a set of columns to the first
         first = True, #send requested columns to the front of the colidx
         logger=mod_logger):
             
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('reorder_coln')
     
     df = df_raw.copy()
@@ -1136,7 +1126,7 @@ def reorder_coln(  #move a set of columns to the first
 def fmt_null_wsub(ser, #fancy formatting for series with nulls
                   sub_type = int, #type requested for non nulls (to be presented as strings)
                   logger=mod_logger): #handle a series which may contain list or tuple like entries
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # check if we are already teh correect type
     #===========================================================================
@@ -1172,7 +1162,7 @@ def mixed_dtype(#forcing correct types onto columns w/ mixed int and str values
                 coln,
                 logger=mod_logger):
     
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('mixed_dtype')
         
     uq_vals_og = df_raw[coln].unique().tolist()
@@ -1261,7 +1251,7 @@ def are_dupes( #check if theer are any duplicates
     colname = None: check for duplicates on all rows
     colname = 'index': check for duplicates on the index
     """
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     logger = logger.getChild('are_dupes')
     df = df_raw.copy()
     #===========================================================================
@@ -1331,7 +1321,7 @@ def df_check(
                     exp_real_colns = None,
                     key = None,
                     logger=mod_logger):
-        
+        warnings.warn('2021-12-13', DeprecationWarning)
         #=======================================================================
         # setups and default
         #=======================================================================
@@ -1462,7 +1452,7 @@ def boolidx_slice_d( #generate a boolidx where entries match {coln: value}
                     allow_none = False, #whether to allow no hits
                      logger=mod_logger,
         ):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('boolidx_slice_d')
     
     #===========================================================================
@@ -1576,7 +1566,7 @@ def take_first_real(#take the first real value along the given axis
     log = logger.getChild('take_first_real')
     
 
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     if axis == 1:
         
         #start with ifrst column
@@ -1635,7 +1625,7 @@ def take_first_real(#take the first real value along the given axis
 def concat_many_heads(df_raw,  #combine many columns into one string 
                       heads_list, concat_name = 'concat', sep = ' ',
                       logger=mod_logger): 
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     #=======================================================================
     # concat the columns of interest 
     #=======================================================================
@@ -1661,221 +1651,224 @@ def concat_many_heads(df_raw,  #combine many columns into one string
 #===============================================================================
 # SET OPERATIONS -------------------------------------------------------------
 #===============================================================================
-def merge_left( #intelligently add the right_df to the left with the 'on' colname
-            left_df_raw, 
-            right_df_raw, 
-            coln_link       = None,  #column name to link between the two frames
-            #left_index      = True, 
-            #right_name      = 'right', 
-            allow_partial   = False, #allow right_df to be missing some keys (that are found on the left)
-            ldupes          = 'fill', #treatment for duplicate key values on the left df
-            rdupes          = 'no',
-            #trim_dupes      = True, 
-            allow_new_cols  = False, 
-            allow_new_rows = False,
-            #outpath         = None,  #outpath for saving results to file
-            logger          = mod_logger,
-            db_f            = True): 
-    """
-    #===========================================================================
-    # USe
-    #===========================================================================
-    This is useful for taking a frame (left_df) with some data and a keys column (CPID)
-    then adding a bunch more data per those keys (from the right_df)
-    
-    for example:
-        survey results for each CPID
-        and attaching all the assessment records for those CPIDs
-        
-    #===========================================================================
-    # INPUTS
-    #===========================================================================
-    ldupes
-        fill:    fill with data from the matches on teh right
-        drop:    arbitrarily drop the duplicats
-        no:        raise an error if these are detected
-    """
-    #===========================================================================
-    # setup and defaults
-    #===========================================================================
-    logger = logger.getChild('merge_left')
-    
-    #===========================================================================
-    # prechecks
-    #===========================================================================
-    if coln_link is None: 
-        raise IOError('not implemented')
-    else:
-        if not coln_link in right_df_raw.columns: raise IOError
-        if not coln_link in left_df_raw.columns: raise IOError
-        
-    #===========================================================================
-    # pre clean
-    #===========================================================================
-    left_df = left_df_raw.copy()
-    right_df = right_df_raw.copy()
-            
-    #=======================================================================
-    # prechecks
-    #=======================================================================
-    if db_f:
-        for dname, df in {'left':left_df, 'right':right_df}.items():
-            #suspicious colum names
-            if np.any(df.columns.str.contains('Unnamed')):
-                raise IOError('got some Unamed columns')
-            
-            if not coln_link in df.columns:
-                raise IOError('requested coln_link \'%s\' missing from \'%s\''%(coln_link, dname))
-            
-            if np.any(pd.isnull(df[coln_link])):
-                raise IOError('\'%s\' got some nulls on the link column')%dname
-            
-            if not df.index.is_unique:
-                raise IOError('\'%s\' has a broke index'%dname)
-            
-            
-
-    logger.debug('joining left_df (%s) to right_df (%s)'%(str(left_df_raw.shape), str(right_df_raw.shape)))
-    
-    #=======================================================================
-    # data cleaning
-    #======================================================================= 
-    #search the right to just those values we can find on the left
-    boolidx = right_df[coln_link].isin(left_df[coln_link])
-    right_df1 = right_df.loc[boolidx,:]
-    
-    
-    #check for a perfect match match
-    if not boolidx.sum() == len(left_df):
-        logger.warning('found data length mismatch for entries on key \'%s\'(left=%i right = %i)'
-                       %(coln_link, boolidx.sum(), len(left_df)))
-        
-        if allow_partial:
-            pass #dont care that we aremissing some right keys
-        elif  boolidx.sum() > len(left_df): #too many on the left
-            if rdupes == 'no': raise IOError
-        elif  boolidx.sum() < len(left_df): #too many on the left
-            if ldupes == 'no': raise IOError
-        else:
-            raise IOError
-        
-    if not np.all(boolidx):
-        if allow_new_rows:
-            raise IOError('not ipmlemented')
-        
-    #===========================================================================
-    # check for duplicates in source frames
-    #===========================================================================
-    #on the left
-    boolidx = are_dupes(left_df, colname = coln_link, logger=logger)
-    if np.any(boolidx): 
-        if ldupes == 'no':
-            logger.error('found  %i internal duplicates on passed left_df %s'%(boolidx.sum(), str(left_df.shape)))
-            raise IOError
-        elif ldupes == 'drop':
-            left_df = left_df.drop_duplicates(coln_link)
-            raise IOError #drop the duplicates
-        elif ldupes == 'fill':
-            logger.info('left has %i duplicated values for key \'%s\'. duplicating right values on these'%(boolidx.sum(), coln_link))
-        else: raise IOError
-    
-
-    
-    #on the Right
-    boolidx = are_dupes(right_df, colname = coln_link, logger=logger)
-    if np.any(boolidx): 
-        if rdupes == 'no':
-            logger.error('found  %i internal duplicates on passed right_df %s'%(boolidx.sum(), str(right_df2.shape)))
-            raise IOError
-        elif rdupes == 'drop':
-            right_df3 = right_df1.drop_duplicates(coln_link)
-            raise IOError #drop the duplicates
-        elif rdupes == 'fill':
-            raise IOError #not allowed
-            
-        else: raise IOError
-
-        
-    else: right_df3 = right_df1
-    
-    #===========================================================================
-    # check for unexpected column matching
-    #===========================================================================
-    boolcol = left_df.columns.isin(right_df3.columns)
-    if not boolcol.sum() ==1: #there is only one column matching between the two
-        msg = 'found %i extra column matches between frames: %s'%(boolcol.sum(), left_df.columns[boolcol])
-        if not allow_new_cols: raise IOError(msg)
-        else: logger.debug(msg)
-    
-    #===========================================================================
-    # #check if we need to upgrade to an mdex
-    #===========================================================================
-    if isinstance(left_df.columns, pd.MultiIndex):
-        raise IOError('not implemented') #need to check this again
-        """
-        logger.debug('merging with a dxcol. upgrading right_df')
-        if isinstance(right_df1.columns, pd.MultiIndex): raise IOError
-
-        
-        #get teh data from the left
-        old_mdex = left_df.columns
-        lvl0_vals = old_mdex.get_level_values(0).unique() 
-        names = [old_mdex.names[0], right_name]
-        
-        #make the dummpy dxcol
-        right_df4 = fill_dx_col(right_df3, lvl0_vals, names, logger=logger) #get this
-        
-        #perform teh merge
-        merge_df = merge_dxcol(left_df, right_df4, on = coln_link, logger=logger)
-        """
-        
-    else: 
-        #=======================================================================
-        # perform merge
-        #=======================================================================
-        merge_df = pd.merge(left_df, right_df3, 
-                            on = coln_link,
-                            how = 'left',
-                            left_index = False,
-                            right_index = False, 
-                            left_on = None,
-                            right_on = None,
-                            sort = False,
-                            indicator = False)
-        
-        """
-        left_df.columns.tolist()
-        right_df3.columns.tolist()
-        """
-    
-    #=======================================================================
-    # post checks
-    #=======================================================================
-    if db_f:
-        if not len(merge_df) == len(left_df): 
-            raise IOError
-        
-        if not np.all(merge_df.index.isin(left_df.index)): 
-            logger.error('got some index mismatch')
-            raise IOError
-        
-        if np.any(merge_df.columns.str.contains('Unnamed')):
-            logger.error('some ghost column was created')
-            raise IOError
-        
-        #check for duplicated index
-        boolidx = are_dupes(merge_df, colname = 'index')
-        if np.any(boolidx): 
-            logger.error('found %i duplicated indicies in merge_df: '%(boolidx.sum()))
-
-            raise IOError
-    
-    
-    logger.debug('to left %s filled %s to make merge_df %s. attached as data'
-             %(str(left_df.shape), str(right_df3.shape), str(merge_df.shape)))
-    
-
-    return merge_df
+#===============================================================================
+# def merge_left( #intelligently add the right_df to the left with the 'on' colname
+#             left_df_raw, 
+#             right_df_raw, 
+#             coln_link       = None,  #column name to link between the two frames
+#             #left_index      = True, 
+#             #right_name      = 'right', 
+#             allow_partial   = False, #allow right_df to be missing some keys (that are found on the left)
+#             ldupes          = 'fill', #treatment for duplicate key values on the left df
+#             rdupes          = 'no',
+#             #trim_dupes      = True, 
+#             allow_new_cols  = False, 
+#             allow_new_rows = False,
+#             #outpath         = None,  #outpath for saving results to file
+#             logger          = mod_logger,
+#             db_f            = True): 
+#     """
+#     #===========================================================================
+#     # USe
+#     #===========================================================================
+#     This is useful for taking a frame (left_df) with some data and a keys column (CPID)
+#     then adding a bunch more data per those keys (from the right_df)
+#     
+#     for example:
+#         survey results for each CPID
+#         and attaching all the assessment records for those CPIDs
+#         
+#     #===========================================================================
+#     # INPUTS
+#     #===========================================================================
+#     ldupes
+#         fill:    fill with data from the matches on teh right
+#         drop:    arbitrarily drop the duplicats
+#         no:        raise an error if these are detected
+#     """
+#     warnings.warn('2021-12-13', DeprecationWarning)
+#     #===========================================================================
+#     # setup and defaults
+#     #===========================================================================
+#     logger = logger.getChild('merge_left')
+#     
+#     #===========================================================================
+#     # prechecks
+#     #===========================================================================
+#     if coln_link is None: 
+#         raise IOError('not implemented')
+#     else:
+#         if not coln_link in right_df_raw.columns: raise IOError
+#         if not coln_link in left_df_raw.columns: raise IOError
+#         
+#     #===========================================================================
+#     # pre clean
+#     #===========================================================================
+#     left_df = left_df_raw.copy()
+#     right_df = right_df_raw.copy()
+#             
+#     #=======================================================================
+#     # prechecks
+#     #=======================================================================
+#     if db_f:
+#         for dname, df in {'left':left_df, 'right':right_df}.items():
+#             #suspicious colum names
+#             if np.any(df.columns.str.contains('Unnamed')):
+#                 raise IOError('got some Unamed columns')
+#             
+#             if not coln_link in df.columns:
+#                 raise IOError('requested coln_link \'%s\' missing from \'%s\''%(coln_link, dname))
+#             
+#             if np.any(pd.isnull(df[coln_link])):
+#                 raise IOError('\'%s\' got some nulls on the link column')%dname
+#             
+#             if not df.index.is_unique:
+#                 raise IOError('\'%s\' has a broke index'%dname)
+#             
+#             
+# 
+#     logger.debug('joining left_df (%s) to right_df (%s)'%(str(left_df_raw.shape), str(right_df_raw.shape)))
+#     
+#     #=======================================================================
+#     # data cleaning
+#     #======================================================================= 
+#     #search the right to just those values we can find on the left
+#     boolidx = right_df[coln_link].isin(left_df[coln_link])
+#     right_df1 = right_df.loc[boolidx,:]
+#     
+#     
+#     #check for a perfect match match
+#     if not boolidx.sum() == len(left_df):
+#         logger.warning('found data length mismatch for entries on key \'%s\'(left=%i right = %i)'
+#                        %(coln_link, boolidx.sum(), len(left_df)))
+#         
+#         if allow_partial:
+#             pass #dont care that we aremissing some right keys
+#         elif  boolidx.sum() > len(left_df): #too many on the left
+#             if rdupes == 'no': raise IOError
+#         elif  boolidx.sum() < len(left_df): #too many on the left
+#             if ldupes == 'no': raise IOError
+#         else:
+#             raise IOError
+#         
+#     if not np.all(boolidx):
+#         if allow_new_rows:
+#             raise IOError('not ipmlemented')
+#         
+#     #===========================================================================
+#     # check for duplicates in source frames
+#     #===========================================================================
+#     #on the left
+#     boolidx = are_dupes(left_df, colname = coln_link, logger=logger)
+#     if np.any(boolidx): 
+#         if ldupes == 'no':
+#             logger.error('found  %i internal duplicates on passed left_df %s'%(boolidx.sum(), str(left_df.shape)))
+#             raise IOError
+#         elif ldupes == 'drop':
+#             left_df = left_df.drop_duplicates(coln_link)
+#             raise IOError #drop the duplicates
+#         elif ldupes == 'fill':
+#             logger.info('left has %i duplicated values for key \'%s\'. duplicating right values on these'%(boolidx.sum(), coln_link))
+#         else: raise IOError
+#     
+# 
+#     
+#     #on the Right
+#     boolidx = are_dupes(right_df, colname = coln_link, logger=logger)
+#     if np.any(boolidx): 
+#         if rdupes == 'no':
+#             logger.error('found  %i internal duplicates on passed right_df %s'%(boolidx.sum(), str(right_df2.shape)))
+#             raise IOError
+#         elif rdupes == 'drop':
+#             right_df3 = right_df1.drop_duplicates(coln_link)
+#             raise IOError #drop the duplicates
+#         elif rdupes == 'fill':
+#             raise IOError #not allowed
+#             
+#         else: raise IOError
+# 
+#         
+#     else: right_df3 = right_df1
+#     
+#     #===========================================================================
+#     # check for unexpected column matching
+#     #===========================================================================
+#     boolcol = left_df.columns.isin(right_df3.columns)
+#     if not boolcol.sum() ==1: #there is only one column matching between the two
+#         msg = 'found %i extra column matches between frames: %s'%(boolcol.sum(), left_df.columns[boolcol])
+#         if not allow_new_cols: raise IOError(msg)
+#         else: logger.debug(msg)
+#     
+#     #===========================================================================
+#     # #check if we need to upgrade to an mdex
+#     #===========================================================================
+#     if isinstance(left_df.columns, pd.MultiIndex):
+#         raise IOError('not implemented') #need to check this again
+#         """
+#         logger.debug('merging with a dxcol. upgrading right_df')
+#         if isinstance(right_df1.columns, pd.MultiIndex): raise IOError
+# 
+#         
+#         #get teh data from the left
+#         old_mdex = left_df.columns
+#         lvl0_vals = old_mdex.get_level_values(0).unique() 
+#         names = [old_mdex.names[0], right_name]
+#         
+#         #make the dummpy dxcol
+#         right_df4 = fill_dx_col(right_df3, lvl0_vals, names, logger=logger) #get this
+#         
+#         #perform teh merge
+#         merge_df = merge_dxcol(left_df, right_df4, on = coln_link, logger=logger)
+#         """
+#         
+#     else: 
+#         #=======================================================================
+#         # perform merge
+#         #=======================================================================
+#         merge_df = pd.merge(left_df, right_df3, 
+#                             on = coln_link,
+#                             how = 'left',
+#                             left_index = False,
+#                             right_index = False, 
+#                             left_on = None,
+#                             right_on = None,
+#                             sort = False,
+#                             indicator = False)
+#         
+#         """
+#         left_df.columns.tolist()
+#         right_df3.columns.tolist()
+#         """
+#     
+#     #=======================================================================
+#     # post checks
+#     #=======================================================================
+#     if db_f:
+#         if not len(merge_df) == len(left_df): 
+#             raise IOError
+#         
+#         if not np.all(merge_df.index.isin(left_df.index)): 
+#             logger.error('got some index mismatch')
+#             raise IOError
+#         
+#         if np.any(merge_df.columns.str.contains('Unnamed')):
+#             logger.error('some ghost column was created')
+#             raise IOError
+#         
+#         #check for duplicated index
+#         boolidx = are_dupes(merge_df, colname = 'index')
+#         if np.any(boolidx): 
+#             logger.error('found %i duplicated indicies in merge_df: '%(boolidx.sum()))
+# 
+#             raise IOError
+#     
+#     
+#     logger.debug('to left %s filled %s to make merge_df %s. attached as data'
+#              %(str(left_df.shape), str(right_df3.shape), str(merge_df.shape)))
+#     
+# 
+#     return merge_df
+#===============================================================================
 
 def update( #update all the values in df_bg from the non-null in df_sm (UNIQUE small link values)
     bg_df_raw,
@@ -1884,6 +1877,7 @@ def update( #update all the values in df_bg from the non-null in df_sm (UNIQUE s
     overwrite = False, #if the df_bg value is NOT null, whether to overwrite with df_sm value
     expect_unique_bigs = True, #whether to expect unique link_coln values on the bg_df_raw.
     logger=mod_logger):
+    warnings.warn('2021-12-13', DeprecationWarning)
     """
     handles updates by column keys (rather than indexes)
     
@@ -2158,6 +2152,7 @@ def vlookup( #add column(s) to big based on some link w/ small
     
     this is a simplified merge_left() ?
     """
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # setup and defaults
     #===========================================================================
@@ -2508,63 +2503,65 @@ def vlookup( #add column(s) to big based on some link w/ small
 #===============================================================================
 #SEARCHING ------------------------------------------------------------------
 #===============================================================================
-def search_str_fr_list( #find where items have all the items in the search_l 
-            ser,  #series to search
-            search_l, #list of strings to search for in teh series
-            search_type='contains', #type fo search to perform (contains or match)
-            case=False, #case sensitivite
-            all_any = 'all', #flag denoting how to to treat the combined conditional
-            logger=mod_logger, **kwargs):  
-    """
-    #===========================================================================
-    # INPUTS
-    #===========================================================================
-    all_any: 
-        all: find rows where every string in the list is there
-        any: find rows where ANY string in the list is there
-    """
-    
-    log = logger.getChild('search_str_fr_list')
-    
-    
-    
-    if not isinstance(ser, pd.Series):
-        log.debug('converted %s to series'%type(ser)) 
-        ser = pd.Series(ser)
-        #raise Error('expected a series, instaed got a %s'%type(ser))
-    
-    #starter boolidx series
-    df_bool = pd.DataFrame(index = search_l, columns = ser.index)
-    
-
-    #loop through and find search results for each string
-    for search_str, row in df_bool.iterrows():
-        if search_type is 'contains':
-            boolcol = ser.astype(str).str.contains(search_str, case=case, **kwargs)
-        elif search_type is 'match':
-            boolcol = ser.astype(str).str.match(search_str, case=case, **kwargs)
-        else:
-            raise IOError
-        
-        df_bool.loc[search_str,:] = boolcol.values.T
-        
-    #find the result of all rows
-    if all_any == 'all':
-        boolidx = df_bool.all()
-    elif all_any == 'any':
-        boolidx = df_bool.any()
-    else: 
-        log.error('got unexpected kwarg for all_any: \'%s\''%all_any)
-        raise IOError
-    log.debug('found %i series match from string_l (%i): %s'
-                 %(boolidx.sum(), len(search_l), search_l))
-    
-    if boolidx.sum() == 0: 
-        log.warning('no matches found')
-
-
-            
-    return boolidx
+#===============================================================================
+# def search_str_fr_list( #find where items have all the items in the search_l 
+#             ser,  #series to search
+#             search_l, #list of strings to search for in teh series
+#             search_type='contains', #type fo search to perform (contains or match)
+#             case=False, #case sensitivite
+#             all_any = 'all', #flag denoting how to to treat the combined conditional
+#             logger=mod_logger, **kwargs):  
+#     """
+#     #===========================================================================
+#     # INPUTS
+#     #===========================================================================
+#     all_any: 
+#         all: find rows where every string in the list is there
+#         any: find rows where ANY string in the list is there
+#     """
+#     raise Error('deprecate me')
+#     log = logger.getChild('search_str_fr_list')
+#     
+#     raise IOError('fail')
+#     
+#     if not isinstance(ser, pd.Series):
+#         log.debug('converted %s to series'%type(ser)) 
+#         ser = pd.Series(ser)
+#         #raise Error('expected a series, instaed got a %s'%type(ser))
+#     
+#     #starter boolidx series
+#     df_bool = pd.DataFrame(index = search_l, columns = ser.index)
+#     
+# 
+#     #loop through and find search results for each string
+#     for search_str, row in df_bool.iterrows():
+#         if search_type is 'contains':
+#             boolcol = ser.astype(str).str.contains(search_str, case=case, **kwargs)
+#         elif search_type is 'match':
+#             boolcol = ser.astype(str).str.match(search_str, case=case, **kwargs)
+#         else:
+#             raise IOError
+#         
+#         df_bool.loc[search_str,:] = boolcol.values.T
+#         
+#     #find the result of all rows
+#     if all_any == 'all':
+#         boolidx = df_bool.all()
+#     elif all_any == 'any':
+#         boolidx = df_bool.any()
+#     else: 
+#         log.error('got unexpected kwarg for all_any: \'%s\''%all_any)
+#         raise IOError
+#     log.debug('found %i series match from string_l (%i): %s'
+#                  %(boolidx.sum(), len(search_l), search_l))
+#     
+#     if boolidx.sum() == 0: 
+#         log.warning('no matches found')
+# 
+# 
+#             
+#     return boolidx
+#===============================================================================
 
 #===============================================================================
 # OUTPUTS --------------------------------------------------------------------
@@ -2575,6 +2572,7 @@ def write_to_csv(filepath, data, #write the df to a csv. intelligent
                   index=False, #write the index?
                   logger=mod_logger, 
                   **kwargs ): 
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     logger=logger.getChild('write_to_csv')
 
@@ -2619,7 +2617,7 @@ def write_to_xls( #write a dictionary of frames to excel
         allow_fail = False, #whether to allow a tab to fail writing
         max_chars = 29, #maximum number of characters for a tab
         logger=mod_logger, **kwargs): 
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     #===========================================================================
     # setup defaults
@@ -2702,7 +2700,7 @@ def tlike_ser_clean( #clean a series of tlike data (into a cleaner tlike set)
         leave_singletons = True, #whether to leave single tons (vs dump them into a tuple)
         sub_dtype = None, #for mixed_type=True, what sub_dtype to place on the unitary values
         logger=mod_logger):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # defaults
     #===========================================================================
@@ -2782,6 +2780,7 @@ def tlike_to_valt_d( #convert a series (or array) of tuple like values into a di
         
         expect_tlike = True, #flag whether to expect tuple like values or not
         logger=mod_logger, db_f=False):
+    warnings.warn('2021-12-13', DeprecationWarning)
     """
     Couldnt get pandas to work with tuples, 
     so this is a workaround by dumping everything into a dictionary
@@ -2966,6 +2965,7 @@ def tlike_flip( #swap the keys/values on a tlike dataset
         tlike,
         logger=mod_logger,
         **tvkwargs):
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     log = logger.getChild('tlike_flip')
 
@@ -3031,6 +3031,7 @@ def tlike_uq_vals( #get list of unique values in tlike sets
         sub_dtype = int, #what sub_dtype to place on the unitary values
         logger=mod_logger,
         ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     """
     NOTE: if you already have a valt_d built for this set,
         just copy/paste the unique value scripts from below
@@ -3094,6 +3095,7 @@ def tlike_take_first( #drop tlike to unitary by taking the first value
           sub_dtype=int,
           logger=mod_logger, db_f=False,
         ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('tlike_take_first')
     
     log.debug('on %s w/ %i'%(type(tlike_raw), len(tlike_raw)))
@@ -3182,10 +3184,6 @@ def tlike_take_first( #drop tlike to unitary by taking the first value
     log.debug('converted to unitary \'%s\' w/ %i'%(type(result), len(result)))
         
     return result
-    
-    
-
-
 
 def get_tupl_cnt( #get a series of tuple counts... handling gaps in valt_d
                   ser,
@@ -3194,6 +3192,7 @@ def get_tupl_cnt( #get a series of tuple counts... handling gaps in valt_d
                   logger=mod_logger,
                   **svkwargs
         ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     #===========================================================================
     # setups and defaults
@@ -3229,6 +3228,7 @@ def update_compress( #update all the values in df_bg from the non-null in df_sm 
         overwrite = False, #if the df_bg value is NOT null, whether to overwrite with df_sm value
         nu_hndl = 'max', #where duplicate sm_df values, how to handle
         logger=mod_logger):
+    warnings.warn('2021-12-13', DeprecationWarning)
 
     log = logger.getChild('update_compress')
     
@@ -3310,6 +3310,7 @@ def tlike_lkp_d( #lookup some values from a nested set of keys
 
                 logger=mod_logger
              ):
+        warnings.warn('2021-12-13', DeprecationWarning)
 
         """shouldnt need a subdtype because we just use whatever is in the lkp_d"""
         log = logger.getChild('tlike_lkp_d')
@@ -3373,6 +3374,7 @@ def vlookup_tlike( #perform a join/vlookup from the lkp to the big where the lin
         conc_hndl = 'tuple', #how to concanate the results
         logger=mod_logger,
         ):
+    warnings.warn('2021-12-13', DeprecationWarning)
     
     """
     This should handle 3 types of link duplication:"
@@ -3495,7 +3497,7 @@ def hcompress( #compress a data frames columns into a column like series of sing
         comp_type_out = str,  #outer compression type
         logger=mod_logger,
         ):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     df = df_raw.copy()
     
 
@@ -3535,7 +3537,7 @@ def vcompress( #compress values on lkp_col by building a unique set of link_col 
         lkp_coln, #column name to extract/compress data from
         logger=mod_logger,
         ):
-        
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('vcompress')
     
     #===========================================================================
@@ -3568,129 +3570,130 @@ def vcompress( #compress values on lkp_col by building a unique set of link_col 
     
     return res_ser
 
-def expand_nested( #expand a nested column into separate columns
-                df_raw,
-                coln, #name of column to separate
-                delim='\n',#delimnater to use
-                col_nest_delim = ':', #deliminater to use for the column name within the nested data
-                prfx = 'n_', #prefix to add to unnested column names
-
-                logger=mod_logger):
-    
-    log = logger.getChild('expand_nested')
-    
-    df = df_raw.copy(deep=True)
-    
-    log.debug('on df %s and coln \'%s\''%(str(df.shape), coln))
-    #===========================================================================
-    # prechecks
-    #==========================================================================
-    if not coln in df.columns:
-        raise IOError
-    
-    if not df.loc[:, coln].dtype == np.dtype('object'):
-        raise IOError #should be an 'object' string type
-    
-    #===========================================================================
-    # setup
-    #===========================================================================
-    #dump the column into an array
-    col_ar = df.loc[:, coln].values
-    
-    
-    
-    #===========================================================================
-    # loop through and extract the data
-    #===========================================================================
-    data_d = dict()  #container for all the data
-    coln_s = oset() #container for column names
-    
-    for i, val in enumerate(col_ar):
-        log.debug('extractginf from data: \n%s'%val)
-        vals_l =  re.split(delim, val) #split this string  by teh delim
-        
-        #=======================================================================
-        # extract the nested values
-        #=======================================================================
-        d = dict() #empty container for this row
-        
-        for nestv in vals_l: #loop through the nested values
-            if nestv == '': continue #skip spaces
-            
-            nest_vals_l = re.split(col_nest_delim, nestv) #split this string  by teh delim
-            
-            if len(nest_vals_l) == 1:
-                log.warning('for %i didnt find any data. skipping'%i)
-                continue
-            
-            elif len(nest_vals_l) > 2:
-                log.error('for %i (%s) found multiple delims \'%s\''%(i, nestv, col_nest_delim))
-                raise IOError #should only get 2 entries here
-            
-            k, v = nest_vals_l
-            
-            k = k.strip() #remove leading and trailing
-            v = v.strip()
-            
-            coln_s.add(k) #add the first entry to the set of column names
-            
-            #check if we already have an entry for this columns
-            if k in d.keys():
-                log.warning('found duplicate entry for \'%s\' on %i. concanateing'%(k, i))
-                
-                v = d[k] + ', '+ v #just add it to the back (more nesting!)
-            
-            d[k] = v #store this
-            
-        data_d[i] = d #store everything for this entry
-            
-
-        
-    #===========================================================================
-    # build this nested dictionary into a data frame
-    #===========================================================================
-    #add the prefix
-    
-
-    df_unest = pd.DataFrame(index = df.index, columns = coln_s) #the new container
-    
-    for i, nest_d in data_d.items():
-
-        #=======================================================================
-        # add this data onto this row       
-        #=======================================================================
-        df_unest.iloc[i, :] = nest_d
-        
-    #add teh prefix to the column names
-  
-    col_l = []
-    for cn in df_unest.columns.tolist():
-        col_l.append('%s%s'%(prfx, cn))
-        
-    df_unest.columns = col_l
-       
-    log.debug('extracted nested data from \'%s\' with %s and headers: %s'
-              %(coln, str(df_unest.shape), df_unest.columns.tolist()))
-    #===========================================================================
-    # add this back to the full data set 
-    #===========================================================================
-    """
-    view(df_new)
-    view(df_m)
-    """
-    
-    df = df.drop(coln, axis=1) #drop the nested column
-    df_m = df.join(df_unest) #join and return
-     
-    return df_m
-
+#===============================================================================
+# def expand_nested( #expand a nested column into separate columns
+#                 df_raw,
+#                 coln, #name of column to separate
+#                 delim='\n',#delimnater to use
+#                 col_nest_delim = ':', #deliminater to use for the column name within the nested data
+#                 prfx = 'n_', #prefix to add to unnested column names
+# 
+#                 logger=mod_logger):
+#     warnings.warn('2021-12-13', DeprecationWarning)
+#     log = logger.getChild('expand_nested')
+#     
+#     df = df_raw.copy(deep=True)
+#     
+#     log.debug('on df %s and coln \'%s\''%(str(df.shape), coln))
+#     #===========================================================================
+#     # prechecks
+#     #==========================================================================
+#     if not coln in df.columns:
+#         raise IOError
+#     
+#     if not df.loc[:, coln].dtype == np.dtype('object'):
+#         raise IOError #should be an 'object' string type
+#     
+#     #===========================================================================
+#     # setup
+#     #===========================================================================
+#     #dump the column into an array
+#     col_ar = df.loc[:, coln].values
+#     
+#     
+#     
+#     #===========================================================================
+#     # loop through and extract the data
+#     #===========================================================================
+#     data_d = dict()  #container for all the data
+#     coln_s = oset() #container for column names
+#     
+#     for i, val in enumerate(col_ar):
+#         log.debug('extractginf from data: \n%s'%val)
+#         vals_l =  re.split(delim, val) #split this string  by teh delim
+#         
+#         #=======================================================================
+#         # extract the nested values
+#         #=======================================================================
+#         d = dict() #empty container for this row
+#         
+#         for nestv in vals_l: #loop through the nested values
+#             if nestv == '': continue #skip spaces
+#             
+#             nest_vals_l = re.split(col_nest_delim, nestv) #split this string  by teh delim
+#             
+#             if len(nest_vals_l) == 1:
+#                 log.warning('for %i didnt find any data. skipping'%i)
+#                 continue
+#             
+#             elif len(nest_vals_l) > 2:
+#                 log.error('for %i (%s) found multiple delims \'%s\''%(i, nestv, col_nest_delim))
+#                 raise IOError #should only get 2 entries here
+#             
+#             k, v = nest_vals_l
+#             
+#             k = k.strip() #remove leading and trailing
+#             v = v.strip()
+#             
+#             coln_s.add(k) #add the first entry to the set of column names
+#             
+#             #check if we already have an entry for this columns
+#             if k in d.keys():
+#                 log.warning('found duplicate entry for \'%s\' on %i. concanateing'%(k, i))
+#                 
+#                 v = d[k] + ', '+ v #just add it to the back (more nesting!)
+#             
+#             d[k] = v #store this
+#             
+#         data_d[i] = d #store everything for this entry
+#             
+# 
+#         
+#     #===========================================================================
+#     # build this nested dictionary into a data frame
+#     #===========================================================================
+#     #add the prefix
+#     
+# 
+#     df_unest = pd.DataFrame(index = df.index, columns = coln_s) #the new container
+#     
+#     for i, nest_d in data_d.items():
+# 
+#         #=======================================================================
+#         # add this data onto this row       
+#         #=======================================================================
+#         df_unest.iloc[i, :] = nest_d
+#         
+#     #add teh prefix to the column names
+#   
+#     col_l = []
+#     for cn in df_unest.columns.tolist():
+#         col_l.append('%s%s'%(prfx, cn))
+#         
+#     df_unest.columns = col_l
+#        
+#     log.debug('extracted nested data from \'%s\' with %s and headers: %s'
+#               %(coln, str(df_unest.shape), df_unest.columns.tolist()))
+#     #===========================================================================
+#     # add this back to the full data set 
+#     #===========================================================================
+#     """
+#     view(df_new)
+#     view(df_m)
+#     """
+#     
+#     df = df.drop(coln, axis=1) #drop the nested column
+#     df_m = df.join(df_unest) #join and return
+#      
+#     return df_m
+#===============================================================================
 
 def conc_nu_vals( #concate non-unique entries (per axis) into a tuple .returns a series
             df, #data set to concanate
             axis = 1, #axis to concanate on
             ser_name = None,
             logger=mod_logger):
-              
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('conc_nu_vals')
     log.debug('concanating non-unique values on %s'%(str(df.shape)))
     
@@ -3723,7 +3726,7 @@ def is_tlike( #return a boolean series of elements that are tupleike
               result_type='ser', #format to return results
               logger=mod_logger, db_f = False, 
         ):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     log = logger.getChild('is_tlike')
     
 
@@ -3819,7 +3822,7 @@ def big_splitter( #helper function to split large data sets, run some func, then
         split_len, #cant use defaults with variable lengths?
         *fvars, #variables to pas to the func (first has to be the df)
         **fkwargs):
-
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # setups and defaults
     #===========================================================================
@@ -3900,6 +3903,51 @@ def big_splitter( #helper function to split large data sets, run some func, then
     
     return res_df
 
+def link_report( #report value_counts on two linked columns
+                 df_raw,
+                 kcoln,
+                 link_colns=[], #additional columns to include in report
+                 
+                 #report controls
+                 dropna=True,
+                 
+                 logger=mod_logger,
+        
+        ):
+    warnings.warn('2021-12-13', DeprecationWarning)
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    log=logger.getChild('link_report')
+    
+    
+    
+    assert len(link_colns)>0
+    #check
+    for coln in link_colns + [kcoln]:
+        assert coln in df_raw.columns, coln
+    
+    #===========================================================================
+    # prep data
+    #===========================================================================
+    df1 = df_raw.loc[:, [kcoln]+link_colns].dropna(subset=[kcoln], axis=0)
+    
+    jdf = df1.drop_duplicates(subset=[kcoln]).set_index(kcoln, drop=True)
+        
+    #===========================================================================
+    # get report
+    #===========================================================================
+    rdf1 = df1[kcoln].value_counts(dropna=dropna).rename('value_counts').to_frame(
+        ).reset_index().rename(columns={'index':kcoln})
+    
+    #join back linkers
+    log.info('got %i unique \'%s\''%(len(rdf1), kcoln))
+    return rdf1.join(jdf, how='left', on=kcoln)
+        
+ 
+    
+
 def data_report( #generate a data report on a frame
         df,
         ofp = None, #Optional filename for writing the report xls to file
@@ -3917,7 +3965,7 @@ def data_report( #generate a data report on a frame
         vc_dropna = False, #whether to drop nas from the value count tabs
         
         logger = mod_logger):
-    
+    warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # setup
     #===========================================================================
@@ -4021,7 +4069,10 @@ def data_report( #generate a data report on a frame
 
         
         
-        
+if __name__ == '__main__':
+    pass
+    #
+ 
     
     
 

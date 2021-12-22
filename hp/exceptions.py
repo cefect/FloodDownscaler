@@ -9,8 +9,22 @@ custom exceptions and errors
 import logging
 mod_logger = logging.getLogger('exceptions') #creates a child logger of the root
 
+import warnings
+
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
     def __init__(self, msg):
         mod_logger.error(msg)
+
+"""not working....
+def DepWarning(msg):
+    warnings.warn(msg, DeprecationWarning)
+
+#===============================================================================
+# class DepWarning(object):
+#     def __init__(self, msg):
+#         warnings.warn(msg, DeprecationWarning)
+#         print(msg)
+#==============================================================================="""
