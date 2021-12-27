@@ -33,6 +33,11 @@ class SimpleRegression(Plotr):
                 df_raw, #complete data (includes training data)
                 xcoln, ycoln, res_d, plotkwargs, pfunc, 
                 ax=None,
+                
+                #plot controls
+                plot_conf=True,
+                plot_lm=True,
+                plot_obs=True,
                 logger=None):
         #=======================================================================
         # defaults
@@ -56,16 +61,17 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # plot model
         #=======================================================================
-        ax.plot(df1[xcoln], yser, label=ycoln, 
-            #marker=next(markers), markersize=2,
-            linewidth=0.5, **plotkwargs)
+        if plot_lm:
+            ax.plot(df1[xcoln], yser, label=ycoln, 
+                #marker=next(markers), markersize=2,
+                linewidth=0.5, **plotkwargs)
         """
         plt.show()
         """
         #=======================================================================
         # #confidence
         #=======================================================================
-        if 'conf_df' in res_d:
+        if 'conf_df' in res_d and plot_conf:
             #get confidence for this dimension
             conf_df = res_d['conf_df'].copy().loc[['min', 'max'], ['const', xcoln]]
             
@@ -86,7 +92,7 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # observations
         #=======================================================================
-        if 'regRes' in res_d:
+        if 'regRes' in res_d and plot_obs:
             regRes = res_d['regRes'] 
             try:
                 pred_ols = regRes.get_prediction(sm.add_constant(df2))
@@ -652,15 +658,17 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # # Plot-------
         #=======================================================================
-        self.plot_classification( xtrain, ytrain, clf, ax=ax)
-        
-        ax.set_ylabel(df_raw.drop(ycoln, axis=1).columns[1])
-        ax.set_xlabel(df_raw.drop(ycoln, axis=1).columns[0])
-        """
-        self.plt.show()
-        """
- 
-        self.add_anno({k:'%.2f'%v for k,v in res_d.items() if isinstance(v, float)}, ycoln, ax=ax)
+        """only setup for 2 indeps now"""
+        if len(df_raw.columns)<=3:
+            self.plot_classification(xtrain, ytrain, clf, ax=ax)
+            
+            ax.set_ylabel(df_raw.drop(ycoln, axis=1).columns[1])
+            ax.set_xlabel(df_raw.drop(ycoln, axis=1).columns[0])
+            """
+            self.plt.show()
+            """
+     
+            self.add_anno({k:'%.2f'%v for k,v in res_d.items() if isinstance(v, float)}, ycoln, ax=ax)
         
         #=======================================================================
         # get meta
