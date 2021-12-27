@@ -321,28 +321,47 @@ class SimpleRegression(Plotr):
  
     
 
-    def sm_prepData(self, df_raw, ycoln, intercept):
+ 
+    
+    def sm_transformX(self,
+                      xdf,
+                       intercept=False,
+                      categoricals=[], #list of columns that are categorical
+                      ):
+        
         #=======================================================================
-    # setup data
-    #=======================================================================
-        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
-        xtrain = df_train.drop(ycoln, axis=1)
-        ytrain = df_train[ycoln]
-    #=======================================================================
-    # OLS model
-    #=======================================================================
-        if intercept:
-            X = sm.add_constant(xtrain)
+        # expand categorical data
+        #=======================================================================
+        if len(categoricals)>0:
+            miss_l = set(categoricals).difference(xdf.columns)
+            assert len(miss_l)==0, 'requested cols not in data: %s'%miss_l
+            
+ 
+            xdf1 = pd.get_dummies(xdf, columns=categoricals)
+            
+            """
+            xtrain[categoricals[0]].value_counts()
+            """
         else:
-            X = xtrain
-        return ytrain, X
+            xdf1 = xdf
+            
+        
+        #=======================================================================
+        # OLS model
+        #=======================================================================
+        if intercept:
+            xdf2 = sm.add_constant(xdf1)
+        else:
+            xdf2 = xdf1
+            
+        return xdf2
 
     def sm_linregres(self,
                 df_raw,
                 ycoln,
                 intercept=True, #whether to predict an intercept (or assume y0=0)
-
- 
+                categoricals=[],
+                
 
                ):
         """
@@ -354,10 +373,20 @@ class SimpleRegression(Plotr):
         
         log = self.logger.getChild('sm_linregres')
         
-        ytrain, X = self.sm_prepData(df_raw, ycoln, intercept)
+        #=======================================================================
+        # prep the data
+        #=======================================================================
+        df_train = df_raw.dropna(how='any', axis=0)
         
-        #init the model
-        model = sm.OLS(ytrain, X)
+        ytrain = df_train[ycoln]        
+ 
+        
+        xtrain = self.sm_transformX(df_train.drop(ycoln, axis=1), intercept=intercept, categoricals=categoricals)
+        
+        #=======================================================================
+        # #init the model
+        #=======================================================================
+        model = sm.OLS(ytrain, xtrain)
         
         #fit with data
         regRes = model.fit()
@@ -381,10 +410,10 @@ class SimpleRegression(Plotr):
              }
  
             
-            pfunc = lambda x:regRes.predict(sm.add_constant(x))
+            
             #pfunc = lambda x:regRes.predict(x)
         else:
-            pfunc = lambda x:regRes.predict(x)
+            #pfunc = lambda x:regRes.predict(x)
             
             conf_df['const'] = 0 #add dummy
             
@@ -395,9 +424,14 @@ class SimpleRegression(Plotr):
                  }
             
         res_d.update({
-         'conf_df':conf_df, 'indep_colns':conf_df.drop('const', axis=1).columns.tolist(),
+         'conf_df':conf_df, 
+         'indep_colns':df_raw.drop(ycoln, axis=1).columns.tolist(),
          'rvalue':regRes.rsquared, 'stderr':regRes.bse[0],'regRes':regRes,'type':'cont'
             })
+        
+ 
+        pfunc = lambda xdf, logger=None:self.sm_pfunc(xdf, regRes.predict, intercept=intercept, categoricals=categoricals,
+                                         ecolns = xtrain.columns.tolist(), logger=logger)
         #=======================================================================
         # test predictor function 
         #=======================================================================
@@ -408,6 +442,75 @@ class SimpleRegression(Plotr):
                 ycoln, e))
  
         return pfunc, res_d
+    
+
+    def adjust_transform(self, #check column expecattions 
+                        
+                        xdf,ecolns,  log):
+        """
+        using categorical indepednet variables in models
+        can result in missing values on either the prediction or the training set
+        
+        """
+        assert isinstance(xdf, pd.DataFrame)
+        
+        #=======================================================================
+        # #xvalues for prediction are too sparse
+        #=======================================================================
+        miss_l = set(ecolns).difference(xdf.columns)
+        xdf1 = xdf.copy()
+        if len(miss_l) > 0:
+            log.warning('insufficent columsn provided (%i)... adding zeros' % len(miss_l))
+            xdf1.loc[:, list(miss_l)] = 0
+            
+            
+        #=======================================================================
+        # #xvalues for training are too sparse
+        #=======================================================================
+        miss_l = set(xdf1.columns).difference(ecolns)
+ 
+        if len(miss_l) > 0:
+            log.warning('requested preiction with %i columns without training... dropping these' % len(miss_l))
+            xdf1 = xdf1.drop(miss_l, axis=1)
+            
+        #=======================================================================
+        # #final check
+        #=======================================================================
+        miss_l = set(xdf1.columns).symmetric_difference(ecolns)
+        assert len(miss_l) == 0
+        return xdf1
+
+    def sm_pfunc(self,
+                xdf, 
+                 rpfunc, #regRes.predict
+                 intercept=True, #not sure what it means to not have an intercept
+                categoricals=[],
+                ecolns=None, #column expectations
+                logger=None,
+                ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sm_pfunc')
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(xdf, pd.DataFrame), 'expects a dataframe'
+
+        
+        
+        xdf1 = self.sm_transformX(xdf, intercept=intercept, categoricals=categoricals)
+        
+        #=======================================================================
+        # column expectations on transformation
+        #=======================================================================
+        if not ecolns is None:
+            xdf1 = self.adjust_transform(xdf1, ecolns, log)
+        
+        rdf = rpfunc(xdf1)
+        
+        return rdf
     
     
     def sm_MNLogit(self,
@@ -600,13 +703,53 @@ class SimpleRegression(Plotr):
         ax.legend()
         return ax
         
+    def sk_transformX(self,
+            xdf, 
+            intercept=True,
+            categoricals=[],
+            ):
+        
+        assert isinstance(xdf, pd.DataFrame)
+        
+        if not intercept:
+            raise Error('not implemented')
+        
+ 
+        #=======================================================================
+        # expand categorical data
+        #=======================================================================
+        if len(categoricals)>0:
+            miss_l = set(categoricals).difference(xdf.columns)
+            assert len(miss_l)==0, 'requested cols not in data: %s'%miss_l
+            
+ 
+            xdf1 = pd.get_dummies(xdf, columns=categoricals)
+            
+            """
+            xtrain[categoricals[0]].value_counts()
+            """
+        else:
+            xdf1 = xdf
+            
+            
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        return xdf1
+            
+            
+        
+        
+            
 
     def sk_MNLogit(self, #multinomal logistic regression with sklearn
                 df_raw,
                 ycoln,
                 intercept=True, #not sure what it means to not have an intercept
+                categoricals=[],
                 logger=None,
-                ax=None,):
+                ax=None,
+                ):
         #=======================================================================
         # defaults
         #=======================================================================
@@ -616,8 +759,18 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # setup data
         #=======================================================================
+        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
+
+        ytrain = df_train[ycoln].values.reshape(1,-1)[0]
         
-        xtrain, ytrain = self.sk_prepData(df_raw, ycoln)
+        
+        xdf = self.sk_transformX(df_train.drop(ycoln, axis=1),
+                                    intercept=intercept, categoricals=categoricals)
+                                    
+        xtrain = xdf.values
+ 
+        
+ 
         """
         self.sns.pairplot(df_raw, hue=ycoln)
         """
@@ -644,7 +797,6 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # report
         #=======================================================================
-
  
         #confusion matrix on training data
         conf_df = get_confusionMat(ytrain, clf.predict(xtrain), clf.classes_)
@@ -659,16 +811,18 @@ class SimpleRegression(Plotr):
         # # Plot-------
         #=======================================================================
         """only setup for 2 indeps now"""
-        if len(df_raw.columns)<=3:
-            self.plot_classification(xtrain, ytrain, clf, ax=ax)
-            
-            ax.set_ylabel(df_raw.drop(ycoln, axis=1).columns[1])
-            ax.set_xlabel(df_raw.drop(ycoln, axis=1).columns[0])
-            """
-            self.plt.show()
-            """
-     
-            self.add_anno({k:'%.2f'%v for k,v in res_d.items() if isinstance(v, float)}, ycoln, ax=ax)
+     #==========================================================================
+     #    if len(df_raw.columns)<=3:
+     #        self.plot_classification(xtrain, ytrain, clf, ax=ax)
+     #        
+     #        ax.set_ylabel(df_raw.drop(ycoln, axis=1).columns[1])
+     #        ax.set_xlabel(df_raw.drop(ycoln, axis=1).columns[0])
+     #        """
+     #        self.plt.show()
+     #        """
+     # 
+     #        self.add_anno({k:'%.2f'%v for k,v in res_d.items() if isinstance(v, float)}, ycoln, ax=ax)
+     #==========================================================================
         
         #=======================================================================
         # get meta
@@ -679,28 +833,12 @@ class SimpleRegression(Plotr):
             res_d.update({
 
              })
- 
-            def pfunc(df_raw):
-                assert isinstance(df_raw, pd.DataFrame), 'expects a dataframe'
-                bx = df_raw.isna().any(axis=1)
-                
-                
-                rser = pd.Series(clf.predict(df_raw.loc[~bx, :].values),
-                                 index=df_raw[~bx].index
-                                   )
-                
-                if bx.any():
-                    rser = pd.concat([rser, 
-                              pd.Series(index=df_raw[bx].index, dtype=rser.dtype)]
-                    ).loc[df_raw.index]
-                
-                return rser
-                                     
-                                     
-                
-            #pfunc = lambda x:pfunc(x)
+
         else:
             raise IOError('not implemented')
+        
+        pfunc = lambda x, logger=None:self.sk_pfunc(
+            x, clf, intercept=intercept, categoricals=categoricals, ecolns=xdf.columns.tolist(), logger=logger)
         
         #=======================================================================
         # test function
@@ -721,6 +859,54 @@ class SimpleRegression(Plotr):
              
  
         return  res_d
+    
+    
+    def sk_pfunc(self,
+                 df_raw,
+                 clf,
+                 intercept=True, #not sure what it means to not have an intercept
+                categoricals=[],
+                ecolns=None,
+                logger=None,
+                ):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sk_pfunc')
+        
+        assert isinstance(df_raw, pd.DataFrame), 'expects a dataframe'
+        bx = df_raw.isna().any(axis=1)
+        
+        
+        #=======================================================================
+        # transform
+        #=======================================================================
+        xdf = self.sk_transformX(df_raw.loc[~bx, :],
+                            intercept=intercept, categoricals=categoricals)
+        
+        
+        #=======================================================================
+        # check expectations
+        #=======================================================================
+        if not ecolns is None:
+            
+            xar = self.adjust_transform(xdf, ecolns, log).values
+        else:
+            xar = xdf.values
+        
+        yar = clf.predict(xar)
+        
+        rser = pd.Series(yar,index=df_raw[~bx].index)
+        
+        #add empties back
+        if bx.any():
+            rser = pd.concat([rser, 
+                      pd.Series(index=df_raw[bx].index, dtype=rser.dtype)]
+            ).loc[df_raw.index]
+        
+        return rser
         
     
     def add_anno(self,

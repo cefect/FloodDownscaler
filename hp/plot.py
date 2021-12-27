@@ -308,6 +308,64 @@ class Plotr(Basic):
                 
         return val_str
     
+    def get_matrix_fig(self, #conveneince for getting a matrix plot with consistent object access
+                       row_keys, #row labels for axis
+                       col_keys, #column labels for axis
+                       
+                       fig_id=0,
+                       figsize=None,
+                        tight_layout=False,
+                        constrained_layout=True
+                        
+                       ):
+        
+        
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if figsize is None: figsize=self.figsize
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(row_keys, list)
+        assert isinstance(col_keys, list)
+        #=======================================================================
+        # build figure
+        #=======================================================================
+        
+        fig = self.plt.figure(fig_id,
+            figsize=figsize,
+            tight_layout=tight_layout,
+            constrained_layout=constrained_layout)
+        
+        # populate with subplots
+        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys))
+        
+        #convert to array
+        if not isinstance(ax_ar, np.ndarray):
+            assert len(row_keys)==len(col_keys)
+            assert len(row_keys)==1
+            
+            ax_ar = np.array([ax_ar])
+            
+        
+        #=======================================================================
+        # convert to dictionary
+        #=======================================================================
+        ax_d = dict()
+        for i, row_ar in enumerate(ax_ar.reshape(len(row_keys), len(col_keys))):
+            ax_d[row_keys[i]]=dict()
+            for j, ax in enumerate(row_ar.T):
+                ax_d[row_keys[i]][col_keys[j]]=ax
+                
+            
+ 
+            
+        return fig, ax_d
+            
+            
+    
     #===========================================================================
     # OUTPUTTRS------
     #===========================================================================
