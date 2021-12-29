@@ -2501,67 +2501,38 @@ def vlookup( #add column(s) to big based on some link w/ small
         
     
 #===============================================================================
-#SEARCHING ------------------------------------------------------------------
+#BOOLEANS ------------------------------------------------------------------
 #===============================================================================
-#===============================================================================
-# def search_str_fr_list( #find where items have all the items in the search_l 
-#             ser,  #series to search
-#             search_l, #list of strings to search for in teh series
-#             search_type='contains', #type fo search to perform (contains or match)
-#             case=False, #case sensitivite
-#             all_any = 'all', #flag denoting how to to treat the combined conditional
-#             logger=mod_logger, **kwargs):  
-#     """
-#     #===========================================================================
-#     # INPUTS
-#     #===========================================================================
-#     all_any: 
-#         all: find rows where every string in the list is there
-#         any: find rows where ANY string in the list is there
-#     """
-#     raise Error('deprecate me')
-#     log = logger.getChild('search_str_fr_list')
-#     
-#     raise IOError('fail')
-#     
-#     if not isinstance(ser, pd.Series):
-#         log.debug('converted %s to series'%type(ser)) 
-#         ser = pd.Series(ser)
-#         #raise Error('expected a series, instaed got a %s'%type(ser))
-#     
-#     #starter boolidx series
-#     df_bool = pd.DataFrame(index = search_l, columns = ser.index)
-#     
-# 
-#     #loop through and find search results for each string
-#     for search_str, row in df_bool.iterrows():
-#         if search_type is 'contains':
-#             boolcol = ser.astype(str).str.contains(search_str, case=case, **kwargs)
-#         elif search_type is 'match':
-#             boolcol = ser.astype(str).str.match(search_str, case=case, **kwargs)
-#         else:
-#             raise IOError
-#         
-#         df_bool.loc[search_str,:] = boolcol.values.T
-#         
-#     #find the result of all rows
-#     if all_any == 'all':
-#         boolidx = df_bool.all()
-#     elif all_any == 'any':
-#         boolidx = df_bool.any()
-#     else: 
-#         log.error('got unexpected kwarg for all_any: \'%s\''%all_any)
-#         raise IOError
-#     log.debug('found %i series match from string_l (%i): %s'
-#                  %(boolidx.sum(), len(search_l), search_l))
-#     
-#     if boolidx.sum() == 0: 
-#         log.warning('no matches found')
-# 
-# 
-#             
-#     return boolidx
-#===============================================================================
+def get_bx_multiVal(df, #get boolean based on multi-column matching
+        val_d,
+        logicFunc = np.logical_and, #function for combining iterations
+        baseBoolean=True, #where to start from
+        log=None,
+        ):
+    
+    bx = pd.Series(baseBoolean, index=df.index) #start with nothing
+    
+ 
+    meta_d= {'base':{'bx':bx.sum()}}
+    for coln, val in val_d.items():
+        new_bx = df[coln]==val
+        bx = logicFunc(bx,new_bx)
+        
+        meta_d[coln] = {'val':val, 'new_bx':new_bx.sum(), 'bx':bx.sum()}
+        
+    if not log is None:
+        log.info('on %s w/ %i matching vals got %i/%i for %s'%(
+            str(df.shape), len(val_d),  bx.sum(), len(bx), val_d))
+        
+        mdf = pd.DataFrame.from_dict(meta_d).T
+        log.debug(mdf)
+            
+    return bx
+        
+    
+        
+        
+ 
 
 #===============================================================================
 # OUTPUTS --------------------------------------------------------------------
