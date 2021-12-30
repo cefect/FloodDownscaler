@@ -507,8 +507,12 @@ class SimpleRegression(Plotr):
         #=======================================================================
         if not ecolns is None:
             xdf1 = self.adjust_transform(xdf1, ecolns, log)
+            
+        assert len(xdf1)==len(xdf)
         
         rdf = rpfunc(xdf1)
+        
+        assert np.array_equal(rdf.index, xdf.index)
         
         return rdf
     

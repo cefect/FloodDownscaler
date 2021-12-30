@@ -2503,7 +2503,7 @@ def vlookup( #add column(s) to big based on some link w/ small
 #===============================================================================
 #BOOLEANS ------------------------------------------------------------------
 #===============================================================================
-def get_bx_multiVal(df, #get boolean based on multi-column matching
+def get_bx_multiVal(df, #get boolean based on multi-column matching (single values)
         val_d,
         logicFunc = np.logical_and, #function for combining iterations
         baseBoolean=True, #where to start from
@@ -2515,6 +2515,7 @@ def get_bx_multiVal(df, #get boolean based on multi-column matching
  
     meta_d= {'base':{'bx':bx.sum()}}
     for coln, val in val_d.items():
+ 
         new_bx = df[coln]==val
         bx = logicFunc(bx,new_bx)
         
