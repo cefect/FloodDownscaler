@@ -244,7 +244,7 @@ class Basic(object): #simple base class
     def __exit__(self, #destructor
              *args,**kwargs):
         
-        print('opp.__exit__ on \'%s\''%self.__class__.__name__)
+        #print('opp.__exit__ on \'%s\''%self.__class__.__name__)
         
 
         
