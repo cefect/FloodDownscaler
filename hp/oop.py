@@ -175,6 +175,8 @@ class Basic(object): #simple base class
             attv = getattr(self, attn)
  
             d[attn] = attv
+            
+        self._install_info()
         
         self.logger.debug('finished Basic.__init__ w/ \n    %s'%d)
         

@@ -254,7 +254,7 @@ class Qproj(QAlgos, Basic):
         
         try:
             
-            QgsApplication.setPrefixPath(r'C:/OSGeo4W64/apps/qgis-ltr', True)
+            QgsApplication.setPrefixPath(r'C:/OSGeo4W/apps/qgis-ltr', True)
             
             app = QgsApplication([], gui)
 
