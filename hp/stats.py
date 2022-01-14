@@ -16,7 +16,7 @@ import sklearn.linear_model
 import statsmodels.api as sm
 
 
-from hp.plot import Plotr, view
+from hp.plot import Plotr, view, Error
 
 
 def get_confusionMat(yt, preds, classes_ar):
@@ -29,8 +29,16 @@ class SimpleRegression(Plotr):
     
     
 
-    def plot_lm(self, xser, res_d, aName, plotkwargs, pfunc, 
-                ax=None):
+    def plot_lm(self,  #plot a single dimension (of a multi-dimensional models)
+                df_raw, #complete data (includes training data)
+                xcoln, ycoln, res_d, plotkwargs, pfunc, 
+                ax=None,
+                
+                #plot controls
+                plot_conf=True,
+                plot_lm=True,
+                plot_obs=True,
+                logger=None):
         #=======================================================================
         # defaults
         #=======================================================================
@@ -38,21 +46,43 @@ class SimpleRegression(Plotr):
         if ax is None:
             ax = plt.gca()
         
+        if logger is None: logger=self.logger
+        log=logger.getChild('plot_lm.%s.%s'%(xcoln, ycoln))
+        #=======================================================================
+        # data
+        #=======================================================================
+        df1= df_raw.copy().dropna(subset=[xcoln], how='any').sort_values(xcoln).reset_index(drop=True) #ignore nulls on indep
+        df2 = df1.drop(ycoln, axis=1)
+        try:
+            yser = pfunc(df2)
+        except Exception as e:
+            raise Error("failed to predict \'%s\' values w/ \n    %s"%(ycoln, e))
+        
         #=======================================================================
         # plot model
         #=======================================================================
-        ax.plot(xser, pfunc(xser), label=aName, 
-            #marker=next(markers), markersize=2,
-            linewidth=0.2, **plotkwargs)
-        
+        if plot_lm:
+            ax.plot(df1[xcoln], yser, label=ycoln, 
+                #marker=next(markers), markersize=2,
+                linewidth=0.5, **plotkwargs)
+        """
+        plt.show()
+        """
         #=======================================================================
         # #confidence
         #=======================================================================
-        if 'slope_conf' in res_d:
+        if 'conf_df' in res_d and plot_conf:
+            #get confidence for this dimension
+            conf_df = res_d['conf_df'].copy().loc[['min', 'max'], ['const', xcoln]]
+            
+ 
+ 
+            
             #get y values from each bound
             bounds_d = dict()
-            for j, (m, b) in enumerate(zip(res_d['slope_conf'], res_d['inter_conf'])):
-                bounds_d[j] = [m * xi + b for xi in ax.get_xlim()]
+            for j, (lab, ser) in enumerate(conf_df.iterrows()):
+ 
+                bounds_d[j] = [ser[xcoln] * xi + ser['const'] for xi in ax.get_xlim()]
             
             ax.fill_between(
                 ax.get_xlim(), bounds_d[0], bounds_d[1], 
@@ -62,28 +92,30 @@ class SimpleRegression(Plotr):
         #=======================================================================
         # observations
         #=======================================================================
-        if 'regRes' in res_d:
+        if 'regRes' in res_d and plot_obs:
             regRes = res_d['regRes'] 
             try:
-                pred_ols = regRes.get_prediction(sm.add_constant(xser))
+                pred_ols = regRes.get_prediction(sm.add_constant(df2))
             except:
-                pred_ols = regRes.get_prediction(xser)
+                pred_ols = regRes.get_prediction(df2)
  
             psmry_df = pred_ols.summary_frame()
             
             """
             view(psmry_df.sort_values('mean'))
             """
-            
-            
+ 
             for label in ["obs_ci_lower", 'obs_ci_upper']:
  
-                ax.plot(xser.sort_values(), psmry_df[label].sort_values(), label='%s.%s' % (aName, label), 
+                ax.plot(df1[xcoln].sort_values(), psmry_df[label].sort_values(), label='%s.%s' % (ycoln, label), 
                 #marker=next(markers), markersize=2,
-                    linewidth=0.4, linestyle='dashed', **plotkwargs)
+                    linewidth=0.4, linestyle='dashed',  **plotkwargs)
         
- 
-        
+        #=======================================================================
+        # reset limits
+        #=======================================================================
+        ax.set_ylim(yser.min(), yser.max())
+        log.info('finished')
         return ax
 
     def regression(self, #get regressions from different modules and add to plot
@@ -289,28 +321,47 @@ class SimpleRegression(Plotr):
  
     
 
-    def sm_prepData(self, df_raw, ycoln, intercept):
+ 
+    
+    def sm_transformX(self,
+                      xdf,
+                       intercept=False,
+                      categoricals=[], #list of columns that are categorical
+                      ):
+        
         #=======================================================================
-    # setup data
-    #=======================================================================
-        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
-        xtrain = df_train.drop(ycoln, axis=1)
-        ytrain = df_train[ycoln]
-    #=======================================================================
-    # OLS model
-    #=======================================================================
-        if intercept:
-            X = sm.add_constant(xtrain)
+        # expand categorical data
+        #=======================================================================
+        if len(categoricals)>0:
+            miss_l = set(categoricals).difference(xdf.columns)
+            assert len(miss_l)==0, 'requested cols not in data: %s'%miss_l
+            
+ 
+            xdf1 = pd.get_dummies(xdf, columns=categoricals)
+            
+            """
+            xtrain[categoricals[0]].value_counts()
+            """
         else:
-            X = xtrain
-        return ytrain, X
+            xdf1 = xdf
+            
+        
+        #=======================================================================
+        # OLS model
+        #=======================================================================
+        if intercept:
+            xdf2 = sm.add_constant(xdf1)
+        else:
+            xdf2 = xdf1
+            
+        return xdf2
 
     def sm_linregres(self,
                 df_raw,
                 ycoln,
-                intercept=True,
-
- 
+                intercept=True, #whether to predict an intercept (or assume y0=0)
+                categoricals=[],
+                
 
                ):
         """
@@ -322,36 +373,148 @@ class SimpleRegression(Plotr):
         
         log = self.logger.getChild('sm_linregres')
         
-        ytrain, X = self.sm_prepData(df_raw, ycoln, intercept)
+        #=======================================================================
+        # prep the data
+        #=======================================================================
+        df_train = df_raw.dropna(how='any', axis=0)
         
-        #init the model
-        model = sm.OLS(ytrain, X)
+        ytrain = df_train[ycoln]        
+ 
+        
+        xtrain = self.sm_transformX(df_train.drop(ycoln, axis=1), intercept=intercept, categoricals=categoricals)
+        
+        #=======================================================================
+        # #init the model
+        #=======================================================================
+        model = sm.OLS(ytrain, xtrain)
         
         #fit with data
         regRes = model.fit()
-        log.info(regRes.summary())
+        log.debug(regRes.summary())
         
+        conf_df = pd.DataFrame(regRes.conf_int().values, 
+                               columns=['min', 'max'], index=regRes.conf_int().index)
+        
+        #add predictions
+        conf_df = conf_df.join(regRes.params.rename('val')).loc[:, ['val', 'min', 'max']].T
+        
+        
+        #=======================================================================
+        # buidl results
+        #=======================================================================
         if intercept:
-            res_d = {'intercept':regRes.params[0],
-             'slope':regRes.params[1],
-             'slope_conf':regRes.conf_int()[1],
-             'inter_conf':regRes.conf_int()[0],
+            res_d = {
+             'intercept':regRes.params['const'],
+             'slope':regRes.params.drop('const'),
+ 
              }
  
             
-            pfunc = lambda x:regRes.predict(sm.add_constant(x))
+            
+            #pfunc = lambda x:regRes.predict(x)
         else:
-            pfunc = lambda x:regRes.predict(x)
- 
+            #pfunc = lambda x:regRes.predict(x)
+            
+            conf_df['const'] = 0 #add dummy
+            
             res_d = {
-                'intercept':0,
-                 'slope':regRes.params[0],
-                 'slope_conf':regRes.conf_int()[0],
-                 'inter_conf':np.array([0,0]),
+                'intercept':0.0,
+                 'slope':regRes.params,
+
                  }
-                        
+            
+        res_d.update({
+         'conf_df':conf_df, 
+         'indep_colns':df_raw.drop(ycoln, axis=1).columns.tolist(),
+         'rvalue':regRes.rsquared, 'stderr':regRes.bse[0],'regRes':regRes,'type':'cont'
+            })
+        
  
-        return pfunc, {'rvalue':regRes.rsquared, 'stderr':regRes.bse[0],'regRes':regRes, **res_d}
+        pfunc = lambda xdf, logger=None:self.sm_pfunc(xdf, regRes.predict, intercept=intercept, categoricals=categoricals,
+                                         ecolns = xtrain.columns.tolist(), logger=logger)
+        #=======================================================================
+        # test predictor function 
+        #=======================================================================
+        try:
+            pfunc(df_raw.drop(ycoln, axis=1))
+        except Exception as e:
+            raise Error('predictor function for \'%s\' fails w/ \n    %s'%(
+                ycoln, e))
+ 
+        return pfunc, res_d
+    
+
+    def adjust_transform(self, #check column expecattions 
+                        
+                        xdf,ecolns,  log):
+        """
+        using categorical indepednet variables in models
+        can result in missing values on either the prediction or the training set
+        
+        """
+        assert isinstance(xdf, pd.DataFrame)
+        
+        #=======================================================================
+        # #xvalues for prediction are too sparse
+        #=======================================================================
+        miss_l = set(ecolns).difference(xdf.columns)
+        xdf1 = xdf.copy()
+        if len(miss_l) > 0:
+            log.warning('insufficent columsn provided (%i)... adding zeros' % len(miss_l))
+            xdf1.loc[:, list(miss_l)] = 0
+            
+            
+        #=======================================================================
+        # #xvalues for training are too sparse
+        #=======================================================================
+        miss_l = set(xdf1.columns).difference(ecolns)
+ 
+        if len(miss_l) > 0:
+            log.warning('requested preiction with %i columns without training... dropping these' % len(miss_l))
+            xdf1 = xdf1.drop(miss_l, axis=1)
+            
+        #=======================================================================
+        # #final check
+        #=======================================================================
+        miss_l = set(xdf1.columns).symmetric_difference(ecolns)
+        assert len(miss_l) == 0
+        return xdf1
+
+    def sm_pfunc(self,
+                xdf, 
+                 rpfunc, #regRes.predict
+                 intercept=True, #not sure what it means to not have an intercept
+                categoricals=[],
+                ecolns=None, #column expectations
+                logger=None,
+                ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sm_pfunc')
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(xdf, pd.DataFrame), 'expects a dataframe'
+
+        
+        
+        xdf1 = self.sm_transformX(xdf, intercept=intercept, categoricals=categoricals)
+        
+        #=======================================================================
+        # column expectations on transformation
+        #=======================================================================
+        if not ecolns is None:
+            xdf1 = self.adjust_transform(xdf1, ecolns, log)
+            
+        assert len(xdf1)==len(xdf)
+        
+        rdf = rpfunc(xdf1)
+        
+        assert np.array_equal(rdf.index, xdf.index)
+        
+        return rdf
     
     
     def sm_MNLogit(self,
@@ -465,22 +628,153 @@ class SimpleRegression(Plotr):
 
         return df_train.drop(ycoln, axis=1).values, df_train[ycoln].values.reshape(1,-1)[0]
 
+
+    def plot_classification(self, 
+                             xtrain, ytrain, clf,
+                             resolution=20, #resolution of decision space
+                            cmap=None,
+                            ax=None,figsize=(6, 6)
+                            ):
+        """
+    
+        https://scikit-learn.org/stable/auto_examples/linear_model/plot_iris_logistic.html#sphx-glr-auto-examples-linear-model-plot-iris-logistic-py
+        
+        """
+        plt, matplotlib = self.plt, self.matplotlib
+        
+        #=======================================================================
+        # setup plot
+        #=======================================================================
+        if ax is None:
+            plt.close()
+            fig = plt.figure(1, 
+                        figsize=figsize, 
+                        tight_layout=False, 
+                        constrained_layout=True)
+            
+            ax = fig.subplot(111)
+            
+ 
+
+        if cmap is None: cmap = plt.cm.get_cmap(name='Paired')
+        #=======================================================================
+        # #get colors
+        #=======================================================================
+            
+ 
+        colors_d = dict(zip(np.unique(ytrain), np.linspace(0, 1, len(np.unique(ytrain)))))
+        #=======================================================================
+        # decision boundary (w/ mesh)
+        #=======================================================================
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+ 
+        x_min, x_max = xtrain[:, 0].min() - 0.5, xtrain[:, 0].max() + 0.5
+        y_min, y_max = xtrain[:, 1].min() - 0.5, xtrain[:, 1].max() + 0.5
+        
+        #h = 10  # step size in the mesh
+        xx, yy = np.meshgrid(np.linspace(x_min, x_max, num=resolution), np.linspace(y_min, y_max, num=resolution))
+        
+        raise Error('quit here... not sure what to do for more than 2 indep vars')
+        
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+        Z = Z.reshape(xx.shape)
+        #convert to colors
+        """a bit slow"""
+        zcolor_ar = pd.DataFrame(Z).replace(colors_d).astype(float).values
+        #plot the mesh
+        ax.pcolormesh(xx, yy, zcolor_ar, cmap=cmap, shading='auto')
+        #=======================================================================
+        # observatinos
+        #=======================================================================
+        
+        #zcolor_ar = pd.DataFrame(ytrain).replace(colors_d).astype(float).values
+        
+        #merge data back together
+        df = pd.concat([pd.DataFrame(xtrain, columns=['x', 'y']), pd.Series(ytrain, name='z')], axis=1)
+        
+        #plot each
+        for label, dfi in df.groupby('z'):
+ 
+            ax.scatter(dfi['x'].values,dfi['y'].values,
+                       color=cmap(colors_d[label]) , 
+                       label=label, 
+                       edgecolors='black',linewidths=0.2,alpha=0.8,
+                       #cmap=cmap,
+                       s=10)
+        """
+        plt.show()
+        """
+        ax.legend()
+        return ax
+        
+    def sk_transformX(self,
+            xdf, 
+            intercept=True,
+            categoricals=[],
+            ):
+        
+        assert isinstance(xdf, pd.DataFrame)
+        
+        if not intercept:
+            raise Error('not implemented')
+        
+ 
+        #=======================================================================
+        # expand categorical data
+        #=======================================================================
+        if len(categoricals)>0:
+            miss_l = set(categoricals).difference(xdf.columns)
+            assert len(miss_l)==0, 'requested cols not in data: %s'%miss_l
+            
+ 
+            xdf1 = pd.get_dummies(xdf, columns=categoricals)
+            
+            """
+            xtrain[categoricals[0]].value_counts()
+            """
+        else:
+            xdf1 = xdf
+            
+            
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        return xdf1
+            
+            
+        
+        
+            
+
     def sk_MNLogit(self, #multinomal logistic regression with sklearn
                 df_raw,
                 ycoln,
                 intercept=True, #not sure what it means to not have an intercept
-                logger=None):
+                categoricals=[],
+                logger=None,
+                ax=None,
+                ):
         #=======================================================================
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
-        log=logger.getChild('sk_MNLogit')
+        log=logger.getChild('sk_MNLogit.%s'%ycoln)
  
         #=======================================================================
         # setup data
         #=======================================================================
+        df_train = df_raw.dropna(subset=[ycoln], how='any', axis=0)
+
+        ytrain = df_train[ycoln].values.reshape(1,-1)[0]
         
-        xtrain, ytrain = self.sk_prepData(df_raw, ycoln)
+        
+        xdf = self.sk_transformX(df_train.drop(ycoln, axis=1),
+                                    intercept=intercept, categoricals=categoricals)
+                                    
+        xtrain = xdf.values
+ 
+        
+ 
         """
         self.sns.pairplot(df_raw, hue=ycoln)
         """
@@ -489,6 +783,9 @@ class SimpleRegression(Plotr):
         log.info('LogisticRegression on \'%s\' w/ %s'%(
             ycoln, str(xtrain.shape)))
         
+        #=======================================================================
+        # train model
+        #=======================================================================
         """throwing warnings but still returning predictions?"""
         clf = sklearn.linear_model.LogisticRegression(multi_class='multinomial',
                                                 solver ='newton-cg',
@@ -498,72 +795,135 @@ class SimpleRegression(Plotr):
  
         
         
-        clf.get_params()
+        log.debug('fit w/ \n    %s'%(clf.get_params()))
         
         
-        plt = self.plt
+        #=======================================================================
+        # report
+        #=======================================================================
+ 
         #confusion matrix on training data
         conf_df = get_confusionMat(ytrain, clf.predict(xtrain), clf.classes_)
         
-        # Plot the decision boundary. For that, we will assign a color to each
+        res_d = {
+             'score':clf.score(xtrain, ytrain),
+             #
+             'params':clf.get_params(),
+             }
+                
+        #=======================================================================
+        # # Plot-------
+        #=======================================================================
+        """only setup for 2 indeps now"""
+     #==========================================================================
+     #    if len(df_raw.columns)<=3:
+     #        self.plot_classification(xtrain, ytrain, clf, ax=ax)
+     #        
+     #        ax.set_ylabel(df_raw.drop(ycoln, axis=1).columns[1])
+     #        ax.set_xlabel(df_raw.drop(ycoln, axis=1).columns[0])
+     #        """
+     #        self.plt.show()
+     #        """
+     # 
+     #        self.add_anno({k:'%.2f'%v for k,v in res_d.items() if isinstance(v, float)}, ycoln, ax=ax)
+     #==========================================================================
         
-        #retrieve the color map
-        cmap = plt.cm.get_cmap(name='Paired')
- 
-                    
-        d1 = dict(zip(np.unique(ytrain), range(len(np.unique(ytrain)))))
-        
-        colors_d = {k:cmap(np.linspace(0, 1, len(d1))[i]) for k,i in d1.items()}
-        
-        # point in the mesh [x_min, x_max]x[y_min, y_max].
-        X = df_raw.drop(ycoln, axis=1)
-        x_min, x_max = xtrain[:, 0].min() - 0.5, xtrain[:, 0].max() + 0.5
-        y_min, y_max = xtrain[:, 1].min() - 0.5, xtrain[:, 1].max() + 0.5
-        #h = 10  # step size in the mesh
-        xx, yy = np.meshgrid(np.arange(x_min, x_max, 10), np.arange(y_min, y_max, 1000))
-        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
-        
-        # Put the result into a color plot
-        Z = Z.reshape(xx.shape)
-        self.plt.figure(1, figsize=(6,6))
-        
-        raise Error('stopped here... need to remap colors on to prediction')
-        pd.DataFrame(Z).replace(colors_d)
-        
-        plt.pcolormesh(xx, yy, Z, cmap=cmap)
-        
-        plt.scatter(xtrain[:, 0], xtrain[:, 1], 
-                    #c=ytrain, edgecolors="k", cmap=plt.cm.Paired,
-                    )
- 
- 
+        #=======================================================================
+        # get meta
+        #=======================================================================
         
         if intercept:
  
-            res_d = {
-             'score':clf.score(xtrain, ytrain),
-             'confusion':conf_df,
-             }
- 
-            
-            pfunc = lambda x:clf.predict(x)
+            res_d.update({
+
+             })
+
         else:
             raise IOError('not implemented')
+        
+        pfunc = lambda x, logger=None:self.sk_pfunc(
+            x, clf, intercept=intercept, categoricals=categoricals, ecolns=xdf.columns.tolist(), logger=logger)
+        
+        #=======================================================================
+        # test function
+        #=======================================================================
+        try:
+            pfunc(df_raw.drop(ycoln, axis=1))
+        except Exception as e:
+            raise Error('predictor func for %s failed w/ \n    %s'%(
+                ycoln, e))
+            
+        res_d.update({
+            'pfunc':pfunc, 
+            'confusion':conf_df,
+            'type':'cat',
+            'indep_colns':df_raw.drop(ycoln, axis=1).columns.tolist(),
+
+             })
+             
  
-        return res_d, pfunc
+        return  res_d
+    
+    
+    def sk_pfunc(self,
+                 df_raw,
+                 clf,
+                 intercept=True, #not sure what it means to not have an intercept
+                categoricals=[],
+                ecolns=None,
+                logger=None,
+                ):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('sk_pfunc')
+        
+        assert isinstance(df_raw, pd.DataFrame), 'expects a dataframe'
+        bx = df_raw.isna().any(axis=1)
+        
+        
+        #=======================================================================
+        # transform
+        #=======================================================================
+        xdf = self.sk_transformX(df_raw.loc[~bx, :],
+                            intercept=intercept, categoricals=categoricals)
+        
+        
+        #=======================================================================
+        # check expectations
+        #=======================================================================
+        if not ecolns is None:
+            
+            xar = self.adjust_transform(xdf, ecolns, log).values
+        else:
+            xar = xdf.values
+        
+        yar = clf.predict(xar)
+        
+        rser = pd.Series(yar,index=df_raw[~bx].index)
+        
+        #add empties back
+        if bx.any():
+            rser = pd.concat([rser, 
+                      pd.Series(index=df_raw[bx].index, dtype=rser.dtype)]
+            ).loc[df_raw.index]
+        
+        return rser
         
     
     def add_anno(self,
-            res_d,label, ax=None,
-            xloc=0.1, yloc=0.8,
+            d,label, ax=None,
+            xloc=0.1, yloc=0.8,**kwargs
             ):
 
  
-        astr = '\n'.join(['%s = %.2f'%(k,v) for k,v in res_d.items() if isinstance(v, float)])
+        astr = '\n'.join(['%s = %s'%(k,v) for k,v in d.items()])
         
         anno_obj = ax.text(xloc, yloc,
                            '%s \n%s'%(label, astr),
-                           transform=ax.transAxes, va='center')
+                           transform=ax.transAxes, va='center', **kwargs)
         
         
         return astr
