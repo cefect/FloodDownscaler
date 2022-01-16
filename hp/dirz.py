@@ -29,7 +29,7 @@ seems to only throw during debugging
 
 from hp.exceptions import Error
 
-
+from pathlib import Path
 
 mod_logger = logging.getLogger(__name__)
 """NOTE ON LOGGING
@@ -319,6 +319,19 @@ def url_retrieve(
     log.info('downloaded from %s'%url)
             
     return ofp
+
+def get_dir_size(dirpath,
+                 byteType='MB',
+                 ):
+    
+    assert os.path.exists(dirpath)
+    root_directory = Path(dirpath)
+    
+    
+    kilobytes = sum(f.stat().st_size for f in root_directory.glob('**/*') if f.is_file())
+    
+    return kilobytes*{'MB':0.001}[byteType]
+    
     
     
 if __name__ == '__main__':
