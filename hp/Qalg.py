@@ -56,7 +56,10 @@ class QAlgos(object):
             },
         'EPSG:2950':{
             'EPSG:3979':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
-            }
+            },
+        'EPSG:3347':{
+            'EPSG:2955':'+proj=pipeline +step +inv +proj=lcc +lat_0=63.390675 +lon_0=-91.8666666666667 +lat_1=49 +lat_2=77 +x_0=6200000 +y_0=3000000 +ellps=GRS80 +step +proj=utm +zone=11 +ellps=GRS80',
+            },
 
         }
     
@@ -83,9 +86,11 @@ class QAlgos(object):
                     'q1': 11, 'q3': 12, 'iqr': 13, 'empty': 14, 'filled': 15, 'min_length': 16, 'max_length': 17, 'mean_length': 18}
     
     raster_dtype_d={'Float32':5}
+    field_dtype_d = {'Float':0,'Integer':1,'String':2,'Date':3}
     
     selectionMeth_d =  {'new':0, 'add':1, 'subselection':2, }
-
+    
+    
     
     def __init__(self, 
                  inher_d = {},
@@ -422,7 +427,7 @@ class QAlgos(object):
                   'OUTPUT' : output}
         
         log.debug('executing \'%s\' on \'%s\' with: \n     %s'
-            %(algo_nm, vlay.name(), ins_d))
+            %(algo_nm, vlay, ins_d))
             
         #===========================================================================
         # #execute
@@ -883,6 +888,9 @@ class QAlgos(object):
         algo_nm = 'native:renametablefield'
         log = logger.getChild('renameField')
  
+        if isinstance(vlay, QgsVectorLayer):
+            assert old_fn in [f.name() for f in vlay.fields()], \
+                'requseted fieldName \'%s\' not in \'%s\''%(old_fn, vlay.name())
         
  
         ins_d = { 'FIELD' : old_fn, 'NEW_NAME' : new_fn,
@@ -1042,6 +1050,35 @@ class QAlgos(object):
  
         res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
         mstore.removeAllMapLayers()
+        return res_d['OUTPUT']
+    
+    def fieldcalculator(self,
+            vlay,
+            formula_str,
+            fieldName = 'new_field',
+            fieldType = 'String',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:fieldcalculator'
+        log = logger.getChild('fieldcalculator')
+
+        ins_d = { 'FIELD_LENGTH' : 0,  'FIELD_PRECISION' : 0, 
+                 'FIELD_NAME' : fieldName,
+                 'FIELD_TYPE' : self.field_dtype_d[fieldType], 
+                 'FORMULA' : formula_str, 
+                 'INPUT' : vlay,
+                 'OUTPUT' : output }
+        
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
         return res_d['OUTPUT']
     
     #===========================================================================
@@ -1223,7 +1260,7 @@ class QAlgos(object):
         #=======================================================================
         algo_nm = 'qgis:deletecolumn'
         if logger is None: logger=self.logger
-        #log = logger.getChild('createspatialindex')
+        log = logger.getChild('deletecolumn')
 
         
         assert isinstance(fields_l, list)
@@ -1242,7 +1279,7 @@ class QAlgos(object):
                  'INPUT' : main_input,
                     'OUTPUT' : output }
         
-        #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
         
@@ -1876,6 +1913,8 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+
     
     #===========================================================================
     # GRASS--------

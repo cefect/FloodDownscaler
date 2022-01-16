@@ -254,7 +254,7 @@ class Qproj(QAlgos, Basic):
         
         try:
             
-            QgsApplication.setPrefixPath(r'C:/OSGeo4W64/apps/qgis-ltr', True)
+            QgsApplication.setPrefixPath(r'C:/OSGeo4W/apps/qgis-ltr', True)
             
             app = QgsApplication([], gui)
 
@@ -345,7 +345,7 @@ class Qproj(QAlgos, Basic):
         fileEncoding = "CP1250", 
         opts = QgsVectorFileWriter.SaveVectorOptions(), #empty options object
         overwrite=None,
-        logger=mod_logger):
+        logger=None):
         """
         help(QgsVectorFileWriter.SaveVectorOptions)
         QgsVectorFileWriter.SaveVectorOptions.driverName='GPKG'
@@ -360,6 +360,7 @@ class Qproj(QAlgos, Basic):
         #==========================================================================
         # defaults
         #==========================================================================
+        if logger is None: logger=self.logger
         log = logger.getChild('vlay_write')
         if overwrite is None: overwrite=self.overwrite
  
