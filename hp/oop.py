@@ -50,12 +50,10 @@ class Basic(object): #simple base class
                  
                  #names/labels
                  name           = None, #task or function-based name ('e.g., Clean). nice to capitalize
-                 tag            = None, #session or run name (e.g., 0402)
-                 mod_name       = 'oop',
-                 layName_pfx    =None,
+                 tag            = None, #session or run name (e.g., 0402) 
+                 longname       = None,
                  
                  #inheritancee
-                 inher_d        = {}, #container of inheritance pars
                  session        = None,
                  
                  #controls
@@ -79,7 +77,7 @@ class Basic(object): #simple base class
         #=======================================================================
         self.session=session
         self.work_dir=work_dir
-        self.mod_name=mod_name
+ 
         self.overwrite=overwrite
         self.prec=prec
         
@@ -91,13 +89,7 @@ class Basic(object): #simple base class
         self.name=name
         
  
-        #potential inheritance handles
-        """see note at script head""" 
-        self.inher_d = {**inher_d, #add all thosefrom parents 
-                        **{'Basic':[ #add the basic
-                            'work_dir', 'mod_name', 'overwrite']}, 
-                        }
-        
+ 
  
  
         # run tag
@@ -107,11 +99,11 @@ class Basic(object): #simple base class
         self.tag=tag
  
         # labels
-        if layName_pfx is None:
-            layName_pfx = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
+        if longname is None:
+            longname = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
                 
-        self.layName_pfx = layName_pfx
-        self.resname = layName_pfx #consistnecy w/ CanFlood
+        self.longname = longname
+ 
 
         #=======================================================================
         # output directory
@@ -169,52 +161,13 @@ class Basic(object): #simple base class
         #=======================================================================
         # wrap
         #=======================================================================
-        d = dict()
-        for attn in ['name','tag','out_dir','prec','layName_pfx','session','mod_name','overwrite']:
-            assert hasattr(self, attn), attn
-            attv = getattr(self, attn)
  
-            d[attn] = attv
             
-        self._install_info()
+        #self._install_info()
         
-        self.logger.debug('finished Basic.__init__ w/ \n    %s'%d)
+        self.logger.debug('finished Basic.__init__ ')
         
-    def get_inher_atts(self, #return a container with the attribute values from your inher_d
-                       inher_d=None,
-                       logger=None,
-                       ):
-        """used by parents to retrieve kwargs to pass to children"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('get_inher_atts')
-        if inher_d is None:
-            inher_d = self.inher_d
-            
-        #=======================================================================
-        # retrieve
-        #=======================================================================
-        att_d = dict()
- 
-        
-        for className, attn_l in inher_d.items():
-            d = dict()
-            for attn in attn_l:
-                attv = getattr(self, attn)
-                #assert not attv is None, attn #allowing Nones to pass
-                
-                att_d[attn] = attv
-                d[attn] = attv
-                
-            log.debug('got %i atts from \'%s\'\n    %s'%(
-                len(d), className, d))
-        
-        return att_d
-            
-        
-        
+
     def _install_info(self,
                          log = None): #print version info
         if log is None: log = self.logger
