@@ -23,7 +23,7 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 
-import os, sys, datetime, gc, copy
+import os, sys, datetime, gc, copy, pickle
 
 from hp.dirz import delete_dir
 
@@ -218,6 +218,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                              #default handles for building data sets {dkey: {'compiled':callable, 'build':callable}}
                             #all callables are of the form func(**kwargs)
                             #see self._retrieve2()
+                            
+                wrk_dir=None, #output for working/intermediate files
 
                 **kwargs):
         
@@ -248,6 +250,18 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.bk_lib=bk_lib
         self.compiled_fp_d = compiled_fp_d
         
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if wrk_dir is None:
+            wrk_dir = os.path.join(self.out_dir, 'working')
+        
+        if not os.path.exists(wrk_dir):
+            os.makedirs(wrk_dir)
+            
+        self.wrk_dir = wrk_dir
+        
+        
     def retrieve(self, #flexible 3 source data retrival
                  dkey,
                  *args,
@@ -256,7 +270,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                  ):
         
         if logger is None: logger=self.logger
-        log = logger.getChild('_retrieve2')
+        log = logger.getChild('retrieve')
         
 
         
@@ -304,9 +318,19 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         self.data_d[dkey] = data
             
-        log.info('finished on \'%s\' w/ %i'%(dkey, len(data)))
+        log.info('finished on \'%s\' w/ len=%i dtype=%s'%(dkey, len(data), type(data)))
         
         return data
+    
+    def load_pick(self,
+                  fp=None):
+        assert os.path.exists(fp)
+        
+        with open(fp, 'rb') as f:
+            data = pickle.load(f)
+            
+        return data
+        
     
     
     def __exit__(self, #destructor

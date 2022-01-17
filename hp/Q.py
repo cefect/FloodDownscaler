@@ -133,15 +133,13 @@ class Qproj(QAlgos, Basic):
                  
                  #inheritance
                  session            =None, #parent session for child mode
-                 inher_d            = {},
+ 
                  **kwargs):
 
  
  
         #init cascade
         super().__init__(session=session,
-            inher_d = {**inher_d,
-                **{'Qproj':['compress',  'aoi_vlay', ]}},
             
             **kwargs) #initilzie teh baseclass
         
@@ -880,7 +878,7 @@ class Qproj(QAlgos, Basic):
         
         assert isinstance(vlay, QgsVectorLayer)
         assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
-        assert vlay.dataProvider().featureCount()==1, 'got multiple features'
+        assert vlay.dataProvider().featureCount()==1, 'got bad feature count on aoi \'%s\''%vlay.name()
         assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
         
         return 

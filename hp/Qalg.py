@@ -91,15 +91,7 @@ class QAlgos(object):
     selectionMeth_d =  {'new':0, 'add':1, 'subselection':2, }
     
     
-    
-    def __init__(self, 
-                 inher_d = {},
-                 **kwargs):
-        
-        super().__init__(  #initilzie teh baseclassass
-            inher_d = {**inher_d,
-                **{'QAlgos':[]}},
-                        **kwargs) 
+
         
         
     def _init_algos(self,
@@ -1080,6 +1072,38 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+    def addautoincrement(self,
+            vlay,
+            fieldName='id',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:addautoincrementalfield'
+        log = logger.getChild('addautoincrementalfield')
+        
+        
+        
+        ins_d = { 'FIELD_NAME' : fieldName, 'GROUP_FIELDS' : [],
+          'INPUT' : vlay, 
+          'MODULUS' : 0,
+          'OUTPUT' : output, 
+          'SORT_ASCENDING' : True, 
+          'SORT_EXPRESSION' : '', 
+          'SORT_NULLS_FIRST' : False, 
+          'START' : 0 }
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+ 
     
     #===========================================================================
     # QGIS--------
