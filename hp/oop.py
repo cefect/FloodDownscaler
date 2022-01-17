@@ -37,9 +37,6 @@ from hp.exceptions import Error
 #===============================================================================
 
 class Basic(object): #simple base class
-    
- 
-    
     def __init__(self, 
 
                  
@@ -199,35 +196,7 @@ class Basic(object): #simple base class
     def __exit__(self, #destructor
              *args,**kwargs):
         
-        #print('opp.__exit__ on \'%s\''%self.__class__.__name__)
-        
 
-        
-        #gc.collect()
-        #=======================================================================
-        # #remove temporary files
-        #=======================================================================
-        """this fails pretty often... python doesnt seem to want to let go"""
-        for fp in self.trash_fps:
-            if not os.path.exists(fp): continue #ddeleted already
-            try:
-                if os.path.isdir(fp):
-                    delete_dir(fp)
-                else:
-                    os.remove(fp)
-                #print('    deleted %s'%fp)
-            except Exception as e:
-                pass
-                #print('failed to delete \n    %s \n    %s'%(fp, e))
-        
-        #=======================================================================
-        # remporary directory
-        #=======================================================================
-        try:
-            delete_dir(self.temp_dir)
-        except:
-            pass
-        
     
         #clear all my attriburtes
         for k in copy.copy(list(self.__dict__.keys())):
@@ -236,16 +205,129 @@ class Basic(object): #simple base class
         
         
                 
+class Session(Basic): #analysis with flexible loading of intermediate results
+    
+    data_d = dict() #datafiles loaded this session
+    
+    ofp_d = dict() #output filepaths generated this session
+    
+    def __init__(self, 
+                 bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
+                 compiled_fp_d = dict(), #container for compiled (intermediate) results {dkey:filepath}
+                 data_retrieve_hndls=None, #data retrival handles
+                             #default handles for building data sets {dkey: {'compiled':callable, 'build':callable}}
+                            #all callables are of the form func(**kwargs)
+                            #see self._retrieve2()
+
+                **kwargs):
         
+        assert isinstance(data_retrieve_hndls, dict), 'must past data retrival handles'
+        
+        
+        super().__init__(**kwargs)
+        
+        
+        #=======================================================================
+        # retrival handles---------
+        #=======================================================================
+                    
+            
+        self.data_retrieve_hndls=data_retrieve_hndls
+        
+        #check keys
+        keys = self.data_retrieve_hndls.keys()
+        if len(keys)>0:
+            l = set(bk_lib.keys()).difference(keys)
+            assert len(l)==0, 'keymismatch on bk_lib \n    %s'%l
+            
+            l = set(compiled_fp_d.keys()).difference(keys)
+            assert len(l)==0, 'keymismatch on compiled_fp_d \n    %s'%l
+            
+            
+        #attach    
+        self.bk_lib=bk_lib
+        self.compiled_fp_d = compiled_fp_d
+        
+    def retrieve(self, #flexible 3 source data retrival
+                 dkey,
+                 *args,
+                 logger=None,
+                 **kwargs
+                 ):
+        
+        if logger is None: logger=self.logger
+        log = logger.getChild('_retrieve2')
+        
+
+        
+        #=======================================================================
+        # 1.alredy loaded
+        #=======================================================================
+        if dkey in self.data_d:
+            return self.data_d[dkey]
+        
+        #=======================================================================
+        # retrieve handles
+        #=======================================================================
+        log.info('loading %s'%dkey)
+                
+        assert dkey in self.data_retrieve_hndls, dkey
+        
+        hndl_d = self.data_retrieve_hndls[dkey]
+        
+        #=======================================================================
+        # 2.compiled provided
+        #=======================================================================
+        if dkey in self.compiled_fp_d and 'compiled' in hndl_d:
+            data = hndl_d['compiled'](fp=self.compiled_fp_d[dkey])
+ 
+        #=======================================================================
+        # 3.build from scratch
+        #=======================================================================
+        else:
+            assert 'build' in hndl_d, 'no build handles for %s'%dkey
+            if dkey in self.bk_lib:
+                bkwargs=self.bk_lib[dkey].copy()
+                bkwargs.update(kwargs) #function kwargs take precident
+                kwargs = bkwargs
+                """
+                clearer to the user
+                also gives us more control for calls within calls
+                """
+                
+            
+            
+            data = hndl_d['build'](*args, dkey=dkey, **kwargs)
+            
+        #=======================================================================
+        # store
+        #=======================================================================
+        self.data_d[dkey] = data
+            
+        log.info('finished on \'%s\' w/ %i'%(dkey, len(data)))
+        
+        return data
     
     
-    
-    
-    
-    
-    
-    
-    
+    def __exit__(self, #destructor
+                 *args, **kwargs):
+        
+        print('WF_retriev.__exit__ on \'%s\''%self.__class__.__name__)
+        
+        #=======================================================================
+        # log major containers
+        #=======================================================================
+        print('__exit__ w/ data_d.keys(): %s'%(list(self.data_d.keys())))
+        
+        if len(self.ofp_d)>0:
+            print('__exit__ with %i ofp_d:'%len(self.ofp_d))
+            for k,v in self.ofp_d.items():
+                print('    \'%s\':r\'%s\','%(k,v))
+              
+              
+        
+        
+        super().__exit__(*args, **kwargs)
     
     
     
