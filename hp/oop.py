@@ -211,6 +211,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     
     ofp_d = dict() #output filepaths generated this session
     
+    
+    
     def __init__(self, 
                  bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
                  compiled_fp_d = dict(), #container for compiled (intermediate) results {dkey:filepath}
@@ -250,6 +252,12 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.bk_lib=bk_lib
         self.compiled_fp_d = compiled_fp_d
         
+        
+        #start meta
+        self.dk_meta_d = {k:dict() for k in keys}
+ 
+            
+        
         #=======================================================================
         # defaults
         #=======================================================================
@@ -273,7 +281,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         log = logger.getChild('retrieve')
         
 
-        
+        start = datetime.datetime.now()
         #=======================================================================
         # 1.alredy loaded
         #=======================================================================
@@ -292,9 +300,10 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # 2.compiled provided
         #=======================================================================
-        if dkey in self.compiled_fp_d and 'compiled' in hndl_d:
-            data = hndl_d['compiled'](fp=self.compiled_fp_d[dkey])
  
+        if dkey in self.compiled_fp_d and 'compiled' in hndl_d:
+            data = hndl_d['compiled'](fp=self.compiled_fp_d[dkey], dkey=dkey)
+            method='loaded pre-compiled from %s'%self.compiled_fp_d[dkey]
         #=======================================================================
         # 3.build from scratch
         #=======================================================================
@@ -313,23 +322,68 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             
             data = hndl_d['build'](*args, dkey=dkey, **kwargs)
             
+            method='built w/ %s'%kwargs
+            
         #=======================================================================
         # store
         #=======================================================================
+        assert data is not None, '\'%s\' got None'%dkey
+        assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey
         self.data_d[dkey] = data
+        
+        tdelta = round((datetime.datetime.now() - start).total_seconds(), 1)
             
+        self.dk_meta_d[dkey].update({
+            'tdelta (secs)':tdelta, 'dtype':type(data), 'len':len(data), 'method':method})
+        #=======================================================================
+        # wrap
+        #=======================================================================
         log.info('finished on \'%s\' w/ len=%i dtype=%s'%(dkey, len(data), type(data)))
         
         return data
     
     def load_pick(self,
-                  fp=None):
+                  fp=None, 
+                  dkey=None,
+                  ):
+        
         assert os.path.exists(fp)
         
         with open(fp, 'rb') as f:
             data = pickle.load(f)
             
         return data
+    
+    def write_pick(self, data, out_fp,
+                   overwrite=None,
+                   protocol = 3, # added in Python 3.0. It has explicit support for bytes
+                   logger=None):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('write_pick')
+        if overwrite is None: overwrite=self.overwrite
+        
+        #=======================================================================
+        # checks
+        #=======================================================================
+        
+        if os.path.exists(out_fp):
+            assert overwrite, out_fp
+            
+        assert out_fp.endswith('.pickle')
+            
+        log.debug('writing to %s'%out_fp)
+        
+        with open(out_fp,  'wb') as f:
+            pickle.dump(data, f, protocol)
+        
+        log.info('wrote %i to %s'%(len(data), out_fp))
+            
+        
+        return out_fp
         
     
     
@@ -341,7 +395,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # log major containers
         #=======================================================================
-        print('__exit__ w/ data_d.keys(): %s'%(list(self.data_d.keys())))
+        if len(self.data_d)>0:
+            print('__exit__ w/ data_d.keys(): %s'%(list(self.data_d.keys())))
         
         if len(self.ofp_d)>0:
             print('__exit__ with %i ofp_d:'%len(self.ofp_d))
