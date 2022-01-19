@@ -285,6 +285,9 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # 1.alredy loaded
         #=======================================================================
+        """
+        self.data_d.keys()
+        """
         if dkey in self.data_d:
             return self.data_d[dkey]
         
