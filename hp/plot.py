@@ -71,8 +71,7 @@ class Plotr(Basic):
     
     def __init__(self,
 
-
-                 impStyle_d=None,
+ 
                  
                  #init controls
                  init_plt_d = {}, #container of initilzied objects
@@ -120,7 +119,9 @@ class Plotr(Basic):
         self.h_alpha    =h_alpha
         
         #init matplotlib
-        if len(init_plt_d)==0:
+        if init_plt_d is None:
+            pass
+        elif len(init_plt_d)==0:
             self.init_plt_d = self._init_plt() #setup matplotlib
         else:
             for k,v in init_plt_d.items():
@@ -314,17 +315,22 @@ class Plotr(Basic):
                        col_keys, #column labels for axis
                        
                        fig_id=0,
-                       figsize=None,
+                       figsize=None, #None: calc using figsize_scaler if present
+                       figsize_scaler=None,
                         tight_layout=False,
-                        constrained_layout=True
-                        
-                       ):
+                        constrained_layout=True,
+                        set_ax_title=False, #add simple axis titles to each subplot
+                        **kwargs):
         
         
         #=======================================================================
         # defautls
         #=======================================================================
-        if figsize is None: figsize=self.figsize
+        if figsize is None: 
+            if figsize_scaler is None:
+                figsize=self.figsize
+            else:
+                figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
         
         #=======================================================================
         # precheck
@@ -338,10 +344,11 @@ class Plotr(Basic):
         fig = self.plt.figure(fig_id,
             figsize=figsize,
             tight_layout=tight_layout,
-            constrained_layout=constrained_layout)
+            constrained_layout=constrained_layout,
+            )
         
         # populate with subplots
-        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys))
+        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys), **kwargs)
         
         #convert to array
         if not isinstance(ax_ar, np.ndarray):
@@ -359,6 +366,9 @@ class Plotr(Basic):
             ax_d[row_keys[i]]=dict()
             for j, ax in enumerate(row_ar.T):
                 ax_d[row_keys[i]][col_keys[j]]=ax
+                
+                if set_ax_title:
+                    ax.set_title('%s.%s'%(row_keys[i], col_keys[j]))
                 
             
  
