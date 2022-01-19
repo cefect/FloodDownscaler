@@ -1146,6 +1146,46 @@ class Qproj(QAlgos, Basic):
         
         return vlay
     
+    def vlay_field_astype(self, 
+                          vlay_raw, fieldName, 
+                          fieldType='Integer',
+                          logger=None):
+        """workaroudn for 'Refactor Field' algo"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('vlay_field_astype')
+        mstore = QgsMapLayerStore()
+        mstore.addMapLayer(vlay_raw)
+        #=======================================================================
+        # rename old field
+        #=======================================================================
+        tempFieldName = 'tempFieldName'
+        vlay1 = self.renameField(vlay_raw, fieldName, tempFieldName, logger=log)
+        mstore.addMapLayer(vlay1)
+        #=======================================================================
+        # use the values from teh old for the new field
+        #=======================================================================
+        vlay2 = self.fieldcalculator(vlay1,'\"{}\"'.format(tempFieldName), fieldName=fieldName, 
+                             fieldType=fieldType, logger=log)
+        mstore.addMapLayer(vlay2)
+        #=======================================================================
+        # drop old field
+        #=======================================================================
+        vlay3 = self.deletecolumn(vlay2, [tempFieldName], logger=log)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert vlay_dtypes(vlay3)[fieldName]==fieldType.lower()
+        
+        log.info('finished refactoring \'%s\' as \'%s\''%(fieldName, fieldType))
+        mstore.removeAllMapLayers()
+ 
+        return vlay3
+ 
+    
     def vlay_poly_tarea(self,#get the total area of polygons within the layer
         vlay_raw,
         logger=None):
@@ -1826,6 +1866,10 @@ class MyFeedBackQ(QgsProcessingFeedback):
 #===============================================================================
 # standalone funcs--------
 #===============================================================================
+
+def vlay_dtypes(
+        vlay):
+    return {f.name():f.typeName() for f in vlay.fields()}
 
 def vlay_get_fdf( #pull all the feature data and place into a df
                     vlay,
