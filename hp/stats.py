@@ -361,7 +361,7 @@ class SimpleRegression(Plotr):
                 ycoln,
                 intercept=True, #whether to predict an intercept (or assume y0=0)
                 categoricals=[],
-                
+                logger=None,
 
                ):
         """
@@ -370,8 +370,8 @@ class SimpleRegression(Plotr):
         and of the observations
         documentation is bad
         """
-        
-        log = self.logger.getChild('sm_linregres')
+        if logger is None: logger=self.logger
+        log = logger.getChild('sm_linregres')
         
         #=======================================================================
         # prep the data
@@ -382,6 +382,9 @@ class SimpleRegression(Plotr):
  
         
         xtrain = self.sm_transformX(df_train.drop(ycoln, axis=1), intercept=intercept, categoricals=categoricals)
+        """
+        view(xtrain)
+        """
         
         #=======================================================================
         # #init the model
@@ -403,6 +406,9 @@ class SimpleRegression(Plotr):
         # buidl results
         #=======================================================================
         if intercept:
+            """???"""
+            if not 'const' in regRes.params:
+                raise Error('missing param?')
             res_d = {
              'intercept':regRes.params['const'],
              'slope':regRes.params.drop('const'),

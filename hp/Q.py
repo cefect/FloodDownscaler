@@ -919,7 +919,10 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # index fix
         #=======================================================================
-        df = df_raw.copy()
+        df = df_raw.infer_objects()
+        """
+        df.dtypes
+        """
         
         if index:
             if not df.index.name is None:
@@ -983,7 +986,7 @@ class Qproj(QAlgos, Basic):
                 try:
                     df.loc[:, coln] = col.str.slice(stop=40)
                 except Exception as e:
-                    log.error('failed to slice strings on coln \'%s\' %s'%(coln, col.dtype))
+                    log.error('failed to slice strings on coln \'%s\' %s w/\n    %s'%(coln, col.dtype, e))
 
         #===========================================================================
         # assemble the fields
