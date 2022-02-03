@@ -357,7 +357,9 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             
         return data
     
-    def write_pick(self, data, out_fp,
+    def write_pick(self, 
+                   data, 
+                   out_fp,
                    overwrite=None,
                    protocol = 3, # added in Python 3.0. It has explicit support for bytes
                    logger=None):
