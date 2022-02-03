@@ -187,12 +187,24 @@ def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
     
     return ar_raw
 
+def getRasterMetadata(fp):
+    assert os.path.exists(fp)
     
+    dataset = gdal.OpenEx(fp)
     
+    md = copy.copy(dataset.GetMetadata('IMAGE_STRUCTURE'))
     
-            
-            
-            
+    del dataset
+    
+    return md
+    
+def getRasterCompression(fp):
+    md = getRasterMetadata(fp)
+    
+    if not 'COMPRESSION' in md:
+        return None
+    else:
+        return md['COMPRESSION']   
             
             
             

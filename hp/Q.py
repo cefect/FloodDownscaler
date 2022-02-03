@@ -310,7 +310,7 @@ class Qproj(QAlgos, Basic):
                 
         self.vlay_drivers = vlay_drivers
         
-        self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
+        #self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
         
         return
         
@@ -328,7 +328,7 @@ class Qproj(QAlgos, Basic):
         assert not self.feedback is None
         
  
-        log.debug('project passed all checks')
+        #log.debug('project passed all checks')
         
         return True
     
@@ -385,7 +385,7 @@ class Qproj(QAlgos, Basic):
                 try:
                     os.remove(out_fp) #workaround... should be away to overwrite with the QgsVectorFileWriter
                 except Exception as e:
-                    log.error('failed to remove w/ %s... ammmending filename')
+                    log.error('failed to remove w/ %s... ammmending filename'%out_fp)
                     out_fp = fhead+'_exists' + ext
             else:
                 raise Error(msg)
@@ -917,7 +917,10 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # index fix
         #=======================================================================
-        df = df_raw.copy()
+        df = df_raw.infer_objects()
+        """
+        df.dtypes
+        """
         
         if index:
             if not df.index.name is None:
@@ -981,7 +984,7 @@ class Qproj(QAlgos, Basic):
                 try:
                     df.loc[:, coln] = col.str.slice(stop=40)
                 except Exception as e:
-                    log.error('failed to slice strings on coln \'%s\' %s'%(coln, col.dtype))
+                    log.error('failed to slice strings on coln \'%s\' %s w/\n    %s'%(coln, col.dtype, e))
 
         #===========================================================================
         # assemble the fields
@@ -1666,6 +1669,9 @@ class Qproj(QAlgos, Basic):
             rlay,
             '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
             **kwargs)
+        
+  
+        
     #===========================================================================
     # HELPERS---------
     #===========================================================================
@@ -1864,7 +1870,7 @@ class MyFeedBackQ(QgsProcessingFeedback):
         
 
 #===============================================================================
-# standalone funcs--------
+# VLAY helpers--------
 #===============================================================================
 
 def vlay_dtypes(
