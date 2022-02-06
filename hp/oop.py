@@ -312,6 +312,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         else:
             assert 'build' in hndl_d, 'no build handles for %s'%dkey
+            
+            #retrieve builder kwargs
             if dkey in self.bk_lib:
                 bkwargs=self.bk_lib[dkey].copy()
                 bkwargs.update(kwargs) #function kwargs take precident

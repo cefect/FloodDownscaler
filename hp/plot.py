@@ -391,7 +391,7 @@ class Plotr(Basic):
                    #figure write controls
                  fmt='svg', 
                   transparent=False, 
-                  dpi = 150,
+                  dpi = 300,
                   logger=None,
                   ):
         #======================================================================
