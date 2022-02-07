@@ -352,7 +352,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                   dkey=None,
                   ):
         
-        assert os.path.exists(fp)
+        assert os.path.exists(fp), 'bad fp for \'%s\' \n    %s'%(dkey, fp)
         
         with open(fp, 'rb') as f:
             data = pickle.load(f)

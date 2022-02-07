@@ -312,7 +312,7 @@ class Plotr(Basic):
     
     def get_matrix_fig(self, #conveneince for getting a matrix plot with consistent object access
                        row_keys, #row labels for axis
-                       col_keys, #column labels for axis
+                       col_keys, #column labels for axis (1 per column)
                        
                        fig_id=0,
                        figsize=None, #None: calc using figsize_scaler if present
