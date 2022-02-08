@@ -27,6 +27,8 @@ from hp.exceptions import Error
 from hp.pd import view
 from hp.oop import Basic
 
+import matplotlib
+
 
 class Plotr(Basic):
     
@@ -82,6 +84,7 @@ class Plotr(Basic):
                   
                   #figure parametrs
                 figsize     = (6.5, 4), 
+                transparent = False,
                     
                 #hatch pars
                     hatch =  None,
@@ -117,6 +120,7 @@ class Plotr(Basic):
         self.hatch    =hatch
         self.h_color    =h_color
         self.h_alpha    =h_alpha
+        self.transparent=transparent
         
         #init matplotlib
         if init_plt_d is None:
@@ -390,7 +394,7 @@ class Plotr(Basic):
                    
                    #figure write controls
                  fmt='svg', 
-                  transparent=False, 
+                  transparent=None, 
                   dpi = 300,
                   logger=None,
                   ):
@@ -402,12 +406,14 @@ class Plotr(Basic):
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
+        if transparent is None: transparent=self.transparent
+        
         if not os.path.exists(out_dir):os.makedirs(out_dir)
         #=======================================================================
         # precheck
         #=======================================================================
         
-        assert isinstance(fig, self.matplotlib.figure.Figure)
+        assert isinstance(fig, matplotlib.figure.Figure)
         log.debug('on %s'%fig)
         #======================================================================
         # output
