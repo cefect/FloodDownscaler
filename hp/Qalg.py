@@ -519,11 +519,7 @@ class QAlgos(object):
                              allow_none = False,
                              output='TEMPORARY_OUTPUT',
                              ): 
-        """
-        TODO: add these intermediate layers to the store
-        """
-        
-        
+ 
         #===========================================================================
         # setups and defaults
         #===========================================================================
