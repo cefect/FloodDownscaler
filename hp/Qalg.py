@@ -1100,7 +1100,42 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
  
+    def zonalstatistics(self,
+            vlay, #polygon zones 
+            rlay, #raster to sample
+            pfx='samp_',
+            stats = [0, 1, 2],
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:zonalstatisticsfb'
+        log = logger.getChild('zonalstatistics')
+        
+        assert isinstance(stats, list)
+        #=======================================================================
+        # prep
+        #=======================================================================
+        stats_d = {0:'Count',1:'Sum',2:'Mean',3:'Median',4:'St. dev.',5:'Minimum',6:'Maximum',7:'Range',8:'Minority',9:'Majority',10:'Variety',11:'Variance'}
+        
+        
+        ins_d = {       'COLUMN_PREFIX':pfx, 
+                            'INPUT_RASTER':rlay, 
+                            'INPUT':vlay, 
+                            'RASTER_BAND':1, 
+                            'STATISTICS':stats,#0: pixel counts, 1: sum
+                            'OUTPUT' : output,
+                            }
     
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1284,7 +1319,7 @@ class QAlgos(object):
         if logger is None: logger=self.logger
         log = logger.getChild('deletecolumn')
 
-        
+        assert len(fields_l)>0
         assert isinstance(fields_l, list)
         #=======================================================================
         # assemble pars
@@ -1294,7 +1329,7 @@ class QAlgos(object):
         else:
             main_input=vlay
             
-        
+        assert isinstance(fields_l,  list), 'bad type on fields_l: %s'%type(fields_l)
         
         #assemble pars
         ins_d = { 'COLUMN' : fields_l, 
