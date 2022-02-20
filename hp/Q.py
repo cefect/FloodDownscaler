@@ -111,11 +111,8 @@ class Qproj(QAlgos, Basic):
     """
     common methods for Qgis projects
     """
-    
  
-    
-    driverName = 'SpatiaLite' #default data creation driver type
-    out_dName = driverName #default output driver/file type
+ 
     
     aoi_vlay=None
     
@@ -129,7 +126,9 @@ class Qproj(QAlgos, Basic):
                  aoi_set_proj_crs   = False, #force hte project crs from the aoi
                  aoi_vlay           = None,
                  
+                 #defaults
                  compress           ='med', #raster compression default
+                 driverName         ='GPKG', #default writing for vectorl ayers
                  
                  #inheritance
                  session            =None, #parent session for child mode
@@ -147,7 +146,7 @@ class Qproj(QAlgos, Basic):
         # attach
         #=======================================================================
         self.compress=compress
-        
+        self.driverName=driverName
         #=======================================================================
         # setup qgis
         #=======================================================================
@@ -199,7 +198,7 @@ class Qproj(QAlgos, Basic):
                 raise Error('not letting crs pass to children')
             
             for attn in [
-                'qap',  'qproj', 'vlay_drivers', 'feedback','context',
+                'qap',  'qproj', 'vlay_drivers', 'feedback','context','driverName', 'compress'
                 ]:
                 val = getattr(session, attn) #retrieve
                 assert not val is None, attn
@@ -322,8 +321,7 @@ class Qproj(QAlgos, Basic):
         if not self.driverName in self.vlay_drivers:
             raise Error('unrecognized driver name')
         
-        if not self.out_dName in self.vlay_drivers:
-            raise Error('unrecognized driver name')
+ 
  
         assert not self.feedback is None
         
@@ -337,9 +335,10 @@ class Qproj(QAlgos, Basic):
     #===========================================================================
     
     def vlay_write(self, #write  a VectorLayer
-        vlay, out_fp, 
+        vlay, 
+        out_fp, #output filepath (if an extension is passed, this is checekd) 
 
-        driverName='GPKG',
+        driverName=None,
         fileEncoding = "CP1250", 
         opts = QgsVectorFileWriter.SaveVectorOptions(), #empty options object
         overwrite=None,
@@ -361,22 +360,28 @@ class Qproj(QAlgos, Basic):
         if logger is None: logger=self.logger
         log = logger.getChild('vlay_write')
         if overwrite is None: overwrite=self.overwrite
- 
+        if driverName is None: driverName=self.driverName
         #===========================================================================
         # assemble options
         #===========================================================================
         opts.driverName = driverName
         opts.fileEncoding = fileEncoding
 
+        
+        
         #===========================================================================
-        # checks
+        # handle filespaths
         #===========================================================================
+        ext = self.vlay_drivers[driverName]
         #file extension
-        fhead, ext = os.path.splitext(out_fp)
+        fhead, raw_ext = os.path.splitext(out_fp)
         
-        if not 'gpkg' in ext:
-            raise Error('unexpected extension: %s'%ext)
-        
+        if not raw_ext == '':
+            assert raw_ext==ext, 'passed extension (%s) does not match driverName (%s)'%(raw_ext, ext)
+            
+        out_fp = fhead +'.'+ ext
+ 
+        #overwrite check
         if os.path.exists(out_fp):
             msg = 'requested file path already exists!. overwrite=%s \n    %s'%(
                 overwrite, out_fp)
@@ -389,8 +394,14 @@ class Qproj(QAlgos, Basic):
                     out_fp = fhead+'_exists' + ext
             else:
                 raise Error(msg)
-            
         
+        #base directory
+        base_dir = os.path.dirname(out_fp)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        #=======================================================================
+        # check data
+        #=======================================================================
         if vlay.dataProvider().featureCount() == 0:
             raise Error('\'%s\' has no features!'%(
                 vlay.name()))
@@ -1902,6 +1913,7 @@ def vlay_get_fdf( #pull all the feature data and place into a df
     performance improvement
     
     Warning: requests with getFeatures arent working as expected for memory layers
+    Warning: unexepected loading/unloading behaviors for non-geopackages
     
     this could be combined with vlay_get_feats()
     also see vlay_get_fdata() (for a single column)
