@@ -1745,7 +1745,18 @@ class Qproj(QAlgos, Basic):
         
         
         super()._install_info(**kwargs) #initilzie teh baseclass
+        
+    def _get_meta(self):
+        d = super()._get_meta()
  
+        d['crs'] = self.qproj.crs().authid()
+        if not self.aoi_vlay is None:
+            d['aoi_vlay'] = self.aoi_vlay.name()
+            
+        d['QGIS_VERSION'] = Qgis.QGIS_VERSION.encode('utf-8')
+        d['QGIS_RELEASE'] = Qgis.QGIS_RELEASE_NAME.encode('utf-8')
+            
+        return d
  
     def __exit__(self, #destructor
                  *args,**kwargs):

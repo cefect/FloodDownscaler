@@ -23,13 +23,15 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 
-import os, sys, datetime, gc, copy, pickle
+import os, sys, datetime, gc, copy, pickle, pprint
 
 from hp.dirz import delete_dir
 
 from hp.exceptions import Error
 
-
+import numpy as np
+import pandas as pd
+ 
  
 
 #===============================================================================
@@ -169,23 +171,23 @@ class Basic(object): #simple base class
                          log = None): #print version info
         if log is None: log = self.logger
         
-        #verison info
-        
-        log.info('main python version: \n    %s'%sys.version)
-        import numpy as np
-        log.info('numpy version: %s'%np.__version__)
-        import pandas as pd
-        log.info('pandas version: %s'%(pd.__version__))
-        
-        #directory info
-        log.info('os.getcwd: %s'%os.getcwd())
-        
-        log.info('exe: %s'%sys.executable)
-
+ 
+        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
+             'exe':sys.executable}
+ 
+        txt = pprint.PrettyPrinter(indent=4).pformat(d)
+        log.info(txt)
         #systenm paths
-        log.info('system paths')
         for k in sys.path: 
             log.info('    %s'%k)
+            
+    def _get_meta(self):
+        attns = ['tag', 'name', 'longname', 'start', 'today_str', 'prec', 'work_dir', 'out_dir']
+        
+        d = {k:getattr(self, k) for k in attns}
+        d = {**d, **{'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__}}
+        
+        return d
             
             
             
@@ -289,7 +291,12 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.data_d.keys()
         """
         if dkey in self.data_d:
-            return self.data_d[dkey]
+            try:
+                return copy.deepcopy(self.data_d[dkey])
+            except Exception as e:
+                log.warning('failed to get a copy of \"%s\' w/ \n    %s'%(dkey, e))
+                return self.data_d[dkey]
+            
         
         #=======================================================================
         # retrieve handles
@@ -392,7 +399,21 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         
         return out_fp
         
-    
+    def _get_meta(self, #get a dictoinary of metadat for this model
+                 ):
+        
+        d = super()._get_meta()
+        
+        if len(self.data_d)>0:
+            d['data_d.keys()'] = list(self.data_d.keys())
+            
+        if len(self.ofp_d)>0:
+            d['ofp_d.keys()'] = list(self.ofp_d.keys())
+            
+        if len(self.compiled_fp_d)>0:
+            d['compiled_fp_d.keys()'] = list(self.compiled_fp_d.keys())
+            
+        return d
     
     def __exit__(self, #destructor
                  *args, **kwargs):
