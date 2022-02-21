@@ -413,6 +413,9 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         if len(self.compiled_fp_d)>0:
             d['compiled_fp_d.keys()'] = list(self.compiled_fp_d.keys())
             
+        if len(self.bk_lib)>0:
+            d['bk_lib'] = copy.deepcopy(self.bk_lib)
+            
         return d
     
     def __exit__(self, #destructor

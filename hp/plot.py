@@ -123,6 +123,7 @@ class Plotr(Basic):
         self.transparent=transparent
         
         #init matplotlib
+        """TODO: need a simpler way to handle this"""
         if init_plt_d is None:
             pass
         elif len(init_plt_d)==0:
