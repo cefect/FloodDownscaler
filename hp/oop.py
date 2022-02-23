@@ -224,6 +224,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                             #see self._retrieve2()
                             
                 wrk_dir=None, #output for working/intermediate files
+                write=True,
 
                 **kwargs):
         
@@ -253,6 +254,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #attach    
         self.bk_lib=bk_lib
         self.compiled_fp_d = compiled_fp_d
+        self.write=write
         
         
         #start meta
@@ -329,9 +331,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                 clearer to the user
                 also gives us more control for calls within calls
                 """
-                
-            
-            
+
             data = hndl_d['build'](*args, dkey=dkey, **kwargs)
             
             method='built w/ %s'%kwargs

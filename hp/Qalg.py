@@ -1104,7 +1104,7 @@ class QAlgos(object):
             vlay, #polygon zones 
             rlay, #raster to sample
             pfx='samp_',
-            stats = [0, 1, 2],
+            stat = 'Mean',
             output='TEMPORARY_OUTPUT',
             logger=None,
             ):
@@ -1116,7 +1116,7 @@ class QAlgos(object):
         algo_nm = 'native:zonalstatisticsfb'
         log = logger.getChild('zonalstatistics')
         
-        assert isinstance(stats, list)
+ 
         #=======================================================================
         # prep
         #=======================================================================
@@ -1127,7 +1127,7 @@ class QAlgos(object):
                             'INPUT_RASTER':rlay, 
                             'INPUT':vlay, 
                             'RASTER_BAND':1, 
-                            'STATISTICS':stats,#0: pixel counts, 1: sum
+                            'STATISTICS':{v:k for k,v in stats_d.items()}[stat],
                             'OUTPUT' : output,
                             }
     

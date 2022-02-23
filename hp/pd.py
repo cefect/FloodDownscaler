@@ -35,8 +35,8 @@ pd.set_option('display.width', 100)
 #===============================================================================
 
 from hp.exceptions import Error
-import hp.np
-from hp.np import left_in_right as linr
+#import hp.np
+#from hp.np import left_in_right as linr
 
 
 
