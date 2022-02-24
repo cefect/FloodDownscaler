@@ -340,6 +340,7 @@ class Plotr(Basic):
         #=======================================================================
         # precheck
         #=======================================================================
+        """needs to be lists (not dict keys)"""
         assert isinstance(row_keys, list)
         assert isinstance(col_keys, list)
         #=======================================================================
@@ -439,7 +440,7 @@ class Plotr(Basic):
         #write the file
         try: 
             fig.savefig(out_fp, dpi = dpi, format = fmt, transparent=transparent)
-            log.info('saved figure to file:   %s'%out_fp)
+            log.info('saved figure to file:\n   %s'%out_fp)
         except Exception as e:
             raise Error('failed to write figure to file w/ \n    %s'%e)
         
