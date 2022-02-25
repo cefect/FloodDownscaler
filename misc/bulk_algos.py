@@ -83,7 +83,7 @@ def algo_byName(fps, #filepaths to execute algo on
             """some algos always spit out fps"""
             if isinstance(res_lay, str):
                 if res_lay.endswith('.tif'):
-                    res_lay = ses.rlay_load(fp, set_proj_crs=False, logger=log)
+                    res_lay = ses.rlay_load(res_lay, set_proj_crs=False, logger=log)
                     mstore.addMapLayer(res_lay)
                 else:
                     raise Error('not im[plemented')
@@ -121,11 +121,12 @@ if __name__ == '__main__':
     
     
     fps = get_fps(
-        r'C:\LS\10_OUT\2112_Agg\ins\hyd\obwb\wsl\depth_sB_1218',
+        r'C:\LS\10_OUT\2112_Agg\ins\hyd\Calgary\wd\0116',
+        #r'C:\LS\10_OUT\2112_Agg\ins\hyd\LMFRA\wd\0116',
         '.tif'
         )
     fillnodata_simple(fps,
                       compression='topo_lo',
-                      out_dir = r'C:\LS\10_OUT\2112_Agg\ins\hyd\obwb\wsl\depth_sB_1218_fnd',
+                      out_dir = r'C:\LS\10_OUT\2112_Agg\ins\hyd\Calgary\wd\0116_fnd',
                       algoKwargs = dict(fval = 0),
                       )
