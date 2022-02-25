@@ -111,6 +111,17 @@ class Qproj(QAlgos, Basic):
     """
     common methods for Qgis projects
     """
+    
+    #raster compression handles
+    #WARNING: some processing providers dont play well with high compression 
+        #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
+    compress_d =  {
+        'topo_hi':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9', #nice for terrain
+        'topo_lo':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=3', #nice for terrain
+        'qgis_hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
+        'med':'COMPRESS=LZW',
+        'none':None,        
+        }
  
  
     
@@ -127,7 +138,7 @@ class Qproj(QAlgos, Basic):
                  aoi_vlay           = None,
                  
                  #defaults
-                 compress           ='med', #raster compression default
+                 compression           ='med', #raster compression default
                  driverName         ='GPKG', #default writing for vectorl ayers
                  
                  #inheritance
@@ -145,7 +156,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # attach
         #=======================================================================
-        self.compress=compress
+        self.compression=compression
         self.driverName=driverName
         #=======================================================================
         # setup qgis
@@ -198,7 +209,7 @@ class Qproj(QAlgos, Basic):
                 raise Error('not letting crs pass to children')
             
             for attn in [
-                'qap',  'qproj', 'vlay_drivers', 'feedback','context','driverName', 'compress'
+                'qap',  'qproj', 'vlay_drivers', 'feedback','context','driverName', 'compression'
                 ]:
                 val = getattr(session, attn) #retrieve
                 assert not val is None, attn
@@ -521,6 +532,7 @@ class Qproj(QAlgos, Basic):
             elif set_proj_crs:
                 self.qproj.setCrs(vlay1.crs())
                 vlay2 = vlay1
+                log.info('reset proj.crs from rlay to %s'%self.qproj.crs.authId())
                 
             else:
                 vlay2 = vlay1
@@ -563,7 +575,7 @@ class Qproj(QAlgos, Basic):
                    resolution = 'raw', #resolution for output
                    nodata=-9999,
                    
-                   opts = ["COMPRESS=LZW"], #QgsRasterFileWriter.setCreateOptions
+                   compression = None, #QgsRasterFileWriter.setCreateOptions
                    
                    out_dir = None, #directory for puts
                    newLayerName = None,
@@ -587,7 +599,9 @@ class Qproj(QAlgos, Basic):
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
+        if compression is None: compression=self.compression
         
+        assert isinstance(rlayer, QgsRasterLayer)
         if newLayerName is None: newLayerName = rlayer.name()
         
         log = logger.getChild('write_rlay')
@@ -697,8 +711,9 @@ class Qproj(QAlgos, Basic):
         file_writer = QgsRasterFileWriter(ofp)
         #file_writer.Mode(1) #???
         
-        if not opts is None:
-            file_writer.setCreateOptions(opts)
+        if not compression == 'none':
+            #convert to list
+            file_writer.setCreateOptions(self.compress_d[compression].split('|'))
         
         log.info('writing to file w/ \n    %s'%(
             {'nCols':nCols, 'nRows':nRows, 'extent':extent, 'crs':rlayer.crs()}))
@@ -789,6 +804,7 @@ class Qproj(QAlgos, Basic):
             elif set_proj_crs:
                 self.qproj.setCrs(rlay_raw.crs())
                 rlay1 = rlay_raw
+                log.info('reset qproj.crs from rlay to %s'%self.qproj.crs().authid())
                 
             else:
                 rlay1 = rlay_raw
@@ -818,6 +834,7 @@ class Qproj(QAlgos, Basic):
         # wrap
         #=======================================================================
         mstore.removeAllMapLayers() #remove all the layers
+        assert isinstance(rlay2, QgsRasterLayer)
             
         
         return rlay2
@@ -1303,7 +1320,7 @@ class Qproj(QAlgos, Basic):
                layname='result',
                logger=None,
                clear_all=False, #clear all rasters from memory
-               compress='none', #optional compression. #usually we are deleting calc results
+               compression='none', #optional compression. #usually we are deleting calc results
                ):
         """
         see __rCalcEntry
@@ -1318,7 +1335,7 @@ class Qproj(QAlgos, Basic):
         if logger is None: logger=self.logger
         log=logger.getChild('rcalc1')
         mstore = QgsMapLayerStore()
-        if compress is None: compress=self.compress
+        if compression is None: compression=self.compression
         #=======================================================================
         # output file
         #=======================================================================
@@ -1342,7 +1359,7 @@ class Qproj(QAlgos, Basic):
         assert ofp.endswith('.tif')
         
         #set based on whether we  want to applpy some post compression
-        if compress == 'none':
+        if compression == 'none':
             ofp1=ofp
         else:
             ofp1 = os.path.join(self.temp_dir,layname+'_raw.tif')
@@ -1387,9 +1404,9 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # compression
         #=======================================================================
-        if not compress == 'none':
+        if not compression == 'none':
             assert not ofp1==ofp
-            res = self.warpreproject(ofp1, compression=compress, output=ofp, logger=log)
+            res = self.warpreproject(ofp1, compression=compression, output=ofp, logger=log)
             assert ofp==res
             
         assert os.path.exists(ofp)

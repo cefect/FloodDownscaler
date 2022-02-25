@@ -63,15 +63,7 @@ class QAlgos(object):
 
         }
     
-    #WARNING: some processing providers dont play well with high compression 
-        #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
-    compress_d =  {
-        'topo_hi':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.01', #nice for terrain
-        'topo_lo':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=6|MAX_Z_ERRROR=0.001', #nice for terrain
-        'qgis_hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
-        'med':'COMPRESS=LZW',
-        'none':None,        
-        }
+
 
     #===========================================================================
     # input converters
@@ -598,7 +590,7 @@ class QAlgos(object):
         #===========================================================================
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
-        """returns a filepathf or some reason"""
+        """always returns a filepathf or some reason"""
         return res_d['OUTPUT']
     
     def mergevectorlayers(self,
@@ -1672,7 +1664,7 @@ class QAlgos(object):
                               
                               crsOut = None, #crs to re-project to
                               resolution=None,
-                              compression = 'none',
+                              compression = None,
                               nodata_val=None,
  
                               output = 'TEMPORARY_OUTPUT',
@@ -1685,6 +1677,7 @@ class QAlgos(object):
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('warpreproject')
+        if compression is None: compression=self.compression
         
         #=======================================================================
         # if layname is None:
@@ -1757,7 +1750,7 @@ class QAlgos(object):
                   rlays_l,
                   crsOut = None, #crs to re-project to
                   layname = None,
-                  compression = 'hiT',
+                  compression = None,
                   output = 'TEMPORARY_OUTPUT',
                   logger = None,
                               ):
@@ -1767,6 +1760,7 @@ class QAlgos(object):
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('mergeraster')
+        if compression is None: compression=self.compression
         
         if layname is None:
             layname = 'merge'
@@ -1908,7 +1902,7 @@ class QAlgos(object):
                 rlayA, #fixed value to burn,
  
                 formula,
-                compression = 'none',
+                compression = None,
                 output = 'TEMPORARY_OUTPUT',
                 dtype='Float32', #Float32. TODO: replace w/ raster_dtype_d
                 logger=None,
@@ -1923,6 +1917,7 @@ class QAlgos(object):
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
+        if compression is None: compression=self.compression
         log = logger.getChild('rastercalculator')
 
         algo_nm = 'gdal:rastercalculator'
