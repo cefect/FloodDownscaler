@@ -208,10 +208,10 @@ class Basic(object): #simple base class
         
                 
 class Session(Basic): #analysis with flexible loading of intermediate results
-    
-    data_d = dict() #datafiles loaded this session
-    
-    ofp_d = dict() #output filepaths generated this session
+    """typically we only instance this once
+        but tests will instance multiple times
+        so beware of setting containers here"""
+
     
     
     
@@ -232,6 +232,10 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         
         
         super().__init__(**kwargs)
+        
+        self.data_d = dict() #datafiles loaded this session
+    
+        self.ofp_d = dict() #output filepaths generated this session
         
         
         #=======================================================================
@@ -421,18 +425,20 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     def __exit__(self, #destructor
                  *args, **kwargs):
         
-        print('WF_retriev.__exit__ on \'%s\''%self.__class__.__name__)
+        print('oop.Session.__exit__ (%s)'%self.__class__.__name__)
         
         #=======================================================================
         # log major containers
         #=======================================================================
         if len(self.data_d)>0:
             print('__exit__ w/ data_d.keys(): %s'%(list(self.data_d.keys())))
+            self.data_d = dict() #not necessiary any more
         
         if len(self.ofp_d)>0:
             print('__exit__ with %i ofp_d:'%len(self.ofp_d))
             for k,v in self.ofp_d.items():
                 print('    \'%s\':r\'%s\','%(k,v))
+            self.ofp_d = dict()
               
               
         
