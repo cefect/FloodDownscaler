@@ -431,13 +431,14 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         # log major containers
         #=======================================================================
         if len(self.data_d)>0:
-            print('__exit__ w/ data_d.keys(): %s'%(list(self.data_d.keys())))
+            print('    data_d.keys(): %s'%(list(self.data_d.keys())))
             self.data_d = dict() #not necessiary any more
         
         if len(self.ofp_d)>0:
-            print('__exit__ with %i ofp_d:'%len(self.ofp_d))
+            print('    ofp_d (%i):'%len(self.ofp_d))
             for k,v in self.ofp_d.items():
-                print('    \'%s\':r\'%s\','%(k,v))
+                print('        \'%s\':r\'%s\','%(k,v))
+            print('\n')
             self.ofp_d = dict()
               
               

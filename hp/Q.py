@@ -753,13 +753,13 @@ class Qproj(QAlgos, Basic):
         return ofp
     
     def rlay_load(self, fp,  #load a raster layer and apply an aoi clip
-                  aoi_vlay = None,
+ 
                   logger=None,
                   
                   #crs handling
                   set_proj_crs = False, #set the project crs from this layer
                   reproj=False,
-                  **clipKwargs):
+                   ):
         
         #=======================================================================
         # defautls
@@ -815,20 +815,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # aoi
         #=======================================================================
-
-        if not aoi_vlay is None:
-
-            log.debug('clipping with %s'%aoi_vlay.name())
-
-            rlay2 = self.cliprasterwithpolygon(rlay1,aoi_vlay, 
-                               logger=log, layname=rlay1.name(), **clipKwargs)
-            
-            #remove the raw
-            
-            mstore.addMapLayer(rlay1) #add the layers to the store
-            
-        else:
-            rlay2 = rlay1
+        rlay2=rlay1
 
         #=======================================================================
         # wrap
@@ -1666,6 +1653,47 @@ class Qproj(QAlgos, Basic):
         
         log.debug('got %i'%res)
         return int(res)
+    
+    def rlay_getstats(self, rlay, logger=None): #get some raster stats
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('rlay_getstats')
+        
+        mstore=QgsMapLayerStore()
+        
+        #=======================================================================
+        # #builtin stats
+        #=======================================================================
+        stats_d = self.rasterlayerstatistics(rlay, logger=log)
+        
+        del stats_d['OUTPUT_HTML_FILE']
+        
+        """
+        stats_d.keys()
+        """
+        #=======================================================================
+        # preload
+        #=======================================================================
+        if isinstance(rlay, str):
+ 
+            rlay = self.rlay_load(rlay, logger=log)
+            mstore.addMapLayer(rlay)
+            
+        #=======================================================================
+        # generals
+        #=======================================================================
+        stats_d['cell_cnt'] = rlay.width()*rlay.height()
+        stats_d['resolution'] = self.get_resolution(rlay)
+        stats_d['crs'] = rlay.crs().authid()
+        for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
+            stats_d[attn] = getattr(rlay, attn)()
+            
+        return stats_d
+        
+        
+        
         
     def rlay_uq_vals(self, rlay,
                      prec=None,

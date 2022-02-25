@@ -19,6 +19,7 @@ import time, sys, os, logging, copy
 from osgeo import ogr, gdal_array, gdal
 
 import numpy as np
+import pandas as pd
 
 
 from qgis.core import QgsVectorLayer, QgsMapLayerStore
@@ -173,6 +174,7 @@ def get_nodata_val(rlay_fp):
 
 
 def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
+    """context managger?"""
     #get raw data
     ds = gdal.Open(rlay_fp)
     band = ds.GetRasterBand(1)
@@ -184,6 +186,9 @@ def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
     ndval = band.GetNoDataValue()
     
     ar_raw[ar_raw==ndval]=np.nan
+    
+    del ds
+    del band
     
     return ar_raw
 
@@ -205,7 +210,42 @@ def getRasterCompression(fp):
         return None
     else:
         return md['COMPRESSION']   
-            
+    
+def getRasterStatistics(fp):
+    ds = gdal.Open(fp)
+ 
+    band = ds.GetRasterBand(1)
+    d = dict()
+    d['min'], d['max'], d['mean'], d['stddev'] = band.GetStatistics(True, True)
+ 
+    
+    del ds
+    
+    return d
+
+def getNoDataCount(fp, dtype=np.dtype('float')):
+    #get raw data
+    ds = gdal.Open(fp)
+    band = ds.GetRasterBand(1)
+    
+    
+    ar_raw = np.array(band.ReadAsArray(), dtype=dtype)
+    
+    #remove nodata values
+    ndval = band.GetNoDataValue()
+    
+    #get count
+    bx_ar = ar_raw == ndval
+    
+    del ds
+    del band
+ 
+    return bx_ar.sum()
+    
+ 
+    
+    
+                
             
             
             
