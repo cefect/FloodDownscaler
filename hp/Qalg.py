@@ -1673,7 +1673,7 @@ class QAlgos(object):
                               extents=None,
  
  
-                              output = 'TEMPORARY_OUTPUT',
+                              output = 'TEMPORARY_OUTPUT', #always writes to file
                               logger = None,
                               ):
         """
@@ -1729,19 +1729,22 @@ class QAlgos(object):
             os.remove(output)
 
             
-            
+        if not resolution is None:
+            assert isinstance(resolution, int)
         #=======================================================================
         # run algo        
         #=======================================================================
+        opts = self.compress_d[compression]
+        if opts is None: opts = ''
 
         
         ins_d =  {
              'DATA_TYPE' : 0,#use input
              'EXTRA' : '',
              'INPUT' : rlay_raw,
-             'MULTITHREADING' : True,
+             'MULTITHREADING' : False,
              'NODATA' : nodata_val,
-             'OPTIONS' : self.compress_d[compression],
+             'OPTIONS' : opts,
              'OUTPUT' : output,
              'RESAMPLING' : {v:k for k,v in resamp_d.items()}[resampling],
              'SOURCE_CRS' : None,
@@ -1751,8 +1754,10 @@ class QAlgos(object):
              'TARGET_RESOLUTION' : resolution,
           }
         
+ 
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
         
+ 
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
         
  

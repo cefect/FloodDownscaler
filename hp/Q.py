@@ -23,7 +23,7 @@ from qgis.core import *
  
 from qgis.gui import QgisInterface
 from hp.gdal import get_nodata_val
-
+import hp.gdal
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -1674,6 +1674,15 @@ class Qproj(QAlgos, Basic):
         stats_d.keys()
         """
         #=======================================================================
+        # nodata counts
+        #=======================================================================
+        if isinstance(rlay, str):
+            rlay_fp = rlay
+        else:
+            rlay_fp = rlay.source()
+        
+        stats_d['noData_cnt'] = hp.gdal.getNoDataCount(rlay_fp)
+        #=======================================================================
         # preload
         #=======================================================================
         if isinstance(rlay, str):
@@ -1689,6 +1698,9 @@ class Qproj(QAlgos, Basic):
         stats_d['crs'] = rlay.crs().authid()
         for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
             stats_d[attn] = getattr(rlay, attn)()
+            
+
+        
             
         return stats_d
         

@@ -27,6 +27,7 @@ def set_info( #get all the  membership info from two containers
 def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull for plotting)
                  num_format = '{:.2f}',
                  del_l = ['{', '}', '\'', ','],
+                 #compact=True,
                  ):
     
     #convert to strings
@@ -40,7 +41,8 @@ def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull f
             str_d[k] = str(raw)
             
     #get pretty print
-    txt = pprint.PrettyPrinter(indent=4).pformat(str_d)
+    #txt = pprint.PrettyPrinter(indent=4).pformat(str_d, width=10)
+    txt = pprint.pformat(str_d, width=30, indent=0, compact=True, sort_dicts =False)
     
     #remove some chars
     for c in del_l: 
