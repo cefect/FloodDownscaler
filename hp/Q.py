@@ -388,7 +388,7 @@ class Qproj(QAlgos, Basic):
         fhead, raw_ext = os.path.splitext(out_fp)
         
         if not raw_ext == '':
-            assert raw_ext==ext, 'passed extension (%s) does not match driverName (%s)'%(raw_ext, ext)
+            assert raw_ext.replace('.', '')==ext, 'passed extension (%s) does not match driverName (%s)'%(raw_ext, ext)
             
         out_fp = fhead +'.'+ ext
  
@@ -532,7 +532,7 @@ class Qproj(QAlgos, Basic):
             elif set_proj_crs:
                 self.qproj.setCrs(vlay1.crs())
                 vlay2 = vlay1
-                log.info('reset proj.crs from rlay to %s'%self.qproj.crs.authId())
+                log.info('reset proj.crs from vlay to %s'%self.qproj.crs().authid())
                 
             else:
                 vlay2 = vlay1
@@ -990,7 +990,8 @@ class Qproj(QAlgos, Basic):
                 
                 #check gkey match
                 l = set(df_raw.index).difference(geo_d.keys())
-                assert len(l)==0, 'missing %i (of %i) fid keys in geo_d: %s'%(len(l), len(df_raw), l)
+
+                assert len(l)==0, 'missing %i (of %i) fid keys in geo_d'%(len(l), len(df_raw))
                 
         #force max string length
         for coln, col in df.copy().items():
