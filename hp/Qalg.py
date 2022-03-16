@@ -1131,6 +1131,44 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+    def randomuniformraster(self,
+            pixel_size,
+            bounds=(0,1),
+            
+            extent_layer=None, #layer to pull raster extents from
+               #None: use pts_vlay
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:createrandomuniformrasterlayer'
+        log = logger.getChild('randomuniformraster')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+ 
+        
+        
+        ins_d = { 'EXTENT' : extent_layer.extent(),
+                  'LOWER_BOUND' : bounds[0], 'UPPER_BOUND' : bounds[1],
+                  'OUTPUT' : output, 
+                 'OUTPUT_TYPE' : 5, #Float32
+                 'PIXEL_SIZE' : pixel_size, 
+                 'TARGET_CRS' :self.qproj.crs(), 
+                 }
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================

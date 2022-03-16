@@ -11,7 +11,8 @@ Created on Oct. 8, 2020
 #===============================================================================
 
 import time, sys, os, logging, datetime, inspect, gc, shutil
-
+from pprint import PrettyPrinter
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -1316,7 +1317,7 @@ class Qproj(QAlgos, Basic):
         memory handling:
             would be easier to make a standalone worker
         """
-        
+        warnings.warn('20220304: see RasterCalc()', DeprecationWarning)
         #=======================================================================
         # defaults
         #=======================================================================
@@ -1947,6 +1948,267 @@ class MyFeedBackQ(QgsProcessingFeedback):
         # emit signalling
         #===================================================================
         self.setProgress(prog)
+        
+class RasterCalc(object):
+    
+    result= None
+    layers_d = dict()
+    def __init__(self,
+                 ref_lay,
+                 logger=None,
+                 name='rcalc', 
+                 session=None,
+ 
+                 out_dir=None,
+                 temp_dir=None,
+ 
+                 ):
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+
+                
+ 
+        #=======================================================================
+        # attach
+        #=======================================================================
+        
+        self.logger = logger.getChild(name)
+        self.name=name
+        self.mstore = QgsMapLayerStore()
+        self.start = datetime.datetime.now()
+        
+        #from session
+        self.session=session
+        self.qproj=session.qproj
+        self.feedback=session.feedback
+        self.overwrite=self.session.overwrite
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        self.rasterEntries = list() #list of QgsRasterCalculatorEntry
+        #out_dir
+        if out_dir is None:
+            out_dir = os.environ['TEMP']
+            
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        self.out_dir=out_dir
+            
+        #temp dir
+        if temp_dir is None: temp_dir=out_dir
+        self.temp_dir=temp_dir
+        
+        
+        #reference layer
+        if isinstance(ref_lay, str):
+            ref_lay = self.load(ref_lay)
+            
+        
+        assert isinstance(ref_lay, QgsRasterLayer)
+        self.ref_lay=ref_lay
+        
+        self.logger.debug('on ref_lay: %s'%self.ref_lay.name())
+    
+    def rcalc(self, #simple raster calculations with a single raster
+               
+               #calc control
+               formula, #string formatted formula
+               rasterEntries=None, #list of QgsRasterCalculatorEntry
+               
+               #output control
+               ofp=None,
+               layname=None,
+               compress='none', #optional compression. #usually we are deleting calc results
+               
+               #general control
+               #allow_empty=True, 
+               report=True,
+               logger=None,
+               ):
+        """
+        see __rCalcEntry
+        
+        phantom crashing
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('rcalc1')
+ 
+        if compress is None: compress=self.compress
+        if rasterEntries is None: rasterEntries=self.rasterEntries
+        
+        out_dir=self.out_dir
+        ref_lay=self.ref_lay
+        
+        if layname is None: layname='%s_%s'%(ref_lay.name(), self.name)
+        #=======================================================================
+        # output file
+        #=======================================================================
+        if ofp is None:
+
+            ofp = os.path.join(out_dir,layname+'.tif' )
+            
+        if os.path.exists(ofp):
+            log.debug('file expsts: %s'%ofp) 
+            assert self.overwrite
+            
+            try:
+                os.remove(ofp)
+            except Exception as e:
+                raise Error('failed to clear existing file.. unable to write \n    %s \n    %s'%(
+                    ofp, e))
+                
+        assert ofp.endswith('.tif')
+        
+ 
+        #=======================================================================
+        # assemble parameters
+        #=======================================================================
+
+        d = dict(
+            formula=formula,
+            ofp=ofp,
+            outputExtent  = ref_lay.extent(),
+            outputFormat = 'GTiff',
+            crs = self.qproj.crs(),
+            nOutputColumns = ref_lay.width(),
+            nOutputRows = ref_lay.height(),
+            crsTrnsf = QgsCoordinateTransformContext(),
+            rasterEntries = rasterEntries,
+            )
+        #=======================================================================
+        # execute
+        #=======================================================================
+        msg = PrettyPrinter(indent=4).pformat(d)
+        #msg = '\n'.join(['%s:    %s'%(k,v) for k,v in d.items()])
+        log.debug('QgsRasterCalculator w/ \n%s'%msg)
+        
+        rcalc = QgsRasterCalculator(d['formula'], d['ofp'],
+                                     d['outputFormat'], d['outputExtent'], d['crs'],
+                                     d['nOutputColumns'], d['nOutputRows'], d['rasterEntries'], d['crsTrnsf'])
+ 
+ 
+        
+        try:
+            result = rcalc.processCalculation(feedback=self.feedback)
+        except Exception as e:
+            raise Error('failed to processCalculation w/ \n    %s'%e)
+        
+        #=======================================================================
+        # check    
+        #=======================================================================
+        if not result == 0:
+            raise Error('formula=%s failed w/ \n    %s'%(formula, rcalc.lastError()))
+        
+        
+        
+        log.debug('saved result to: \n    %s'%ofp)
+        
+ 
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+ 
+        
+        #check and report
+        if report:
+            stats_d = self.session.rasterlayerstatistics(ofp)
+            
+            log.debug('finished w/ \n    %s'%stats_d)
+        self.result = ofp
+        return ofp
+    
+    
+    def _rCalcEntry(self, #helper for raster calculations 
+                         rlay_obj, bandNumber=1,
+ 
+                         ):
+        #=======================================================================
+        # load the object
+        #=======================================================================
+        
+        if isinstance(rlay_obj, str):
+            rlay = self.load(rlay_obj)
+ 
+        else:
+            rlay = rlay_obj
+ 
+        #=======================================================================
+        # check
+        #=======================================================================
+        assert isinstance(rlay, QgsRasterLayer)
+        assert rlay.crs()==self.qproj.crs(), 'bad crs on \'%s\' (%s)'%(rlay.name(),rlay.crs().authid())
+        
+        #=======================================================================
+        # build the entry
+        #=======================================================================
+        rcentry = QgsRasterCalculatorEntry()
+        rcentry.raster =rlay #not accesesible for some reason
+        rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
+        rcentry.bandNumber=bandNumber
+        
+        self.rasterEntries.append(rcentry)
+        return rcentry
+
+    def load(self, fp, 
+ 
+                  logger=None):
+        
+        if logger is None: logger = self.logger
+        log = logger.getChild('load')
+        
+        assert os.path.exists(fp), 'requested file does not exist: %s'%fp
+        assert QgsRasterLayer.isValidRasterFileName(fp), 'requested file is not a valid raster file type: %s'%fp
+        
+        basefn = os.path.splitext(os.path.split(fp)[1])[0]
+        
+
+        #Import a Raster Layer
+        log.debug('QgsRasterLayer(%s, %s)'%(fp, basefn))
+        rlayer = QgsRasterLayer(fp, basefn)
+ 
+ 
+        
+        #===========================================================================
+        # check
+        #===========================================================================
+        assert isinstance(rlayer, QgsRasterLayer), 'failed to get a QgsRasterLayer'
+        assert rlayer.isValid(), "Layer failed to load!"
+        
+        
+        if not rlayer.crs() == self.qproj.crs():
+            log.warning('loaded layer \'%s\' crs mismatch!'%rlayer.name())
+
+        #log.debug('loaded \'%s\' from \n    %s'%(rlayer.name(), fp))
+        
+        stats_d = self.session.rasterlayerstatistics(rlayer)
+        
+        assert not pd.isnull(stats_d['MEAN']), 'got a bad layer from \n    %s'%fp
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        self.mstore.addMapLayer(rlayer)
+        self.layers_d[rlayer.name() ] =rlayer #holding the layer?
+        
+        return rlayer
+    
+    def __enter__(self,*args,**kwargs):
+        return self
+ 
+    def __exit__(self, #destructor
+                 *args,**kwargs):
+         
+        #clear your map store
+        self.mstore.removeAllMapLayers()
+        #print('clearing mstore')
+        self.logger.info('finished in %.2f secs w/ %s'%((datetime.datetime.now() - self.start).total_seconds(), self.result))
+        #super().__exit__(*args,**kwargs) #initilzie teh baseclass
         
 
 #===============================================================================
