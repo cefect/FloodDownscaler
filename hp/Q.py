@@ -840,6 +840,7 @@ class Qproj(QAlgos, Basic):
         # defaults
         #=======================================================================
         if aoi_vlay is None: aoi_vlay = self.aoi_vlay
+        assert not aoi_vlay is None
         if logger is None: logger=self.logger
         log = logger.getChild('slice_aoi')
         
@@ -878,7 +879,7 @@ class Qproj(QAlgos, Basic):
                   vlay, 
                   logger=None):
         
-        assert isinstance(vlay, QgsVectorLayer)
+        assert isinstance(vlay, QgsVectorLayer), 'got bad type: \'%s\''%type(vlay)
         assert 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType())
         assert vlay.dataProvider().featureCount()==1, 'got multiple features'
         assert vlay.crs() == self.qproj.crs(), 'aoi CRS (%s) does not match project (%s)'%(vlay.crs(), self.qproj.crs())
