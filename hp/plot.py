@@ -27,6 +27,8 @@ from hp.exceptions import Error
 from hp.pd import view
 from hp.oop import Basic
 
+import matplotlib
+
 
 class Plotr(Basic):
     
@@ -71,8 +73,7 @@ class Plotr(Basic):
     
     def __init__(self,
 
-
-                 impStyle_d=None,
+ 
                  
                  #init controls
                  init_plt_d = {}, #container of initilzied objects
@@ -83,6 +84,7 @@ class Plotr(Basic):
                   
                   #figure parametrs
                 figsize     = (6.5, 4), 
+                transparent = False,
                     
                 #hatch pars
                     hatch =  None,
@@ -118,9 +120,13 @@ class Plotr(Basic):
         self.hatch    =hatch
         self.h_color    =h_color
         self.h_alpha    =h_alpha
+        self.transparent=transparent
         
         #init matplotlib
-        if len(init_plt_d)==0:
+        """TODO: need a simpler way to handle this"""
+        if init_plt_d is None:
+            pass
+        elif len(init_plt_d)==0:
             self.init_plt_d = self._init_plt() #setup matplotlib
         else:
             for k,v in init_plt_d.items():
@@ -155,6 +161,7 @@ class Plotr(Basic):
         #=======================================================================
         import matplotlib
         matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+        matplotlib.set_loglevel("info") #reduce logging level
         import matplotlib.pyplot as plt
         
         #set teh styles
@@ -310,24 +317,30 @@ class Plotr(Basic):
     
     def get_matrix_fig(self, #conveneince for getting a matrix plot with consistent object access
                        row_keys, #row labels for axis
-                       col_keys, #column labels for axis
+                       col_keys, #column labels for axis (1 per column)
                        
                        fig_id=0,
-                       figsize=None,
+                       figsize=None, #None: calc using figsize_scaler if present
+                       figsize_scaler=None,
                         tight_layout=False,
-                        constrained_layout=True
-                        
-                       ):
+                        constrained_layout=True,
+                        set_ax_title=False, #add simple axis titles to each subplot
+                        **kwargs):
         
         
         #=======================================================================
         # defautls
         #=======================================================================
-        if figsize is None: figsize=self.figsize
+        if figsize is None: 
+            if figsize_scaler is None:
+                figsize=self.figsize
+            else:
+                figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
         
         #=======================================================================
         # precheck
         #=======================================================================
+        """needs to be lists (not dict keys)"""
         assert isinstance(row_keys, list)
         assert isinstance(col_keys, list)
         #=======================================================================
@@ -337,10 +350,11 @@ class Plotr(Basic):
         fig = self.plt.figure(fig_id,
             figsize=figsize,
             tight_layout=tight_layout,
-            constrained_layout=constrained_layout)
+            constrained_layout=constrained_layout,
+            )
         
         # populate with subplots
-        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys))
+        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys), **kwargs)
         
         #convert to array
         if not isinstance(ax_ar, np.ndarray):
@@ -358,6 +372,9 @@ class Plotr(Basic):
             ax_d[row_keys[i]]=dict()
             for j, ax in enumerate(row_ar.T):
                 ax_d[row_keys[i]][col_keys[j]]=ax
+                
+                if set_ax_title:
+                    ax.set_title('%s.%s'%(row_keys[i], col_keys[j]))
                 
             
  
@@ -379,8 +396,8 @@ class Plotr(Basic):
                    
                    #figure write controls
                  fmt='svg', 
-                  transparent=True, 
-                  dpi = 150,
+                  transparent=None, 
+                  dpi = 300,
                   logger=None,
                   ):
         #======================================================================
@@ -391,12 +408,14 @@ class Plotr(Basic):
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
+        if transparent is None: transparent=self.transparent
+        
         if not os.path.exists(out_dir):os.makedirs(out_dir)
         #=======================================================================
         # precheck
         #=======================================================================
         
-        assert isinstance(fig, self.matplotlib.figure.Figure)
+        assert isinstance(fig, matplotlib.figure.Figure)
         log.debug('on %s'%fig)
         #======================================================================
         # output
@@ -421,7 +440,7 @@ class Plotr(Basic):
         #write the file
         try: 
             fig.savefig(out_fp, dpi = dpi, format = fmt, transparent=transparent)
-            log.info('saved figure to file:   %s'%out_fp)
+            log.info('saved figure to file:\n   %s'%out_fp)
         except Exception as e:
             raise Error('failed to write figure to file w/ \n    %s'%e)
         
