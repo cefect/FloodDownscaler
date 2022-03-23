@@ -381,7 +381,14 @@ class Plotr(Basic):
             
         return fig, ax_d
             
-            
+    def get_color_d(self,
+                    cvals,
+                    colorMap=None,
+                    ):
+                    
+        if colorMap is None: colorMap=self.colorMap
+        cmap = self.plt.cm.get_cmap(name=colorMap) 
+        return {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
     
     #===========================================================================
     # OUTPUTTRS------
