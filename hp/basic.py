@@ -26,7 +26,7 @@ def set_info( #get all the  membership info from two containers
     
 def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull for plotting)
                  num_format = '{:.2f}',
-                 del_l = ['{', '}', '\'', ','],
+                 del_l = ['{', '}', '\''],
                  #compact=True,
                  ):
     
