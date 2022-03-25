@@ -7,7 +7,7 @@ usually best to call this before any standard imports
     some modules have auto loggers to the root loger
     calling 'logging.getLogger()' after these configure will erase these
 '''
-import os, logging, logging.config
+import os, logging, logging.config, pprint
 
 
 
@@ -47,7 +47,42 @@ class BuildLogr(object): #simple class to build a logger
  
         
         self.logger = logger
+        self.log_handlers()
         
+    def log_handlers(self, #convenience to readout handler info
+                     logger=None):
+        if logger is None:
+            logger=self.logger
+            
+        #=======================================================================
+        # #collect handler info
+        #=======================================================================
+        res_lib = dict()
+        for handler in logger.handlers:
+            
+            htype = type(handler).__name__
+            
+            d = {'htype':htype}
+            
+            if 'FileHandler' in htype:
+                d['filename'] = handler.baseFilename
+            
+            
+            
+            res_lib[handler.get_name()] = d
+            
+        #=======================================================================
+        # #log
+        #=======================================================================
+        #get fancy string
+        txt = pprint.pformat(res_lib, width=30, indent=0, compact=True, sort_dicts =False)
+        
+        for c in ['{', '}']: 
+            txt = txt.replace(c, '') #clear some unwanted characters..
+        
+        logger.info('logger configured w/ %i handlers\n%s'%(len(res_lib), txt))
+        
+        return res_lib
         
         
     def duplicate(self, #duplicate the root logger to a diretory
