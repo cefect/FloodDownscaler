@@ -27,6 +27,7 @@ class BuildLogr(object): #simple class to build a logger
         #===============================================================================
         if logcfg_file is None:
             #todo: check if there is a definitions file
+            """create a definitions file in your project"""
             from definitions import logcfg_file #import from the definitions file
  
         assert os.path.exists(logcfg_file), 'No logger Config File found at: \n   %s'%logcfg_file
