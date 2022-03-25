@@ -16,7 +16,7 @@ class BuildLogr(object): #simple class to build a logger
     
     def __init__(self,
 
-            logcfg_file =r'C:\LS\09_REPOS\01_COMMON\coms\logger.conf',
+            logcfg_file =None,
             ):
         """
         creates a log file (according to the logger.conf parameters) in the passed working directory
@@ -25,18 +25,10 @@ class BuildLogr(object): #simple class to build a logger
         #===============================================================================
         # FILE SETUP
         #===============================================================================
-        #=======================================================================
-        # assert os.path.exists(work_dir), work_dir
-        # os.chdir(work_dir) #set this to the working directory
-        # print('working directory set to \"%s\''%os.getcwd())
-        # 
-        #=======================================================================
-        """"
-        spent 30mins trying to pass the log file location explciitly
-            cant get dynamic logger setup to work well with the config file
-            for this behavior, best to configure with a script
-            for now... just changing the directory 
-        """
+        if logcfg_file is None:
+            #todo: check if there is a definitions file
+            from definitions import logcfg_file #import from the definitions file
+ 
         assert os.path.exists(logcfg_file), 'No logger Config File found at: \n   %s'%logcfg_file
         assert logcfg_file.endswith('.conf')
         #===========================================================================
