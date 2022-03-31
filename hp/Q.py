@@ -729,20 +729,21 @@ class Qproj(QAlgos, Basic):
         return ofp
     
     def rlay_load(self, fp,  #load a raster layer and apply an aoi clip
-                  aoi_vlay = None,
+  
                   logger=None,
+                  dkey=None, #dummy recievor for retrieve calls
                   
-                  #crs handling
-                  set_proj_crs = False, #set the project crs from this layer
-                  reproj=False,
-                  **clipKwargs):
+ 
+
+                  mstore=None,
+                  ):
         
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('rlay_load')
-        mstore = QgsMapLayerStore() #build a new store
+
         
         assert os.path.exists(fp), 'requested file does not exist: \n    %s'%fp
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
@@ -768,50 +769,19 @@ class Qproj(QAlgos, Basic):
         # #CRS
         #=======================================================================
         if not rlay_raw.crs() == self.qproj.crs():
-            log.warning('\'%s\'  match fail (%s v %s) \n    reproj=%s set_proj_crs=%s'%(
-                rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid(), reproj, set_proj_crs))
+            log.warning('\'%s\'  crs does not match project (%s v %s)'%(
+                rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid()))
             
-            if reproj:
-                raise Error('not implemented')
-
-                mstore.addMapLayer(rlay_raw)
-
-                
-            elif set_proj_crs:
-                self.qproj.setCrs(rlay_raw.crs())
-                rlay1 = rlay_raw
-                
-            else:
-                rlay1 = rlay_raw
-                
-        else:
-            rlay1 = rlay_raw
-        
-        #=======================================================================
-        # aoi
-        #=======================================================================
-
-        if not aoi_vlay is None:
-
-            log.debug('clipping with %s'%aoi_vlay.name())
-
-            rlay2 = self.cliprasterwithpolygon(rlay1,aoi_vlay, 
-                               logger=log, layname=rlay1.name(), **clipKwargs)
-            
-            #remove the raw
-            
-            mstore.addMapLayer(rlay1) #add the layers to the store
-            
-        else:
-            rlay2 = rlay1
 
         #=======================================================================
         # wrap
         #=======================================================================
-        mstore.removeAllMapLayers() #remove all the layers
+
+        if not mstore is None:
+            mstore.addMapLayer(rlay_raw)
             
         
-        return rlay2
+        return rlay_raw
     #===========================================================================
     # AOI methods--------
     #===========================================================================
@@ -1541,7 +1511,7 @@ class Qproj(QAlgos, Basic):
         
         return ofp
     
-    def get_resolution(self,  
+    def rlay_get_resolution(self,  
                        rlay):
         #setup
         mstore=QgsMapLayerStore()
@@ -1561,6 +1531,18 @@ class Qproj(QAlgos, Basic):
         mstore.removeAllMapLayers()
         
         return res
+    
+    def rlay_get_props(self, obj):
+        mstore = QgsMapLayerStore()
+        layer = self.get_layer(obj, mstore=mstore)
+        
+        props_str = '%sw x %sh (%.4f, %.4f) %s '%(
+            layer.width(), layer.height(), 
+            layer.rasterUnitsPerPixelX(), layer.rasterUnitsPerPixelY(),
+            layer.crs().authid())
+            
+        mstore.removeAllMapLayers()
+        return props_str
     
     def rlay_get_cellCnt(self,
                          rlay,
@@ -1628,10 +1610,116 @@ class Qproj(QAlgos, Basic):
             rlay,
             '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
             **kwargs)
+        
+        
+    def rlay_check_match(self, #check if raster dimensions and resolutions match
+                         rlay1_raw,
+                         rlay2_raw,
+                         logger=None):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('rlay_check_match')
+        
+        #=======================================================================
+        # load
+        #=======================================================================
+        mstore = QgsMapLayerStore()
+        rlay1 = self.get_layer(rlay1_raw, logger=log, mstore=mstore)
+        rlay2 = self.get_layer(rlay2_raw, logger=log, mstore=mstore)
+        
+        #=======================================================================
+        # run tests
+        #=======================================================================
+        
+        """
+        rlay1.extent()
+        """
+        
+        
+        log.debug('testing %s vs %s'%(rlay1.name(), rlay2.name()))
+        res_d = dict()
+        for i, testName in enumerate([
+            'width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX', 'crs', 'extent'
+            ]):
+            
+        
+            v1 = getattr(rlay1, testName)()
+            v2 = getattr(rlay2, testName)()
+            
+            res_d[testName] = {'result':v1==v2, rlay1.name():v1, rlay2.name():v2}
+            
+            
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        res_df = pd.DataFrame.from_dict(res_d).T.infer_objects()
+        mstore.removeAllMapLayers()
+        
+        if not res_df['result'].all():
+            with pd.option_context('display.max_rows', None,'display.max_columns', None,'display.width',1000):
+ 
+                msg = 'failed %i/%i tests: \n\n%s'%(len(res_df) - res_df['result'].sum(), len(res_df), res_df[~res_df['result']])
+            """
+            view(res_df)
+            """
+            log.debug(msg)
+            return False, msg
+        
+        log.debug('passed %i tests'%len(res_df))
+        return True, ''
+    
     #===========================================================================
     # HELPERS---------
     #===========================================================================
- 
+        
+    def get_layer(self, obj,mstore=None, **kwargs): #retrieve raster from filepath or rasterobject.
+        
+        #=======================================================================
+        # load from filepath
+        #=======================================================================
+        if isinstance(obj, str):
+            assert os.path.exists(obj)
+            ext = os.path.splitext(obj)[1]
+            
+            #rasters
+            if ext=='.tif':
+                res =  self.rlay_load(obj, **kwargs)
+            elif ext.replace('.','') in list(self.vlay_drivers.values()):
+                res = self.vlay_load(obj, **kwargs)
+            else:
+                raise IOError('unrecognized extension: %s'%ext)
+                
+            if not mstore is None:                
+                mstore.addMapLayer(res)
+            return res
+        
+        #=======================================================================
+        # passed a layer
+        #=======================================================================
+        elif isinstance(obj, QgsMapLayer):
+            return obj
+        else:
+            raise Error('bad type: %s'%type(obj))
+
+    def mstore_log(self, #convenience to log the mstore
+                   mstore=None,
+                   logger=None):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger
+        if mstore is None: mstore=self.mstore
+        
+        
+        
+        d = {lay.name():QgsMapLayerType(lay.type()).name for lay in mstore.mapLayers().values()}
+        
+        txt = pprint.pformat(d, width=30, indent=0, compact=True, sort_dicts =False)
+        
+        log.info('mstore has %i layers \n%s'%(len(d), txt))
      
     def _rCalcEntry(self, #helper for raster calculations 
                          rlay_obj, bandNumber=1,
