@@ -1599,7 +1599,7 @@ class Qproj(QAlgos, Basic):
         
         return ofp
     
-    def get_resolution(self,  
+    def rlay_get_resolution(self,  
                        rlay):
         #setup
         mstore=QgsMapLayerStore()
@@ -1696,7 +1696,7 @@ class Qproj(QAlgos, Basic):
         # generals
         #=======================================================================
         stats_d['cell_cnt'] = rlay.width()*rlay.height()
-        stats_d['resolution'] = self.get_resolution(rlay)
+        stats_d['resolution'] = self.rlay_get_resolution(rlay)
         stats_d['crs'] = rlay.crs().authid()
         for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
             stats_d[attn] = getattr(rlay, attn)()

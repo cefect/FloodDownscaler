@@ -225,7 +225,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                             
                 wrk_dir=None, #output for working/intermediate files
                 write=True, 
-                exit_summary=True, #whether to write the exit summary on close
+                exit_summary=False, #whether to write the exit summary on close
 
                 **kwargs):
         
@@ -489,7 +489,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             #=======================================================================
     
             #get the filepath
-            ofp = os.path.join(self.out_dir, self.longname+'_calc_smry_%s.xls'%(
+            ofp = os.path.join(self.out_dir, self.longname+'__exit__%s.xls'%(
                 datetime.datetime.now().strftime('%H%M%S')))
             if os.path.exists(ofp):
                 assert self.overwrite
@@ -498,10 +498,10 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             #write
             try:
                 with pd.ExcelWriter(ofp) as writer:
-                    for tabnm, df in self.smry_d.items():
+                    for tabnm, df in smry_d.items():
                         df.to_excel(writer, sheet_name=tabnm, index=True, header=True)
                         
-                print('wrote %i summary sheets to \n    %s'%(len(self.smry_d), ofp))
+                print('wrote %i summary sheets to \n    %s'%(len(smry_d), ofp))
                     
             except Exception as e:
                 print('failed to write summaries w/ \n    %s'%e)

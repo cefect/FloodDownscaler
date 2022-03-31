@@ -1017,7 +1017,7 @@ class QAlgos(object):
             mstore.addMapLayer(extent_layer)
         
         if resolution is None:
-            resolution = self.get_resolution(extent_layer)
+            resolution = self.rlay_get_resolution(extent_layer)
  
         feedback=self.feedback
             
