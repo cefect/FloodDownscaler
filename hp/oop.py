@@ -265,7 +265,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         
         #start meta
         self.dk_meta_d = {k:dict() for k in keys}
- 
+        self.meta_d=dict()
+        self.smry_d=dict()
             
         
         #=======================================================================
@@ -400,7 +401,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         with open(out_fp,  'wb') as f:
             pickle.dump(data, f, protocol)
         
-        log.info('wrote %i to %s'%(len(data), out_fp))
+        log.info('wrote %i to \n    %s'%(len(data), out_fp))
             
         
         return out_fp
@@ -488,7 +489,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             #=======================================================================
     
             #get the filepath
-            ofp = os.path.join(self.out_dir, self.layName_pfx+'_calc_smry_%s.xls'%(
+            ofp = os.path.join(self.out_dir, self.longname+'_calc_smry_%s.xls'%(
                 datetime.datetime.now().strftime('%H%M%S')))
             if os.path.exists(ofp):
                 assert self.overwrite
