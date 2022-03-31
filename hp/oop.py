@@ -224,7 +224,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                             #see self._retrieve2()
                             
                 wrk_dir=None, #output for working/intermediate files
-                write=True,
+                write=True, 
+                exit_summary=True, #whether to write the exit summary on close
 
                 **kwargs):
         
@@ -259,6 +260,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.bk_lib=bk_lib
         self.compiled_fp_d = compiled_fp_d
         self.write=write
+        self.exit_summary=exit_summary
         
         
         #start meta
