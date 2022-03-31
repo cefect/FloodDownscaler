@@ -422,6 +422,29 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             
         return d
     
+    def get_exit_summary(self,
+                         ):
+        
+
+        
+        #===================================================================
+        # assembel summary sheets
+        #===================================================================
+        #merge w/ retrieve data
+        for k, sub_d in self.dk_meta_d.items():
+            if len(sub_d)==0:continue
+            retrieve_df = pd.Series(sub_d).to_frame()
+            if not k in self.smry_d:
+                self.smry_d[k] = retrieve_df
+            else:
+                self.smry_d[k] = self.smry_d[k].reset_index().append(
+                        retrieve_df.reset_index(), ignore_index=True).set_index('index')
+                        
+                        
+        return {**{'_smry':pd.Series(self.meta_d, name='val').to_frame(),
+                          '_smry.dkey':pd.DataFrame.from_dict(self.dk_meta_d).T},
+                        **self.smry_d}
+    
     def __exit__(self, #destructor
                  *args, **kwargs):
         
@@ -441,7 +464,49 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             print('\n')
             self.ofp_d = dict()
               
-              
+        
+        #=======================================================================
+        # extneded exit summary
+        #=======================================================================
+        """copied over from RICorDE... need to test"""
+        if self.exit_summary: 
+            
+            tdelta = datetime.datetime.now() - self.start
+            runtime = tdelta.total_seconds()/60.0
+            
+            
+            self.meta_d = {**{'now':datetime.datetime.now(), 'runtime (mins)':runtime}, **self.meta_d}
+        
+            
+            smry_d = self.get_exit_summary()
+
+            
+            #=======================================================================
+            # write the summary xlsx
+            #=======================================================================
+    
+            #get the filepath
+            ofp = os.path.join(self.out_dir, self.layName_pfx+'_calc_smry_%s.xls'%(
+                datetime.datetime.now().strftime('%H%M%S')))
+            if os.path.exists(ofp):
+                assert self.overwrite
+                os.remove(ofp)
+        
+            #write
+            try:
+                with pd.ExcelWriter(ofp) as writer:
+                    for tabnm, df in self.smry_d.items():
+                        df.to_excel(writer, sheet_name=tabnm, index=True, header=True)
+                        
+                print('wrote %i summary sheets to \n    %s'%(len(self.smry_d), ofp))
+                    
+            except Exception as e:
+                print('failed to write summaries w/ \n    %s'%e)
+        
+            #=======================================================================
+            # wrap
+            #=======================================================================
+            self.logger.info('finished in %.2f mins'%(runtime))
         
         
         super().__exit__(*args, **kwargs)

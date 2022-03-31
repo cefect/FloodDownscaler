@@ -1745,7 +1745,85 @@ class Qproj(QAlgos, Basic):
     #===========================================================================
     # HELPERS---------
     #===========================================================================
- 
+    def get_all_layer_stats(self, #push all layer statistics to the summary
+                        d=None,
+                        logger=None,
+                        ):
+        """
+        called on exit
+        """
+        from pathlib import Path
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('set_layer_stats')
+        if d is None: 
+            d={**self.fp_d, **self.ofp_d.copy()}
+        
+        #=======================================================================
+        # collect stats
+        #=======================================================================
+        res_d=dict()
+        for i, (fp_key, fp) in enumerate(d.items()):
+            try:
+                res_d[fp_key] = {
+                                    'i':i,
+                                    'ext':os.path.splitext(fp)[1],
+                                    'filename':os.path.basename(fp), 
+                                 'size (kb)':round(Path(fp).stat().st_size*.001, 1),
+                                 'fp':fp}
+                
+                #========================================== =========================
+                # rasters
+                #===================================================================
+                if fp.endswith('.tif'):
+                    res_d[fp_key].update(self.rasterlayerstatistics(fp))
+                    rlay = self.rlay_load(fp, logger=log)
+                    self.mstore.addMapLayer(rlay)
+                    res_d[fp_key].update({
+                        'layname':rlay.name(),
+                        'crs':rlay.crs().authid(),
+                        'width':rlay.width(),
+                        'height':rlay.height(),
+                        'pixel_size':'%.2f, %.2f'%(rlay.rasterUnitsPerPixelY(), rlay.rasterUnitsPerPixelX()),
+                        'providerType':rlay.providerType(),
+                        'nodata':get_nodata_val(fp),
+                        
+                        })
+                    
+                #===================================================================
+                # vectors
+                #===================================================================
+                elif fp.endswith('gpkg'):
+                    vlay = self.vlay_load(fp, logger=log)
+                    self.mstore.addMapLayer(vlay)
+                    dp = vlay.dataProvider()
+                    res_d[fp_key].update(
+                        {'fcnt':dp.featureCount(),
+                         'layname':vlay.name(),
+                         'wkbType':QgsWkbTypes().displayString(vlay.wkbType()),
+                         'crs':vlay.crs().authid(),
+                         })
+                    
+                    #Polytons
+                    if 'Polygon' in QgsWkbTypes().displayString(vlay.wkbType()):
+                        res_d[fp_key]['area'] = self.vlay_poly_tarea(vlay)
+                       
+                        
+                        
+                    
+                else:
+                    pass
+            except Exception as e:
+                log.warning('failed to get stats on %s w/ \n    %s'%(fp, e))
+                
+        #=======================================================================
+        # append info
+        #=======================================================================
+        df = pd.DataFrame.from_dict(res_d, orient='index')
+        
+        return df
      
     def _rCalcEntry(self, #helper for raster calculations 
                          rlay_obj, bandNumber=1,
