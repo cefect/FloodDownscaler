@@ -963,7 +963,7 @@ class Qproj(QAlgos, Basic):
         #check the geometry
         if not geo_d is None:
             assert isinstance(geo_d, dict)
-            assert len(geo_d)>=len(df) #letting extr geos pass
+            assert len(geo_d)>=len(df), 'missing some geometry'
             if not gkey is None:
                 assert gkey in df_raw.columns
         
