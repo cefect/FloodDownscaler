@@ -18,13 +18,7 @@ class Error(Exception):
     def __init__(self, msg):
         mod_logger.error(msg)
 
-"""not working....
-def DepWarning(msg):
-    warnings.warn(msg, DeprecationWarning)
-
-#===============================================================================
-# class DepWarning(object):
-#     def __init__(self, msg):
-#         warnings.warn(msg, DeprecationWarning)
-#         print(msg)
-#==============================================================================="""
+def assert_func(func, msg=''):
+    if __debug__: # true if Python was not started with an -O option
+        result, msgf = func()
+        assert result, msg+': '+msgf
