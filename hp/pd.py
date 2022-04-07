@@ -2504,19 +2504,36 @@ def vlookup( #add column(s) to big based on some link w/ small
 #BOOLEANS ------------------------------------------------------------------
 #===============================================================================
 def get_bx_multiVal(df, #get boolean based on multi-column matching (single values)
-        val_d,
+        val_d, #data to match {coln: value}
         logicFunc = np.logical_and, #function for combining iterations
         baseBoolean=True, #where to start from
         log=None,
         ):
     
+    #prececk
+    miss_l = set(val_d.keys()).difference(df.columns)
+    assert len(miss_l)==0, '%i requested keys not found in the data/n    %s'%(len(miss_l), miss_l)
+    
+    #setup
     bx = pd.Series(baseBoolean, index=df.index) #start with nothing
     
  
+    #loop and match
     meta_d= {'base':{'bx':bx.sum()}}
     for coln, val in val_d.items():
- 
-        new_bx = df[coln]==val
+        
+        #=======================================================================
+        # simple single match
+        #=======================================================================
+        if isinstance(val, str) or isinstance(val, bool):
+            new_bx = df[coln]==val
+            
+        
+        elif isinstance(val, list):
+            new_bx = df[coln].isin(val)
+        else:
+            raise Error('unrecognized type for %s:%s'%(coln, type(val)))
+                        
         bx = logicFunc(bx,new_bx)
         
         meta_d[coln] = {'val':val, 'new_bx':new_bx.sum(), 'bx':bx.sum()}
@@ -2528,7 +2545,7 @@ def get_bx_multiVal(df, #get boolean based on multi-column matching (single valu
         mdf = pd.DataFrame.from_dict(meta_d).T
         log.debug(mdf)
             
-    return bx
+    return bx.rename('match')
         
     
         
