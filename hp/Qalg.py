@@ -1136,7 +1136,7 @@ class QAlgos(object):
             pixel_size,
             bounds=(0,1),
             
-            extent_layer=None, #layer to pull raster extents from
+            extent=None, #layer to pull raster extents from
                #None: use pts_vlay
             output='TEMPORARY_OUTPUT',
             logger=None,
@@ -1153,10 +1153,13 @@ class QAlgos(object):
         #=======================================================================
         # prep
         #=======================================================================
+        if isinstance(extent, QgsMapLayer):
+            extent = extent.extent()
+        
  
         
         
-        ins_d = { 'EXTENT' : extent_layer.extent(),
+        ins_d = { 'EXTENT' : extent,
                   'LOWER_BOUND' : bounds[0], 'UPPER_BOUND' : bounds[1],
                   'OUTPUT' : output, 
                  'OUTPUT_TYPE' : 5, #Float32
