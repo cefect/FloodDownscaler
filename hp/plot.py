@@ -394,6 +394,9 @@ class Plotr(Basic):
                    out_fp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
                    
+                   #stylig
+                   add_stamp=True, #whether to write the filepath as a small stamp
+                   
                    #figure write controls
                  fmt='svg', 
                   transparent=None, 
@@ -418,7 +421,7 @@ class Plotr(Basic):
         assert isinstance(fig, matplotlib.figure.Figure)
         log.debug('on %s'%fig)
         #======================================================================
-        # output
+        # filepath
         #======================================================================
         if out_fp is None:
             #file setup
@@ -435,9 +438,22 @@ class Plotr(Basic):
         if os.path.exists(out_fp): 
             assert overwrite
             os.remove(out_fp)
-
             
-        #write the file
+            
+
+        """
+        fig.show()
+        """
+        #=======================================================================
+        # plot stamp
+        #=======================================================================
+        if add_stamp:
+ 
+            txt = '%s (%s)'%(os.path.basename(out_fp), datetime.datetime.now().strftime('%Y-%m-%d'))
+            fig.text(1,0, txt, fontsize=6, color='black', alpha=0.5, ha='right', va='bottom')
+        #=======================================================================
+        # #write the file
+        #=======================================================================
         try: 
             fig.savefig(out_fp, dpi = dpi, format = fmt, transparent=transparent)
             log.info('saved figure to file:\n   %s'%out_fp)
