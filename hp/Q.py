@@ -62,7 +62,7 @@ mod_logger = logging.getLogger(__name__)
 #==============================================================================
 # globals
 #==============================================================================
-fieldn_max_d = {'SpatiaLite':50, 'ESRI Shapefile':10, 'Memory storage':50, 'GPKG':50}
+fieldn_max_d = {'SpatiaLite':50, 'ESRI Shapefile':10, 'Memory storage':50, 'GPKG':50, 'GeoJSON':999}
 
 npc_pytype_d = {'?':bool,
                 'b':int,

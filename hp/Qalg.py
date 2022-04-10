@@ -1172,6 +1172,87 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
+    
+    
+    def kmeansclustering(self,
+            vlay, clusters, 
+            fieldName='CLUSTER_ID',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:kmeansclustering'
+        log = logger.getChild('kmeansclustering')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+ 
+        
+        
+        ins_d = { 'CLUSTERS' : clusters, 
+                 'FIELD_NAME' : fieldName, 
+                 'SIZE_FIELD_NAME' : 'CLUSTER_SIZE',
+                 'INPUT' : vlay, 
+                 'OUTPUT' : output,}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+
+    def polygonstolines(self,
+            vlay,  
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:polygonstolines'
+        log = logger.getChild('polygonstolines')
+ 
+        
+        ins_d = {'INPUT' : vlay, 
+                 'OUTPUT' : output,}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+
+    def splitwithlines(self,
+            vlay,  
+            lines_vlay,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:splitwithlines'
+        log = logger.getChild('splitwithlines')
+ 
+        
+        ins_d = {'INPUT' : vlay, 
+                 'OUTPUT' : output, 'LINES':lines_vlay}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1557,6 +1638,39 @@ class QAlgos(object):
                  'TOLERANCE' : 1 }
         
         #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, 
+                               #context=self.context,
+                               )
+        
+        return res_d['OUTPUT']
+    
+    def minimumboundinggeometry(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     vlay,
+                     fieldName=None, #optional category name
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+        
+        if logger is None: logger=self.logger
+        log=logger.getChild('minimumboundinggeometry')
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:minimumboundinggeometry'
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'FIELD' : fieldName, 
+                 'INPUT' : vlay, 
+                 'OUTPUT' : output, 
+                 'TYPE' : 3, #convex hull
+                  }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, 
                                #context=self.context,
