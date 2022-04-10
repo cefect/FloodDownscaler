@@ -289,7 +289,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                  ):
         
         if logger is None: logger=self.logger
-        log = logger.getChild('retrieve')
+        log = logger.getChild('ret')
         
 
         start = datetime.datetime.now()
@@ -304,7 +304,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             try:
                 return copy.deepcopy(self.data_d[dkey])
             except Exception as e:
-                log.warning('failed to get a copy of \"%s\' w/ \n    %s'%(dkey, e))
+                log.warning('failed to get a copy of \"%s\'... passing raw w/ \n    %s'%(dkey, e))
                 return self.data_d[dkey]
             
         
@@ -342,7 +342,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                 also gives us more control for calls within calls
                 """
 
-            data = hndl_d['build'](*args, dkey=dkey, **kwargs)
+            data = hndl_d['build'](*args, dkey=dkey,logger=logger, **kwargs)
             
             method='built w/ %s'%kwargs
             
