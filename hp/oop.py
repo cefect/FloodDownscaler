@@ -300,6 +300,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.data_d.keys()
         """
         if dkey in self.data_d:
+            log.info('loading \'%s\' from data_d'%dkey)
             try:
                 return copy.deepcopy(self.data_d[dkey])
             except Exception as e:
@@ -310,7 +311,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # retrieve handles
         #=======================================================================
-        log.info('loading %s'%dkey)
+        log.debug('loading %s'%dkey)
                 
         assert dkey in self.data_retrieve_hndls, dkey
         
@@ -321,6 +322,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
  
         if dkey in self.compiled_fp_d and 'compiled' in hndl_d:
+            log.info('building \'%s\' from compiled'%(dkey))
             data = hndl_d['compiled'](fp=self.compiled_fp_d[dkey], dkey=dkey)
             method='loaded pre-compiled from %s'%self.compiled_fp_d[dkey]
         #=======================================================================
@@ -328,6 +330,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         else:
             assert 'build' in hndl_d, 'no build handles for %s'%dkey
+            log.info('building \'%s\' from %s'%(dkey, hndl_d['build']))
             
             #retrieve builder kwargs
             if dkey in self.bk_lib:
