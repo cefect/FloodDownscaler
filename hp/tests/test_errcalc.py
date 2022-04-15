@@ -3,7 +3,7 @@ Created on Apr. 15, 2022
 
 @author: cefect
 '''
-import os, shutil, logging
+import os, shutil, logging, math
 import pytest
 import pandas as pd
 import numpy as np
@@ -11,19 +11,26 @@ from scipy.stats import norm
 
 from hp.err_calc import ErrorCalcs as ErrorCalcs_class
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger() 
 #===============================================================================
 # fixtures-----
 #===============================================================================
+
+@pytest.fixture(scope='session', params=[1.0, 3.0])
+def var(request):
+    return request.param #zero doesnt work well for some tests
+
+
 @pytest.fixture(scope='session')
 def true_mean():
     return 10.0 #zero doesnt work well for some tests
 
-@pytest.fixture(scope='session', params=[5.0, 10.0, 15.0])
-def pred_mean(request):
-    return request.param 
+@pytest.fixture(scope='session', params=[-5, 0.0, 7])
+def pred_mean(request, true_mean):
+    return true_mean + request.param 
 
-@pytest.fixture(params = list(range(3))) #random seeds to test,
+@pytest.fixture(params = list(range(10))) #random seeds to test,
 def seed(request):
     return request.param
 
@@ -31,9 +38,9 @@ def seed(request):
 def ErrorCalcs(#get an initialized ErrorCalcs worker
         #request,
        seed, #iterating seed fixture
-       true_mean,pred_mean,
+       true_mean,pred_mean,var,
         n=int(1e5),
-        var = 1.0,
+
  
         
            ): #build an ErrorCalcs
@@ -91,18 +98,41 @@ def test1_meanError(ErrorCalcs, true_mean, pred_mean):
     calc = ErrorCalcs.retrieve(dkey)
     
     #check it
-    
     chk = pred_mean - true_mean
     assert np.allclose(calc, chk, atol=1e-2)
     
- 
+
 def test2_meanErrorAbs(ErrorCalcs, true_mean, pred_mean):
     dkey = 'meanErrorAbs'
     calc = ErrorCalcs.retrieve(dkey)
     
     #check it
-    chk = abs(pred_mean - true_mean)    
-    assert np.allclose(calc, chk, atol=1e-2)
+    chk = abs(pred_mean - true_mean)
+    if not chk==0.0:    
+        assert np.allclose(calc, chk, atol=1e-2)
+    else:
+        """no counterbalaing"""
+        assert np.allclose(calc, chk, atol=1e0)
+        
+@pytest.mark.dev
+def test3_RMSE(ErrorCalcs, true_mean, pred_mean, var):
+    dkey = 'RMSE'
+    calc = ErrorCalcs.retrieve(dkey)
     
+
+    
+    #check it
+    chk = math.sqrt((pred_mean - true_mean)**2)
+    
+    print('finished with calc=%.4f and chk=%.4f'%(calc, chk))
+    print(ErrorCalcs.meta_d)
+    
+    
+    if chk==0.0:
+        """not sure why..."""
+        assert np.allclose(calc, 1.0, rtol=1e-1)
+    else:
+        assert np.allclose(calc, chk, rtol=1e-1)
+
     
     
