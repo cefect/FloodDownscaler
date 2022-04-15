@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import norm
 
-from hp.errors import ErrorCalcs as ErrorCalcs_class
+from hp.err_calc import ErrorCalcs as ErrorCalcs_class
 
 logger = logging.getLogger() 
 #===============================================================================
