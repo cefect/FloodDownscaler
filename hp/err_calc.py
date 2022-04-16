@@ -12,7 +12,7 @@ import os, sys, datetime, gc, copy,  math, pickle,shutil
  
 import pandas as pd
 import numpy as np
-
+import scipy.stats
 
 from pandas.testing import assert_frame_equal, assert_series_equal, assert_index_equal
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -45,7 +45,9 @@ class ErrorCalcs(object):
             'meanError':    lambda **kwargs:self.get_meanError(**kwargs),
             'meanErrorAbs': lambda **kwargs:self.get_meanErrorAbs(**kwargs),
             'RMSE':         lambda **kwargs:self.get_RMSE(**kwargs),
+            'pearson':      lambda **kwargs:self.get_pearson(**kwargs),
             'confusion':    lambda **kwargs:self.get_confusion(**kwargs),
+            'stats':        lambda **kwargs:self.get_stats(**kwargs),
             }
         
     def retrieve(self, #skinny retrival
@@ -170,18 +172,31 @@ class ErrorCalcs(object):
     
     
     def get_all(self, #load all the stats in the retrieve handles 
+                dkeys_l = None,
                 logger=None):
+        
+        if dkeys_l is None:
+            dkeys_l = self.data_retrieve_hndls.keys()
         
         
         res_d = dict()
-        for dkey in self.data_retrieve_hndls.keys():
+        for dkey in dkeys_l:
             res_d[dkey] = self.retrieve(dkey, logger=logger)
             
         return res_d
     
+    def get_pearson(self,
+                    dkey='pearson',
+                    logger=None):
+        assert dkey=='pearson'
+        df = self.df_raw.copy()
+        pearson, pval = scipy.stats.pearsonr(df['true'], df['pred'])
+        return pearson
+    
     def get_confusion(self,
                       dkey='confusion',
                      wetdry=True,
+                     normed=True, #normalize confusion values by total count
                      logger=None):
         #=======================================================================
         # defaults
@@ -214,6 +229,12 @@ class ErrorCalcs(object):
         
         cm_df = pd.DataFrame(cm_ar, index=labels, columns=labels)
         
+        #=======================================================================
+        # normalize
+        #=======================================================================
+        if normed:
+            cm_df = cm_df/len(df_raw)
+        
         #convert and label
         
         cm_df2 = cm_df.unstack().rename('counts').to_frame()
@@ -225,6 +246,22 @@ class ErrorCalcs(object):
         cm_df2 = cm_df2.set_index('codes', append=True)
         
         return cm_df, cm_df2.swaplevel(i=0, j=2)
+    
+    def get_stats(self, #get baskc stats on one series
+                  ser=None,
+                  logger=None,
+                  dkey='stats',
+                  stats_l = ['min', 'mean', 'max'],
+                  ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('get_stats')
+        assert dkey=='stats'
+        if ser is None: ser = self.pred_ser
+        
+        return {stat:getattr(ser, stat)() for stat in stats_l}
         
     
     def check_match(self,
