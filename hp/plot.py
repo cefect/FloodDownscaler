@@ -324,7 +324,7 @@ class Plotr(Basic):
                        figsize_scaler=None,
                         tight_layout=False,
                         constrained_layout=True,
-                        set_ax_title=False, #add simple axis titles to each subplot
+                        set_ax_title=True, #add simple axis titles to each subplot
                         **kwargs):
         
         
