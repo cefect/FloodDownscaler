@@ -42,6 +42,7 @@ class ErrorCalcs(object):
         
         self.data_retrieve_hndls = {
             'bias':         lambda **kwargs:self.get_bias(**kwargs),
+            'bias_1':       lambda **kwargs:self.get_bias1(**kwargs),
             'meanError':    lambda **kwargs:self.get_meanError(**kwargs),
             'meanErrorAbs': lambda **kwargs:self.get_meanErrorAbs(**kwargs),
             'RMSE':         lambda **kwargs:self.get_RMSE(**kwargs),
@@ -65,11 +66,15 @@ class ErrorCalcs(object):
 
         start = datetime.datetime.now()
         
-        assert dkey in drh_d
+        assert dkey in drh_d, dkey
         
         f = drh_d[dkey]
         
         return f(dkey=dkey, logger=log, **kwargs)
+    
+    def get_bias1(self, #shift bias to be zero centered
+                  **kwargs):
+        return self.get_bias(**kwargs)-1
         
     def get_bias(self,
                  per_element=False,
