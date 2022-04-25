@@ -391,6 +391,8 @@ class Qproj(QAlgos, Basic):
         if not raw_ext == '':
             assert raw_ext.replace('.', '')==ext, 'passed extension (%s) does not match driverName (%s)'%(raw_ext, ext)
             
+        assert not ext in fhead, 'still getting the extension: %s'%fhead
+            
         out_fp = fhead +'.'+ ext
  
         #overwrite check
