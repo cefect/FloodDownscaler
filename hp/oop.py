@@ -229,6 +229,9 @@ class Session(Basic): #analysis with flexible loading of intermediate results
 
                 **kwargs):
         
+        """        
+        data_retrieve_hndls = { **{your_handles}, **{inherited_handles}} #overwrites inherited w/ yours
+        """
         assert isinstance(data_retrieve_hndls, dict), 'must past data retrival handles'
         
         

@@ -1437,7 +1437,7 @@ class Qproj(QAlgos, Basic):
                     """
                     f1 = '(abs(\"{0}\")+999)'.format(rcentry.ref)
                     formula = f1 + '/' + f1
-                else:
+                else: #take any real values
                 
                     formula = '\"{0}\"/\"{0}\"'.format(rcentry.ref)
             #=======================================================================
@@ -1701,7 +1701,7 @@ class Qproj(QAlgos, Basic):
         for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
             stats_d[attn] = getattr(rlay, attn)()
             
-
+        mstore.removeAllMapLayers()
         
             
         return stats_d
