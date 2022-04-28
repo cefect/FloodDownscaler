@@ -584,7 +584,7 @@ class Qproj(QAlgos, Basic):
                    newLayerName = None,
                    ofp=None,
                    
-                   logger=None,
+                   logger=None, overwrite=None,
                    ):
         """
         taken from CanFlood.hlpr.Q
@@ -603,6 +603,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger=self.logger
         if compression is None: compression=self.compression
+        if overwrite is None: overwrite=self.overwrite
         
         assert isinstance(rlayer, QgsRasterLayer)
         if newLayerName is None: newLayerName = rlayer.name()
@@ -628,13 +629,16 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # precheck
         #=======================================================================
+        if not ofp.endswith('.tif'):
+            log.warning('adding .tif extension to %s'%(os.path.basename(ofp)))
+            ofp = ofp+'.tif'
         assert isinstance(rlayer, QgsRasterLayer)
         
         
         if os.path.exists(ofp):
             msg = 'requested file already exists! and overwrite=%s \n    %s'%(
-                self.overwrite, ofp)
-            if self.overwrite:
+                overwrite, ofp)
+            if overwrite:
                 log.warning(msg)
             else:
                 raise Error(msg)
@@ -2014,7 +2018,7 @@ class Qproj(QAlgos, Basic):
         self.mstore.removeAllMapLayers()
         #print('clearing mstore')
         
-        super().__exit__(*args,**kwargs) #initilzie teh baseclass
+        super().__exit__(*args,**kwargs)  
         
     
 

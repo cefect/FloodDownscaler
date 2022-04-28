@@ -195,8 +195,7 @@ class Basic(object): #simple base class
     def __enter__(self):
         return self
     
-    def __exit__(self, #destructor
-             *args,**kwargs):
+    def __exit__(self,  *args,**kwargs):
         
 
     

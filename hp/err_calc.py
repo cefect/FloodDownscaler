@@ -23,12 +23,13 @@ class ErrorCalcs(object):
             pred_ser=None,
             true_ser=None,
             logger=None,
+            normed=True,
             ):
         #attach
         
         self.pred_ser=pred_ser.rename('pred')
         self.true_ser=true_ser.rename('true')
-        
+        self.normed=normed
         
         self.check_match()
         
@@ -202,7 +203,7 @@ class ErrorCalcs(object):
     def get_confusion(self,
                       dkey='confusion',
                      wetdry=True,
-                     normed=True, #normalize confusion values by total count
+                     normed=None, #normalize confusion values by total count
                      logger=None):
         #=======================================================================
         # defaults
@@ -210,7 +211,7 @@ class ErrorCalcs(object):
         if logger is None: logger=self.logger
         log=logger.getChild('get_confusion')
         assert dkey=='confusion'
-        
+        if normed is None: normed=self.normed
         df_raw = self.df_raw.copy()
         
         #=======================================================================
@@ -284,6 +285,11 @@ class ErrorCalcs(object):
         
         assert_index_equal(pred_ser.index, true_ser.index)
         
-        
-        
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args,**kwargs):
+        for k in copy.copy(list(self.__dict__.keys())):
+            del self.__dict__[k]
+ 
         
