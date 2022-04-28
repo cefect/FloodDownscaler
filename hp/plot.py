@@ -18,6 +18,7 @@ import logging, configparser, datetime
 import os
 import numpy as np
 import pandas as pd
+import scipy.stats
 
 #==============================================================================
 # # custom
@@ -196,6 +197,176 @@ class Plotr(Basic):
     
 
         
+    #===========================================================================
+    # plotters------
+    #===========================================================================
+    
+    def ax_data(self,  #add a plot of some data to an axis using kwargs
+            ax, data_d,
+            plot_type='hist', 
+            
+            #histwargs
+            bins=20, rwidth=0.9, 
+            mean_line=None, #plot a vertical line on the mean
+            hrange=None, #xlimit the data
+            density=False,
+            
+            #styling
+            zero_line=False,
+            color_d = None,
+            label_key=None,
+            
+            logger=None, **kwargs):
+                
+        """as we use these methods in a few funcs... decided to factor
+        
+        plt.show()
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('ax_data')
+        meta_d=dict()
+        
+        if plot_type=='gaussian_kde':
+            assert density
+        
+        #check keys
+        miss_l = set(color_d.keys()).symmetric_difference(data_d.keys())
+        assert len(miss_l)==0, 'color data key-mismatch: %s'%miss_l
+        
+        #===================================================================
+        # HIST------
+        #===================================================================
+ 
+        if plot_type == 'hist':
+            bval_ar, bins_ar, patches = ax.hist(
+                data_d.values(), 
+                range=hrange,
+                bins=bins, 
+                density=density, # integral of the histogram will sum to 1
+                color=color_d.values(), 
+                rwidth=rwidth, 
+                label=list(data_d.keys()), 
+                **kwargs)
+ 
+            #vertical mean line
+            if not mean_line is None:
+                ax.axvline(mean_line, color='black', linestyle='dashed')
+            
+            #ar.size
+            
+            meta_d.update({'bin_max':bval_ar.max(), 
+                           #'bin_cnt':bval_ar.shape[1] #ar.shape[0] =  number of groups
+                           
+                           })
+ 
+            
+        #===================================================================
+        # box plots--------
+        #===================================================================
+        elif plot_type == 'box':
+            #===============================================================
+            # zero line
+            #===============================================================
+            #ax.axhline(0, color='black')
+            #===============================================================
+            # #add bars
+            #===============================================================
+            boxres_d = ax.boxplot(data_d.values(), labels=data_d.keys(), meanline=True,**kwargs)
+            # boxprops={'color':newColor_d[rowVal]},
+            # whiskerprops={'color':newColor_d[rowVal]},
+            # flierprops={'markeredgecolor':newColor_d[rowVal], 'markersize':3,'alpha':0.5},
+            #===============================================================
+            # add extra text
+            #===============================================================
+            # counts on median bar
+            for gval, line in dict(zip(data_d.keys(), boxres_d['medians'])).items():
+                x_ar, y_ar = line.get_data()
+                ax.text(x_ar.mean(), y_ar.mean(), 'n%i' % len(data_d[gval]), 
+                # transform=ax.transAxes,
+                    va='bottom', ha='center', fontsize=8)
+        
+        #===================================================================
+        # violin plot-----
+        #===================================================================
+        elif plot_type == 'violin':
+            #===============================================================
+            # plot
+            #===============================================================
+            parts_d = ax.violinplot(data_d.values(), 
+                showmeans=True, 
+                showextrema=True, **kwargs)
+            #===============================================================
+            # color
+            #===============================================================
+            #===============================================================
+            # if len(data_d)>1:
+            #     """nasty workaround for labelling"""
+            #===============================================================
+ 
+            #ckey_d = {i:color_key for i,color_key in enumerate(labels)}
+            #style fills
+            
+            for dname, pc in dict(zip(data_d.keys(), parts_d['bodies'])).items():
+ 
+                pc.set_facecolor(color_d[dname])
+                pc.set_edgecolor(color_d[dname])
+                pc.set_alpha(0.5)
+            
+            #style lines
+            for partName in ['cmeans', 'cbars', 'cmins', 'cmaxes']:
+                parts_d[partName].set(color='black', alpha=0.5)
+                
+        #=======================================================================
+        # gauisian KDE-----
+        #=======================================================================
+        elif plot_type=='gaussian_kde':
+            for dname, data in data_d.items():
+                if label_key is None: label=None
+                else:
+                    label = '%s=%s'%(label_key, dname)
+                log.info('    gaussian_kde on %i'%len(data))
+                #filter
+                #===============================================================
+                # if not hrange is None:
+                #     
+                #     ar = data[np.logical_and(data>hrange[0], data<=hrange[1])]
+                # else:
+                #     ar = data
+                #===============================================================
+                
+                ar = data  
+                
+                #build teh function
+                kde = scipy.stats.gaussian_kde(ar, 
+                                                   bw_method='scott',
+                                                   weights=None, #equally weighted
+                                                   )
+                
+                #plot it
+                xvals = np.linspace(ar.min()+.01, ar.max(), 500)
+                ax.plot(xvals, kde(xvals), color=color_d[dname], label=label, **kwargs)
+                
+                #vertical mean line
+                if not mean_line is None:
+                    ax.axvline(mean_line, color='black', linestyle='dashed')
+        
+        else:
+            raise Error(plot_type)
+        
+        #=======================================================================
+        # post----
+        #=======================================================================
+        if zero_line:
+            ax.axhline(0.0, color='black', linestyle='solid', linewidth=0.5)
+        
+        
+ 
+        
+        return  meta_d
+
 
         
         
@@ -331,6 +502,10 @@ class Plotr(Basic):
         #=======================================================================
         # defautls
         #=======================================================================
+        #special no singluar columns
+        if col_keys is None: ncols=1
+        else:ncols=len(col_keys)
+        
         if figsize is None: 
             if figsize_scaler is None:
                 figsize=self.figsize
@@ -342,19 +517,20 @@ class Plotr(Basic):
         #=======================================================================
         """needs to be lists (not dict keys)"""
         assert isinstance(row_keys, list)
-        assert isinstance(col_keys, list)
+        #assert isinstance(col_keys, list)
         #=======================================================================
         # build figure
         #=======================================================================
-        
+        # populate with subplots
         fig = self.plt.figure(fig_id,
             figsize=figsize,
             tight_layout=tight_layout,
             constrained_layout=constrained_layout,
             )
         
-        # populate with subplots
-        ax_ar = fig.subplots(nrows=len(row_keys), ncols=len(col_keys), **kwargs)
+
+        
+        ax_ar = fig.subplots(nrows=len(row_keys), ncols=ncols, **kwargs)
         
         #convert to array
         if not isinstance(ax_ar, np.ndarray):
@@ -374,7 +550,12 @@ class Plotr(Basic):
                 ax_d[row_keys[i]][col_keys[j]]=ax
                 
                 if set_ax_title:
-                    ax.set_title('%s.%s'%(row_keys[i], col_keys[j]))
+                    if col_keys[j] == '':
+                        ax_title = row_keys[i]
+                    else:
+                        ax_title='%s.%s'%(row_keys[i], col_keys[j])
+                    
+                    ax.set_title(ax_title)
                 
             
  
