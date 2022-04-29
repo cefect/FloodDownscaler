@@ -206,7 +206,9 @@ class Plotr(Basic):
             plot_type='hist', 
             
             #histwargs
-            bins=20, rwidth=0.9, 
+            bins=20, 
+            bin_lims=None,
+            rwidth=0.9, 
             mean_line=None, #plot a vertical line on the mean
             hrange=None, #xlimit the data
             density=False,
@@ -215,6 +217,7 @@ class Plotr(Basic):
             zero_line=False,
             color_d = None,
             label_key=None,
+            violin_line_kwargs=dict(color='black', alpha=0.5, linewidth=0.75),
             
             logger=None, **kwargs):
                 
@@ -243,10 +246,17 @@ class Plotr(Basic):
         #===================================================================
  
         if plot_type == 'hist':
+            #setup bins
+            if not bin_lims is None:
+                binsi = np.linspace(bin_lims[0], bin_lims[1], bins)
+            else:
+                binsi = bins
+            
+            
             bval_ar, bins_ar, patches = ax.hist(
                 data_d.values(), 
                 range=hrange,
-                bins=bins, 
+                bins=binsi, 
                 density=density, # integral of the histogram will sum to 1
                 color=color_d.values(), 
                 rwidth=rwidth, 
@@ -263,6 +273,8 @@ class Plotr(Basic):
                            #'bin_cnt':bval_ar.shape[1] #ar.shape[0] =  number of groups
                            
                            })
+            
+             
  
             
         #===================================================================
@@ -298,8 +310,8 @@ class Plotr(Basic):
             # plot
             #===============================================================
             parts_d = ax.violinplot(data_d.values(), 
-                showmeans=True, 
-                showextrema=True, **kwargs)
+                showmeans=True, widths=0.9,
+                showextrema=False, **kwargs)
             #===============================================================
             # color
             #===============================================================
@@ -315,33 +327,33 @@ class Plotr(Basic):
  
                 pc.set_facecolor(color_d[dname])
                 pc.set_edgecolor(color_d[dname])
-                pc.set_alpha(0.5)
+                pc.set_alpha(0.9)
             
             #style lines
             for partName in ['cmeans', 'cbars', 'cmins', 'cmaxes']:
-                parts_d[partName].set(color='black', alpha=0.5)
+                if partName in parts_d:
+                    parts_d[partName].set(**violin_line_kwargs)
                 
         #=======================================================================
         # gauisian KDE-----
         #=======================================================================
         elif plot_type=='gaussian_kde':
+            first=True
             for dname, data in data_d.items():
                 if label_key is None: label=None
                 else:
                     label = '%s=%s'%(label_key, dname)
                 log.info('    gaussian_kde on %i'%len(data))
                 #filter
-                #===============================================================
-                # if not hrange is None:
-                #     
-                #     ar = data[np.logical_and(data>hrange[0], data<=hrange[1])]
-                # else:
-                #     ar = data
-                #===============================================================
+                if not hrange is None:
+                    ar = data[np.logical_and(data>=hrange[0], data<=hrange[1])]
+                else:
+                    ar = data
                 
-                ar = data  
-                
+   
+                assert len(ar)>10
                 #build teh function
+                
                 kde = scipy.stats.gaussian_kde(ar, 
                                                    bw_method='scott',
                                                    weights=None, #equally weighted
@@ -354,6 +366,16 @@ class Plotr(Basic):
                 #vertical mean line
                 if not mean_line is None:
                     ax.axvline(mean_line, color='black', linestyle='dashed')
+                    
+                #stats
+                if first:
+                    hmin=min(ar)
+                    hmax=max(ar)
+                else:
+                    hmin=min(ar.min(), hmin)
+                    hmax = max(ar.max(), hmax)
+            #post
+            meta_d.update({'hmin':hmin, 'hmax':hmax})
         
         else:
             raise Error(plot_type)
