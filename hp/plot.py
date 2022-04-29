@@ -234,7 +234,9 @@ class Plotr(Basic):
         
         #check keys
         miss_l = set(color_d.keys()).symmetric_difference(data_d.keys())
-        assert len(miss_l)==0, 'color data key-mismatch: %s'%miss_l
+        if not len(miss_l)==0:
+            log.warning('color data key-mismatch: %s'%miss_l)
+            color_d = {k:v for k,v in color_d.items() if k in data_d}
         
         #===================================================================
         # HIST------
@@ -496,12 +498,15 @@ class Plotr(Basic):
                         tight_layout=False,
                         constrained_layout=True,
                         set_ax_title=False, #add simple axis titles to each subplot
+                        logger=None,
                         **kwargs):
         
         
         #=======================================================================
         # defautls
         #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('get_mat_fig')
         #special no singluar columns
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
@@ -559,7 +564,7 @@ class Plotr(Basic):
                 
             
  
-            
+        log.info('built %ix%i w/ figsize=%s'%(len(col_keys), len(row_keys), figsize))
         return fig, ax_d
             
     def get_color_d(self,
