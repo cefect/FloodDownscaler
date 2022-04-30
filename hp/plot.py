@@ -233,7 +233,7 @@ class Plotr(Basic):
         meta_d=dict()
         
         if plot_type=='gaussian_kde':
-            assert density
+            assert density, 'for plot_type==gaussian_kde'
         
         #check keys
         miss_l = set(color_d.keys()).symmetric_difference(data_d.keys())
