@@ -213,11 +213,19 @@ class Plotr(Basic):
             hrange=None, #xlimit the data
             density=False,
             
+            #boxkwargs
+            add_box_cnts=True, #add n's
+            color=None,
+            
+            #violin kwargs
+            violin_line_kwargs=dict(color='black', alpha=0.5, linewidth=0.75),
+            
             #styling
             zero_line=False,
             color_d = None,
+            
             label_key=None,
-            violin_line_kwargs=dict(color='black', alpha=0.5, linewidth=0.75),
+            
             
             logger=None, **kwargs):
                 
@@ -236,10 +244,14 @@ class Plotr(Basic):
             assert density, 'for plot_type==gaussian_kde'
         
         #check keys
-        miss_l = set(color_d.keys()).symmetric_difference(data_d.keys())
-        if not len(miss_l)==0:
-            log.warning('color data key-mismatch: %s'%miss_l)
-            color_d = {k:v for k,v in color_d.items() if k in data_d}
+        if not color_d is None:
+            miss_l = set(color_d.keys()).symmetric_difference(data_d.keys())
+            if not len(miss_l)==0:
+                log.warning('color data key-mismatch: %s'%miss_l)
+                color_d = {k:v for k,v in color_d.items() if k in data_d}
+                
+        if not color is None:
+            assert color_d is None
         
         #===================================================================
         # HIST------
@@ -266,41 +278,34 @@ class Plotr(Basic):
             #vertical mean line
             if not mean_line is None:
                 ax.axvline(mean_line, color='black', linestyle='dashed')
-            
-            #ar.size
-            
+ 
             meta_d.update({'bin_max':bval_ar.max(), 
                            #'bin_cnt':bval_ar.shape[1] #ar.shape[0] =  number of groups
-                           
                            })
-            
-             
- 
-            
+
         #===================================================================
         # box plots--------
         #===================================================================
         elif plot_type == 'box':
-            #===============================================================
-            # zero line
-            #===============================================================
-            #ax.axhline(0, color='black')
+
             #===============================================================
             # #add bars
             #===============================================================
-            boxres_d = ax.boxplot(data_d.values(), labels=data_d.keys(), meanline=True,**kwargs)
-            # boxprops={'color':newColor_d[rowVal]},
-            # whiskerprops={'color':newColor_d[rowVal]},
-            # flierprops={'markeredgecolor':newColor_d[rowVal], 'markersize':3,'alpha':0.5},
+            boxres_d = ax.boxplot(data_d.values(), labels=data_d.keys(), meanline=True,
+                    boxprops={'color':color},
+                    whiskerprops={'color':color},
+                    flierprops={'markeredgecolor':color, 'markersize':3,'alpha':0.5},
+                **kwargs)
             #===============================================================
             # add extra text
             #===============================================================
             # counts on median bar
-            for gval, line in dict(zip(data_d.keys(), boxres_d['medians'])).items():
-                x_ar, y_ar = line.get_data()
-                ax.text(x_ar.mean(), y_ar.mean(), 'n%i' % len(data_d[gval]), 
-                # transform=ax.transAxes,
-                    va='bottom', ha='center', fontsize=8)
+            if add_box_cnts:
+                for gval, line in dict(zip(data_d.keys(), boxres_d['medians'])).items():
+                    x_ar, y_ar = line.get_data()
+                    ax.text(x_ar.mean(), y_ar.mean(), 'n%i' % len(data_d[gval]), 
+                    # transform=ax.transAxes,
+                        va='bottom', ha='center', fontsize=8)
         
         #===================================================================
         # violin plot-----
