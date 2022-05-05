@@ -802,7 +802,7 @@ class Qproj(QAlgos, Basic):
         # #CRS
         #=======================================================================
         if not rlay_raw.crs() == self.qproj.crs():
-            log.warning('\'%s\'  crs does not match project (%s v %s)'%(
+            log.debug('\'%s\'  crs does not match project (%s v %s)'%(
                 rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid()))
             
  
@@ -1857,6 +1857,7 @@ class Qproj(QAlgos, Basic):
                          rlay1_raw,
                          rlay2_raw,
                          logger=None):
+        """todo: migrate to assert_rlay_equal"""
         #=======================================================================
         # defaults
         #=======================================================================
