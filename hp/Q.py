@@ -1737,12 +1737,34 @@ class Qproj(QAlgos, Basic):
     def rlay_mround(self, #rounda  raster to some multiple
                     rlay,
                     multiple=0.2, #value to round to nearest multiple of
+
                     **kwargs):
         
         return self.rastercalculatorGDAL(
             rlay,
             '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
             **kwargs)
+        
+    def rlay_mcopy(self, #multply raster values by 1
+                   rlay,
+                   mstore=None,
+                    logger=None,
+                   **kwargs):
+        """should preserve nodata?
+        also consider simply copying the source"""
+        fp =  self.rastercalculator(rlay,
+                                     '\"{layerName}@1\"*1'.format(layerName=rlay.name()),
+                                      logger=logger, **kwargs)
+        
+        #check
+        rlay_copy = self.rlay_load(fp, mstore=mstore, logger=logger)
+        
+        rlay_copy.setName(rlay.name()+'_mcopy')
+        
+        assert_rlay_equal(rlay, rlay_copy, msg='rlay_mcopy')
+        
+        return rlay_copy
+        
         
  
   
@@ -2916,6 +2938,26 @@ def view(#view the vector data (or just a df) as a html frame
     logger.info('viewer closed')
     
     return
+
+#===============================================================================
+# rlay helpers--------
+#===============================================================================
+def assert_rlay_equal(left, right, msg=''): #simple rlay comparison check
+    assert isinstance(left, QgsRasterLayer), msg
+    assert isinstance(right, QgsRasterLayer), msg
+    __tracebackhide__ = True
+    
+ 
+    
+    #check basic methods
+    for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
+        lval = getattr(left, method)()
+        rval = getattr(right, method)()
+        
+        if not lval == rval:
+            raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
+                left.name(), method, lval, right.name(), method, rval) +msg) 
+ 
 
 #==============================================================================
 # type conversions----------------
