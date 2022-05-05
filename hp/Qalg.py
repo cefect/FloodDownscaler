@@ -1678,6 +1678,43 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
+    def rastercalculator(self, 
+                     rlay,
+                     exp_str, #expression string to evaluate
+ 
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+        """
+        only setup for very simple 1 layer calcs
+            for anything more complex, use the contructor
+        """
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:rastercalculator'
+        if logger is None: logger=self.logger
+        log = logger.getChild('rastercalculator')
+
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+ 
+        ins_d = { 
+                'CELLSIZE' : 0,#auto 
+                 'CRS' : None, #auto
+                 'EXPRESSION' : exp_str, 
+                 'EXTENT' : None, 
+                 'LAYERS' : [rlay.source()], 
+                 'OUTPUT' : output }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        
+        return res_d['OUTPUT']
+    
     #===========================================================================
     # GDAL---------
     #===========================================================================
