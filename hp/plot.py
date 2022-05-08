@@ -613,6 +613,7 @@ class Plotr(Basic):
                    out_dir = None, overwrite=None, 
                    out_fp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
+                   clean_ofp=True,
                    
                    #stylig
                    add_stamp=True, #whether to write the filepath as a small stamp
@@ -654,6 +655,11 @@ class Plotr(Basic):
                 fname =str('%s_%s'%(fname, self.resname)).replace(' ','')
                 
             out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
+            
+            
+        if clean_ofp:
+            for s in [',', ';', ')', '(', '=', ' ', '\'']:
+                out_fp = out_fp.replace(s,'')
             
         if os.path.exists(out_fp): 
             assert overwrite
