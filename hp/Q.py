@@ -1752,12 +1752,31 @@ class Qproj(QAlgos, Basic):
                    **kwargs):
         """should preserve nodata?
         also consider simply copying the source"""
-        fp =  self.rastercalculator(rlay,
-                                     '\"{layerName}@1\"*1'.format(layerName=rlay.name()),
-                                      logger=logger, **kwargs)
+        if logger is None: logger=self.logger
+        log=logger.getChild('rlay_mcopy')
+        
+        """too complicated
+        with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.temp_dir,
+                        ) as wrkr:
+            
+            entries_d = {k:wrkr._rCalcEntry(v) for k,v in {'lay':rlay}.items()}
+            formula = '%s*1'%(entries_d['lay'].ref)
+ 
+            fp = wrkr.rcalc(formula, layname=rlay.name()+'_mcopy')
+            
+        """
+        
+        """strings arent working
+        
+        exp_str = r'\"{ref}\"*1'.format(ref=self._rCalcEntry(rlay).ref)
+        fp =  self.rastercalculator(rlay,exp_str,logger=logger, **kwargs)"""
+        
+        ofp = os.path.join(self.temp_dir, rlay.name()+'_mcopy.tif')
+        assert not os.path.exists(ofp), ofp
+        shutil.copy2(rlay.source(),ofp)
         
         #check
-        rlay_copy = self.rlay_load(fp, mstore=mstore, logger=logger)
+        rlay_copy = self.rlay_load(ofp, mstore=mstore, logger=logger)
         
         rlay_copy.setName(rlay.name()+'_mcopy')
         
