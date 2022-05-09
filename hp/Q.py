@@ -614,7 +614,8 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if ofp is None:
             if out_dir is None: out_dir = self.out_dir
-            assert os.path.exists(out_dir)
+            if not os.path.exists(out_dir):os.makedirs(out_dir)
+ 
             
             newFn = get_valid_filename('%s.tif'%newLayerName) #clean it
         
@@ -1406,13 +1407,15 @@ class Qproj(QAlgos, Basic):
     
     def mask_build(self, #get a mask from a raster with data
                    rlay,
-                   logger=None,
-                   layname=None,
+                   
+                   #mask parameters
                    zero_shift=False, #necessary for preserving zero values
                    thresh=None, #optional threshold value with which to build raster
                    thresh_type='lower', #specify whether threshold is a lower or an upper bound
                    rval=None, #make a mask from a specific value
-                   ofp=None, **kwargs):
+                   
+                   #misc
+                   layname=None,ofp=None,logger=None, **kwargs):
         
         #=======================================================================
         # defaults
@@ -1963,6 +1966,16 @@ class Qproj(QAlgos, Basic):
             return obj
         else:
             raise Error('bad type: %s'%type(obj))
+        
+    def assert_layer(self,
+                    layer, msg=''):
+        if not isinstance(layer, QgsMapLayer):
+            raise AssertionError('bad type: %s\n'%type(layer)+msg) 
+        
+        if not layer.crs()==self.qproj.crs():
+            raise AssertionError('crs mismatch: %s!=%s\n'%(
+                layer.crs().authid(), self.qproj.crs().authid())+msg) 
+            
 
     def mstore_log(self, #convenience to log the mstore
                    mstore=None,
