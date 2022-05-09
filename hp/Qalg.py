@@ -1864,7 +1864,7 @@ class QAlgos(object):
                               crsOut = None, #crs to re-project to
                               resolution=None,
                               compression = None,
-                              nodata_val=None,
+                              nodata_val=-9999,
                               resampling='Nearest neighbour', #resampling method
                               extents=None,
  
@@ -1921,8 +1921,12 @@ class QAlgos(object):
      
             #assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
             
+        assert (output == 'TEMPORARY_OUTPUT') or (output.endswith('.tif')) 
+        
         if os.path.exists(output):
             os.remove(output)
+        
+        
 
             
         if not resolution is None:
@@ -1960,7 +1964,7 @@ class QAlgos(object):
         
         if not os.path.exists(res_d['OUTPUT']):
             """failing intermittently"""
-            raise Error('failed to get a result')
+            raise Error('failed to get a result from \n    %s'%ins_d)
         
         log.debug('finished w/ %s'%res_d)
           
