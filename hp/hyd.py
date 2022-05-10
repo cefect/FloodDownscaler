@@ -95,7 +95,9 @@ class HQproj(Qproj):
         with RasterCalc(fp, name='mask', session=self, logger=log,out_dir=self.temp_dir,) as wrkr:
  
             rc = wrkr._rCalcEntry(wrkr.ref_lay)
-            formula = '(\"{0}\">=0.000)'.format(rc.ref)
+            
+            """deal with some rounding issues?"""
+            formula = '(\"{0}\">=0.001)'.format(rc.ref)
  
             log.info('executing %s'%formula)
             fp = wrkr.rcalc(formula, layname='%s_mask'%wse_rlay.name())
