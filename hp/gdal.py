@@ -224,6 +224,8 @@ def getRasterStatistics(fp):
     return d
 
 def getNoDataCount(fp, dtype=np.dtype('float')):
+    """2022-05-10: this was returning some nulls
+    for rasters where I could not find any nulls"""
     #get raw data
     ds = gdal.Open(fp)
     band = ds.GetRasterBand(1)
