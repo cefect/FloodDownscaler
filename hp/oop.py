@@ -244,8 +244,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # retrival handles---------
         #=======================================================================
-                    
-            
+ 
         self.data_retrieve_hndls=data_retrieve_hndls
         
         #check keys
@@ -479,6 +478,13 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             log.info(msg)
         except:
             print(msg)
+            
+        #=======================================================================
+        # write it
+        #=======================================================================
+        with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.longname), 'a') as f:
+            f.write(datetime.datetime.now().strftime('%H%M%S'))
+            f.write(msg)
         #=======================================================================
         # extneded exit summary
         #=======================================================================
