@@ -2275,7 +2275,7 @@ class RasterCalc(object):
                
                #general control
                #allow_empty=True, 
-               report=True,
+               report=False,
                logger=None,
                ):
         """
