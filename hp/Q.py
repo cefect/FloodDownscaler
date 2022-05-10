@@ -1464,6 +1464,10 @@ class Qproj(QAlgos, Basic):
                 elif thresh_type=='upper':
                     thresh_i = thresh+.001
                     f1 = '(\"{0}\"<={1:.3f})'.format(rcentry.ref, thresh_i)
+                elif thresh_type=='lower_neq':
+                    f1 = '(\"{0}\">{1:.3f})'.format(rcentry.ref, thresh)
+                elif thresh_type=='upper_neq':
+                    f1 = '(\"{0}\"<{1:.3f})'.format(rcentry.ref, thresh)
                 else:
                     raise Error('bad thresh_type: %s'%thresh_type)
                 formula = f1 + '/' + f1
