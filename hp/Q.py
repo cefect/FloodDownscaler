@@ -1944,7 +1944,7 @@ class Qproj(QAlgos, Basic):
         # load from filepath
         #=======================================================================
         if isinstance(obj, str):
-            assert os.path.exists(obj)
+            assert os.path.exists(obj), obj
             ext = os.path.splitext(obj)[1]
             
             #rasters
@@ -1969,12 +1969,13 @@ class Qproj(QAlgos, Basic):
         
     def assert_layer(self,
                     layer, msg=''):
-        if not isinstance(layer, QgsMapLayer):
-            raise AssertionError('bad type: %s\n'%type(layer)+msg) 
-        
-        if not layer.crs()==self.qproj.crs():
-            raise AssertionError('crs mismatch: %s!=%s\n'%(
-                layer.crs().authid(), self.qproj.crs().authid())+msg) 
+        if __debug__:
+            if not isinstance(layer, QgsMapLayer):
+                raise AssertionError('bad type: %s\n'%type(layer)+msg) 
+            
+            if not layer.crs()==self.qproj.crs():
+                raise AssertionError('crs mismatch: %s!=%s\n'%(
+                    layer.crs().authid(), self.qproj.crs().authid())+msg) 
             
 
     def mstore_log(self, #convenience to log the mstore
@@ -2023,6 +2024,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         rcentry = QgsRasterCalculatorEntry()
         rcentry.raster =rlay #not accesesible for some reason
+        rcentry.rlay=rlay
         rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
         rcentry.bandNumber=bandNumber
         
@@ -2295,11 +2297,11 @@ class RasterCalc(object):
         ref_lay=self.ref_lay
         
         if layname is None: layname='%s_%s'%(ref_lay.name(), self.name)
+        assert not '.tif' in layname
         #=======================================================================
         # output file
         #=======================================================================
         if ofp is None:
-
             ofp = os.path.join(out_dir,layname+'.tif' )
             
         if os.path.exists(ofp):
@@ -2320,15 +2322,15 @@ class RasterCalc(object):
         #=======================================================================
 
         d = dict(
-            formula=formula,
-            ofp=ofp,
-            outputExtent  = ref_lay.extent(),
-            outputFormat = 'GTiff',
-            crs = self.qproj.crs(),
-            nOutputColumns = ref_lay.width(),
-            nOutputRows = ref_lay.height(),
-            crsTrnsf = QgsCoordinateTransformContext(),
-            rasterEntries = rasterEntries,
+                formula=formula,
+                ofp=ofp,
+                outputExtent  = ref_lay.extent(),
+                outputFormat = 'GTiff',
+                crs = self.qproj.crs(),
+                nOutputColumns = ref_lay.width(),
+                nOutputRows = ref_lay.height(),
+                crsTrnsf = QgsCoordinateTransformContext(),
+                rasterEntries = rasterEntries,
             )
         #=======================================================================
         # execute
@@ -2353,22 +2355,16 @@ class RasterCalc(object):
         #=======================================================================
         if not result == 0:
             raise Error('formula=%s failed w/ \n    %s'%(formula, rcalc.lastError()))
-        
-        
-        
-        log.debug('saved result to: \n    %s'%ofp)
-        
  
+        log.debug('saved result to: \n    %s'%ofp)
  
         #=======================================================================
         # wrap
         #=======================================================================
  
-        
         #check and report
         if report:
             stats_d = self.session.rasterlayerstatistics(ofp)
-            
             log.debug('finished w/ \n    %s'%stats_d)
         self.result = ofp
         return ofp
