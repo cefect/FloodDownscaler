@@ -108,10 +108,11 @@ class HQproj(Qproj):
         mask_rlay = self.get_layer(fp, mstore=mstore)
 
         
-        ofp = self.mask_apply(wse1_rlay, mask_rlay, layname='%s_noGW'%wse_rlay.name(), logger=log)
+        ofp = self.mask_apply(wse1_rlay, mask_rlay, layname='%s_noGW'%wse_rlay.name(), 
+                              logger=log, out_dir=out_dir)
         
         
-        log.info('finished')
+        log.info('finished to \n    %s'%ofp)
         return self.get_layer(ofp, mstore=self.mstore)
                         
                         
