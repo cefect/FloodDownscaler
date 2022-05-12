@@ -941,13 +941,14 @@ class QAlgos(object):
  
             logger=None,feedback='none',
             ):
+        """WARNING: this are rapid statistics... precision of 1"""
         
         #=======================================================================
         # setups and defaults
         #=======================================================================
         if logger is None: logger=self.logger    
         algo_nm = 'native:rasterlayerstatistics'
-        #log = logger.getChild('simplifygeometries')
+ 
         
         if feedback =='none':
             feedback=None
@@ -958,8 +959,7 @@ class QAlgos(object):
         ins_d = { 'BAND' : 1, 
                  'INPUT' : rlay,
                   'OUTPUT_HTML_FILE' : 'TEMPORARY_OUTPUT' }
-        
-        #log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
  
         res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
         
