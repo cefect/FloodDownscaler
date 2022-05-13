@@ -867,7 +867,7 @@ class Qproj(QAlgos, Basic):
 
         
         res_vlay =  self.selectbylocation(vlay, aoi_vlay, result_type='layer', logger=log)
-        
+        res_vlay.setName('%s_aoi'%vlay.name())
         #=======================================================================
         # wrap
         #=======================================================================
