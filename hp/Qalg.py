@@ -1886,6 +1886,9 @@ class QAlgos(object):
         log = logger.getChild('warpreproject')
         if compression is None: compression=self.compression
         
+        if resampling=='nn':
+            resampling='Nearest neighbour'
+        
         resamp_d = {0:'Nearest neighbour',
                     1:'Bilinear',
                     2:'Cubic',
