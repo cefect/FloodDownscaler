@@ -460,7 +460,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # log major containers
         #=======================================================================
-        
+        cnt=0
         msg=''
         if len(self.data_d)>0:
             msg+='\n    data_d.keys(): \n        %s'%(list(self.data_d.keys()))
@@ -469,6 +469,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         if len(self.ofp_d)>0:
             msg+='\n    ofp_d (%i):'%len(self.ofp_d)
             for k,v in self.ofp_d.items():
+                cnt+=1
                 msg+='\n        \'%s\':r\'%s\','%(k,v)
             msg+='\n\n'
             self.ofp_d = dict()
@@ -482,9 +483,10 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # write it
         #=======================================================================
-        with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.longname), 'a') as f:
-            f.write(datetime.datetime.now().strftime('%H%M%S'))
-            f.write(msg)
+        if cnt>0:
+            with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.longname), 'a') as f:
+                f.write(datetime.datetime.now().strftime('%H%M%S'))
+                f.write(msg)
         #=======================================================================
         # extneded exit summary
         #=======================================================================
