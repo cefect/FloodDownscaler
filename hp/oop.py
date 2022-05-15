@@ -216,7 +216,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     
     def __init__(self, 
                  bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
-                 compiled_fp_d = dict(), #container for compiled (intermediate) results {dkey:filepath}
+                 compiled_fp_d = None, #container for compiled (intermediate) results {dkey:filepath}
                  data_retrieve_hndls=None, #data retrival handles
                              #default handles for building data sets {dkey: {'compiled':callable, 'build':callable}}
                             #all callables are of the form func(**kwargs)
@@ -240,7 +240,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     
         self.ofp_d = dict() #output filepaths generated this session
         
-        
+        if compiled_fp_d is None: compiled_fp_d=dict() #something strange here
         #=======================================================================
         # retrival handles---------
         #=======================================================================
@@ -254,7 +254,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             assert len(l)==0, 'keymismatch on bk_lib \n    %s'%l
             
             l = set(compiled_fp_d.keys()).difference(keys)
-            assert len(l)==0, 'keymismatch on compiled_fp_d \n    %s'%l
+            if not len(l)==0:
+                raise KeyError('keymismatch on compiled_fp_d \n    %s'%l)
             
             
         #attach    

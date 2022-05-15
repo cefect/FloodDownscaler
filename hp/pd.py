@@ -13,6 +13,7 @@ pd.__version__
 import logging, copy, os, time, re, xlrd, math, gc, inspect
 import numpy as np
 import pandas as pd
+import pandas.testing as pdt
 import warnings
 
 #===============================================================================
@@ -281,6 +282,15 @@ def data_report( #generate a data report on a frame
     
     return res_d1
 
+#===============================================================================
+# assertions
+#===============================================================================
+def assert_index_equal(*args, msg='', **kwargs):
+    if __debug__:
+        try:
+            pdt.assert_index_equal(*args, **kwargs)
+        except Exception as e:
+            raise AssertionError('%s\n%s'%(msg, e))
         
         
 if __name__ == '__main__':
