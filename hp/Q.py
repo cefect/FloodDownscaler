@@ -1308,7 +1308,7 @@ class Qproj(QAlgos, Basic):
         see __rCalcEntry
         
         memory handling:
-            would be easier to make a standalone worker
+ 
         """
         warnings.warn('20220304: see RasterCalc()', DeprecationWarning)
         #=======================================================================
