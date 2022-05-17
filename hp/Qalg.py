@@ -63,15 +63,7 @@ class QAlgos(object):
 
         }
     
-    #WARNING: some processing providers dont play well with high compression 
-        #e.g. Whitebox doesnt recognize 'PREDICTOR' compression
-    compress_d =  {
-        'topo_hi':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=9|MAX_Z_ERRROR=0.01', #nice for terrain
-        'topo_lo':'COMPRESS=LERC_DEFLATE|PREDICTOR=2|ZLEVEL=6|MAX_Z_ERRROR=0.001', #nice for terrain
-        'qgis_hi':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',#Q default hi
-        'med':'COMPRESS=LZW',
-        'none':None,        
-        }
+
 
     #===========================================================================
     # input converters
@@ -91,15 +83,7 @@ class QAlgos(object):
     selectionMeth_d =  {'new':0, 'add':1, 'subselection':2, }
     
     
-    
-    def __init__(self, 
-                 inher_d = {},
-                 **kwargs):
-        
-        super().__init__(  #initilzie teh baseclassass
-            inher_d = {**inher_d,
-                **{'QAlgos':[]}},
-                        **kwargs) 
+
         
         
     def _init_algos(self,
@@ -500,7 +484,10 @@ class QAlgos(object):
         else:
             alg_input = vlay
 
-    
+        if not isinstance(vlay, str):
+            assert isinstance(vlay, QgsVectorLayer)
+            assert 'Point' in QgsWkbTypes().displayString(vlay.wkbType())
+            
         #=======================================================================
         # setup
         #=======================================================================
@@ -527,11 +514,7 @@ class QAlgos(object):
                              allow_none = False,
                              output='TEMPORARY_OUTPUT',
                              ): 
-        """
-        TODO: add these intermediate layers to the store
-        """
-        
-        
+ 
         #===========================================================================
         # setups and defaults
         #===========================================================================
@@ -610,7 +593,7 @@ class QAlgos(object):
         #===========================================================================
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
-        """returns a filepathf or some reason"""
+        """always returns a filepathf or some reason"""
         return res_d['OUTPUT']
     
     def mergevectorlayers(self,
@@ -958,13 +941,14 @@ class QAlgos(object):
  
             logger=None,feedback='none',
             ):
+        """WARNING: this are rapid statistics... precision of 1"""
         
         #=======================================================================
         # setups and defaults
         #=======================================================================
         if logger is None: logger=self.logger    
         algo_nm = 'native:rasterlayerstatistics'
-        #log = logger.getChild('simplifygeometries')
+ 
         
         if feedback =='none':
             feedback=None
@@ -975,8 +959,7 @@ class QAlgos(object):
         ins_d = { 'BAND' : 1, 
                  'INPUT' : rlay,
                   'OUTPUT_HTML_FILE' : 'TEMPORARY_OUTPUT' }
-        
-        #log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
  
         res_d = processing.run(algo_nm, ins_d,  feedback=feedback, context=self.context)
         
@@ -1034,7 +1017,7 @@ class QAlgos(object):
             mstore.addMapLayer(extent_layer)
         
         if resolution is None:
-            resolution = self.get_resolution(extent_layer)
+            resolution = self.rlay_get_resolution(extent_layer)
  
         feedback=self.feedback
             
@@ -1081,6 +1064,195 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
+    def addautoincrement(self,
+            vlay,
+            fieldName='id',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:addautoincrementalfield'
+        log = logger.getChild('addautoincrementalfield')
+        
+        
+        
+        ins_d = { 'FIELD_NAME' : fieldName, 'GROUP_FIELDS' : [],
+          'INPUT' : vlay, 
+          'MODULUS' : 0,
+          'OUTPUT' : output, 
+          'SORT_ASCENDING' : True, 
+          'SORT_EXPRESSION' : '', 
+          'SORT_NULLS_FIRST' : False, 
+          'START' : 0 }
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+ 
+    def zonalstatistics(self,
+            vlay, #polygon zones 
+            rlay, #raster to sample
+            pfx='samp_',
+            stat = 'Mean',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:zonalstatisticsfb'
+        log = logger.getChild('zonalstatistics')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+        stats_d = {0:'Count',1:'Sum',2:'Mean',3:'Median',4:'St. dev.',5:'Minimum',6:'Maximum',7:'Range',8:'Minority',9:'Majority',10:'Variety',11:'Variance'}
+        
+        
+        ins_d = {       'COLUMN_PREFIX':pfx, 
+                            'INPUT_RASTER':rlay, 
+                            'INPUT':vlay, 
+                            'RASTER_BAND':1, 
+                            'STATISTICS':{v:k for k,v in stats_d.items()}[stat],
+                            'OUTPUT' : output,
+                            }
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+    
+    def randomuniformraster(self,
+            pixel_size,
+            bounds=(0,1),
+            
+            extent=None, #layer to pull raster extents from
+               #None: use pts_vlay
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:createrandomuniformrasterlayer'
+        log = logger.getChild('randomuniformraster')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+        if isinstance(extent, QgsMapLayer):
+            extent = extent.extent()
+        
+ 
+        
+        
+        ins_d = { 'EXTENT' : extent,
+                  'LOWER_BOUND' : bounds[0], 'UPPER_BOUND' : bounds[1],
+                  'OUTPUT' : output, 
+                 'OUTPUT_TYPE' : 5, #Float32
+                 'PIXEL_SIZE' : pixel_size, 
+                 'TARGET_CRS' :self.qproj.crs(), 
+                 }
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+    
+    
+    def kmeansclustering(self,
+            vlay, clusters, 
+            fieldName='CLUSTER_ID',
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:kmeansclustering'
+        log = logger.getChild('kmeansclustering')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+ 
+        
+        
+        ins_d = { 'CLUSTERS' : clusters, 
+                 'FIELD_NAME' : fieldName, 
+                 'SIZE_FIELD_NAME' : 'CLUSTER_SIZE',
+                 'INPUT' : vlay, 
+                 'OUTPUT' : output,}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+
+    def polygonstolines(self,
+            vlay,  
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:polygonstolines'
+        log = logger.getChild('polygonstolines')
+ 
+        
+        ins_d = {'INPUT' : vlay, 
+                 'OUTPUT' : output,}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+
+    def splitwithlines(self,
+            vlay,  
+            lines_vlay,
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:splitwithlines'
+        log = logger.getChild('splitwithlines')
+ 
+        
+        ins_d = {'INPUT' : vlay, 
+                 'OUTPUT' : output, 'LINES':lines_vlay}
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d))
+ 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     #===========================================================================
     # QGIS--------
     #===========================================================================
@@ -1119,6 +1291,8 @@ class QAlgos(object):
              # 0: Create separate feature for each matching feature (one-to-many)
              #1: Take attributes of the first matching feature only (one-to-one)
              #2: Take attributes of the feature with largest overlap only (one-to-one)
+             
+        discard_nonmatching=True,
         output='TEMPORARY_OUTPUT',
         output_nom = 'TEMPORARY_OUTPUT',
              
@@ -1139,7 +1313,7 @@ class QAlgos(object):
 
         
         
-        pars_d = { 'DISCARD_NONMATCHING' : True, #only want matching records in here
+        pars_d = { 'DISCARD_NONMATCHING' : discard_nonmatching, #only want matching records in here
                   'INPUT' : vlay, 
                   'JOIN' : jvlay, 
                   'JOIN_FIELDS' : jvlay_fnl, 
@@ -1262,7 +1436,7 @@ class QAlgos(object):
         if logger is None: logger=self.logger
         log = logger.getChild('deletecolumn')
 
-        
+        assert len(fields_l)>0
         assert isinstance(fields_l, list)
         #=======================================================================
         # assemble pars
@@ -1272,7 +1446,7 @@ class QAlgos(object):
         else:
             main_input=vlay
             
-        
+        assert isinstance(fields_l,  list), 'bad type on fields_l: %s'%type(fields_l)
         
         #assemble pars
         ins_d = { 'COLUMN' : fields_l, 
@@ -1471,6 +1645,80 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
+    def minimumboundinggeometry(self, # table containing a distance matrix, with distances between all the points in a points layer.
+                     vlay,
+                     fieldName=None, #optional category name
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+        
+        if logger is None: logger=self.logger
+        log=logger.getChild('minimumboundinggeometry')
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:minimumboundinggeometry'
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+
+        #assemble pars
+        ins_d = { 'FIELD' : fieldName, 
+                 'INPUT' : vlay, 
+                 'OUTPUT' : output, 
+                 'TYPE' : 3, #convex hull
+                  }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, 
+                               #context=self.context,
+                               )
+        
+        return res_d['OUTPUT']
+    
+    def rastercalculator(self, 
+                     rlay,
+                     exp_str, #expression string to evaluate
+ 
+                     output='TEMPORARY_OUTPUT',
+                     logger = None,
+                     ):
+        """
+        only setup for very simple 1 layer calcs
+            for anything more complex, use the contructor
+        """
+        #=======================================================================
+        # presets
+        #=======================================================================
+        algo_nm = 'qgis:rastercalculator'
+        if logger is None: logger=self.logger
+        log = logger.getChild('rastercalculator')
+
+ 
+        #=======================================================================
+        # assemble pars
+        #=======================================================================
+ 
+        ins_d = { 
+                'CELLSIZE' : 0,#auto 
+                 'CRS' : None, #auto
+                 'EXPRESSION' : exp_str, 
+                 'EXTENT' : None, 
+                 'LAYERS' : [rlay.source()], 
+                 'OUTPUT' : output }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
+        
+        try:
+            res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        except Exception as e:
+            raise Error('failed to execute %s \n    %s\n    %s'%(algo_nm, ins_d, e))
+        
+        
+        return res_d['OUTPUT']
+    
     #===========================================================================
     # GDAL---------
     #===========================================================================
@@ -1615,12 +1863,20 @@ class QAlgos(object):
                               
                               crsOut = None, #crs to re-project to
                               resolution=None,
-                              compression = 'none',
-                              nodata_val=None,
+                              compression = None,
+                              nodata_val=-9999,
+                              resampling='Nearest neighbour', #resampling method
+                              extents=None,
  
-                              output = 'TEMPORARY_OUTPUT',
+ 
+                              output = 'TEMPORARY_OUTPUT', #always writes to file
                               logger = None,
                               ):
+        """
+                        bbox_str = '%.3f, %.3f, %.3f, %.3f [%s]'%(
+                    rect.xMinimum(), rect.xMaximum(), rect.yMinimum(), rect.yMaximum(),
+                    self.aoi_vlay.crs().authid())
+        """
 
         
         #=======================================================================
@@ -1628,12 +1884,24 @@ class QAlgos(object):
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('warpreproject')
+        if compression is None: compression=self.compression
         
-        #=======================================================================
-        # if layname is None:
-        #     layname = '%s_rproj'%rlay_raw.name()
-        #=======================================================================
-            
+        if resampling=='nn':
+            resampling='Nearest neighbour'
+        
+        resamp_d = {0:'Nearest neighbour',
+                    1:'Bilinear',
+                    2:'Cubic',
+                    3:'Cubic spline',
+                    4:'Lanczos windowed sinc',
+                    5:'Average',
+                    6:'Mode',
+                    7:'Maximum',
+                    8:'Minimum',
+                    9:'Median',
+                    10:'First quartile',
+                    11:'Third quartile'}
+ 
             
         algo_nm = 'gdal:warpreproject'
             
@@ -1656,43 +1924,52 @@ class QAlgos(object):
      
             #assert rlay_raw.crs() != crsOut, 'layer already on this CRS!'
             
+        assert (output == 'TEMPORARY_OUTPUT') or (output.endswith('.tif')) 
+        
         if os.path.exists(output):
             os.remove(output)
+        
+        
 
             
-            
+        if not resolution is None:
+            assert isinstance(resolution, int)
         #=======================================================================
         # run algo        
         #=======================================================================
+        opts = self.compress_d[compression]
+        if opts is None: opts = ''
 
         
         ins_d =  {
              'DATA_TYPE' : 0,#use input
              'EXTRA' : '',
              'INPUT' : rlay_raw,
-             'MULTITHREADING' : True,
+             'MULTITHREADING' : False,
              'NODATA' : nodata_val,
-             'OPTIONS' : self.compress_d[compression],
+             'OPTIONS' : opts,
              'OUTPUT' : output,
-             'RESAMPLING' : 0,#nearest neighbour
+             'RESAMPLING' : {v:k for k,v in resamp_d.items()}[resampling],
              'SOURCE_CRS' : None,
              'TARGET_CRS' : crsOut,
-             'TARGET_EXTENT' : None,
+             'TARGET_EXTENT' : extents,
              'TARGET_EXTENT_CRS' : None,
              'TARGET_RESOLUTION' : resolution,
           }
         
+ 
         log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
         
+ 
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
         
  
         
         if not os.path.exists(res_d['OUTPUT']):
             """failing intermittently"""
-            raise Error('failed to get a result')
+            raise Error('failed to get a result from \n    %s'%ins_d)
         
- 
+        log.debug('finished w/ %s'%res_d)
           
         return res_d['OUTPUT']
     
@@ -1700,7 +1977,7 @@ class QAlgos(object):
                   rlays_l,
                   crsOut = None, #crs to re-project to
                   layname = None,
-                  compression = 'hiT',
+                  compression = None,
                   output = 'TEMPORARY_OUTPUT',
                   logger = None,
                               ):
@@ -1710,6 +1987,7 @@ class QAlgos(object):
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('mergeraster')
+        if compression is None: compression=self.compression
         
         if layname is None:
             layname = 'merge'
@@ -1851,7 +2129,7 @@ class QAlgos(object):
                 rlayA, #fixed value to burn,
  
                 formula,
-                compression = 'none',
+                compression = None,
                 output = 'TEMPORARY_OUTPUT',
                 dtype='Float32', #Float32. TODO: replace w/ raster_dtype_d
                 logger=None,
@@ -1866,6 +2144,7 @@ class QAlgos(object):
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
+        if compression is None: compression=self.compression
         log = logger.getChild('rastercalculator')
 
         algo_nm = 'gdal:rastercalculator'

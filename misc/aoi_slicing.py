@@ -341,20 +341,29 @@ class Sliceor(Qproj):
         log.info('finished writing %i/%i to file'%(wcnt, len(layers_d)))
         
         return
+
+def selectbylocation(
+        left_fp = r'C:\LS\05_DATA\Global\Microsoft\CanadianBuildingFootprints\20210407_NB\NewBrunswick.geojson',
+        right_fp = r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\SaintJohn\aoi13_0116.gpkg',
+        ofp=None,
+        ):
+    
+    with Qproj() as ses:
+        left_vlay = ses.vlay_load(left_fp, set_proj_crs=True)
+        ses.selectbylocation(left_vlay, right_fp)
+        
+        if ofp is None: ofp = os.path.join(ses.out_dir, 'selected.gpkg')
+        
+        ses.saveselectedfeatures(left_vlay, output=ofp) 
+        
+        print('saved to %s'%ofp)
         
 
 
 if __name__ == '__main__':
     
-    data_dir = r'C:\LS\03_TOOLS\LML\_ins2\kent'
-    aoi_fp = r'C:\LS\02_WORK\NHC\202012_Kent\04_CALC\aoi\BC_MoMAH_Kent_aoi01a.gpkg'
     
-    
-    wrkr = Sliceor(aoi_fp=aoi_fp)
-    
-    
-    laySlice_d, mdf = wrkr.run_slice(data_dir)
-    
+    selectbylocation()
     """
     view(mdf)
     """

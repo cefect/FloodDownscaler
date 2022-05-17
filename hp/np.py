@@ -21,7 +21,7 @@ import os, logging, shutil, random, re, copy
 
 from hp.exceptions import Error
 
-Error('depreciated 2021-12-29')
+raise Error('depreciated 2021-12-29')
 
 #===============================================================================
 # # # logger config ------------------------------------------------------------

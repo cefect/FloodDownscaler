@@ -94,7 +94,7 @@ class BuildLogr(object): #simple class to build a logger
         #===============================================================================
         # # Load duplicate log file
         #===============================================================================
-        assert os.path.exists(out_dir), out_dir
+        assert os.path.exists(out_dir)
         logger_file_path = os.path.join(out_dir, '%s.log'%basenm)
         
         #build the handler

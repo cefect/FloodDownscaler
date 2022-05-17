@@ -23,13 +23,15 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 
-import os, sys, datetime, gc, copy
+import os, sys, datetime, gc, copy, pickle, pprint
 
 from hp.dirz import delete_dir
 
 from hp.exceptions import Error
 
-
+import numpy as np
+import pandas as pd
+ 
  
 
 #===============================================================================
@@ -37,9 +39,6 @@ from hp.exceptions import Error
 #===============================================================================
 
 class Basic(object): #simple base class
-    
- 
-    
     def __init__(self, 
 
                  
@@ -50,12 +49,10 @@ class Basic(object): #simple base class
                  
                  #names/labels
                  name           = None, #task or function-based name ('e.g., Clean). nice to capitalize
-                 tag            = None, #session or run name (e.g., 0402)
-                 mod_name       = 'oop',
-                 layName_pfx    =None,
+                 tag            = None, #session or run name (e.g., 0402) 
+                 longname       = None,
                  
                  #inheritancee
-                 inher_d        = {}, #container of inheritance pars
                  session        = None,
                  
                  #controls
@@ -79,7 +76,7 @@ class Basic(object): #simple base class
         #=======================================================================
         self.session=session
         self.work_dir=work_dir
-        self.mod_name=mod_name
+ 
         self.overwrite=overwrite
         self.prec=prec
         
@@ -91,13 +88,7 @@ class Basic(object): #simple base class
         self.name=name
         
  
-        #potential inheritance handles
-        """see note at script head""" 
-        self.inher_d = {**inher_d, #add all thosefrom parents 
-                        **{'Basic':[ #add the basic
-                            'work_dir', 'mod_name', 'overwrite']}, 
-                        }
-        
+ 
  
  
         # run tag
@@ -107,11 +98,11 @@ class Basic(object): #simple base class
         self.tag=tag
  
         # labels
-        if layName_pfx is None:
-            layName_pfx = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
+        if longname is None:
+            longname = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
                 
-        self.layName_pfx = layName_pfx
-        self.resname = layName_pfx #consistnecy w/ CanFlood
+        self.longname = longname
+ 
 
         #=======================================================================
         # output directory
@@ -169,73 +160,34 @@ class Basic(object): #simple base class
         #=======================================================================
         # wrap
         #=======================================================================
-        d = dict()
-        for attn in ['name','tag','out_dir','prec','layName_pfx','session','mod_name','overwrite']:
-            assert hasattr(self, attn), attn
-            attv = getattr(self, attn)
  
-            d[attn] = attv
             
         #self._install_info()
         
-        self.logger.debug('finished Basic.__init__ w/ \n    %s'%d)
+        self.logger.debug('finished Basic.__init__ ')
         
-    def get_inher_atts(self, #return a container with the attribute values from your inher_d
-                       inher_d=None,
-                       logger=None,
-                       ):
-        """used by parents to retrieve kwargs to pass to children"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('get_inher_atts')
-        if inher_d is None:
-            inher_d = self.inher_d
-            
-        #=======================================================================
-        # retrieve
-        #=======================================================================
-        att_d = dict()
- 
-        
-        for className, attn_l in inher_d.items():
-            d = dict()
-            for attn in attn_l:
-                attv = getattr(self, attn)
-                #assert not attv is None, attn #allowing Nones to pass
-                
-                att_d[attn] = attv
-                d[attn] = attv
-                
-            log.debug('got %i atts from \'%s\'\n    %s'%(
-                len(d), className, d))
-        
-        return att_d
-            
-        
-        
+
     def _install_info(self,
                          log = None): #print version info
         if log is None: log = self.logger
         
-        #verison info
-        
-        log.info('main python version: \n    %s'%sys.version)
-        import numpy as np
-        log.info('numpy version: %s'%np.__version__)
-        import pandas as pd
-        log.info('pandas version: %s'%(pd.__version__))
-        
-        #directory info
-        log.info('os.getcwd: %s'%os.getcwd())
-        
-        log.info('exe: %s'%sys.executable)
-
+ 
+        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
+             'exe':sys.executable}
+ 
+        txt = pprint.PrettyPrinter(indent=4).pformat(d)
+        log.info(txt)
         #systenm paths
-        log.info('system paths')
         for k in sys.path: 
             log.info('    %s'%k)
+            
+    def _get_meta(self):
+        attns = ['tag', 'name', 'longname', 'start', 'today_str', 'prec', 'work_dir', 'out_dir']
+        
+        d = {k:getattr(self, k) for k in attns}
+        d = {**d, **{'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__}}
+        
+        return d
             
             
             
@@ -243,38 +195,9 @@ class Basic(object): #simple base class
     def __enter__(self):
         return self
     
-    def __exit__(self, #destructor
-             *args,**kwargs):
-        
-        print('opp.__exit__ on \'%s\''%self.__class__.__name__)
+    def __exit__(self,  *args,**kwargs):
         
 
-        
-        #gc.collect()
-        #=======================================================================
-        # #remove temporary files
-        #=======================================================================
-        """this fails pretty often... python doesnt seem to want to let go"""
-        for fp in self.trash_fps:
-            if not os.path.exists(fp): continue #ddeleted already
-            try:
-                if os.path.isdir(fp):
-                    delete_dir(fp)
-                else:
-                    os.remove(fp)
-                #print('    deleted %s'%fp)
-            except Exception as e:
-                pass
-                #print('failed to delete \n    %s \n    %s'%(fp, e))
-        
-        #=======================================================================
-        # remporary directory
-        #=======================================================================
-        try:
-            delete_dir(self.temp_dir)
-        except:
-            pass
-        
     
         #clear all my attriburtes
         for k in copy.copy(list(self.__dict__.keys())):
@@ -283,16 +206,334 @@ class Basic(object): #simple base class
         
         
                 
+class Session(Basic): #analysis with flexible loading of intermediate results
+    """typically we only instance this once
+        but tests will instance multiple times
+        so beware of setting containers here"""
+
+    
+    
+    
+    def __init__(self, 
+                 bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
+                 compiled_fp_d = None, #container for compiled (intermediate) results {dkey:filepath}
+                 data_retrieve_hndls=None, #data retrival handles
+                             #default handles for building data sets {dkey: {'compiled':callable, 'build':callable}}
+                            #all callables are of the form func(**kwargs)
+                            #see self._retrieve2()
+                            
+                wrk_dir=None, #output for working/intermediate files
+                write=True, 
+                exit_summary=False, #whether to write the exit summary on close
+
+                **kwargs):
         
+        """        
+        data_retrieve_hndls = { **{your_handles}, **{inherited_handles}} #overwrites inherited w/ yours
+        """
+        assert isinstance(data_retrieve_hndls, dict), 'must past data retrival handles'
+        
+        
+        super().__init__(**kwargs)
+        
+        self.data_d = dict() #datafiles loaded this session
     
+        self.ofp_d = dict() #output filepaths generated this session
+        
+        if compiled_fp_d is None: compiled_fp_d=dict() #something strange here
+        #=======================================================================
+        # retrival handles---------
+        #=======================================================================
+ 
+        self.data_retrieve_hndls=data_retrieve_hndls
+        
+        #check keys
+        keys = self.data_retrieve_hndls.keys()
+        if len(keys)>0:
+            l = set(bk_lib.keys()).difference(keys)
+            assert len(l)==0, 'keymismatch on bk_lib \n    %s'%l
+            
+            l = set(compiled_fp_d.keys()).difference(keys)
+            if not len(l)==0:
+                raise KeyError('keymismatch on compiled_fp_d \n    %s'%l)
+            
+            
+        #attach    
+        self.bk_lib=bk_lib
+        self.compiled_fp_d = compiled_fp_d
+        self.write=write
+        self.exit_summary=exit_summary
+        
+        
+        #start meta
+        self.dk_meta_d = {k:dict() for k in keys}
+        self.meta_d=dict()
+        self.smry_d=dict()
+            
+        #logger tag
+        self.logger=self.logger.getChild(self.tag)
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if wrk_dir is None:
+            wrk_dir = os.path.join(self.out_dir, 'working')
+        
+        if not os.path.exists(wrk_dir):
+            os.makedirs(wrk_dir)
+            
+        self.wrk_dir = wrk_dir
+        
+        
+    def retrieve(self, #flexible 3 source data retrival
+                 dkey,
+                 *args,
+                 logger=None,
+                 **kwargs
+                 ):
+        
+        if logger is None: logger=self.logger
+        log = logger.getChild('ret')
+        
+
+        start = datetime.datetime.now()
+        #=======================================================================
+        # 1.alredy loaded
+        #=======================================================================
+        """
+        self.data_d.keys()
+        """
+        if dkey in self.data_d:
+            log.info('loading \'%s\' from data_d'%dkey)
+            try:
+                return copy.deepcopy(self.data_d[dkey])
+            except Exception as e:
+                log.warning('failed to get a copy of \"%s\'... passing raw w/ \n    %s'%(dkey, e))
+                return self.data_d[dkey]
+            
+        
+        #=======================================================================
+        # retrieve handles
+        #=======================================================================
+        log.debug('loading %s'%dkey)
+                
+        assert dkey in self.data_retrieve_hndls, dkey
+        
+        hndl_d = self.data_retrieve_hndls[dkey]
+        
+        #=======================================================================
+        # 2.compiled provided
+        #=======================================================================
+ 
+        if dkey in self.compiled_fp_d and 'compiled' in hndl_d:
+            log.info('building \'%s\' from compiled'%(dkey))
+            data = hndl_d['compiled'](fp=self.compiled_fp_d[dkey], dkey=dkey)
+            method='loaded pre-compiled from %s'%self.compiled_fp_d[dkey]
+        #=======================================================================
+        # 3.build from scratch
+        #=======================================================================
+        else:
+            assert 'build' in hndl_d, 'no build handles for %s'%dkey
+            log.info('building \'%s\' from %s'%(dkey, hndl_d['build']))
+            
+            #retrieve builder kwargs
+            if dkey in self.bk_lib:
+                bkwargs=self.bk_lib[dkey].copy()
+                bkwargs.update(kwargs) #function kwargs take precident
+                kwargs = bkwargs
+                """
+                clearer to the user
+                also gives us more control for calls within calls
+                """
+
+            data = hndl_d['build'](*args, dkey=dkey,logger=logger, **kwargs)
+            
+            method='built w/ %s'%kwargs
+            
+        #=======================================================================
+        # store
+        #=======================================================================
+        assert data is not None, '\'%s\' got None'%dkey
+        assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey
+        self.data_d[dkey] = data
+        
+        tdelta = round((datetime.datetime.now() - start).total_seconds(), 1)
+            
+        self.dk_meta_d[dkey].update({
+            'tdelta (secs)':tdelta, 'dtype':type(data), 'len':len(data), 'method':method})
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info('finished on \'%s\' w/ len=%i dtype=%s'%(dkey, len(data), type(data)))
+        
+        return data
     
+    def load_pick(self,
+                  fp=None, 
+                  dkey=None,
+                  ):
+        
+        assert os.path.exists(fp), 'bad fp for \'%s\' \n    %s'%(dkey, fp)
+        
+        with open(fp, 'rb') as f:
+            data = pickle.load(f)
+            
+        return data
     
+    def write_pick(self, 
+                   data, 
+                   out_fp,
+                   overwrite=None,
+                   protocol = 3, # added in Python 3.0. It has explicit support for bytes
+                   logger=None):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('write_pick')
+        if overwrite is None: overwrite=self.overwrite
+        
+        #=======================================================================
+        # checks
+        #=======================================================================
+        
+        if os.path.exists(out_fp):
+            assert overwrite, out_fp
+            
+        assert out_fp.endswith('.pickle')
+            
+        log.debug('writing to %s'%out_fp)
+        
+        with open(out_fp,  'wb') as f:
+            pickle.dump(data, f, protocol)
+        
+        log.info('wrote %i to \n    %s'%(len(data), out_fp))
+            
+        
+        return out_fp
+        
+    def _get_meta(self, #get a dictoinary of metadat for this model
+                 ):
+        
+        d = super()._get_meta()
+        
+        if len(self.data_d)>0:
+            d['data_d.keys()'] = list(self.data_d.keys())
+            
+        if len(self.ofp_d)>0:
+            d['ofp_d.keys()'] = list(self.ofp_d.keys())
+            
+        if len(self.compiled_fp_d)>0:
+            d['compiled_fp_d.keys()'] = list(self.compiled_fp_d.keys())
+            
+        if len(self.bk_lib)>0:
+            d['bk_lib'] = copy.deepcopy(self.bk_lib)
+            
+        return d
     
+    def get_exit_summary(self,
+                         ):
+        
+
+        
+        #===================================================================
+        # assembel summary sheets
+        #===================================================================
+        #merge w/ retrieve data
+        for k, sub_d in self.dk_meta_d.items():
+            if len(sub_d)==0:continue
+            retrieve_df = pd.Series(sub_d).to_frame()
+            if not k in self.smry_d:
+                self.smry_d[k] = retrieve_df
+            else:
+                self.smry_d[k] = self.smry_d[k].reset_index().append(
+                        retrieve_df.reset_index(), ignore_index=True).set_index('index')
+                        
+                        
+        return {**{'_smry':pd.Series(self.meta_d, name='val').to_frame(),
+                          '_smry.dkey':pd.DataFrame.from_dict(self.dk_meta_d).T},
+                        **self.smry_d}
     
+    def __exit__(self, #destructor
+                 *args, **kwargs):
+        
+        print('oop.Session.__exit__ (%s)'%self.__class__.__name__)
+        
+        #=======================================================================
+        # log major containers
+        #=======================================================================
+        cnt=0
+        msg=''
+        if len(self.data_d)>0:
+            msg+='\n    data_d.keys(): \n        %s'%(list(self.data_d.keys()))
+            self.data_d = dict() #not necessiary any more
+        
+        if len(self.ofp_d)>0:
+            msg+='\n    ofp_d (%i):'%len(self.ofp_d)
+            for k,v in self.ofp_d.items():
+                cnt+=1
+                msg+='\n        \'%s\':r\'%s\','%(k,v)
+            msg+='\n\n'
+            self.ofp_d = dict()
+              
+        try:
+            log = self.logger.getChild('e')
+            log.info(msg)
+        except:
+            print(msg)
+            
+        #=======================================================================
+        # write it
+        #=======================================================================
+        if cnt>0:
+            with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.longname), 'a') as f:
+                f.write(datetime.datetime.now().strftime('%H%M%S'))
+                f.write(msg)
+        #=======================================================================
+        # extneded exit summary
+        #=======================================================================
+        """copied over from RICorDE... need to test"""
+        if self.exit_summary: 
+            
+            tdelta = datetime.datetime.now() - self.start
+            runtime = tdelta.total_seconds()/60.0
+            
+            
+            self.meta_d = {**{'now':datetime.datetime.now(), 'runtime (mins)':runtime}, **self.meta_d}
+        
+            
+            smry_d = self.get_exit_summary()
+
+            
+            #=======================================================================
+            # write the summary xlsx
+            #=======================================================================
     
-    
-    
-    
+            #get the filepath
+            ofp = os.path.join(self.out_dir, self.longname+'__exit__%s.xls'%(
+                datetime.datetime.now().strftime('%H%M%S')))
+            if os.path.exists(ofp):
+                assert self.overwrite
+                os.remove(ofp)
+        
+            #write
+            try:
+                with pd.ExcelWriter(ofp) as writer:
+                    for tabnm, df in smry_d.items():
+                        df.to_excel(writer, sheet_name=tabnm, index=True, header=True)
+                        
+                print('wrote %i summary sheets to \n    %s'%(len(smry_d), ofp))
+                    
+            except Exception as e:
+                print('failed to write summaries w/ \n    %s'%e)
+        
+            #=======================================================================
+            # wrap
+            #=======================================================================
+            self.logger.info('finished in %.2f mins'%(runtime))
+        
+        
+        super().__exit__(*args, **kwargs)
     
     
     

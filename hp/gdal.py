@@ -14,11 +14,12 @@ gdal/ogr helpers
 #===============================================================================
 # imports----------
 #===============================================================================
-import time, sys, os, logging, copy
+import time, sys, os, logging, copy, tempfile, datetime
 
-from osgeo import ogr, gdal_array, gdal
+from osgeo import ogr, gdal_array, gdal, osr
 
 import numpy as np
+import pandas as pd
 
 
 from qgis.core import QgsVectorLayer, QgsMapLayerStore
@@ -173,6 +174,7 @@ def get_nodata_val(rlay_fp):
 
 
 def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
+    """context managger?"""
     #get raw data
     ds = gdal.Open(rlay_fp)
     band = ds.GetRasterBand(1)
@@ -185,7 +187,106 @@ def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
     
     ar_raw[ar_raw==ndval]=np.nan
     
+    del ds
+    del band
+    
     return ar_raw
+
+def array_to_rlay(ar_raw, #convert a numpy array to a raster
+                  
+                  #raster properties
+                  pixelWidth=None,
+                  pixelHeight=None,
+                  resolution=1.0,
+                  rasterOrigin=(0,0), #upper left
+                  epsg=4326,
+                  nodata=-9999,
+                  
+                  #outputs
+                  layname='array_to_rlay',
+                  ofp=None,
+                  out_dir=None,
+                  ):
+    """adapted from here:
+    https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html#create-raster-from-array
+    """
+
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if pixelWidth is None and pixelHeight is None:
+        assert isinstance(resolution, float)
+        pixelWidth=resolution
+        pixelHeight=resolution
+        
+    if out_dir is None:
+        out_dir = os.path.join(tempfile.gettempdir(), __name__, 
+                               datetime.datetime.now().strftime('%Y%m%d%M%S'))
+        if not os.path.exists(out_dir): 
+            os.makedirs(out_dir)
+        
+    if ofp is None:
+        ofp = os.path.join(out_dir,layname+'.tif')
+    
+    assert isinstance(ar_raw, np.ndarray)
+    #===========================================================================
+    # extract
+    #===========================================================================
+    assert len(ar_raw.shape)==2, ar_raw.shape
+    cols = ar_raw.shape[1]
+    rows = ar_raw.shape[0]
+    originX = rasterOrigin[0]
+    originY = rasterOrigin[1]
+    
+    #===========================================================================
+    # clean nodat
+    #===========================================================================
+    array = ar_raw.copy()
+    array[np.isnan(array)]=nodata
+    #===========================================================================
+    # construct
+    #===========================================================================
+    #===========================================================================
+    driver = gdal.GetDriverByName('GTiff')
+    # outRaster = driver.Create(ofp, cols, rows, 1, gdal.GDT_Byte)
+    # outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+    # outband = outRaster.GetRasterBand(1)
+    # outband.WriteArray(array)
+    #===========================================================================
+    # outRasterSRS = osr.SpatialReference()
+    # outRasterSRS.ImportFromEPSG(epsg)
+    #===========================================================================
+    # outRaster.SetProjection(outRasterSRS.ExportToWkt())
+    # outband.FlushCache()
+    # outRaster=None #close
+    #===========================================================================
+    
+    dst_ds = driver.Create(ofp, xsize=cols, ysize=rows,
+                    bands=1, eType=gdal.GDT_Float32)
+    
+    #dst_ds.SetGeoTransform([444720, 30, 0, 3751320, 0, -30])
+    dst_ds.SetGeoTransform([originX, pixelWidth, 0, originY, 0, -pixelHeight])
+    
+    #build spatial ref
+    #===========================================================================
+    # srs = osr.SpatialReference()
+    # srs.SetUTM(11, 1)
+    # srs.SetWellKnownGeogCS("NAD27")
+    #===========================================================================
+    
+    outRasterSRS = osr.SpatialReference()
+    outRasterSRS.ImportFromEPSG(epsg)
+    
+    dst_ds.SetProjection(outRasterSRS.ExportToWkt())
+ 
+    band = dst_ds.GetRasterBand(1)
+    band.WriteArray(array)
+    band.SetNoDataValue(nodata)
+    band.FlushCache()
+    # Once we're done, close properly the dataset
+    dst_ds = None
+    
+    return ofp
 
 def getRasterMetadata(fp):
     assert os.path.exists(fp)
@@ -205,10 +306,55 @@ def getRasterCompression(fp):
         return None
     else:
         return md['COMPRESSION']   
+    
+def getRasterStatistics(fp):
+    ds = gdal.Open(fp)
+ 
+    band = ds.GetRasterBand(1)
+    d = dict()
+    d['min'], d['max'], d['mean'], d['stddev'] = band.GetStatistics(True, True)
+ 
+    
+    del ds
+    
+    return d
+
+def getNoDataCount(fp, dtype=np.dtype('float')):
+    """2022-05-10: this was returning some nulls
+    for rasters where I could not find any nulls"""
+    #get raw data
+    ds = gdal.Open(fp)
+    band = ds.GetRasterBand(1)
+    
+    
+    ar_raw = np.array(band.ReadAsArray(), dtype=dtype)
+    
+    #remove nodata values
+    ndval = band.GetNoDataValue()
+    
+    #get count
+    bx_ar = ar_raw == ndval
+    
+    del ds
+    del band
+ 
+    return bx_ar.sum()
+    
+ 
+    
+    
+                
             
-            
-            
-            
+if __name__ =="__main__": 
+    rlay_fp = r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.tif'
+    
+    ar = rlay_to_array(rlay_fp)
+    
+    import pandas as pd
+    df = pd.DataFrame(ar)
+    
+    df.to_csv(r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.csv')
+           
             
             
             
