@@ -1293,6 +1293,22 @@ class Qproj(QAlgos, Basic):
     #===========================================================================
     # RLAYs--------
     #===========================================================================
+    def rcalc2(self, #simple method for 1layer RasterCalcs
+               rlay_raw,
+               formula,
+
+               #output control
+               ofp=None,
+               layname=None,
+               compress='none', #optional compression. #usually we are deleting calc results
+ 
+               **kwargs):
+        """still crashing without a message... some problem with formula strings?"""
+        with RasterCalc(rlay_raw,  session=self, **kwargs) as wrkr:
+            ofp = wrkr.rcalc(formula, layname=layname, ofp=ofp, compress=compress)
+            
+        return ofp
+    
     def rcalc1(self, #simple raster calculations with a single raster
                ref_lay,
                formula, #string formatted formula
@@ -2218,7 +2234,7 @@ class RasterCalc(object):
  
                  out_dir=None,
                  temp_dir=None,
- 
+                 mstore=None,
                  ):
         
         #=======================================================================
@@ -2233,7 +2249,9 @@ class RasterCalc(object):
         
         self.logger = logger.getChild(name)
         self.name=name
-        self.mstore = QgsMapLayerStore()
+        if mstore is None:
+            mstore = QgsMapLayerStore()
+        self.mstore = mstore
         self.start = datetime.datetime.now()
         
         #from session
@@ -2299,8 +2317,16 @@ class RasterCalc(object):
         if compress is None: compress=self.compress
         if rasterEntries is None: rasterEntries=self.rasterEntries
         
+        
+        
+        
         out_dir=self.out_dir
         ref_lay=self.ref_lay
+        
+        #add the reference to the entries 
+        """for simple runs? consider doing this during __init__"""
+        if len(rasterEntries)>0:
+            self._rCalcEntry(ref_lay)
         
         if layname is None: layname='%s_%s'%(ref_lay.name(), self.name)
         assert not '.tif' in layname

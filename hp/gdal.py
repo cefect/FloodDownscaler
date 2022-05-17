@@ -203,6 +203,7 @@ def array_to_rlay(ar_raw, #convert a numpy array to a raster
                   nodata=-9999,
                   
                   #outputs
+                  layname='array_to_rlay',
                   ofp=None,
                   out_dir=None,
                   ):
@@ -225,7 +226,7 @@ def array_to_rlay(ar_raw, #convert a numpy array to a raster
             os.makedirs(out_dir)
         
     if ofp is None:
-        ofp = os.path.join(out_dir,'array_to_rlay.tif')
+        ofp = os.path.join(out_dir,layname+'.tif')
     
     assert isinstance(ar_raw, np.ndarray)
     #===========================================================================
