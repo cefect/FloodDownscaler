@@ -1752,15 +1752,17 @@ class Qproj(QAlgos, Basic):
             '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
             **kwargs)
         
-    def rlay_mcopy(self, #multply raster values by 1
+    def rlay_mcopy(self, #convenience for a hard copy of a raster
                    rlay,
                    mstore=None,
                     logger=None,
-                   **kwargs):
+                    out_dir=None,
+                    ):
         """should preserve nodata?
         also consider simply copying the source"""
         if logger is None: logger=self.logger
-        log=logger.getChild('rlay_mcopy')
+        if out_dir is None: out_dir=self.temp_dir
+        #log=logger.getChild('rlay_mcopy')
         
         """too complicated
         with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.temp_dir,
@@ -1778,7 +1780,7 @@ class Qproj(QAlgos, Basic):
         exp_str = r'\"{ref}\"*1'.format(ref=self._rCalcEntry(rlay).ref)
         fp =  self.rastercalculator(rlay,exp_str,logger=logger, **kwargs)"""
         
-        ofp = os.path.join(self.temp_dir, rlay.name()+'_mcopy.tif')
+        ofp = os.path.join(out_dir, rlay.name()+'_mcopy.tif')
         assert not os.path.exists(ofp), ofp
         shutil.copy2(rlay.source(),ofp)
         
