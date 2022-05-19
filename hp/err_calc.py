@@ -175,7 +175,9 @@ class ErrorCalcs(object):
                  logger=None):
         assert dkey=='RMSE'
         df = self.df_raw.copy()
-        return math.sqrt(((df['pred'] - df['true'])**2).sum()/len(df))
+        
+        
+        return math.sqrt(np.square(df['pred'] - df['true']).mean())
     
     
     def get_all(self, #load all the stats in the retrieve handles 

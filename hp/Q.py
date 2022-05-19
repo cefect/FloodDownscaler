@@ -1293,6 +1293,22 @@ class Qproj(QAlgos, Basic):
     #===========================================================================
     # RLAYs--------
     #===========================================================================
+    def rcalc2(self, #simple method for 1layer RasterCalcs
+               rlay_raw,
+               formula,
+
+               #output control
+               ofp=None,
+               layname=None,
+               compress='none', #optional compression. #usually we are deleting calc results
+ 
+               **kwargs):
+        """still crashing without a message... some problem with formula strings?"""
+        with RasterCalc(rlay_raw,  session=self, **kwargs) as wrkr:
+            ofp = wrkr.rcalc(formula, layname=layname, ofp=ofp, compress=compress)
+            
+        return ofp
+    
     def rcalc1(self, #simple raster calculations with a single raster
                ref_lay,
                formula, #string formatted formula
@@ -1752,15 +1768,17 @@ class Qproj(QAlgos, Basic):
             '{0:.2f}*numpy.round(A/{0:.2f})'.format(multiple),
             **kwargs)
         
-    def rlay_mcopy(self, #multply raster values by 1
+    def rlay_mcopy(self, #convenience for a hard copy of a raster
                    rlay,
                    mstore=None,
                     logger=None,
-                   **kwargs):
+                    out_dir=None,
+                    ):
         """should preserve nodata?
         also consider simply copying the source"""
         if logger is None: logger=self.logger
-        log=logger.getChild('rlay_mcopy')
+        if out_dir is None: out_dir=self.temp_dir
+        #log=logger.getChild('rlay_mcopy')
         
         """too complicated
         with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.temp_dir,
@@ -1778,7 +1796,7 @@ class Qproj(QAlgos, Basic):
         exp_str = r'\"{ref}\"*1'.format(ref=self._rCalcEntry(rlay).ref)
         fp =  self.rastercalculator(rlay,exp_str,logger=logger, **kwargs)"""
         
-        ofp = os.path.join(self.temp_dir, rlay.name()+'_mcopy.tif')
+        ofp = os.path.join(out_dir, rlay.name()+'_mcopy.tif')
         assert not os.path.exists(ofp), ofp
         shutil.copy2(rlay.source(),ofp)
         
@@ -2216,7 +2234,7 @@ class RasterCalc(object):
  
                  out_dir=None,
                  temp_dir=None,
- 
+                 mstore=None,
                  ):
         
         #=======================================================================
@@ -2231,7 +2249,9 @@ class RasterCalc(object):
         
         self.logger = logger.getChild(name)
         self.name=name
-        self.mstore = QgsMapLayerStore()
+        if mstore is None:
+            mstore = QgsMapLayerStore()
+        self.mstore = mstore
         self.start = datetime.datetime.now()
         
         #from session
@@ -2297,8 +2317,16 @@ class RasterCalc(object):
         if compress is None: compress=self.compress
         if rasterEntries is None: rasterEntries=self.rasterEntries
         
+        
+        
+        
         out_dir=self.out_dir
         ref_lay=self.ref_lay
+        
+        #add the reference to the entries 
+        """for simple runs? consider doing this during __init__"""
+        if len(rasterEntries)>0:
+            self._rCalcEntry(ref_lay)
         
         if layname is None: layname='%s_%s'%(ref_lay.name(), self.name)
         assert not '.tif' in layname

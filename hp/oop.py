@@ -270,7 +270,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.meta_d=dict()
         self.smry_d=dict()
             
-        
+        #logger tag
+        self.logger=self.logger.getChild(self.tag)
         #=======================================================================
         # defaults
         #=======================================================================
