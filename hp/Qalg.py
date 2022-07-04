@@ -1645,7 +1645,7 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
-    def minimumboundinggeometry(self, # table containing a distance matrix, with distances between all the points in a points layer.
+    def minimumboundinggeometry(self,  
                      vlay,
                      fieldName=None, #optional category name
                      output='TEMPORARY_OUTPUT',

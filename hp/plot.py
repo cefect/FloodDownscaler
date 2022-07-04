@@ -597,11 +597,28 @@ class Plotr(Basic):
     def get_color_d(self,
                     cvals,
                     colorMap=None,
+                    plot_colr=None,
                     ):
-                    
-        if colorMap is None: colorMap=self.colorMap
-        cmap = self.plt.cm.get_cmap(name=colorMap) 
-        return {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        
+        #=======================================================================
+        # check preconfigured
+        #=======================================================================
+        """allows fixing the color of each value (better for variable lengths)"""
+        color_d = None
+        if not plot_colr is None and hasattr(self, 'color_lib'):
+            if plot_colr in self.color_lib:
+                color_d = {k:self.color_lib[plot_colr][k] for k in cvals}
+            
+        #=======================================================================
+        # build default
+        #=======================================================================
+        if color_d is None:
+            if colorMap is None: colorMap=self.colorMap
+            cmap = self.plt.cm.get_cmap(name=colorMap) 
+            
+            color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        
+        return color_d
     
     #===========================================================================
     # OUTPUTTRS------
@@ -676,7 +693,7 @@ class Plotr(Basic):
         if add_stamp:
  
             txt = '%s (%s)'%(os.path.basename(out_fp), datetime.datetime.now().strftime('%Y-%m-%d'))
-            fig.text(1,0, txt, fontsize=6, color='black', alpha=0.5, ha='right', va='bottom')
+            fig.text(1,0, txt, fontsize=2, color='black', alpha=0.5, ha='right', va='bottom')
         #=======================================================================
         # #write the file
         #=======================================================================
