@@ -249,6 +249,7 @@ class Qproj(QAlgos, Basic):
     
     def _init_qgis(self, #instantiate qgis
                    crs=QgsCoordinateReferenceSystem('EPSG:4326'),
+                   QGIS_PREFIX_PATH=None,
                   gui = False): 
         """
         WARNING: need to hold this app somewhere. call in the module you're working in (scripts)
@@ -257,21 +258,21 @@ class Qproj(QAlgos, Basic):
         log = self.logger.getChild('_init_qgis')
         
         
+        if QGIS_PREFIX_PATH is None:#call from environment
+            QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
+            
+        assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
+
         #=======================================================================
         # init the application
         #=======================================================================
-        
         try:
-            
-            QgsApplication.setPrefixPath(r'C:/OSGeo4W/apps/qgis-ltr', True)
+            QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
             
             app = QgsApplication([], gui)
 
             app.initQgis()
 
-
-            
-        
         except:
             raise Error('QGIS failed to initiate')
         
@@ -2072,10 +2073,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         log.info(u'QGIS version: %s, release: %s'%(
                 Qgis.QGIS_VERSION.encode('utf-8'), Qgis.QGIS_RELEASE_NAME.encode('utf-8')))
-        
-
-        
-        
+ 
         super()._install_info(**kwargs) #initilzie teh baseclass
         
     def _get_meta(self):
@@ -3177,9 +3175,7 @@ def is_qtype_match(obj, qtype_code, logger=mod_logger): #check if the object mat
         return True
 
 def test_install(): #test your qgis install
-    
-    
-    
+ 
     proj = Qproj()
     proj._install_info()
     
