@@ -107,7 +107,6 @@ class QAlgos(object):
         # build default co ntext
         #=======================================================================
         if context is None:
-
             context=QgsProcessingContext()
             context.setInvalidGeometryCheck(invalidGeometry)
             
@@ -117,24 +116,20 @@ class QAlgos(object):
         # init p[rocessing]
         #=======================================================================
         from processing.core.Processing import Processing
-
-        
-    
         Processing.initialize()  
+ 
     
         QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
         #QgsApplication.processingRegistry().addProvider(WbtProvider())
         
-        #=======================================================================
-        # #log all the agos
-        # for alg in QgsApplication.processingRegistry().algorithms():
-        #     log.debug("{}:{} --> {}".format(alg.provider().name(), alg.name(), alg.displayName()))
-        #=======================================================================
-        
+        #get list of loadedp rovider names
+        pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
+ 
         
         assert not self.feedback is None, 'instance needs a feedback method for algos to work'
         
-        log.debug('processing initilzied w/ feedback: \'%s\''%(type(self.feedback).__name__))
+        log.debug('processing initilzied w/ feedback: \'%s\' and %i providers'%(
+            type(self.feedback).__name__, len(pName_l)))
         
 
         return True
@@ -2462,4 +2457,16 @@ class QAlgos(object):
             return res_d['OUTPUT']
         else:
             raise Error('unrecognzied result kwarg: %s'%result)
+        
+    def _install_info(self, log=None, **kwargs):
+        if log is None: log = self.logger
+        
+                #log all the agos
+        log.info('QgsApplication.processingRegistry()')
+        #get list of loadedp rovider names
+        pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
+        log.info('    %i providers: %s'%(len(pName_l), pName_l))
+ 
+            
+        super()._install_info(**kwargs) #initilzie teh baseclass
     

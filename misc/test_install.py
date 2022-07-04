@@ -1,9 +1,8 @@
 '''
-Created on Oct. 30, 2021
+Print out build info
 
-@author: cefect
-
-testing installation
+see also
+version_info_
 '''
 
 
