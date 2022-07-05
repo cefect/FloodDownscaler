@@ -249,10 +249,19 @@ class Qproj(QAlgos, Basic):
     
     def _init_qgis(self, #instantiate qgis
                    crs=QgsCoordinateReferenceSystem('EPSG:4326'),
-                   QGIS_PREFIX_PATH=None,
-                  gui = False): 
+                  gui = False,
+                  qgis_app=None,  #pytest fixture
+                  QGIS_PREFIX_PATH=None,
+                  ): 
         """
-        WARNING: need to hold this app somewhere. call in the module you're working in (scripts)
+        Initialize QGIS for standalone runs (pyqgis)
+        
+        This function sets up a session class to run the QGIS api outside of the GUI
+        and does some basic project setup (crs).Also handles running with pytest-qgis.
+        
+        Notes
+        ----------
+        WARNING: need to hold this app somewhere. call in the module you're working in 
         
         """
         log = self.logger.getChild('_init_qgis')
@@ -262,33 +271,35 @@ class Qproj(QAlgos, Basic):
             QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
             
         assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
-
+        
+        
         #=======================================================================
         # init the application
         #=======================================================================
-        try:
-            QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
+        if qgis_app is None: #non-test runs
+            try:                
+                QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
+                
+                qgis_app = QgsApplication([], gui)
+    
+                qgis_app.initQgis()
+     
             
-            app = QgsApplication([], gui)
-
-            app.initQgis()
-
-        except:
-            raise Error('QGIS failed to initiate')
+            except:
+                raise Error('QGIS failed to initiate')
         
         #=======================================================================
         # store the references
         #=======================================================================
-        self.qap = app
+        self.qap = qgis_app
         self.qproj = QgsProject.instance()
         self.mstore = QgsMapLayerStore() #build a new map store
         
         #=======================================================================
         # crs
-        #=======================================================================
- 
+        #=======================================================================         
             
-        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type: %s'%type(crs)
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
         assert crs.isValid()
             
         self.qproj.setCrs(crs)
