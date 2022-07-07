@@ -45,4 +45,6 @@ from hp.Q import Qproj
 proj = Qproj()
 proj._install_info()
 
-print('finished')
+ 
+print("\n\nfinished")
+ 
