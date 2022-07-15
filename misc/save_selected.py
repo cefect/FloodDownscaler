@@ -49,6 +49,7 @@ class Sliceor(Qproj):
                 ofp = None,
                 pred_l = ['intersect'],  #list of geometry predicate names
                 logger=None,
+                write_csv=True,
                   ):
         
         #=======================================================================
@@ -112,11 +113,14 @@ class Sliceor(Qproj):
         #=======================================================================
         # get tabular data
         #=======================================================================
- 
-        #pull the selected data
-        df = vlay_get_fdf(vlay, selected=True)
-        
-        df.to_csv(os.path.join(self.out_dir, '%s_sel.csv'%vlay.name()))
+        if write_csv:
+            try:
+                #pull the selected data
+                df = vlay_get_fdf(vlay, selected=True)
+                
+                df.to_csv(os.path.join(self.out_dir, '%s_sel.csv'%vlay.name()))
+            except Exception as e:
+                log.error('failed to extract tabular w/ \n    %s'%e)
         
         return res_d['OUTPUT']
 
