@@ -63,6 +63,12 @@ class QAlgos(object):
             },
         'EPSG:2955':{
             'EPSG:4326':'+proj=pipeline +step +inv +proj=utm +zone=11 +ellps=GRS80 +step +proj=push +v_3 +step +proj=cart +ellps=GRS80 +step +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=WGS84 +step +proj=pop +v_3 +step +proj=unitconvert +xy_in=rad +xy_out=deg'
+            },
+        'EPSG:3005':{
+            'EPSG:4326':'+proj=pipeline +step +inv +proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=0 +ellps=GRS80 +step +proj=hgridshift +grids=ca_nrc_ABCSRSV4.tif +step +proj=unitconvert +xy_in=rad +xy_out=deg'
+            },
+        'EPSG:3776':{
+            'EPSG:4326':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-114 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=hgridshift +grids=ca_nrc_ABCSRSV4.tif +step +proj=unitconvert +xy_in=rad +xy_out=deg'
             }
  
 
@@ -152,7 +158,7 @@ class QAlgos(object):
     def reproject(self,
                   vlay,
                   output='TEMPORARY_OUTPUT',
-                  crsOut=None,
+                  crsOut=None, crsIn=None,
                   logger=None,
                   #layname=None,
                   selected_only=False,
@@ -164,11 +170,12 @@ class QAlgos(object):
         log=logger.getChild('reproject')
         #if layname is None: layname=vlay.name()
         if crsOut is None: crsOut=self.qproj.crs()
+        if crsIn is None: crsIn = vlay.crs()
         
         #=======================================================================
         # get operation
         #=======================================================================
-        inid = vlay.crs().authid()
+        inid = crsIn.authid()
         outid = crsOut.authid()
         
         assert inid in self.proj_d, 'missing requested source crs: %s'%inid
