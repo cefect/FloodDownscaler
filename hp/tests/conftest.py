@@ -6,8 +6,23 @@ Created on Feb. 21, 2022
 import os, shutil
 import pytest
 import numpy as np
+import logging
  
- 
+@pytest.fixture(scope='session')
+def logger(request):
+    build=True
+    if hasattr(request, 'param'):
+        build= request.param
+            
+    
+    
+    if build:
+        logger= logging.getLogger('root')
+        logger.setLevel(logging.DEBUG) #set the base level for the logger
+        logger.info('built test session logger')
+        return logger
+    else:
+        return None
     
 #===============================================================================
 # fixture-----

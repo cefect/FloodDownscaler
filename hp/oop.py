@@ -29,6 +29,7 @@ from hp.exceptions import Error
 import numpy as np
 import pandas as pd
 
+today_str = datetime.datetime.today().strftime('%Y%m%d')
 #===============================================================================
 # functions------------------------------------------------------------------- 
 #===============================================================================
@@ -45,16 +46,18 @@ class Basic(object): #simple base class
                  
                  #names/labels
                  proj_name      = None,  
-                 run_name       = 'r0',   
-                 fancy_name       = None,
+                 run_name       = None,
+                 obj_name       = None,   
+                 fancy_name     = None,
                  
                  #inheritancee
                  session        = None,
                  
                  #controls
-                 prec           = 2,
-                 overwrite      = False, #file overwriting control
-                 relative       = False, #specify whether 
+                 prec           = None,
+                 overwrite      = None, #file overwriting control
+                 relative       = None, #specify whether 
+                 write          = None,
                  
                  logger         = None,                 
                  ):
@@ -68,28 +71,28 @@ class Basic(object): #simple base class
         wrk_dir: str, default os.path.expanduser('~')
             Base directory of the project. Used for generating default directories.            
         out_dir : str, optional
-            Directory used for outputs. Defaults to a sub-directory of root_dir            
+            Directory used for outputs. Defaults to a sub-directory of wrk_dir            
         tmp_dir: str, optional
             Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
 
-        proj_name: str, default __class__.__name__
+        proj_name: str, default src_name definitions
             Project name
         run_name: str, default 'r0'
             Label for a specific run or version.
-        fancy_name: str, default [proj_name]_[run_name]_[mmdd]
+        obj_name: str, default __class__.__name__
+            Name of object or worker
+        fancy_name: str, default [proj_name]_[run_name]_[obj_name]_[mmdd]
             Name for output prefix
         logger: logging.RootLogger, optional
             Logging worker.
-        logcfg_file: str, optional
-            Filepath of a python logging configuration file
+
         prec: int, default 2
             Default float precision.
         overwrite: bool, default False
             Default behavior when attempting to overwrite a file
         relative: bool, default False
             Default behavior of filepaths (relative vs. absolute)
-        inher_d: dict, default {}
-            Container of inheritance parameters {attribute name: object}
+
         session: scripts.Session, optional
             Reference to parent session
         
@@ -100,92 +103,81 @@ class Basic(object): #simple base class
         #=======================================================================
  
         self.start = datetime.datetime.now()
-        self.today_str = datetime.datetime.today().strftime('%Y%m%d')
+        self.today_str = today_str
         
         #=======================================================================
         # basic attachments
         #=======================================================================
         self.session=session
-        self.overwrite=overwrite
-        self.prec=prec
-        self.relative=relative
         
-        #=======================================================================
-        # names
-        #=======================================================================
-        if proj_name is None:
-            proj_name = self.__class__.__name__
-        self.proj_name=proj_name
- 
-        # run tag
-        if run_name is None:
-            run_name = 'r0'
-
-        if fancy_name is None:
-            fancy_name = '%s_%s_%s'%(proj_name, run_name,  datetime.datetime.now().strftime('%m%d'))
-                
-        self.fancy_name = fancy_name
-        
-        #=======================================================================
-        # working directory
-        #=======================================================================
-        def attach_dir(dirpath, attName):
-            if not os.path.exists(dirpath):
-                os.makedirs(dirpath)
-            setattr(self, attName, dirpath)
+        pars_d = dict()
+        def inherit(attVal, attName, directory=False, typeCheck=None):
+            if attVal is None:
+                assert not session is None, 'for \'%s\' passed None but got no session'%attName
+                attVal = getattr(session, attName)
+            assert not attVal is None, attName
+            setattr(self, attName, attVal)
             
-        if wrk_dir is None:
-            wrk_dir = os.path.expanduser('~')
-        attach_dir(wrk_dir, 'wrk_dir')
-
-        #=======================================================================
-        # output directory
-        #=======================================================================
-        if out_dir is None:
-            out_dir = os.path.join(wrk_dir, 'outs', proj_name, run_name, self.today_str)
- 
-        attach_dir(out_dir, 'out_dir')
-        
-        #=======================================================================
-        # #temporary directory
-        #=======================================================================
-        """not removing this automatically"""
-        if tmp_dir is None: 
-            tmp_dir = os.path.join(out_dir, 'temp_%s_%s'%(
-                self.__class__.__name__, datetime.datetime.now().strftime('%M%S')))
+            pars_d[attName] = attVal
             
-            if os.path.exists(tmp_dir):
-                delete_dir(tmp_dir)
+            if directory:
+                if not os.path.exists(attVal):
+                    os.makedirs(attVal)
+                    
+            if not typeCheck is None:
+                assert isinstance(getattr(self, attName), typeCheck), \
+                    'bad type on \'%s\': %s'%(attName, type(getattr(self, attName)))
+            
  
-        attach_dir(tmp_dir, 'tmp_dir')
-        
+        #=======================================================================
+        # basic inheritance
+        #=======================================================================
+        inherit(overwrite,  'overwrite', typeCheck=bool)
+        inherit(prec,       'prec', typeCheck=int)
+        inherit(relative,   'relative', typeCheck=bool)
+        inherit(write,      'write', typeCheck=bool)
+        inherit(proj_name, 'proj_name', typeCheck=str)
+        inherit(run_name,   'run_name', typeCheck=str)
+        inherit(fancy_name, 'fancy_name', typeCheck=str)
+ 
+        inherit(wrk_dir,    'wrk_dir', directory=True)
+        inherit(out_dir,    'out_dir', directory=True)
+        inherit(tmp_dir,    'tmp_dir', directory=True)
+ 
+        if obj_name is None:
+            obj_name = self.__class__.__name__
+        self.obj_name=obj_name
+ 
+ 
         #=======================================================================
         # #setup the logger
         #=======================================================================
         if logger is None:
  
             if not session is None:
-                logger=session.logger.getChild()
+                logger=session.logger.getChild(obj_name)
             else:
-                logger = logging.getLogger(self.__class__.__name__)
+                logger = logging.getLogger(obj_name)
             
         self.logger=logger
+        
+ 
 
         #=======================================================================
         # wrap
         #=======================================================================
             
         #self._install_info()
-        
-        self.logger.debug('finished Basic.__init__ ')
+        self.init_pars_d=pars_d
+        self.logger.debug('finished Basic.__init__ w/\n    %s '%pars_d)
 
 
             
-    def _get_meta(self):
-        attns = ['tag', 'name', 'longname', 'start', 'today_str', 'prec', 'work_dir', 'out_dir']
+    def _get_meta(self, keys=None,):
+        if keys is None: keys = self.init_pars_d.keys()
         
-        d = {k:getattr(self, k) for k in attns}
-        d = {**d, **{'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__}}
+        d = {k:getattr(self, k) for k in keys}
+ 
         
         return d
     
@@ -211,6 +203,19 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         so beware of setting containers here"""
     
     def __init__(self, 
+                 #Session names
+                 proj_name = None, fancy_name=None, run_name='r1', obj_name='Session',
+                 
+                 #Session directories
+                 out_dir = None,wrk_dir=None,tmp_dir=None,
+                 
+                 #Basic parameters
+                 overwrite=True,
+                 prec=2,
+                 relative=False,
+                 write=True, 
+                 
+                 #session algos
                  bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
                  compiled_fp_d = None, #container for compiled (intermediate) results {dkey:filepath}
                  data_retrieve_hndls=None, #data retrival handles
@@ -219,7 +224,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                             #see self._retrieve2()
                             
                 #run controls
-                write=True, 
+                
                 exit_summary=False, #whether to write the exit summary on close
                 
                 #logging
@@ -233,6 +238,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         
         Parameters
         ------------
+        see Basic
         
         logfile_duplicate : bool, default True
             Duplicate the logger into the output directory
@@ -243,7 +249,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # precheck
         #=======================================================================
-        assert isinstance(data_retrieve_hndls, dict), 'must past data retrival handles'
+        if data_retrieve_hndls is None: data_retrieve_hndls=dict()
+ 
         
         #=======================================================================
         # logger
@@ -256,11 +263,47 @@ class Session(Basic): #analysis with flexible loading of intermediate results
 
             lwrkr = BuildLogr(logcfg_file = logcfg_file)
             logger=lwrkr.logger
+            
+        kwargs['logger']=logger
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(run_name, str)
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if proj_name is None:
+            from definitions import src_name
+            proj_name=src_name
+        kwargs['proj_name']=proj_name
+            
+        if fancy_name is None:
+            fancy_name = '%s_%s_%s'%(proj_name, run_name,  datetime.datetime.now().strftime('%m%d'))
+        kwargs['fancy_name']=fancy_name
+ 
+        if wrk_dir is None:
+            wrk_dir = os.path.expanduser('~')
+        kwargs['wrk_dir']=wrk_dir
+            
+        if out_dir is None:
+            out_dir = os.path.join(wrk_dir, 'outs', proj_name, run_name, today_str)
+        kwargs['out_dir']=out_dir
         
+        if tmp_dir is None:
+            tmp_dir = os.path.join(out_dir, 'temp_%s_%s'%(
+                obj_name, datetime.datetime.now().strftime('%M%S')))
+            
+        if os.path.exists(tmp_dir):
+            delete_dir(tmp_dir)
+            
+        kwargs['tmp_dir']=tmp_dir
         #=======================================================================
         # init cascade
         #=======================================================================
-        super().__init__(logger=logger, **kwargs)
+        super().__init__(overwrite=overwrite,prec=prec,relative=relative, write=write,
+                         obj_name=obj_name,run_name=run_name,
+                          **kwargs)
         
         #=======================================================================
         # duplicate logger
