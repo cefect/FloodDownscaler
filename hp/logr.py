@@ -109,16 +109,18 @@ class BuildLogr(object): #simple class to build a logger
             level, logger_file_path))
         
 def get_new_file_logger(
-        name,
+        logger_name='log',
         level=logging.DEBUG,
         fp=None, #file location to log to
+        logger=None,
         ):
     
     #===========================================================================
     # configure the logger
     #===========================================================================
-    logger = logging.getLogger(name)
-    
+    if logger is None:
+        logger = logging.getLogger(logger_name)
+        
     logger.setLevel(level)
     
     #===========================================================================
@@ -133,7 +135,7 @@ def get_new_file_logger(
     
     logger.addHandler(handler) #attach teh handler to the logger
     
-    logger.info('built new file logger \'%s\' here \n    %s'%(name, fp))
+    logger.info('built new file logger  here \n    %s'%(fp))
     
     return logger
     

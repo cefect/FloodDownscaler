@@ -1,15 +1,13 @@
 '''
-Created on Mar 10, 2019
+Methods for object-oriented-programming
 
-@author: cef
-
-object oriented programming
-
+Notes
+---------------
 #===============================================================================
 # INHERITANCE
 #===============================================================================
 I've spent far too many weeks of my life strugglig with inheritance
-    seems to difficult to balance simplicity, flexibility, and functionality
+    seems too difficult to balance simplicity, flexibility, and functionality
     
 2021-10-31: settled on top down control
     force the caller object to first extract any attributes they want to pass down
@@ -22,8 +20,7 @@ I've spent far too many weeks of my life strugglig with inheritance
         see get_inher_atts
 '''
 
-
-import os, sys, datetime, gc, copy, pickle, pprint
+import os, sys, datetime, gc, copy, pickle, pprint, logging
 
 from hp.dirz import delete_dir
 
@@ -31,26 +28,25 @@ from hp.exceptions import Error
 
 import numpy as np
 import pandas as pd
- 
- 
 
 #===============================================================================
 # functions------------------------------------------------------------------- 
 #===============================================================================
 
-class Basic(object): #simple base class
-    def __init__(self, 
 
+class Basic(object): #simple base class
+
+    def __init__(self, 
                  
                  #directories
                  out_dir        = None,
-                 temp_dir       = None,
-                 work_dir       = r'C:\LS\10_OUT\coms',
+                 tmp_dir       = None,
+                 wrk_dir       = None,
                  
                  #names/labels
-                 name           = None, #task or function-based name ('e.g., Clean). nice to capitalize
-                 tag            = None, #session or run name (e.g., 0402) 
-                 longname       = None,
+                 proj_name      = None,  
+                 run_name       = 'r0',   
+                 fancy_name       = None,
                  
                  #inheritancee
                  session        = None,
@@ -58,16 +54,51 @@ class Basic(object): #simple base class
                  #controls
                  prec           = 2,
                  overwrite      = False, #file overwriting control
+                 relative       = False, #specify whether 
                  
-                 logger         = None,
-                 
+                 logger         = None,                 
                  ):
+        """
+        Initialize a generic class object.
+    
+        Provides common methods and parameters for object based programming.
+    
+        Parameters
+        ----------
+        wrk_dir: str, default os.path.expanduser('~')
+            Base directory of the project. Used for generating default directories.            
+        out_dir : str, optional
+            Directory used for outputs. Defaults to a sub-directory of root_dir            
+        tmp_dir: str, optional
+            Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
+
+        proj_name: str, default __class__.__name__
+            Project name
+        run_name: str, default 'r0'
+            Label for a specific run or version.
+        fancy_name: str, default [proj_name]_[run_name]_[mmdd]
+            Name for output prefix
+        logger: logging.RootLogger, optional
+            Logging worker.
+        logcfg_file: str, optional
+            Filepath of a python logging configuration file
+        prec: int, default 2
+            Default float precision.
+        overwrite: bool, default False
+            Default behavior when attempting to overwrite a file
+        relative: bool, default False
+            Default behavior of filepaths (relative vs. absolute)
+        inher_d: dict, default {}
+            Container of inheritance parameters {attribute name: object}
+        session: scripts.Session, optional
+            Reference to parent session
         
+        """
         
         #=======================================================================
         # personal
         #=======================================================================
-        self.trash_fps = list() #container for files to delete on exit
+ 
         self.start = datetime.datetime.now()
         self.today_str = datetime.datetime.today().strftime('%Y%m%d')
         
@@ -75,66 +106,58 @@ class Basic(object): #simple base class
         # basic attachments
         #=======================================================================
         self.session=session
-        self.work_dir=work_dir
- 
         self.overwrite=overwrite
         self.prec=prec
+        self.relative=relative
         
         #=======================================================================
-        # complex attachments
+        # names
         #=======================================================================
-        if name is None:
-            name = self.__class__.__name__
-        self.name=name
-        
- 
- 
- 
+        if proj_name is None:
+            proj_name = self.__class__.__name__
+        self.proj_name=proj_name
  
         # run tag
-        if tag is None:
-            tag = 't'+datetime.datetime.today().strftime('%H%M')
-            
-        self.tag=tag
- 
-        # labels
-        if longname is None:
-            longname = '%s_%s_%s'%(self.name, self.tag,  datetime.datetime.now().strftime('%m%d'))
+        if run_name is None:
+            run_name = 'r0'
+
+        if fancy_name is None:
+            fancy_name = '%s_%s_%s'%(proj_name, run_name,  datetime.datetime.now().strftime('%m%d'))
                 
-        self.longname = longname
- 
+        self.fancy_name = fancy_name
+        
+        #=======================================================================
+        # working directory
+        #=======================================================================
+        def attach_dir(dirpath, attName):
+            if not os.path.exists(dirpath):
+                os.makedirs(dirpath)
+            setattr(self, attName, dirpath)
+            
+        if wrk_dir is None:
+            wrk_dir = os.path.expanduser('~')
+        attach_dir(wrk_dir, 'wrk_dir')
 
         #=======================================================================
         # output directory
         #=======================================================================
         if out_dir is None:
-            if not tag == '':
-                out_dir = os.path.join(work_dir, 'outs', name, tag, self.today_str)
-            else:
-                out_dir = os.path.join(work_dir, 'outs', name, self.today_str)
-                
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-                
-        self.out_dir=out_dir 
+            out_dir = os.path.join(wrk_dir, 'outs', proj_name, run_name, self.today_str)
+ 
+        attach_dir(out_dir, 'out_dir')
         
         #=======================================================================
         # #temporary directory
         #=======================================================================
         """not removing this automatically"""
-        if temp_dir is None:
- 
-            temp_dir = os.path.join(self.out_dir, 'temp_%s_%s'%(
+        if tmp_dir is None: 
+            tmp_dir = os.path.join(out_dir, 'temp_%s_%s'%(
                 self.__class__.__name__, datetime.datetime.now().strftime('%M%S')))
             
-            if os.path.exists(temp_dir):
-                delete_dir(temp_dir)
+            if os.path.exists(tmp_dir):
+                delete_dir(tmp_dir)
  
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
-            
-        self.temp_dir = temp_dir
+        attach_dir(tmp_dir, 'tmp_dir')
         
         #=======================================================================
         # #setup the logger
@@ -142,44 +165,21 @@ class Basic(object): #simple base class
         if logger is None:
  
             if not session is None:
-                logger=session.logger.getChild(name)
+                logger=session.logger.getChild()
             else:
-                
-                os.chdir(work_dir) #set this to the working directory
-                print('working directory set to \"%s\''%os.getcwd())
-            
-                from hp.logr import BuildLogr
-                lwrkr = BuildLogr()
-                logger=lwrkr.logger
-                lwrkr.duplicate(self.out_dir, 
-                            basenm='%s_%s'%(tag, datetime.datetime.today().strftime('%m%d.%H.%M')))
-
+                logger = logging.getLogger(self.__class__.__name__)
             
         self.logger=logger
 
         #=======================================================================
         # wrap
         #=======================================================================
- 
             
         #self._install_info()
         
         self.logger.debug('finished Basic.__init__ ')
-        
 
-    def _install_info(self,
-                         log = None): #print version info
-        if log is None: log = self.logger
-        
- 
-        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
-             'exe':sys.executable}
- 
-        txt = pprint.PrettyPrinter(indent=4).pformat(d)
-        log.info(txt)
-        #systenm paths
-        for k in sys.path: 
-            log.info('    %s'%k)
+
             
     def _get_meta(self):
         attns = ['tag', 'name', 'longname', 'start', 'today_str', 'prec', 'work_dir', 'out_dir']
@@ -188,31 +188,27 @@ class Basic(object): #simple base class
         d = {**d, **{'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__}}
         
         return d
-            
-            
-            
     
     def __enter__(self):
         return self
     
     def __exit__(self,  *args,**kwargs):
-        
-
-    
+ 
         #clear all my attriburtes
         for k in copy.copy(list(self.__dict__.keys())):
             if not k=='trash_fps':
                 del self.__dict__[k]
         
-        
                 
 class Session(Basic): #analysis with flexible loading of intermediate results
-    """typically we only instance this once
+    """
+    Project session worker for global methods and parameters
+    
+    Notes
+    ------------
+    typically we only instance this once
         but tests will instance multiple times
         so beware of setting containers here"""
-
-    
-    
     
     def __init__(self, 
                  bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
@@ -222,20 +218,63 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                             #all callables are of the form func(**kwargs)
                             #see self._retrieve2()
                             
-                wrk_dir=None, #output for working/intermediate files
+                #run controls
                 write=True, 
                 exit_summary=False, #whether to write the exit summary on close
+                
+                #logging
+                logfile_duplicate=True, 
+                logger=None,
+                logcfg_file=None,
 
                 **kwargs):
-        
-        """        
-        data_retrieve_hndls = { **{your_handles}, **{inherited_handles}} #overwrites inherited w/ yours
         """
+        Init the session
+        
+        Parameters
+        ------------
+        
+        logfile_duplicate : bool, default True
+            Duplicate the logger into the output directory
+        
+        
+        """
+ 
+        #=======================================================================
+        # precheck
+        #=======================================================================
         assert isinstance(data_retrieve_hndls, dict), 'must past data retrival handles'
         
+        #=======================================================================
+        # logger
+        #=======================================================================
+        if logger is None:
+            from hp.logr import BuildLogr
+            
+            if logcfg_file is None:
+                from definitions import logcfg_file
+
+            lwrkr = BuildLogr(logcfg_file = logcfg_file)
+            logger=lwrkr.logger
         
-        super().__init__(**kwargs)
+        #=======================================================================
+        # init cascade
+        #=======================================================================
+        super().__init__(logger=logger, **kwargs)
         
+        #=======================================================================
+        # duplicate logger
+        #=======================================================================
+        if logfile_duplicate:
+            from hp.logr import get_new_file_logger
+            get_new_file_logger(
+                fp=os.path.join(self.out_dir, '%s_%s.log'%(
+                    self.fancy_name, datetime.datetime.today().strftime('%m%d.%H.%M'))),
+                logger=self.logger)
+        
+        #=======================================================================
+        # attachments
+        #=======================================================================
         self.data_d = dict() #datafiles loaded this session
     
         self.ofp_d = dict() #output filepaths generated this session
@@ -257,32 +296,16 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             if not len(l)==0:
                 raise KeyError('keymismatch on compiled_fp_d \n    %s'%l)
             
-            
         #attach    
         self.bk_lib=bk_lib
         self.compiled_fp_d = compiled_fp_d
         self.write=write
         self.exit_summary=exit_summary
         
-        
         #start meta
         self.dk_meta_d = {k:dict() for k in keys}
         self.meta_d=dict()
         self.smry_d=dict()
-            
-        #logger tag
-        self.logger=self.logger.getChild(self.tag)
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if wrk_dir is None:
-            wrk_dir = os.path.join(self.out_dir, 'working')
-        
-        if not os.path.exists(wrk_dir):
-            os.makedirs(wrk_dir)
-            
-        self.wrk_dir = wrk_dir
-        
         
     def retrieve(self, #flexible 3 source data retrival
                  dkey,
@@ -293,7 +316,6 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         
         if logger is None: logger=self.logger
         log = logger.getChild('ret')
-        
 
         start = datetime.datetime.now()
         #=======================================================================
@@ -309,7 +331,6 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             except Exception as e:
                 log.warning('failed to get a copy of \"%s\'... passing raw w/ \n    %s'%(dkey, e))
                 return self.data_d[dkey]
-            
         
         #=======================================================================
         # retrieve handles
@@ -408,9 +429,21 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             pickle.dump(data, f, protocol)
         
         log.info('wrote %i to \n    %s'%(len(data), out_fp))
-            
         
         return out_fp
+    
+    def _install_info(self,
+                         log = None): #print version info
+        if log is None: log = self.logger
+ 
+        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
+             'exe':sys.executable}
+ 
+        txt = pprint.PrettyPrinter(indent=4).pformat(d)
+        log.info(txt)
+        #systenm paths
+        for k in sys.path: 
+            log.info('    %s'%k)
         
     def _get_meta(self, #get a dictoinary of metadat for this model
                  ):
@@ -434,8 +467,6 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     def get_exit_summary(self,
                          ):
         
-
-        
         #===================================================================
         # assembel summary sheets
         #===================================================================
@@ -448,7 +479,6 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             else:
                 self.smry_d[k] = self.smry_d[k].reset_index().append(
                         retrieve_df.reset_index(), ignore_index=True).set_index('index')
-                        
                         
         return {**{'_smry':pd.Series(self.meta_d, name='val').to_frame(),
                           '_smry.dkey':pd.DataFrame.from_dict(self.dk_meta_d).T},
@@ -498,12 +528,9 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             tdelta = datetime.datetime.now() - self.start
             runtime = tdelta.total_seconds()/60.0
             
-            
             self.meta_d = {**{'now':datetime.datetime.now(), 'runtime (mins)':runtime}, **self.meta_d}
-        
             
             smry_d = self.get_exit_summary()
-
             
             #=======================================================================
             # write the summary xlsx
@@ -532,11 +559,5 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             #=======================================================================
             self.logger.info('finished in %.2f mins'%(runtime))
         
-        
         super().__exit__(*args, **kwargs)
-    
-    
-    
-    
-    
     
