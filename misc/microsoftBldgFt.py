@@ -38,14 +38,16 @@ from hp.Q import Qproj, processing #only for Qgis sessions
         
         
 class mbfpSession(Qproj):
+    """retrieing MicrosoftBuildingFootprint points"""
     
     data_dir=r'C:\LS\05_DATA\Global\Microsoft\CanadianBuildingFootprints'
     aoi_vlay = None
+    raw_lib=dict()
         
     def __init__(self,
                  aoi_fp = None,
                   tag='mbfp',
-                  work_dir = os.path.dirname(os.path.dirname(__file__)),
+                  work_dir = r'C:\LS\10_IO\coms',
                  **kwargs):
         
         super().__init__(
@@ -58,9 +60,41 @@ class mbfpSession(Qproj):
             #get the aoi
             aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=True)
             
+    def build_geojson_library(self,
+                       data_dir = None):
+ 
+        """build reference to all the raw geojsons"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if data_dir is None: data_dir = self.data_dir
+        log=self.logger.getChild('get_microsoft_fps')
+        
+        first = True
+ 
+        d = dict()
+        for dirpath, dirnames, filenames in os.walk(data_dir):
+            if first: #skip the main
+                first=False
+                continue
+            
+            #search all the files to get the 'prov' key
+            for fp in filenames:
+                filename, ext = os.path.splitext(fp)
+                if ext=='.geojson':
+                    assert not filename.lower() in d, filename.lower()
+                    d[filename.lower()] = os.path.join(dirpath, fp)
+ 
+            
+        log.info('got %i \n%s'%(len(d), d))
+        #for k,v in d.items():print('%s        %s'%(k,v))
+        
+        return d
+            
             
     def get_microsoft_fps(self,  #get geopackage filepaths by province
                        data_dir = None):
+        """loading pre-made poinst"""
         
         #=======================================================================
         # defaults
@@ -78,8 +112,7 @@ class mbfpSession(Qproj):
             
             log.debug('%s    %s    %s' % (dirpath, dirnames, filenames))
             
-            #get key
-            
+            #search all the files to get the 'prov' key
             for fp in filenames:
                 filename, ext = os.path.splitext(fp)
                 if ext=='.geojson':
@@ -102,6 +135,8 @@ class mbfpSession(Qproj):
         #for k,v in d.items():print('%s        %s'%(k,v))
         
         return d
+    
+ 
     
     def build_pts(self, #get points for the microsoft data 
                           fp_d):
@@ -159,7 +194,7 @@ class mbfpSession(Qproj):
         
         return res_d
     
-    def get_mbfp_pts(self, #load a set of layers, slice by aoi, report on feature counts
+    def get_selection(self, #load a set of layers, slice by aoi, report on feature counts
                 main_fp, 
                 aoi_vlay = None,
                 ofp = None,
@@ -172,17 +207,22 @@ class mbfpSession(Qproj):
         #=======================================================================
         if logger is None: logger=self.logger
         if aoi_vlay is  None: aoi_vlay=self.aoi_vlay
-        log=logger.getChild('get_pts')
+        log=logger.getChild('get_selection')
         
         
         #=======================================================================
         # load
         #=======================================================================3
         """need to load to hold selection?"""
-        vlay = self.vlay_load(main_fp)
+        log.info('loading %s'%os.path.basename(main_fp))
+        vlay = self.vlay_load(main_fp, logger=log, reproj=False)
         
+ 
         self.mstore.addMapLayer(vlay)
-        
+        #=======================================================================
+        # reproject the aoi
+        #=======================================================================
+        aoi_reproj = self.reproject(aoi_vlay, crsOut=vlay.crs(), logger=log)
 
         #=======================================================================
         # make selection
@@ -197,7 +237,7 @@ class mbfpSession(Qproj):
                 
         ins_d = { 
             'INPUT' : vlay, 
-            'INTERSECT' : aoi_vlay, 
+            'INTERSECT' : aoi_reproj, 
             'METHOD' : 0, #new selection 
             'PREDICATE' : [pred_d[pred_nm] for pred_nm in pred_l]}
         
@@ -212,21 +252,26 @@ class mbfpSession(Qproj):
         log.info('selected %i (of %i) features from %s'
             %(vlay.selectedFeatureCount(),vlay.dataProvider().featureCount(), vlay.name()))
         
-
-        vlay_sel = processing.run('native:saveselectedfeatures', {'INPUT' : vlay,'OUTPUT' :'TEMPORARY_OUTPUT'},  
+        """doing this incase the repeojct fails?"""
+        sel_fp = processing.run('native:saveselectedfeatures', 
+                                  {'INPUT' : vlay,'OUTPUT' :os.path.join(self.temp_dir, '%s_sel.gpkg'%vlay.name())},  
                                   feedback=self.feedback)['OUTPUT']
-        self.mstore.addMapLayer(vlay_sel)
+        #self.mstore.addMapLayer(vlay_sel)
+        log.debug(sel_fp)
+ 
         #=======================================================================
         # reproject
         #=======================================================================
         if ofp is None: ofp = os.path.join(self.out_dir, '%s_sel.gpkg'%vlay.name())
-        self.reproject(vlay_sel, output=ofp, logger=log, selected_only=False)
+        self.reproject(sel_fp, output=ofp, logger=log, selected_only=False, crsIn=vlay.crs())
          
         log.info('finished w/ %s'%ofp)
          
          
          
         return ofp
+    
+
     
     
 
@@ -235,20 +280,32 @@ class mbfpSession(Qproj):
 # FUNCTIONS-----------------
 #===============================================================================
 
-def get_pts( #get footprints
+def get_mbfp( #get footprints
         aoi_fp=r'C:\LS\02_WORK\02_Mscripts\InsuranceCurves\04_CALC\CMM\aoi\aoi02_CMM_20210711.gpkg',
         prov='quebec', #province
+        points=True,
         ):
     
     with mbfpSession(aoi_fp=aoi_fp) as wrkr:
-    
-        fp_d = wrkr.get_microsoft_fps()
-    
-        assert prov in fp_d, prov
         
-        ofp = wrkr.get_mbfp_pts(fp_d[prov])
+        
+        if points:
+            
+            raw_lib = wrkr.get_microsoft_fps()
+ 
+            
+            
+            
+        else:
+            raw_lib = wrkr.build_geojson_library()
+ 
+ 
+            
+        ofp = wrkr.get_selection(raw_lib[prov])
         
     return ofp
+
+ 
     
     
 def Fred12():
@@ -258,12 +315,18 @@ def Fred12():
         prov='NewBrunswick'.lower()
         )
 
+def obwb_0715():
+    return get_mbfp(
+        aoi_fp=r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\LMFRA\aoi\aoi10_20220715.gpkg',
+        prov='BritishColumbia'.lower(), points=False
+        )
 
 
-
-
-
-
+def calgary_0715():
+    return get_mbfp(
+        aoi_fp=r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\Calgary\aoi\aoi03_20220715.gpkg',
+        prov='Alberta'.lower(), points=False
+        )
 
 
 
@@ -277,8 +340,8 @@ def Fred12():
 
 if __name__ =="__main__": 
     
-    Fred12()
-    
+    #obwb_0715()
+    calgary_0715()
 
     
     tdelta = datetime.datetime.now() - start

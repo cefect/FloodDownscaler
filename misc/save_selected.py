@@ -8,7 +8,6 @@ save a set of features where overlapping with some other layer
 #===============================================================================
 # script paths
 #===============================================================================
- 
 
 #===============================================================================
 # # standard imports -----------------------------------------------------------
@@ -16,13 +15,10 @@ save a set of features where overlapping with some other layer
 import os, datetime
 start =  datetime.datetime.now()
 print('start at %s'%start)
-
- 
     
 from hp.dirz import force_open_dir
     
 import processing 
- 
 
 #===============================================================================
 # custom imports
@@ -47,14 +43,13 @@ class Sliceor(Qproj):
         if not aoi_fp is None:
             #get the aoi
             aoi_vlay = self.load_aoi(aoi_fp)
-            
-        
         
     def run_slice(self, #load a set of layers, slice by aoi, report on feature counts
                 main_fp, top_fp,
                 ofp = None,
                 pred_l = ['intersect'],  #list of geometry predicate names
                 logger=None,
+                write_csv=True,
                   ):
         
         #=======================================================================
@@ -62,7 +57,6 @@ class Sliceor(Qproj):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('run_slice')
-        
         
         #=======================================================================
         # load
@@ -91,7 +85,6 @@ class Sliceor(Qproj):
                 'overlap':5,
                   }
                 
-                
         ins_d = { 
             'INPUT' : vlay, 
             'INTERSECT' : top_vlay, 
@@ -100,13 +93,10 @@ class Sliceor(Qproj):
         
         log.info('executing \'%s\'   with: \n     %s'
             %(algo_nm,  ins_d))
-            
  
         # #execute
  
         _ = processing.run(algo_nm, ins_d,  feedback=self.feedback)
-        
-
         
         #=======================================================================
         # save selected
@@ -123,32 +113,31 @@ class Sliceor(Qproj):
         #=======================================================================
         # get tabular data
         #=======================================================================
- 
-        #pull the selected data
-        df = vlay_get_fdf(vlay, selected=True)
-        
-        
-        df.to_csv(os.path.join(self.out_dir, '%s_sel.csv'%vlay.name()))
+        if write_csv:
+            try:
+                #pull the selected data
+                df = vlay_get_fdf(vlay, selected=True)
+                
+                df.to_csv(os.path.join(self.out_dir, '%s_sel.csv'%vlay.name()))
+            except Exception as e:
+                log.error('failed to extract tabular w/ \n    %s'%e)
         
         return res_d['OUTPUT']
- 
 
 
 if __name__ == '__main__':
     
     #layer to select features from
-    main_fp = r'C:\LS\05_DATA\Canada\GOC\StatCan\ODB\20190910_BC_v2\ODB_BritishColumbia\odb_britishcolumbia.shp'
+    main_fp = r'C:\Users\cefect\Downloads\BritishColumbia.geojson'
      
     #layer to intersect
-    top_fp = r'C:\LS\02_WORK\IBI\202107_OBWB\04_CALC\aoi\aoi05_20210921.gpkg'
-    
+    top_fp = r'C:\Users\cefect\Downloads\aoi_4326.gpkg'
  
-    wrkr = Sliceor(crsID_default='EPSG:2955', tag='Microsoft_bfp')
-    ofp = wrkr.run_slice(main_fp, top_fp)
+    with Sliceor(tag='LM') as wrkr:
+        ofp = wrkr.run_slice(main_fp, top_fp)
     #===========================================================================
     # wrap
     #===========================================================================
     force_open_dir(wrkr.out_dir)
- 
     
     print('finished in %s'%(datetime.datetime.now() - start))
