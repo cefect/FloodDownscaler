@@ -1661,6 +1661,7 @@ class Qproj(QAlgos, Basic):
     def rlay_get_cellCnt(self,
                          rlay,
                          exclude_nulls=True,
+                         invert=False, #whether to invert a mask
                          log=None,
                          ):
         """surprised there is no builtin"""
@@ -1680,6 +1681,9 @@ class Qproj(QAlgos, Basic):
  
 
         assert isinstance(rlay, QgsRasterLayer)
+        
+        if invert:
+            rlay = self.mask_invert(rlay, logger=log)
         
         if exclude_nulls:
             

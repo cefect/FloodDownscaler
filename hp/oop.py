@@ -296,6 +296,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             
         if os.path.exists(tmp_dir):
             delete_dir(tmp_dir)
+        os.makedirs(tmp_dir)
             
         kwargs['tmp_dir']=tmp_dir
         #=======================================================================
@@ -570,7 +571,8 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # write it
         #=======================================================================
-        if cnt>0:
+        if cnt>0 and self.exit_summary:
+            assert os.path.exists(self.tmp_dir)
             with open(os.path.join(self.tmp_dir, 'exit_%s.txt'%self.fancy_name), 'a') as f:
                 f.write(datetime.datetime.now().strftime('%H%M%S'))
                 f.write(msg)
