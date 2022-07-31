@@ -571,7 +571,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         # write it
         #=======================================================================
         if cnt>0:
-            with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.fancy_name), 'a') as f:
+            with open(os.path.join(self.tmp_dir, 'exit_%s.txt'%self.fancy_name), 'a') as f:
                 f.write(datetime.datetime.now().strftime('%H%M%S'))
                 f.write(msg)
         #=======================================================================
