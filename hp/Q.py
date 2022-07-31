@@ -776,20 +776,17 @@ class Qproj(QAlgos, Basic):
  
                   logger=None,
                   dkey=None, #dummy recievor for retrieve calls
-                  
- 
- 
 
                   mstore=None,
+                  exit_summary=False,
                   ):
- 
+        """load raster layer"""
         
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('rlay_load')
-
         
         assert os.path.exists(fp), 'requested file does not exist: \n    %s'%fp
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
@@ -818,17 +815,22 @@ class Qproj(QAlgos, Basic):
             log.debug('\'%s\'  crs does not match project (%s v %s)'%(
                 rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid()))
             
- 
+        #=======================================================================
+        # stats
+        #=======================================================================
 
+        if exit_summary:
+            meta_d = self.rlay_get_stats(rlay_raw)
+ 
+            self.smry_d[dkey] = pd.Series(meta_d).to_frame()
+            
+        
         #=======================================================================
         # wrap
         #=======================================================================
- 
 
         if not mstore is None:
             mstore.addMapLayer(rlay_raw)
- 
-            
         
         return rlay_raw
     #===========================================================================
