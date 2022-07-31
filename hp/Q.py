@@ -1355,7 +1355,7 @@ class Qproj(QAlgos, Basic):
         # output file
         #=======================================================================
         if ofp is None:
-            if out_dir is None: out_dir=self.temp_dir
+            if out_dir is None: out_dir=self.tmp_dir
     
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
@@ -1377,7 +1377,7 @@ class Qproj(QAlgos, Basic):
         if compression == 'none':
             ofp1=ofp
         else:
-            ofp1 = os.path.join(self.temp_dir,layname+'_raw.tif')
+            ofp1 = os.path.join(self.tmp_dir,layname+'_raw.tif')
         #=======================================================================
         # assemble parameters
         #=======================================================================
@@ -1588,7 +1588,7 @@ class Qproj(QAlgos, Basic):
         if invert_mask:
  
             mask_rlay1 = self.mask_invert(mask_rlay, logger=log,
-                          ofp=os.path.join(self.temp_dir, 
+                          ofp=os.path.join(self.tmp_dir, 
                            '%s_invert.tif'%os.path.basename(mask_rlay).replace('.tif', '')),
                           )
         else:
@@ -1619,17 +1619,11 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # execute
         #=======================================================================
-        
-        ofp = self.rcalc1(rcentry_d['raw'].raster, formula,
+ 
+        return self.rcalc1(rcentry_d['raw'].raster, formula,
                           list(rcentry_d.values()),
                           layname=layname,
                           logger=log,**kwargs)
-        
-        log.debug('finished w/ %s'%ofp)
-        
- 
-        
-        return ofp
     
     def rlay_get_resolution(self,  
                        rlay):
@@ -1794,11 +1788,11 @@ class Qproj(QAlgos, Basic):
         """should preserve nodata?
         also consider simply copying the source"""
         if logger is None: logger=self.logger
-        if out_dir is None: out_dir=self.temp_dir
+        if out_dir is None: out_dir=self.tmp_dir
         #log=logger.getChild('rlay_mcopy')
         
         """too complicated
-        with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.temp_dir,
+        with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.tmp_dir,
                         ) as wrkr:
             
             entries_d = {k:wrkr._rCalcEntry(v) for k,v in {'lay':rlay}.items()}
@@ -1913,66 +1907,6 @@ class Qproj(QAlgos, Basic):
         
         return df
  
-        
-    def rlay_check_match(self, #check if raster dimensions and resolutions match
-                         rlay1_raw,
-                         rlay2_raw,
-                         logger=None):
-        """todo: migrate to assert_rlay_equal"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('rlay_check_match')
-        
-        #=======================================================================
-        # load
-        #=======================================================================
-        mstore = QgsMapLayerStore()
-        rlay1 = self.get_layer(rlay1_raw, logger=log, mstore=mstore)
-        rlay2 = self.get_layer(rlay2_raw, logger=log, mstore=mstore)
-        
-        #=======================================================================
-        # run tests
-        #=======================================================================
-        
-        """
-        rlay1.extent()
-        """
-        
-        
-        log.debug('testing %s vs %s'%(rlay1.name(), rlay2.name()))
-        res_d = dict()
-        for i, testName in enumerate([
-            'width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX', 'crs', 'extent'
-            ]):
-            
-        
-            v1 = getattr(rlay1, testName)()
-            v2 = getattr(rlay2, testName)()
-            
-            res_d[testName] = {'result':v1==v2, rlay1.name():v1, rlay2.name():v2}
-            
-            
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        res_df = pd.DataFrame.from_dict(res_d).T.infer_objects()
-        mstore.removeAllMapLayers()
-        
-        if not res_df['result'].all():
-            with pd.option_context('display.max_rows', None,'display.max_columns', None,'display.width',1000):
- 
-                msg = 'failed %i/%i tests: \n\n%s'%(len(res_df) - res_df['result'].sum(), len(res_df), res_df[~res_df['result']])
-            """
-            view(res_df)
-            """
-            log.debug(msg)
-            return False, msg
-        
-        log.debug('passed %i tests'%len(res_df))
-        return True, ''
-    
     #===========================================================================
     # HELPERS---------
     #===========================================================================
@@ -2247,7 +2181,7 @@ class RasterCalc(object):
                  session=None,
  
                  out_dir=None,
-                 temp_dir=None,
+                 tmp_dir=None,
                  mstore=None,
                  ):
         
@@ -2286,8 +2220,8 @@ class RasterCalc(object):
         self.out_dir=out_dir
             
         #temp dir
-        if temp_dir is None: temp_dir=out_dir
-        self.temp_dir=temp_dir
+        if tmp_dir is None: tmp_dir=out_dir
+        self.tmp_dir=tmp_dir
         
         
         #reference layer
@@ -3017,22 +2951,54 @@ def view(#view the vector data (or just a df) as a html frame
 #===============================================================================
 # rlay helpers--------
 #===============================================================================
-def assert_rlay_equal(left, right, msg=''): #simple rlay comparison check
+def assert_rlay_equal(left, right, msg='',): 
+    """simple rlay comparison check"""
+    if __debug__: # true if Python was not started with an -O option
+        return
     assert isinstance(left, QgsRasterLayer), msg
     assert isinstance(right, QgsRasterLayer), msg
     __tracebackhide__ = True
+    
+    if not left.extent()==right.extent():
+ 
+        raise AssertionError('%s != %s extent\n'%(
+                left.name(),   right.name()) +msg) 
     
  
     
     #check basic methods
     for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
+ 
         lval = getattr(left, method)()
         rval = getattr(right, method)()
         
         if not lval == rval:
             raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
                 left.name(), method, lval, right.name(), method, rval) +msg) 
+            
+
+def assert_extent_equal(left, right, msg='',): 
+    """ extents check"""
+    if __debug__: # true if Python was not started with an -O option
+        return
+    assert isinstance(left, QgsRasterLayer), msg
+    assert isinstance(right, QgsRasterLayer), msg
+    __tracebackhide__ = True
+    
+    #===========================================================================
+    # crs
+    #===========================================================================
+    if not left.crs()==right.crs():
+        raise AssertionError('extents mismatch')
+    #===========================================================================
+    # extents
+    #===========================================================================
+    if not left.extent()==right.extent():
  
+        raise AssertionError('%s != %s extent\n'%(
+                left.name(),   right.name()) +msg) 
+        
+
 
 #==============================================================================
 # type conversions----------------
