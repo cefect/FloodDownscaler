@@ -21,7 +21,7 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 import os, sys, datetime, gc, copy, pickle, pprint, logging
-
+from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
 
 from hp.exceptions import Error
@@ -350,13 +350,16 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         self.meta_d=dict()
         self.smry_d=dict()
         
-    def retrieve(self, #flexible 3 source data retrival
+    def retrieve(self,  
                  dkey,
                  *args,
                  logger=None,
                  **kwargs
                  ):
-        
+        """flexible 3 source data retrival"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
         if logger is None: logger=self.logger
         log = logger.getChild('ret')
 
@@ -364,9 +367,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         # 1.alredy loaded
         #=======================================================================
-        """
-        self.data_d.keys()
-        """
+ 
         if dkey in self.data_d:
             log.info('loading \'%s\' from data_d'%dkey)
             try:
@@ -383,7 +384,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         assert dkey in self.data_retrieve_hndls, dkey
         
         hndl_d = self.data_retrieve_hndls[dkey]
-        
+        meta_d = dict()
         #=======================================================================
         # 2.compiled provided
         #=======================================================================
@@ -417,17 +418,28 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         # store
         #=======================================================================
         assert data is not None, '\'%s\' got None'%dkey
-        assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey
+        
+        if isinstance(data, QgsMapLayer):
+            self.mstore.addMapLayer(data)
+            
+            meta_d.update({'layname':data.name(), 'source':data.source()})
+            
+        else:
+            assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey
         self.data_d[dkey] = data
         
+        #=======================================================================
+        # meta
+        #=======================================================================
         tdelta = round((datetime.datetime.now() - start).total_seconds(), 1)
+        meta_d.update({
+            'tdelta (secs)':tdelta, 'dtype':type(data), 'method':method})
             
-        self.dk_meta_d[dkey].update({
-            'tdelta (secs)':tdelta, 'dtype':type(data), 'len':len(data), 'method':method})
+        self.dk_meta_d[dkey].update(meta_d)
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info('finished on \'%s\' w/ len=%i dtype=%s'%(dkey, len(data), type(data)))
+        log.info('finished on \'%s\' w/   dtype=%s'%(dkey,  type(data)))
         
         return data
     
@@ -559,7 +571,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         # write it
         #=======================================================================
         if cnt>0:
-            with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.longname), 'a') as f:
+            with open(os.path.join(self.out_dir, 'exit_%s.txt'%self.fancy_name), 'a') as f:
                 f.write(datetime.datetime.now().strftime('%H%M%S'))
                 f.write(msg)
         #=======================================================================
@@ -580,7 +592,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
             #=======================================================================
     
             #get the filepath
-            ofp = os.path.join(self.out_dir, self.longname+'__exit__%s.xls'%(
+            ofp = os.path.join(self.out_dir, self.fancy_name+'__exit__%s.xls'%(
                 datetime.datetime.now().strftime('%H%M%S')))
             if os.path.exists(ofp):
                 assert self.overwrite
