@@ -144,6 +144,9 @@ class Qproj(QAlgos, Basic):
                  
                  #inheritance
                  session            =None, #parent session for child mode
+                 
+                   #pytest-qgis fixtures
+                 qgis_app=None, qgis_processing=None,
  
                  **kwargs):
 
@@ -191,7 +194,7 @@ class Qproj(QAlgos, Basic):
             #===================================================================
             # setups
             #===================================================================
-            self._init_qgis(crs=crs)
+            self._init_qgis(crs=crs, qgis_app=qgis_app)
             
             self._init_algos()
             
@@ -781,7 +784,7 @@ class Qproj(QAlgos, Basic):
                   exit_summary=False,
                   ):
         """load raster layer"""
-        
+        assert not fp is None
         #=======================================================================
         # defautls
         #=======================================================================
