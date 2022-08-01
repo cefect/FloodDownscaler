@@ -2200,7 +2200,47 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
+    def buildvrt(self,
+                       rlay_l,
+                       output = 'TEMPORARY_OUTPUT',
+                       separate=False,
+                       logger=None,
+                       ):
+        
+        """
+        Parameters
+        -----------
+        separate: bool, default False
+            whether to separate each raster onto separate bands
+        """
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('buildvrt')
+        
+        assert isinstance(rlay_l, list)
 
+        algo_nm = 'gdal:buildvirtualraster'
+        
+        ins_d = { 'ADD_ALPHA' : False, 
+                 'ASSIGN_CRS' :'', 
+                 'EXTRA' : '', 
+                 'INPUT' : rlay_l, 
+                 'OUTPUT' : output, 
+                 'PROJ_DIFFERENCE' : False, 
+                 'RESAMPLING' : 0, 
+                 'RESOLUTION' : 0, 
+                 'SEPARATE' : separate, 
+                 'SRC_NODATA' : '' }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
     
     #===========================================================================
     # GRASS--------
