@@ -1438,7 +1438,7 @@ class Qproj(QAlgos, Basic):
         log.debug('finished')
         return ofp
     
-    def mask_build(self, #get a mask from a raster with data
+    def mask_build(self, 
                    rlay,
                    
                    #mask parameters
@@ -1449,6 +1449,9 @@ class Qproj(QAlgos, Basic):
                    
                    #misc
                    layname=None,ofp=None,logger=None, **kwargs):
+        """
+        get a mask from a raster with data
+        """
         
         #=======================================================================
         # defaults
@@ -1518,6 +1521,30 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         return self.rcalc1(rlay, formula, [rcentry], logger=log,ofp=ofp,
                            layname=layname, **kwargs)
+        
+    
+    def mask_build_nan(self,
+                        rlay,
+                        logger=None, ofp=None, layname=None, out_dir=None,
+                        **kwargs):
+        """build a mask from null values"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if out_dir is None: out_dir=self.out_dir
+        if layname is None: layname = '%s_mask_nan'%rlay.name()
+        if ofp is None: ofp=os.path.join(out_dir, '%s.tif'%layname)
+        
+        
+        with RasterCalc(rlay, name='mask_build_nan', session=self, 
+                        logger=logger,out_dir=out_dir,**kwargs) as wrkr:
+ 
+            rcentry = wrkr._rCalcEntry(rlay)
+            formula = '({lay})/({lay})'.format(lay=rcentry.ref)
+            wrkr.rcalc(formula, layname=layname, ofp=ofp)
+            
+        return ofp
+        
  
      
     def mask_invert(self, #take a mask layer, and invert it
@@ -1697,6 +1724,37 @@ class Qproj(QAlgos, Basic):
         
         log.debug('got %i'%res)
         return int(res)
+    
+    def rlay_get_cellCnt2(self,
+                         rlay,
+                         exclude_nulls=True,
+ 
+                         log=None,
+                         ):
+        """surprised there is no builtin
+        trying with gdal
+        """
+ 
+        #setup
+
+        mstore=QgsMapLayerStore()
+        
+        if isinstance(rlay, str):
+ 
+            rlay = self.rlay_load(rlay, logger=log)
+            mstore.addMapLayer(rlay)
+ 
+
+ 
+        nd_cnt=0
+        if exclude_nulls:
+            nd_cnt = hp.gdal.getNoDataCount(rlay.source())
+ 
+ 
+        res = int(rlay.width()*rlay.height() - nd_cnt)
+        
+        mstore.removeAllMapLayers()
+        return res
     
     def rlay_getstats(self, rlay, logger=None): #get some raster stats
         #=======================================================================
@@ -2426,6 +2484,10 @@ class RasterCalc(object):
         self.layers_d[rlayer.name() ] =rlayer #holding the layer?
         
         return rlayer
+    
+    def get_ref_d(self,layers_d):
+        entries_d = {k:self._rCalcEntry(v) for k,v in layers_d.items()}            
+        return {k:v.ref for k,v in entries_d.items()}
     
     def __enter__(self,*args,**kwargs):
         return self
