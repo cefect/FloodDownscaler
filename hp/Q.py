@@ -25,6 +25,7 @@ from qgis.core import *
 from qgis.gui import QgisInterface
 from hp.gdal import get_nodata_val
 import hp.gdal
+from hp.basic import get_dict_str
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -185,7 +186,7 @@ class Qproj(QAlgos, Basic):
             if feedback is None:
                 #build a separate logger to capture algorhtihim feedback
                 qlogger= get_new_file_logger('Qproj',
-                    fp=os.path.join(self.work_dir, 'Qproj.log'))
+                    fp=os.path.join(self.wrk_dir, 'Qproj.log'))
      
                 feedback = MyFeedBackQ(logger=qlogger)
             
@@ -2027,9 +2028,9 @@ class Qproj(QAlgos, Basic):
         
         d = {lay.name():QgsMapLayerType(lay.type()).name for lay in mstore.mapLayers().values()}
         
-        txt = pprint.pformat(d, width=30, indent=0, compact=True, sort_dicts =False)
+        #txt = pprint.pformat(d, width=30, indent=0, compact=True, sort_dicts =False)
         
-        log.info('mstore has %i layers \n%s'%(len(d), txt))
+        log.info('mstore has %i layers \n%s'%(len(d), get_dict_str(d)))
  
      
     def _rCalcEntry(self, #helper for raster calculations 
