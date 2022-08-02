@@ -1757,12 +1757,12 @@ class Qproj(QAlgos, Basic):
         mstore.removeAllMapLayers()
         return res
     
-    def rlay_getstats(self, rlay, logger=None): #get some raster stats
+    def rlay_get_stats(self, rlay, logger=None): #get some raster stats
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger=self.logger
-        log=logger.getChild('rlay_getstats')
+        log=logger.getChild('rlay_get_stats')
         
         mstore=QgsMapLayerStore()
         
