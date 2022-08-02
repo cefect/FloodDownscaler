@@ -418,6 +418,55 @@ class Whitebox(object):
         self.__run__(args) #execute
         
         return out_fp
+    
+    def Mosaic(self,
+                        fp_l,
+                        method='nn',
+                        logger=None, out_fp=None,
+                        ):
+        """
+        merge some rasters together
+        
+        Parameters
+        -----------
+        method: str
+            Resampling method; options include 'nn' (nearest neighbour), 'bilinear', and 'cc' (cubic convolution)
+        """
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        tool_nm = 'Mosaic'
+        if logger is None: logger=self.logger
+        log=logger.getChild(tool_nm)
+        
+        if out_fp is None: 
+            out_fp = os.path.join(self.out_dir, 'mosaic_%i.tif'%len(fp_l))
+ 
+        #=======================================================================
+        # checks
+        #=======================================================================
+        if os.path.exists(out_fp):
+            assert self.overwrite
+            os.remove(out_fp)
+        assert out_fp.endswith('.tif')
+
+        #=======================================================================
+        # setup
+        #=======================================================================
+        args = [self.exe_fp,'-v','--run={}'.format(tool_nm),'--output={}'.format(out_fp),
+                '--inputs='+','.join(fp_l),
+                '--method='+method, 
+                ]
+        #=======================================================================
+        # execute
+        #=======================================================================
+        log.info('executing \'%s\' on %i'%(tool_nm, len(fp_l)))
+        self.__run__(args) #execute
+        
+        return out_fp
+    
+ 
         
     def __run__(self, args, logger=None):
         """I think this only returns info upon completion?
