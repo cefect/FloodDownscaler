@@ -2027,7 +2027,7 @@ class QAlgos(object):
         #=======================================================================
         # execute
         #=======================================================================
-        ins_d = { 'DATA_TYPE' : 5, 
+        ins_d = { 'DATA_TYPE' : 5 , #Float32
                  'EXTRA' : '',
                   'INPUT' : rlays_l, 
                   #'NODATA_INPUT' : -9999, 
@@ -2241,7 +2241,40 @@ class QAlgos(object):
         res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
-    
+
+    def assignprojection(self,
+                       rlay,
+                       output = 'TEMPORARY_OUTPUT',
+                       crs=None,
+                       logger=None,
+                       ):
+        
+        """
+        Parameters
+        -----------
+        separate: bool, default False
+            whether to separate each raster onto separate bands
+        """
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('assignprojection')
+        
+        if crs is None: crs=self.qproj.crs()
+
+        algo_nm = 'gdal:assignprojection'
+        
+        ins_d = { 'CRS' : crs, 
+                 'INPUT' : rlay }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return #no result
     #===========================================================================
     # GRASS--------
     #===========================================================================
