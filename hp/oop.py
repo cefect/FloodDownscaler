@@ -216,7 +216,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
                  write=True, 
                  
                  #session algos
-                 bk_lib=dict(),         #kwargs for builder calls {dkey:kwargs}
+                 bk_lib=None,         #kwargs for builder calls {dkey:kwargs}
                  compiled_fp_d = None, #container for compiled (intermediate) results {dkey:filepath}
                  data_retrieve_hndls=None, #data retrival handles
                              #default handles for building data sets {dkey: {'compiled':callable, 'build':callable}}
@@ -247,10 +247,10 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         """
  
         #=======================================================================
-        # precheck
+        # preset
         #=======================================================================
         if data_retrieve_hndls is None: data_retrieve_hndls=dict()
- 
+        if bk_lib is None: bk_lib=dict()
         
         #=======================================================================
         # logger
@@ -539,6 +539,30 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         return {**{'_smry':pd.Series(self.meta_d, name='val').to_frame(),
                           '_smry.dkey':pd.DataFrame.from_dict(self.dk_meta_d).T},
                         **self.smry_d}
+        
+    def _clear_all(self): #clear all the loaded data
+        self.data_d = dict()
+        self.mstore.removeAllMapLayers()
+        self.compiled_fp_d.update(self.ofp_d) #copy everything over to compile
+        gc.collect()
+        
+    def _log_datafiles(self, 
+                       log=None,
+                       d = None,
+                       ):
+        if log is None: log=self.logger
+        
+        if d is None:
+        
+            #print each datafile
+            d = copy.copy(self.compiled_fp_d) #start with the passed
+            d.update(self.ofp_d) #add the loaded
+
+        s0=''
+        for k,v in d.items():
+            s0 = s0+'\n    \'%s\':r\'%s\','%(k,  v)
+                
+        log.info(s0)
     
     def __exit__(self, #destructor
                  *args, **kwargs):
