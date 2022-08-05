@@ -3017,47 +3017,7 @@ def view(#view the vector data (or just a df) as a html frame
     
     return
 
-#===============================================================================
-# rlay helpers--------
-#===============================================================================
-def assert_rlay_equal(left, right, msg='',): 
-    """simple rlay spatial comparison check"""
-    if not __debug__: # true if Python was not started with an -O option
-        return
- 
-    #check extents
-    assert_extent_equal(left, right, msg=msg)    
-     
-    #check basic methods
-    for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
- 
-        lval = getattr(left, method)()
-        rval = getattr(right, method)()
-        
-        if not lval == rval:
-            raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
-                left.name(), method, lval, right.name(), method, rval) +msg) 
-            
 
-def assert_extent_equal(left, right, msg='',): 
-    """ extents check"""
-    if not __debug__: # true if Python was not started with an -O option
-        return
-    assert isinstance(left, QgsRasterLayer), msg
-    assert isinstance(right, QgsRasterLayer), msg
-    __tracebackhide__ = True
-    
-    #===========================================================================
-    # crs
-    #===========================================================================
-    if not left.crs()==right.crs():
-        raise AssertionError('crs mismatch')
-    #===========================================================================
-    # extents
-    #===========================================================================
-    if not left.extent()==right.extent():
-        raise AssertionError('%s != %s extent\n    %s != %s\n    '%(
-                left.name(),   right.name(), left.extent(), right.extent()) +msg) 
         
 
 
@@ -3174,11 +3134,7 @@ def rlay_to_npArray(lyr, dtype=np.dtype(float)): #Input: QgsRasterLayer
     
  
     return np.array(l, dtype=dtype)
-
  
-        
- 
-
 #==============================================================================
 # type checks-----------------
 #==============================================================================
@@ -3216,7 +3172,53 @@ def is_qtype_match(obj, qtype_code, logger=mod_logger): #check if the object mat
         return False
     else:
         return True
+    
 
+#===============================================================================
+# ASSERTIONS--------
+#===============================================================================
+def assert_rlay_equal(left, right, msg='',): 
+    """simple rlay spatial comparison check"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+    #check extents
+    assert_extent_equal(left, right, msg=msg)    
+     
+    #check basic methods
+    for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
+ 
+        lval = getattr(left, method)()
+        rval = getattr(right, method)()
+        
+        if not lval == rval:
+            raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
+                left.name(), method, lval, right.name(), method, rval) +msg) 
+            
+
+def assert_extent_equal(left, right, msg='',): 
+    """ extents check"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    assert isinstance(left, QgsRasterLayer), msg
+    assert isinstance(right, QgsRasterLayer), msg
+    __tracebackhide__ = True
+    
+    #===========================================================================
+    # crs
+    #===========================================================================
+    if not left.crs()==right.crs():
+        raise AssertionError('crs mismatch')
+    #===========================================================================
+    # extents
+    #===========================================================================
+    if not left.extent()==right.extent():
+        raise AssertionError('%s != %s extent\n    %s != %s\n    '%(
+                left.name(),   right.name(), left.extent(), right.extent()) +msg) 
+
+#===============================================================================
+# ENVIRONMENT-------------
+#===============================================================================
 def test_install(): #test your qgis install
  
     proj = Qproj()
