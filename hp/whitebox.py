@@ -461,7 +461,7 @@ class Whitebox(object):
         #=======================================================================
         # execute
         #=======================================================================
-        log.info('executing \'%s\' on %i'%(tool_nm, len(fp_l)))
+        log.debug('executing \'%s\' on %i'%(tool_nm, len(fp_l)))
         self.__run__(args) #execute
         
         return out_fp
