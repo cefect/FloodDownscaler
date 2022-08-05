@@ -1765,7 +1765,7 @@ class Qproj(QAlgos, Basic):
         log=logger.getChild('rlay_get_stats')
         
         mstore=QgsMapLayerStore()
-        
+        rlay = self.get_layer(rlay, mstore=mstore)
         #=======================================================================
         # #builtin stats
         #=======================================================================
@@ -1779,29 +1779,28 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # nodata counts
         #=======================================================================
-        if isinstance(rlay, str):
-            rlay_fp = rlay
-        else:
-            rlay_fp = rlay.source()
-        
-        stats_d['noData_cnt'] = hp.gdal.getNoDataCount(rlay_fp)
-        #=======================================================================
-        # preload
-        #=======================================================================
-        if isinstance(rlay, str):
  
-            rlay = self.rlay_load(rlay, logger=log)
-            mstore.addMapLayer(rlay)
-            
+        stats_d['noData_cnt'] = hp.gdal.getNoDataCount(rlay.source())
+        
+ 
         #=======================================================================
         # generals
         #=======================================================================
         stats_d['cell_cnt'] = rlay.width()*rlay.height()
+        stats_d['real_cnt'] = stats_d['cell_cnt'] - stats_d['noData_cnt']
         stats_d['resolution'] = self.rlay_get_resolution(rlay)
         stats_d['crs'] = rlay.crs().authid()
         for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
             stats_d[attn] = getattr(rlay, attn)()
-            
+        
+        #=======================================================================
+        # post
+        #=======================================================================
+        stats_d['cell_area'] = stats_d['rasterUnitsPerPixelY']*stats_d['rasterUnitsPerPixelX']
+        stats_d['volume'] = stats_d['SUM']*stats_d['cell_area']
+        #=======================================================================
+        # wrap
+        #=======================================================================
         mstore.removeAllMapLayers()
         
             
@@ -2490,6 +2489,9 @@ class RasterCalc(object):
         entries_d = {k:self._rCalcEntry(v) for k,v in layers_d.items()}            
         return {k:v.ref for k,v in entries_d.items()}
     
+    def ref(self):
+        return self._rCalcEntry(self.ref_lay).ref
+    
     def __enter__(self,*args,**kwargs):
         return self
  
@@ -3019,20 +3021,13 @@ def view(#view the vector data (or just a df) as a html frame
 # rlay helpers--------
 #===============================================================================
 def assert_rlay_equal(left, right, msg='',): 
-    """simple rlay comparison check"""
-    if __debug__: # true if Python was not started with an -O option
+    """simple rlay spatial comparison check"""
+    if not __debug__: # true if Python was not started with an -O option
         return
-    assert isinstance(left, QgsRasterLayer), msg
-    assert isinstance(right, QgsRasterLayer), msg
-    __tracebackhide__ = True
-    
-    if not left.extent()==right.extent():
  
-        raise AssertionError('%s != %s extent\n'%(
-                left.name(),   right.name()) +msg) 
-    
- 
-    
+    #check extents
+    assert_extent_equal(left, right, msg=msg)    
+     
     #check basic methods
     for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
  
@@ -3046,7 +3041,7 @@ def assert_rlay_equal(left, right, msg='',):
 
 def assert_extent_equal(left, right, msg='',): 
     """ extents check"""
-    if __debug__: # true if Python was not started with an -O option
+    if not __debug__: # true if Python was not started with an -O option
         return
     assert isinstance(left, QgsRasterLayer), msg
     assert isinstance(right, QgsRasterLayer), msg
@@ -3056,14 +3051,13 @@ def assert_extent_equal(left, right, msg='',):
     # crs
     #===========================================================================
     if not left.crs()==right.crs():
-        raise AssertionError('extents mismatch')
+        raise AssertionError('crs mismatch')
     #===========================================================================
     # extents
     #===========================================================================
     if not left.extent()==right.extent():
- 
-        raise AssertionError('%s != %s extent\n'%(
-                left.name(),   right.name()) +msg) 
+        raise AssertionError('%s != %s extent\n    %s != %s\n    '%(
+                left.name(),   right.name(), left.extent(), right.extent()) +msg) 
         
 
 
