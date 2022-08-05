@@ -785,14 +785,14 @@ class Qproj(QAlgos, Basic):
                   exit_summary=False,
                   ):
         """load raster layer"""
-        assert not fp is None
+        assert not fp is None, 'no fp passed for %s'%dkey
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('rlay_load')
         
-        assert os.path.exists(fp), 'requested file does not exist: \n    %s'%fp
+        assert os.path.exists(fp), 'requested \'%s\' file does not exist: \n    %s'%(dkey, fp)
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
             'requested file is not a valid raster file type: %s'%fp
         
@@ -1307,6 +1307,8 @@ class Qproj(QAlgos, Basic):
             return
         else:
             raise Error('unrecognized result key: %s'%result)
+        
+
             
     #===========================================================================
     # RLAYs--------
