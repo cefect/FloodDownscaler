@@ -554,6 +554,7 @@ class QAlgos(object):
         #=======================================================================
         # # build inputs
         #=======================================================================
+        
         ins_d = {'INPUT' : vlay,
                  'OUTPUT' : output}
         
@@ -1181,6 +1182,51 @@ class QAlgos(object):
         return res_d['OUTPUT']
     
     
+    def randomnormalraster(self,
+            pixel_size=None,
+            mean=1.0,stddev=1.0,
+            
+            extent=None, #layer to pull raster extents from
+               #None: use pts_vlay
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:createrandomnormalrasterlayer'
+        log = logger.getChild('randomnormalraster')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+        if pixel_size is None:
+            assert isinstance(extent, QgsRasterLayer)
+            pixel_size = extent.rasterUnitsPerPixelX()
+            
+        if isinstance(extent, QgsMapLayer):
+            extent = extent.extent()
+            
+        
+            
+            
+        ins_d = { 'EXTENT' : extent,
+                  'MEAN' : mean,'STDDEV' : stddev, 
+                   'OUTPUT' :output,
+                 'OUTPUT_TYPE' : 0, #Float32
+                 'PIXEL_SIZE' : pixel_size, 
+                 'TARGET_CRS' :self.qproj.crs(), 
+                  }
+ 
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d)) 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)        
+        return res_d['OUTPUT']
+    
+    
     def kmeansclustering(self,
             vlay, clusters, 
             fieldName='CLUSTER_ID',
@@ -1585,7 +1631,7 @@ class QAlgos(object):
         
         #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
-        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
     
@@ -2074,13 +2120,14 @@ class QAlgos(object):
     def rasterize_value(self, #build a rastser with a fixed value from a polygon
                 bval, #fixed value to burn,
                 poly_vlay, #polygon layer with geometry
-                resolution=10,
+                ref_lay=None,
+                resolution=None,
                 output = 'TEMPORARY_OUTPUT',
-                result = 'layer', #type fo result to provide
+                #result = 'layer', #type fo result to provide
                 #layer: default, returns a raster layuer
                 #fp: #returns the filepath result
                 layname=None,
-                logger=None,
+                logger=None, selected_only=False,
                   ):
         #=======================================================================
         # defaults
@@ -2090,23 +2137,28 @@ class QAlgos(object):
         if layname is None: layname = '%s_%.2f'%(poly_vlay.name(), bval)
         algo_nm = 'gdal:rasterize'
         
-        
-        
-        """
-        extents =  QgsRectangle(-127.6, 44.1, -106.5, 54.1)
-        """
+        if ref_lay is None: ref_lay=poly_vlay
         #=======================================================================
         # get extents
         #=======================================================================
-        rect = poly_vlay.extent()
+        rect = ref_lay.extent()
         
         extent = '%s,%s,%s,%s'%(rect.xMinimum(), rect.xMaximum(), rect.yMinimum(), rect.yMaximum())+ \
                 ' [%s]'%poly_vlay.crs().authid()
 
-        
+        if resolution is None:
+            assert isinstance(ref_lay, QgsRasterLayer)
+            resolution = ref_lay.rasterUnitsPerPixelX()
         #=======================================================================
         # build pars
         #=======================================================================
+        #selection handling
+        if selected_only:
+            """not working well"""
+            input_obj = self._get_sel_obj(poly_vlay)
+        else:
+            input_obj = poly_vlay
+        
         pars_d = { 'BURN' : bval, #fixed value to burn
                   'EXTENT' : extent,
                    #'EXTENT' : '1221974.375000000,1224554.125000000,466981.406300000,469354.031300000 [EPSG:3005]',
@@ -2118,18 +2170,16 @@ class QAlgos(object):
                      
                       'INVERT' : False,
                    'NODATA' : -9999, 'DATA_TYPE' : 5,'OPTIONS' : '',
-                   'INPUT' : poly_vlay, 'OUTPUT' : output,
+                   'INPUT' : input_obj, 'OUTPUT' : output,
                     
                      
                       }
         
         log.debug('%s w/ \n    %s'%(algo_nm, pars_d))
         res_d = processing.run(algo_nm, pars_d, feedback=self.feedback)
-        
-        #laod teh rlay
-        
+ 
     
-        return self._get_rlay_res(res_d, result, layname=layname)
+        return res_d['OUTPUT']
     
     
     def rastercalculatorGDAL(self, #build a rastser with a fixed value from a polygon
@@ -2177,6 +2227,7 @@ class QAlgos(object):
     def polygonizeGDAL(self,
                        rlay,
                        output = 'TEMPORARY_OUTPUT',
+                       EIGHT_CONNECTEDNESS=True,
                        logger=None,
                        ):
         
@@ -2189,7 +2240,7 @@ class QAlgos(object):
 
         algo_nm = 'gdal:polygonize'
         
-        ins_d = { 'BAND' : 1, 'EIGHT_CONNECTEDNESS' : True, 
+        ins_d = { 'BAND' : 1, 'EIGHT_CONNECTEDNESS' : EIGHT_CONNECTEDNESS, 
                  'EXTRA' : '', 'FIELD' : 'DN', 
                  'INPUT' : rlay, 
                  'OUTPUT' : output }
