@@ -31,6 +31,39 @@ from hp.oop import Basic
 import matplotlib
 
 
+#===============================================================================
+# #===============================================================================
+# # setup matplotlib
+# #===============================================================================
+#  
+# import matplotlib
+# matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+# matplotlib.set_loglevel("info") #reduce logging level
+# import matplotlib.pyplot as plt
+# 
+# #set teh styles
+# plt.style.use('default')
+# 
+# #font
+# matplotlib.rc('font', **{
+#         'family' : 'serif',
+#         'weight' : 'normal',
+#         'size'   : 8})
+# 
+# for k,v in {
+#     'axes.titlesize':10,
+#     'axes.labelsize':10,
+#     'figure.titlesize':12,
+#     'figure.autolayout':False,
+#     'figure.figsize':(10,6),
+#     'legend.title_fontsize':'large'
+#     }.items():
+#         matplotlib.rcParams[k] = v
+#  
+# print('loaded matplotlib %s'%matplotlib.__version__)
+#===============================================================================
+
+
 class Plotr(Basic):
     
     #===========================================================================

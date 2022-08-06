@@ -2602,6 +2602,14 @@ class QAlgos(object):
         #get list of loadedp rovider names
         pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
         log.info('    %i providers: %s'%(len(pName_l), pName_l))
+        
+        #=======================================================================
+        # GRASS
+        #=======================================================================
+
+        from grassprovider.Grass7Utils import Grass7Utils
+        log.info('Grass7Utils.installedVersion:%s'%Grass7Utils.installedVersion())
+
  
             
         super()._install_info(**kwargs) #initilzie teh baseclass

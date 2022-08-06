@@ -160,7 +160,7 @@ def get_new_console_logger(
     #===========================================================================
  
     
-    formatter = logging.Formatter('%(asctime)s.%(levelname)s:  %(message)s')        
+    formatter = logging.Formatter('%(levelname)s.%(name)s:  %(message)s')        
     handler = logging.StreamHandler(
         stream=sys.stdout, #send to stdout (supports colors)
         ) #Create a file handler at the passed filename 
