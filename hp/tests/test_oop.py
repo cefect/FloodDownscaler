@@ -7,6 +7,28 @@ from hp.oop import Basic, Session
 
 temp_dir = os.path.join(tempfile.gettempdir(), datetime.datetime.now().strftime('%M%S'))
 
+#===============================================================================
+# fixtures
+#===============================================================================
+@pytest.fixture(scope='session')
+def logger(request):
+    build=True
+    if hasattr(request, 'param'):
+        build= request.param
+            
+    
+    
+    if build:
+        logger= logging.getLogger('root')
+        logger.setLevel(logging.DEBUG) #set the base level for the logger
+        logger.info('built test session logger')
+        return logger
+    else:
+        return None
+
+#===============================================================================
+# tests------
+#===============================================================================
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
     [None,None, None], 
     [temp_dir, temp_dir, temp_dir]])

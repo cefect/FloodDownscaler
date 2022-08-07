@@ -150,8 +150,6 @@ class Qproj(QAlgos, Basic):
                  qgis_app=None, qgis_processing=None,
  
                  **kwargs):
-
- 
  
         #init cascade
         super().__init__(session=session,
@@ -166,14 +164,9 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # setup qgis
         #=======================================================================
-
         
         if aoi_set_proj_crs:
             assert crs is None
-            
-
-        
- 
             
         #standalone
         if session is None:
@@ -201,8 +194,6 @@ class Qproj(QAlgos, Basic):
             
             self._set_vdrivers()
             
-
-            
         #child mode
         else:
             """automating inheritance here
@@ -223,7 +214,6 @@ class Qproj(QAlgos, Basic):
             #build a new map store 
             self.mstore = QgsMapLayerStore() 
         
-        
         if not self.proj_checks():
             raise Error('failed checks')
         
@@ -243,13 +233,8 @@ class Qproj(QAlgos, Basic):
         if not aoi_vlay is None:
             self._check_aoi(aoi_vlay)
             self.aoi_vlay= aoi_vlay #redundant if loaded from file
- 
         
         self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
-        
-        
-        return
-    
     
     def _init_qgis(self, #instantiate qgis
                    crs=QgsCoordinateReferenceSystem('EPSG:4326'),
