@@ -24,12 +24,13 @@ import scipy.stats
 # # custom
 #==============================================================================
 from hp.exceptions import Error
-
+from hp.basic import get_dict_str
 from hp.pd import view
 from hp.oop import Basic
 
 import matplotlib
-
+import matplotlib.pyplot as plt
+ 
 
 #===============================================================================
 # #===============================================================================
@@ -62,7 +63,55 @@ import matplotlib
 #  
 # print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
-
+def plot_rast(ar_raw,
+              ax=None,
+              cmap='gray',
+              interpolation='nearest',
+              txt_d = None,
+              ndval=None,
+              **kwargs):
+    """plot a raster array
+    
+    TODO: add a histogram"""
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ax is None:
+        fig, ax = plt.subplots()  # Create a figure containing a single axes.
+        
+    if txt_d is None: txt_d=dict()
+    
+    #===========================================================================
+    # handle nodata
+    #===========================================================================
+    if not ndval is None:
+        masked_ar = np.ma.masked_where(ar_raw==ndval, ar_raw)
+        
+        #update meta
+        txt_d.update({'ndval':'%.4e'%ndval, 'ndcnt':masked_ar.mask.sum()})
+ 
+    else:
+        masked_ar=ar_raw
+        txt_d['ndval']='none'
+    
+    #===========================================================================
+    # plot the image
+    #===========================================================================
+    
+    ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
+ 
+    plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
+    #===========================================================================
+    # add some details
+    #===========================================================================
+    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
+ 
+    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
+    """
+    plt.show()
+    """
+    
+    return ax
 
 class Plotr(Basic):
     
