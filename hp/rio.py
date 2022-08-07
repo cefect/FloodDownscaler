@@ -27,7 +27,7 @@ class RioWrkr(Basic):
                  rlay_ref_fp = None,  
                  
                  #reference inheritance
-                 crs=None,dtype=None,height=None,width=None,transform=None,
+                 crs=None,height=None,width=None,transform=None,nodata=None,
                  **kwargs):
         """"
         
@@ -81,6 +81,9 @@ class RioWrkr(Basic):
         inherit(height,  'height')
         inherit(width,  'width')
         inherit(transform, 'transform')
+        inherit(nodata, 'nodata')
+        
+        self.ref_vals_d=pars_d
         
         self.logger.info('init w/ %s'%pars_d)
         
@@ -100,7 +103,17 @@ class RioWrkr(Basic):
         log=logger.getChild('open_ds')
         assert os.path.exists(fp), fp
         log.debug('open: %s'%fp)
-        dataset = rasterio.open(fp, mode='r', **kwargs)
+        dataset = rasterio.open(fp, mode='r', name='test', **kwargs)
+        
+        #=======================================================================
+        # clean up the name
+        #=======================================================================
+        try:
+            dataset.clean_name=os.path.basename(dataset.name).replace('.tif', '')
+        except Exception as e:
+            log.warning('failed to build clean_name w/ %s'%e)
+            dataset.clean_name = dataset.name
+        
         
         #=======================================================================
         # #meta
@@ -123,6 +136,187 @@ class RioWrkr(Basic):
         self.dataset_d[dataset.name] = dataset
         
         return dataset
+    
+    
+    
+    def resample(self,
+ 
+                 resampling=Resampling.nearest,
+                 scale=1.0,
+                 write=True,
+                 update_ref=False, 
+                 **kwargs):
+        """"
+        Parameters
+        ---------
+        
+        update_ref : bool, default False
+            Whether to update the reference values based on the resample
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        logger, log, dataset, out_dir, ofp = self._func_kwargs(name = 'resample_r%i'%scale, **kwargs)
+        
+ 
+        
+        log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
+        
+        #===========================================================================
+        # # resample data to target shape
+        #===========================================================================
+        out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+        print('transforming from %s to %s'%(dataset.shape, out_shape))
+        data_rsmp = dataset.read(
+            out_shape=out_shape,
+            resampling=resampling
+                                )[0]
+        
+        # scale image transform
+        transform = dataset.transform * dataset.transform.scale(
+            (dataset.width / data_rsmp.shape[-1]),
+            (dataset.height / data_rsmp.shape[-2])
+        )
+        
+        
+        #===========================================================================
+        # resample nulls
+        #===========================================================================
+        msk_rsmp = dataset.read_masks(1, 
+                out_shape=out_shape,
+                resampling=Resampling.nearest, #doesnt bleed
+            ) 
+        
+        #===============================================================================
+        # coerce transformed nulls
+        #===============================================================================
+        """needed as some resampling methods bleed out
+        theres a few ways to handle this... 
+            here we manipulate the data values directly.. which seems the cleanest"""
+ 
+        assert data_rsmp.shape==msk_rsmp.shape
+        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp)
+        
+        log.info('resampled from %s to %s'%(dataset.shape, data_rsmp.shape))
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        if not write:
+            res= data_rsmp_f1
+        else:
+            res =self._write_dataset(data_rsmp_f1, ofp=ofp, logger=log, transform=transform)
+        
+        #=======================================================================
+        # update
+        #=======================================================================
+        if update_ref:
+            raise IOError('not implemented')
+        
+        return res
+    
+    #===========================================================================
+    # helper funcs
+    #===========================================================================
+    def get_ndcnt(self, **kwargs):
+        logger, dataset, *args = self._func_kwargs(**kwargs)
+        
+        msk = dataset.read_masks(1)  #read the GDAL RFC 15 mask
+        nodata_cnt = (msk==0).sum()
+        
+        del msk
+        return nodata_cnt
+ 
+    def _write_dataset(self,data,
+                       
+                       crs=None,nodata=None,transform=None,
+                       **kwargs):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        logger, log, _, out_dir, ofp = self._func_kwargs(name = 'write', **kwargs)
+        
+        crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        with rasterio.open(
+                ofp,
+                'w',
+                driver=self.driver,
+                height=data.shape[0],
+                width=data.shape[1],
+                count=self.bandCount,
+                dtype=data.dtype,
+                crs=crs,
+                transform=transform,
+                nodata=nodata,
+                ) as dst:
+            
+                dst.write(data, 1, 
+                          masked=False, #not using numpy.ma
+                          )
+                
+        log.info('wrote %s on crs %s to \n    %s'%(str(data.shape), crs, ofp))
+        
+        return ofp
+        
+    
+    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None):
+        """typical default for class functions"""
+ 
+        if logger is None:
+            logger=self.logger
+ 
+        
+        if not name is None:
+            log = logger.getChild(name)
+        else:
+            log = logger
+ 
+        
+        if dataset is None:
+            dataset = self.dataset_d[self.ref_name]
+        
+ 
+        if out_dir is None:
+            out_dir=self.out_dir
+            
+        if ofp is None:
+            if name is None:
+                ofp = os.path.join(out_dir, self.fancy_name + '.tif')
+            else:
+                ofp = os.path.join(out_dir, self.fancy_name + '_%s.tif'%name)
+            
+            
+        return logger, log, dataset, out_dir, ofp
+    
+    def _get_refs(self, **kwargs):
+        
+        def get_aval(attName):
+            if attName in kwargs:
+                attVal=kwargs[attName]
+            else:
+                attVal = None
+                
+            if attVal is None:
+                attVal = getattr(self, attName)
+                
+            return attVal
+            
+        args=list()
+        for attName in ['crs', 'height', 'width', 'transform', 'nodata']:
+            args.append(get_aval(attName))
+        
+        #self.ref_vals_d.keys()
+        
+        return args #crs, height, width, transform, nodata
+        
+            
+        
         
     
         

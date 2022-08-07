@@ -7,9 +7,12 @@ Created on Aug. 7, 2022
 
 import pytest, tempfile, datetime, os, copy
 from hp.rio import RioWrkr
+from rasterio.enums import Resampling
+
+test_rlay_fp= r'C:\LS\09_REPOS\01_COMMON\coms\tests\data\scratch.tif'
 
 #===============================================================================
-# fixtures
+# fixtures------
 #===============================================================================
 @pytest.fixture(scope='function')
 def riowrkr(session, rlay_ref_fp):
@@ -26,13 +29,24 @@ def riowrkr(session, rlay_ref_fp):
 def rlay_ref_fp(request):
     return request.param
 
-@pytest.mark.parametrize('rlay_ref_fp', [r'C:\Users\cefect\Downloads\scratch.tif'], indirect=True)
+
+
+#===============================================================================
+# tests---------
+#===============================================================================
+@pytest.mark.parametrize('rlay_ref_fp', [test_rlay_fp], indirect=True)
 def test_init(riowrkr):
     
     assert isinstance(riowrkr.ref_name, str)
 
-
-@pytest.mark.parametrize('rlay_ref_fp', [r'C:\Users\cefect\Downloads\scratch.tif'], indirect=True)
-def test_upsample(riowrkr):
+@pytest.mark.dev
+@pytest.mark.parametrize('rlay_ref_fp', [test_rlay_fp], indirect=True)
+@pytest.mark.parametrize('resampling', [
+    Resampling.bilinear, Resampling.nearest])
+@pytest.mark.parametrize('scale', [2, 10])
+def test_upsample(riowrkr, resampling, scale):
     
-    assert isinstance(riowrkr.ref_name, str)
+    ofp = riowrkr.resample(resampling=resampling, scale=scale, write=True)
+    
+    assert os.path.exists(ofp)
+ 
