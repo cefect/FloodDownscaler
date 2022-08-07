@@ -15,6 +15,7 @@ from pprint import PrettyPrinter
 import warnings
 import numpy as np
 import pandas as pd
+from osgeo import gdal
 
 #===============================================================================
 # import QGIS librarires
@@ -1515,7 +1516,7 @@ class Qproj(QAlgos, Basic):
                         rlay,
                         logger=None, ofp=None, layname=None, out_dir=None,
                         **kwargs):
-        """build a mask from null values"""
+        """build a mask from non-null values"""
         #=======================================================================
         # defaults
         #=======================================================================
@@ -1868,6 +1869,29 @@ class Qproj(QAlgos, Basic):
         assert_rlay_equal(rlay, rlay_copy, msg='rlay_mcopy')
         
         return rlay_copy
+    
+    
+    def rlay_warp_simp(self,
+                      rlay, 
+                      dstNodata=-9999, resampleAlg='nearest',
+                      reso=None,
+                      ofp=None,
+                      logger=None,
+                      mstore=None):
+        """simple gdal warps"""
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if ofp is None: ofp=os.path.join(self.tmp_dir, '%s_warp.tif'%rlay.name())
+        
+        if reso is None: reso=rlay.rasterUnitsPerPixelX()
+        
+        ds = gdal.Warp(ofp, rlay.source(), 
+                       xRes=reso,yRes=reso,
+                       dstNodata=dstNodata, resampleAlg=resampleAlg)
+        
+        ds = None
+        return self.rlay_load(ofp, mstore=mstore)
         
         
  

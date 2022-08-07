@@ -529,7 +529,16 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #merge w/ retrieve data
         for k, sub_d in self.dk_meta_d.items():
             if len(sub_d)==0:continue
-            retrieve_df = pd.Series(sub_d).to_frame()
+            
+            #get the meta for this key
+            if isinstance(sub_d, dict):
+                retrieve_df = pd.Series(sub_d).to_frame()
+            elif isinstance(sub_d, pd.DataFrame):
+                retrieve_df=sub_d
+            else:
+                raise TypeError(type(sub_d))
+            
+            #update the container
             if not k in self.smry_d:
                 self.smry_d[k] = retrieve_df
             else:
