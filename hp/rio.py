@@ -90,52 +90,7 @@ class RioWrkr(Basic):
  
             
     
-    def open_dataset(self,
-                     fp,
-                     logger=None,
-                     meta=True,
-                     **kwargs):
-        """open a dataset"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('open_ds')
-        assert os.path.exists(fp), fp
-        log.debug('open: %s'%fp)
-        dataset = rasterio.open(fp, mode='r', name='test', **kwargs)
-        
-        #=======================================================================
-        # clean up the name
-        #=======================================================================
-        try:
-            dataset.clean_name=os.path.basename(dataset.name).replace('.tif', '')
-        except Exception as e:
-            log.warning('failed to build clean_name w/ %s'%e)
-            dataset.clean_name = dataset.name
-        
-        
-        #=======================================================================
-        # #meta
-        #=======================================================================
-        if meta:
-            dataset.profile
-            assert dataset.count==self.bandCount, 'only setup for single band'
-            msk = dataset.read_masks(self.bandCount)  #read the GDAL RFC 15 mask
-            nodata_cnt = (msk==0).sum()
-     
-        
-            d = {'name':dataset.name, 'shape':str(dataset.shape),
-             'nodata_cnt':nodata_cnt, 'size':np.prod(dataset.shape),
-             'crs':dataset.crs, 'ndval':dataset.nodata}
-            log.info('loaded {shape} raster \'{name}\' on {crs} w/  {nodata_cnt}/{size} nulls (ndval={ndval}) '.format(**d))
-        
-        #=======================================================================
-        # #attach
-        #=======================================================================
-        self.dataset_d[dataset.name] = dataset
-        
-        return dataset
+
     
     
     
@@ -206,7 +161,7 @@ class RioWrkr(Basic):
         if not write:
             res= data_rsmp_f1
         else:
-            res =self._write_dataset(data_rsmp_f1, ofp=ofp, logger=log, transform=transform)
+            res =self.write_dataset(data_rsmp_f1, ofp=ofp, logger=log, transform=transform)
         
         #=======================================================================
         # update
@@ -217,8 +172,57 @@ class RioWrkr(Basic):
         return res
     
     #===========================================================================
-    # helper funcs
+    # HELPERS----------
     #===========================================================================
+    
+    def open_dataset(self,
+                     fp,
+                     logger=None,
+                     meta=True,
+                     **kwargs):
+        """open a dataset"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('open_ds')
+        assert os.path.exists(fp), fp
+        log.debug('open: %s'%fp)
+        dataset = rasterio.open(fp, mode='r', name='test', **kwargs)
+        
+        #=======================================================================
+        # clean up the name
+        #=======================================================================
+        try:
+            dataset.clean_name=os.path.basename(dataset.name).replace('.tif', '')
+        except Exception as e:
+            log.warning('failed to build clean_name w/ %s'%e)
+            dataset.clean_name = dataset.name
+        
+        
+        #=======================================================================
+        # #meta
+        #=======================================================================
+        if meta:
+            dataset.profile
+            assert dataset.count==self.bandCount, 'only setup for single band'
+            msk = dataset.read_masks(self.bandCount)  #read the GDAL RFC 15 mask
+            nodata_cnt = (msk==0).sum()
+     
+        
+            d = {'name':dataset.name, 'shape':str(dataset.shape),
+             'nodata_cnt':nodata_cnt, 'size':np.prod(dataset.shape),
+             'crs':dataset.crs, 'ndval':dataset.nodata}
+            log.info('loaded {shape} raster \'{name}\' on {crs} w/  {nodata_cnt}/{size} nulls (ndval={ndval}) '.format(**d))
+        
+        #=======================================================================
+        # #attach
+        #=======================================================================
+        self.dataset_d[dataset.name] = dataset
+        
+        return dataset
+    
+    
     def get_ndcnt(self, **kwargs):
         logger, dataset, *args = self._func_kwargs(**kwargs)
         
@@ -228,7 +232,7 @@ class RioWrkr(Basic):
         del msk
         return nodata_cnt
  
-    def _write_dataset(self,data,
+    def write_dataset(self,data,
                        
                        crs=None,nodata=None,transform=None,
                        **kwargs):
@@ -264,7 +268,9 @@ class RioWrkr(Basic):
         
         return ofp
         
-    
+    #===========================================================================
+    # PRIVATES---------
+    #===========================================================================
     def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None):
         """typical default for class functions"""
  
