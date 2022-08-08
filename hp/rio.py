@@ -15,7 +15,7 @@ from rasterio.enums import Resampling
 
 
 from hp.oop import Basic
-from hp.plot import plot_rast #for debugging
+#from hp.plot import plot_rast #for debugging
 
 
 class RioWrkr(Basic):
@@ -72,7 +72,7 @@ class RioWrkr(Basic):
         def inherit(attVal, attName, obj=ds, typeCheck=None):
             if attVal is None:
                 if obj is None:
-                    self.logger.warning('no value passed for %s'%attName)
+                    self.logger.debug('no value passed for %s'%attName)
                     return
                     
                 attVal = getattr(obj, attName)
@@ -346,6 +346,16 @@ class RioWrkr(Basic):
     #===========================================================================
     # PRIVATES---------
     #===========================================================================
+    def _get_dsn(self, input):
+        if not isinstance(input, list):
+            input = [input]
+            
+        res_l = list()
+        for fp in input:
+            res_l.append(self.open_dataset(fp).name)
+            
+        return res_l
+    
     def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None):
         """typical default for class functions"""
  

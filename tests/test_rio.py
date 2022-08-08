@@ -63,7 +63,8 @@ def test_merge(riowrkr, test_rlay_fp_l):
  
     
     #load remainers
-    dsn_l = [riowrkr.open_dataset(fp).name for fp in test_rlay_fp_l]
+    dsn_l = riowrkr._get_dsn(test_rlay_fp_l)
+    #dsn_l = [riowrkr.open_dataset(fp).name for fp in test_rlay_fp_l]
  
     ofp = riowrkr.merge(dsn_l)
     
