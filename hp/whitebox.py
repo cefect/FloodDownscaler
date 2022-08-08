@@ -25,7 +25,7 @@ class Whitebox(object):
                  out_dir=None,
                  logger=None,
                  overwrite=True,
-                 version='v1.4.0',
+                 version='v2.0.0',
  
                  max_procs=max_procs, 
                  ):
