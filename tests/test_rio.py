@@ -60,17 +60,11 @@ def test_upsample(riowrkr, resampling, scale):
 @pytest.mark.parametrize('test_rlay_fp_l', [test_rlay_fp_l])
  
 def test_merge(riowrkr, test_rlay_fp_l):
-    
-    #remove the first
-    #base_fp = test_rlay_fp_l.pop(0)
+ 
     
     #load remainers
-    ds_l = [riowrkr.open_dataset(fp) for fp in test_rlay_fp_l]
-    
-    #add base back
-    #ds_l.append(riowrkr._base())
-    
-    
-    ofp = riowrkr.merge(ds_l)
+    dsn_l = [riowrkr.open_dataset(fp).name for fp in test_rlay_fp_l]
+ 
+    ofp = riowrkr.merge(dsn_l)
     
     assert os.path.exists(ofp)

@@ -204,18 +204,24 @@ class RioWrkr(Basic):
         #=======================================================================
         logger, log, dataset, out_dir, ofp = self._func_kwargs(name = 'merge', **kwargs)
         
-
+        log.info('merging on %i'%len(ds_name_l))
+        
+        #=======================================================================
+        # retrieve datasets
+        #=======================================================================
+        ds_l = [self.dataset_d[n] for n in ds_name_l]
+        
         #=======================================================================
         # set base
         #=======================================================================
         if self._base() is None:
-
-            self._base_inherit(ds=ds_name_l[0])
+            self._base_inherit(ds=ds_l[0])
         
         #=======================================================================
         # execute merge
         #=======================================================================
-        merge_ar, merge_trans = rasterio.merge.merge(ds_name_l,  **merge_kwargs)
+        
+        merge_ar, merge_trans = rasterio.merge.merge(ds_l,  **merge_kwargs)
         merge_ar=merge_ar[0] #single band
         
         """
@@ -397,11 +403,7 @@ class RioWrkr(Basic):
         else:
             return None
         
-            
-        
-        
-    
-        
+
     def __enter__(self):
         return self
     
