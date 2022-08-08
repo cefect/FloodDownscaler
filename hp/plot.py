@@ -68,7 +68,7 @@ def plot_rast(ar_raw,
               cmap='gray',
               interpolation='nearest',
               txt_d = None,
-              ndval=None,
+              nodata=None,
               **kwargs):
     """plot a raster array
     
@@ -84,15 +84,15 @@ def plot_rast(ar_raw,
     #===========================================================================
     # handle nodata
     #===========================================================================
-    if not ndval is None:
-        masked_ar = np.ma.masked_where(ar_raw==ndval, ar_raw)
+    if not nodata is None:
+        masked_ar = np.ma.masked_where(ar_raw==nodata, ar_raw)
         
         #update meta
-        txt_d.update({'ndval':'%.4e'%ndval, 'ndcnt':masked_ar.mask.sum()})
+        txt_d.update({'nodata':'%.4e'%nodata, 'ndcnt':masked_ar.mask.sum()})
  
     else:
         masked_ar=ar_raw
-        txt_d['ndval']='none'
+        txt_d['nodata']='none'
     
     #===========================================================================
     # plot the image

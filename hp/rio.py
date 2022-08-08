@@ -8,10 +8,11 @@ import numpy as np
  
 import numpy.ma as ma
 import rasterio
-import rasterio.features
-import rasterio.warp
+ 
+import rasterio.merge
  
 from rasterio.enums import Resampling
+
 
 from hp.oop import Basic
 from hp.plot import plot_rast #for debugging
@@ -22,7 +23,13 @@ class RioWrkr(Basic):
     
     driver='GTiff'
     bandCount=1
-    
+    ref_name=None
+
+    def _base_set(self, rlay_ref_fp):
+        rds = self.open_dataset(rlay_ref_fp, meta=False)
+        self.ref_name = rds.name
+        return rds
+
     def __init__(self,
                  rlay_ref_fp = None,  
                  
@@ -38,32 +45,36 @@ class RioWrkr(Basic):
         super().__init__(**kwargs)
         
         self.dataset_d = dict() #all loaded datasets
-        
-        
-
-            
- 
  
         #=======================================================================
         # set reference
         #=======================================================================        
         if not rlay_ref_fp is None:
-            rds = self.open_dataset(rlay_ref_fp, meta=False)
-            self.ref_name = rds.name
-            #data=rds.read()
-        else:
-            rds=None
-            self.ref_name=None
-            #data=None
-            
-           
+            self._base_set(rlay_ref_fp)
+ 
         #=======================================================================
         # inherit properties from reference 
         #=======================================================================
+        pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
+        
+        self.logger.info('init w/ %s'%pars_d)
+        
+    def _base_inherit(self,
+                      ds=None,
+                      crs=None, height=None, width=None, transform=None, nodata=None):
+        
+        #retrieve the base datasource
+        if ds is None:
+            ds = self._base()
+        
+        
         pars_d = dict()
-        def inherit(attVal, attName, obj=rds, typeCheck=None):
+        def inherit(attVal, attName, obj=ds, typeCheck=None):
             if attVal is None:
-                assert not obj is None, 'for \'%s\' passed None but got no rds'%attName
+                if obj is None:
+                    self.logger.warning('no value passed for %s'%attName)
+                    return
+                    
                 attVal = getattr(obj, attName)
             assert not attVal is None, attName
             setattr(self, attName, attVal)
@@ -85,10 +96,7 @@ class RioWrkr(Basic):
         
         self.ref_vals_d=pars_d
         
-        self.logger.info('init w/ %s'%pars_d)
-        
- 
-            
+        return pars_d            
     
 
     
@@ -171,6 +179,63 @@ class RioWrkr(Basic):
         
         return res
     
+    def merge(self,ds_name_l,
+              merge_kwargs=dict(
+                  resampling=Resampling.nearest,
+                  method='first',
+                  ),
+              write=True,
+              **kwargs):
+        """"
+        Parameters
+        ---------
+        
+        ds_name_l : list
+            datasets to merge (order matters: see 'method')
+            
+        merge_kwargs : dict
+            argumentst to pass to rasterio.merge.merge
+            defaults:
+                method='first'
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        logger, log, dataset, out_dir, ofp = self._func_kwargs(name = 'merge', **kwargs)
+        
+
+        #=======================================================================
+        # set base
+        #=======================================================================
+        if self._base() is None:
+
+            self._base_inherit(ds=ds_name_l[0])
+        
+        #=======================================================================
+        # execute merge
+        #=======================================================================
+        merge_ar, merge_trans = rasterio.merge.merge(ds_name_l,  **merge_kwargs)
+        merge_ar=merge_ar[0] #single band
+        
+        """
+        merge_ar.shape
+        plot_rast(merge_ar[0], nodata=self.nodata)
+        """
+        
+
+ 
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        if not write:
+            res= merge_ar, merge_trans
+        else:
+            res =self.write_dataset(merge_ar, ofp=ofp, logger=log, transform=merge_trans)
+            
+        return res
+    
     #===========================================================================
     # HELPERS----------
     #===========================================================================
@@ -245,6 +310,10 @@ class RioWrkr(Basic):
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
         #=======================================================================
+        # precheck
+        #=======================================================================
+        assert len(data.shape)==2
+        #=======================================================================
         # write
         #=======================================================================
         with rasterio.open(
@@ -285,7 +354,7 @@ class RioWrkr(Basic):
  
         
         if dataset is None:
-            dataset = self.dataset_d[self.ref_name]
+            dataset = self._base()
         
  
         if out_dir is None:
@@ -320,6 +389,13 @@ class RioWrkr(Basic):
         #self.ref_vals_d.keys()
         
         return args #crs, height, width, transform, nodata
+    
+
+    def _base(self):
+        if self.ref_name in self.dataset_d:
+            return self.dataset_d[self.ref_name]
+        else:
+            return None
         
             
         
