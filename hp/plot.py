@@ -189,10 +189,14 @@ class Plotr(Basic):
         #=======================================================================
         # seaborn
         #=======================================================================
-        import seaborn as sns
-        self.sns = sns
+        #=======================================================================
+        # import seaborn as sns
+        # self.sns = sns
+        #=======================================================================
         
-        return {'plt':plt, 'matplotlib':matplotlib, 'sns':sns}
+        return {'plt':plt, 'matplotlib':matplotlib, 
+                #'sns':sns
+                }
     
 
         

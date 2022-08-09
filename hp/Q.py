@@ -939,6 +939,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         assert isinstance(df_raw.columns, pd.Index)
         assert isinstance(df_raw.index, pd.Index)
+        assert len(df)>0
 
         #make sure none of hte field names execeed the driver limitations
         max_len = fieldn_max_d[self.driverName]
@@ -1049,7 +1050,7 @@ class Qproj(QAlgos, Basic):
             assert feat.isValid(), fid
             #stor eit
             feats_d[fid]=feat
-        
+        assert len(feats_d)>0
         log.debug('built %i \'%s\'  features'%(
             len(feats_d),
             QgsWkbTypes.geometryDisplayString(feat.geometry().type()),
