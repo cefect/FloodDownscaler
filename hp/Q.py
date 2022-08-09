@@ -1981,16 +1981,7 @@ class Qproj(QAlgos, Basic):
         # load the object
         #=======================================================================
         rlay = self.get_layer(rlay_obj, mstore=mstore)
-        
- #==============================================================================
- #        if isinstance(rlay_obj, str):
- #            assert os.path.exists(rlay_obj), rlay_obj
- #            rlay = QgsRasterLayer(rlay_obj, os.path.basename(rlay_obj).replace('.tif', ''))
- #            self.mstore.addMapLayer(rlay)
- # 
- #        else:
- #            rlay = rlay_obj
- #==============================================================================
+ 
  
         #=======================================================================
         # check
