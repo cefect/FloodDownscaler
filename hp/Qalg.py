@@ -69,7 +69,10 @@ class QAlgos(object):
             },
         'EPSG:3776':{
             'EPSG:4326':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-114 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=hgridshift +grids=ca_nrc_ABCSRSV4.tif +step +proj=unitconvert +xy_in=rad +xy_out=deg'
-            }
+            },
+        'EPSG:2953':{
+            'EPSG:3979':'+proj=pipeline +step +inv +proj=sterea +lat_0=46.5 +lon_0=-66.5 +k=0.999912 +x_0=2500000 +y_0=7500000 +ellps=GRS80 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80'
+            },
  
 
         }
