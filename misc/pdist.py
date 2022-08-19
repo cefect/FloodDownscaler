@@ -52,5 +52,8 @@ ax.plot(x, norm.pdf(x),
        'r-', lw=5, alpha=0.6, label='norm pdf')
 
 
-rv = norm()
-ax.plot(x, rv.pdf(x), 'k-', lw=2, label='frozen pdf')
+ 
+
+"""
+plt.show()
+"""
