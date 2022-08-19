@@ -282,7 +282,7 @@ class HRDEMses(Qproj):
                                ofp=ofp,
                                extent=aoi_vlay.extent(), 
                                resolution=resolution,
-                               opts=[], #deleting this anyways.. just do uncompressed
+ 
                                logger=log, 
                                )
  
@@ -411,7 +411,7 @@ def get_clip(
         #aoi_fp=r'C:\LS\02_WORK\02_Mscripts\InsuranceCurves\04_CALC\CMM\aoi\test_aoi.gpkg', #1min 180Mb
         
         #small lower left test aoi
-        aoi_fp=r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\SaintJohn\aoi\aoi15e_20220819.geojson',
+        aoi_fp=r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\SaintJohn\aoi\aoi16e_20220819.geojson',
         #aoi_fp=r'C:\LS\02_WORK\02_Mscripts\InsuranceCurves\04_CALC\CMM\aoi\aoi_t1_CMM_20210716.gpkg',
         
         name='SJ'
@@ -442,7 +442,7 @@ if __name__ =="__main__":
     print('start at %s'%start)
 
 
-    get_clip()
+    get_clip(resolution=1)
     #dl()
 
     
