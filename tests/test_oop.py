@@ -1,7 +1,7 @@
 '''pytest oop module
 '''
 
-import pytest, tempfile, datetime, os, copy
+import pytest, tempfile, datetime, os, copy, logging
 
 from hp.oop import Basic, Session
 
@@ -29,14 +29,15 @@ def logger(request):
 #===============================================================================
 # tests------
 #===============================================================================
+
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
-    [None,None, None], 
+    pytest.param(None, None, None, marks=pytest.mark.xfail(reason='bad params')), 
     [temp_dir, temp_dir, temp_dir]])
 @pytest.mark.parametrize('proj_name, run_name, obj_name, fancy_name',[
-    [None, None, None, None],
+    pytest.param(None, None, None, None, marks=pytest.mark.xfail),
     ['proj_name', 'run_name', 'obj_name', 'fancy_name']]) 
 @pytest.mark.parametrize('prec, overwrite, relative, write',[
-    [None, None, None, None],
+    pytest.param(None, None, None, None, marks=pytest.mark.xfail),
     [5, True, True, True]])
 
 def test_basic(
@@ -51,10 +52,10 @@ def test_basic(
           proj_name=proj_name, run_name=run_name, obj_name=obj_name, fancy_name=fancy_name,
           prec=prec, overwrite=overwrite, relative=relative, write=write, logger=logger)
 
- 
+@pytest.mark.dev
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
     #[None,None, None], 
-    [temp_dir, temp_dir, temp_dir]])
+    [temp_dir, os.path.join(temp_dir, 'tmp'), temp_dir]])
 @pytest.mark.parametrize('proj_name, run_name, obj_name, fancy_name',[
     #[None, 'r1', 'Ses', None],
     ['proj_name', 'run_name', 'obj_name', 'fancy_name']]) 
@@ -77,7 +78,7 @@ def test_session(
           data_retrieve_hndls={}, logfile_duplicate=logfile_duplicate)
     
     
-@pytest.mark.dev
+ 
 @pytest.mark.parametrize('logger', [True, False], indirect=True)
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
     [None,None, None], 
