@@ -1,9 +1,8 @@
 '''
-Created on Oct. 30, 2021
+Print out build info
 
-@author: cefect
-
-testing installation
+see also
+version_info_
 '''
 
 
@@ -45,3 +44,7 @@ from hp.Q import Qproj
 
 proj = Qproj()
 proj._install_info()
+
+ 
+print("\n\nfinished")
+ 
