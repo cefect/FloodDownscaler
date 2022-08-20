@@ -7,7 +7,7 @@ import os
 import numpy as np
  
 import numpy.ma as ma
-import rasterio
+import rasterio as rio
  
 import rasterio.merge
  
@@ -24,11 +24,8 @@ class RioWrkr(Basic):
     driver='GTiff'
     bandCount=1
     ref_name=None
+    nodata=-9999
 
-    def _base_set(self, rlay_ref_fp):
-        rds = self.open_dataset(rlay_ref_fp, meta=False)
-        self.ref_name = rds.name
-        return rds
 
     def __init__(self,
                  rlay_ref_fp = None,  
@@ -58,6 +55,11 @@ class RioWrkr(Basic):
         pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
         
         self.logger.info('init w/ %s'%pars_d)
+        
+    def _base_set(self, rlay_ref_fp):
+        rds = self.open_dataset(rlay_ref_fp, meta=False)
+        self.ref_name = rds.name
+        return rds
         
     def _base_inherit(self,
                       ds=None,
@@ -319,6 +321,7 @@ class RioWrkr(Basic):
         # precheck
         #=======================================================================
         assert len(data.shape)==2
+        assert 'float' in data.dtype.name
         #=======================================================================
         # write
         #=======================================================================
@@ -422,3 +425,43 @@ class RioWrkr(Basic):
         #close all open datasets
         for k,v in self.dataset_d.items():
             v.close()
+            
+            
+def write_array(data,ofp,
+                crs=rio.crs.CRS.from_epsg(2953),
+                transform=rio.transform.from_origin(0,0,1,1), #dummy identify
+ 
+                init_kwargs={},
+                **kwargs):
+    """skinny array to raster file writer"""
+    
+    #===========================================================================
+    # build init
+    #===========================================================================
+ 
+    from hp.oop import Session
+    kd1=Session.default_kwargs.copy() #because we have no session
+    init_kwargs = {**init_kwargs, **kd1} #append user defaults to session defaults
+    #===========================================================================
+    # execute
+    #===========================================================================
+    with RioWrkr(crs=crs, 
+                 height=data.shape[0],
+                 width=data.shape[1],
+                 transform=transform,
+                 **init_kwargs,
+                 ) as wrkr:
+        
+        wrkr.write_dataset(data, ofp=ofp, **kwargs)
+        
+    return ofp
+
+def load_array(rlay_fp, 
+               indexes=1,
+                **kwargs):
+    """skinny array from raster file"""
+    
+    with rasterio.open(rlay_fp, mode='r',  **kwargs) as dataset:
+        ar = dataset.read(indexes)
+        
+    return ar

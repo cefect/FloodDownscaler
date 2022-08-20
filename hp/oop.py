@@ -23,7 +23,7 @@ I've spent far too many weeks of my life strugglig with inheritance
 import os, sys, datetime, gc, copy, pickle, pprint, logging
 from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
-
+from definitions import src_name
 from hp.exceptions import Error
 
 import numpy as np
@@ -201,6 +201,15 @@ class Session(Basic): #analysis with flexible loading of intermediate results
     typically we only instance this once
         but tests will instance multiple times
         so beware of setting containers here"""
+        
+    #useful for buildling a Basic object w/o the session (mostly testing)
+    """TODO: integrate with init"""
+    default_kwargs = dict(overwrite=True,prec=2,relative=False,write=True, 
+                          proj_name=src_name, fancy_name='fancy_name', run_name='r1', obj_name='Session',
+                          wrk_dir = os.path.expanduser('~'),
+                          out_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'outs'),
+                          tmp_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'tmp')
+                          ) 
     
     def __init__(self, 
                  #Session names
@@ -274,7 +283,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         # defaults
         #=======================================================================
         if proj_name is None:
-            from definitions import src_name
+            
             proj_name=src_name
         kwargs['proj_name']=proj_name
             

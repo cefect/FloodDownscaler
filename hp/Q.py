@@ -2894,7 +2894,26 @@ def assert_extent_equal(left, right, msg='',):
     if not left.extent()==right.extent():
         raise AssertionError('%s != %s extent\n    %s != %s\n    '%(
                 left.name(),   right.name(), left.extent(), right.extent()) +msg) 
-
+        
+def assert_rlay_simple(rlay, msg='',): 
+    """square pixels with integer size"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+ 
+    
+    __tracebackhide__ = True  
+    
+    x = rlay.rasterUnitsPerPixelX()
+    y = rlay.rasterUnitsPerPixelY()
+    
+    if not x==y:
+        raise AssertionError('non-square pixels\n' + msg)
+ 
+    if not round(x, 10)==int(x):
+        raise AssertionError('non-integer pixel size\n' + msg)
+     
+ 
 #===============================================================================
 # ENVIRONMENT-------------
 #===============================================================================
