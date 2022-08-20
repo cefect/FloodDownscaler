@@ -13,7 +13,13 @@ Created on Mar 5, 2019
 #===============================================================================
 import numpy as np
 import warnings
- 
+np.set_printoptions(linewidth=200)
+
+#===============================================================================
+# np.set_printoptions(edgeitems=10,linewidth=180)
+# np.set_printoptions(edgeitems=10)
+# np.core.arrayprint._line_width = 180
+#===============================================================================
 
 def get_all_blocks(a, n=2):
     """generate 2D blocks"""
@@ -109,3 +115,37 @@ def apply_blockwise(a, func,n=2, **kwargs):
     assert np.array_equal(np.array(res_ar.shape)*n,np.array(a.shape))    
     
     return res_ar
+
+def upsample(a, n=2, **kwargs):
+    """scale up an array by replicating parent cells onto children with spatial awareness
+    
+    very confusing.. surprised there is no builtin"""
+    
+    new_shape = tuple([int(e) for e in np.fix(np.array(a.shape)*n).tolist()])
+    
+    l=list()
+    for i in range(a.shape[0]):
+        #=======================================================================
+        # l = list()
+        # for b in build_blocks(a[i, :].reshape(-1), n=n):
+        #     l.append(b)
+        #=======================================================================
+ 
+        
+        new_ar = np.concatenate([b for b in build_blocks(a[i, :].reshape(-1), n=n)], axis=1)
+        #print('i=%i\n%s'%(i, new_ar))
+        l.append(new_ar)
+    
+    res_ar = np.concatenate(l, axis=0) 
+    
+    assert res_ar.shape==new_shape
+    return res_ar
+ 
+        
+     
+
+def build_blocks(a, n=2):
+    """generate 2D blocks"""
+    it = np.nditer(a, flags=['multi_index'])
+    for x in it:
+        yield np.full((n,n), x)

@@ -110,6 +110,7 @@ class RioWrkr(Basic):
                  scale=1.0,
                  write=True,
                  update_ref=False, 
+                 prec=None,
                  **kwargs):
         """"
         Parameters
@@ -124,6 +125,7 @@ class RioWrkr(Basic):
         #=======================================================================
         logger, log, dataset, out_dir, ofp = self._func_kwargs(name = 'resample_r%i'%scale, **kwargs)
         
+        if prec is None: prec=self.prec
  
         
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
@@ -133,10 +135,10 @@ class RioWrkr(Basic):
         #===========================================================================
         out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
         print('transforming from %s to %s'%(dataset.shape, out_shape))
-        data_rsmp = dataset.read(
+        data_rsmp = dataset.read(1,
             out_shape=out_shape,
             resampling=resampling
-                                )[0]
+                                ).round(prec)
         
         # scale image transform
         transform = dataset.transform * dataset.transform.scale(
@@ -321,7 +323,7 @@ class RioWrkr(Basic):
         # precheck
         #=======================================================================
         assert len(data.shape)==2
-        assert 'float' in data.dtype.name
+        #assert 'float' in data.dtype.name
         #=======================================================================
         # write
         #=======================================================================
