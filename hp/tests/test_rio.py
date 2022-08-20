@@ -8,12 +8,13 @@ Created on Aug. 7, 2022
 import pytest, tempfile, datetime, os, copy
 from hp.rio import RioWrkr
 from rasterio.enums import Resampling
+from definitions import src_dir
 
-test_rlay_fp= r'C:\LS\09_REPOS\01_COMMON\coms\tests\data\scratch.tif'
+test_rlay_fp= os.path.join(src_dir, r'hp\tests\data\scratch.tif')
 
 test_rlay_fp_l=[
-    r'C:\LS\09_REPOS\01_COMMON\coms\tests\data\lay2.tif',
-    r'C:\LS\09_REPOS\01_COMMON\coms\tests\data\lay1.tif']
+   os.path.join(src_dir, r'hp\tests\data\lay1.tif'),
+   os.path.join(src_dir, r'hp\tests\data\lay2.tif')]
 
 #===============================================================================
 # fixtures------
