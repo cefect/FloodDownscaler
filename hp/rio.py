@@ -109,7 +109,9 @@ class RioWrkr(Basic):
     
 
     
-    
+    #===========================================================================
+    # MANIPULATORS----------
+    #===========================================================================
     
     def resample(self,
  
@@ -130,18 +132,15 @@ class RioWrkr(Basic):
         #=======================================================================
         # defaults
         #=======================================================================
-        logger, log, dataset, out_dir, ofp = self._func_kwargs(name = 'resample_r%i'%scale, **kwargs)
-        
-        if prec is None: prec=self.prec
- 
-        
+        _, log, dataset, out_dir, ofp = self._func_kwargs(name = 'resample_r%i'%scale, **kwargs)        
+        if prec is None: prec=self.prec        
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
         
         #===========================================================================
         # # resample data to target shape
         #===========================================================================
         out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
-        print('transforming from %s to %s'%(dataset.shape, out_shape))
+        log.debug('transforming from %s to %s'%(dataset.shape, out_shape))
         data_rsmp = dataset.read(1,
             out_shape=out_shape,
             resampling=resampling
@@ -189,6 +188,49 @@ class RioWrkr(Basic):
             raise IOError('not implemented')
         
         return res
+    
+    def crop(self,window,
+             **kwargs):
+        """crop datasource to window and write
+        
+        
+        Notes
+        -----------
+        couldnt find any help with this
+        
+        not sure how this will work if the window has an offset
+        """
+        
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        _, log, dataset, out_dir, ofp = self._func_kwargs(name = 'crop', **kwargs)
+        
+        #=======================================================================
+        # crop
+        #=======================================================================
+        #get just this data
+        crop_ar = dataset.read(1, window=window)
+                
+        with rio.open(ofp,'w',
+                        driver=self.driver,
+                        height=crop_ar.shape[0],
+                        width=crop_ar.shape[1],
+                        count=self.bandCount,
+                        dtype=crop_ar.dtype,
+                        crs=dataset.crs,
+                        transform=dataset.transform,
+                        nodata=self.nodata,
+                    ) as dst:
+            
+                dst.write(crop_ar, indexes=1, 
+                              masked=False, #not using numpy.ma
+                              )
+        
+        log.info('cropped %s to %s and wrote to file \n    %s'%(dataset.shape, dst.shape, ofp))
+        
+        return ofp
     
     def merge(self,ds_name_l,
               merge_kwargs=dict(
@@ -270,7 +312,16 @@ class RioWrkr(Basic):
         log=logger.getChild('open_ds')
         assert os.path.exists(fp), fp
         log.debug('open: %s'%fp)
-        dataset = rasterio.open(fp, mode='r', name='test', **kwargs)
+        
+        
+        #=======================================================================
+        # check if weve loaded already
+        #=======================================================================
+        assert not fp in self.dataset_d, fp
+        #=======================================================================
+        # load
+        #=======================================================================
+        dataset = rasterio.open(fp, mode='r', **kwargs)
         
         #=======================================================================
         # clean up the name
@@ -300,6 +351,8 @@ class RioWrkr(Basic):
         #=======================================================================
         # #attach
         #=======================================================================
+        if dataset.name in self.dataset_d:
+            raise IOError('dataset already loaded %s'%(dataset.name))
         self.dataset_d[dataset.name] = dataset
         
         return dataset
@@ -317,6 +370,7 @@ class RioWrkr(Basic):
     def write_dataset(self,data,
                        
                        crs=None,nodata=None,transform=None,
+                       write_kwargs=dict(),
                        **kwargs):
         
         #=======================================================================
@@ -347,11 +401,11 @@ class RioWrkr(Basic):
                 nodata=nodata,
                 ) as dst:
             
-                dst.write(data, 1, 
+            dst.write(data, indexes=1, 
                           masked=False, #not using numpy.ma
-                          )
+                          **write_kwargs)
                 
-        log.info('wrote %s on crs %s to \n    %s'%(str(data.shape), crs, ofp))
+            log.info('wrote %s on crs %s to \n    %s'%(str(dst.shape), crs, ofp))
         
         return ofp
         
@@ -435,7 +489,9 @@ class RioWrkr(Basic):
         for k,v in self.dataset_d.items():
             v.close()
             
-            
+#===============================================================================
+# HELPERS----------
+#===============================================================================
 def write_array(data,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
@@ -474,3 +530,96 @@ def load_array(rlay_fp,
         ar = dataset.read(indexes)
         
     return ar
+
+def rlay_apply(rlay, func):
+    """flexible apply a function to either a filepath or a rio ds"""
+    
+    if isinstance(rlay, str):
+        with rio.open(rlay, mode='r') as ds:
+            res = func(ds)
+            
+    elif isinstance(rlay, rio.io.DatasetReader):
+        res = func(rlay)
+        
+    else:
+        raise IOError(type(rlay))
+    
+    return res
+    
+    
+def is_divisible(rlay, divisor):
+    """check if the rlays dimensions are evenly divislbe by the divisor"""
+    
+    
+    shape = rlay_apply(rlay, lambda x:x.shape)
+        
+    for dim in shape:
+        if dim%divisor!=0:
+            return False
+
+    return True
+#===============================================================================
+# ASSERTIONS------
+#===============================================================================
+def assert_rlay_simple(rlay, msg='',): 
+    """square pixels with integer size"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    
+    __tracebackhide__ = True  
+    
+    #retriever
+    d = dict()
+    def set_stats(ds):
+        for attn in ['shape', 'res']:
+            d[attn] = getattr(ds, attn)
+        
+    #===========================================================================
+    # retrieve stats
+    #===========================================================================
+    rlay_apply(rlay, set_stats)
+
+            
+        
+    #===========================================================================
+    # check
+    #===========================================================================
+ 
+    x, y = d['res']
+ 
+    
+    if not x==y:
+        raise AssertionError('non-square pixels\n' + msg)
+ 
+    if not round(x, 10)==int(x):
+        raise AssertionError('non-integer pixel size\n' + msg)
+    
+def assert_extent_equal(left, right, msg='',): 
+    """ extents check"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+    __tracebackhide__ = True
+    
+    def get_stats(ds):
+        return {'bounds':ds.bounds, 'crs':ds.crs}
+    
+    ld = rlay_apply(left, get_stats)
+    rd = rlay_apply(right, get_stats)
+    #===========================================================================
+    # crs
+    #===========================================================================
+    if not ld['crs']==rd['crs']:
+        raise AssertionError('crs mismatch')
+    #===========================================================================
+    # extents
+    #===========================================================================
+    le, re = ld['bounds'], rd['bounds']
+    if not le==re:
+        raise AssertionError('extent mismatch \n    %s != %s\n    '%(
+                le, re) +msg) 
+        
+        
+        
+        
+        
