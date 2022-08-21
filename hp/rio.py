@@ -24,7 +24,14 @@ class RioWrkr(Basic):
     driver='GTiff'
     bandCount=1
     ref_name=None
+    
+    #base attributes
+    """nice to have these on the class for more consistent retrival... evven if empty"""
     nodata=-9999
+    crs=None
+    height=None
+    width=None
+    transform=None
 
 
     def __init__(self,
@@ -315,7 +322,7 @@ class RioWrkr(Basic):
         #=======================================================================
         # defaults
         #=======================================================================
-        logger, log, _, out_dir, ofp = self._func_kwargs(name = 'write', **kwargs)
+        _, log, _, _, ofp = self._func_kwargs(name = 'write', **kwargs)
         
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
