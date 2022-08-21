@@ -6,12 +6,14 @@ Created on Aug. 21, 2022
 import os, pstats, cProfile
 
 from definitions import wrk_dir
+from hp.dirz import get_valid_filename
 
 def prof_simp(exe_str):
     #build stats file
     out_dir = os.path.join(wrk_dir, 'profile')
     if not os.path.exists(out_dir): os.makedirs(out_dir)
-    stats_fp = os.path.join(out_dir,'stats_test')
+
+    stats_fp = os.path.join(out_dir, get_valid_filename('cProfile_stats_%s'%exe_str))
     
     #execute profile
     cProfile.run(exe_str, filename=stats_fp)    

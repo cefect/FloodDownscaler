@@ -140,14 +140,38 @@ def upsample(a, n=2, **kwargs):
     
     assert res_ar.shape==new_shape
     return res_ar
+
+
+def upsample2(a, n=2):
+    """scale up an array by replicating parent cells onto children with spatial awareness
+    
+    using apply"""
+    
+    
+    
+    def row_builder(a1, n=2):
+        row_ar = np.concatenate([b for b in build_blocks(a1, n=n)], axis=1)
+        return row_ar
  
+    """only useful for 3d it seems
+    np.apply_over_axes(row_builder, a, [0,1])"""
+    
+    #build blocks for each row (results are stacked as in 3D)
+    res3d_ar = np.apply_along_axis(row_builder, 1, a, n=n)
+    
+    #split out each 3D and recombine horizontally
+    res_ar = np.hstack(np.split(res3d_ar, res3d_ar.shape[0], axis=0))[0]
+ 
+    #check
+    new_shape = tuple([int(e) for e in np.fix(np.array(a.shape)*n).tolist()])
+    assert res_ar.shape==new_shape
+    return res_ar
         
      
 
 def build_blocks(a, n=2):
     """generate 2D blocks"""
-    it = np.nditer(a, flags=['multi_index'])
-    for x in it:
+    for x in np.nditer(a):
         yield np.full((n,n), x)
         
 def dropna(a):
