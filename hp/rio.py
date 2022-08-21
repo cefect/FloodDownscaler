@@ -13,7 +13,7 @@ import rasterio.merge
  
 from rasterio.enums import Resampling
 
-
+import hp.gdal
 from hp.oop import Basic
 #from hp.plot import plot_rast #for debugging
 
@@ -27,7 +27,7 @@ class RioWrkr(Basic):
     
     #base attributes
     """nice to have these on the class for more consistent retrival... evven if empty"""
-    nodata=-9999
+    nodata=None
     crs=None
     height=None
     width=None
@@ -61,7 +61,7 @@ class RioWrkr(Basic):
         #=======================================================================
         pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
         
-        self.logger.info('init w/ %s'%pars_d)
+        self.logger.debug('init w/ %s'%pars_d)
         
     def _base_set(self, rlay_ref_fp):
         rds = self.open_dataset(rlay_ref_fp, meta=False)
@@ -85,7 +85,7 @@ class RioWrkr(Basic):
                     return
                     
                 attVal = getattr(obj, attName)
-            assert not attVal is None, attName
+            #assert not attVal is None, attName
             setattr(self, attName, attVal)
             
             pars_d[attName] = attVal
@@ -153,6 +153,8 @@ class RioWrkr(Basic):
         )
         
         
+        dataset.dtypes
+         
         #===========================================================================
         # resample nulls
         #===========================================================================
@@ -169,7 +171,7 @@ class RioWrkr(Basic):
             here we manipulate the data values directly.. which seems the cleanest"""
  
         assert data_rsmp.shape==msk_rsmp.shape
-        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp)
+        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
         
         log.info('resampled from %s to %s'%(dataset.shape, data_rsmp.shape))
         
@@ -190,6 +192,7 @@ class RioWrkr(Basic):
         return res
     
     def crop(self,window,
+ 
              **kwargs):
         """crop datasource to window and write
         
@@ -208,11 +211,18 @@ class RioWrkr(Basic):
         _, log, dataset, out_dir, ofp = self._func_kwargs(name = 'crop', **kwargs)
         
         #=======================================================================
-        # crop
+        # prep data
         #=======================================================================
-        #get just this data
+        #get a window of the data and the masks
         crop_ar = dataset.read(1, window=window)
+        crop_mask = dataset.read_masks(1, window=window)
+        
+        #ensure the nans match the nodata value
+        cropM_ar = np.where(crop_mask==0,  dataset.nodata, crop_ar)
                 
+        #=======================================================================
+        # write result
+        #=======================================================================
         with rio.open(ofp,'w',
                         driver=self.driver,
                         height=crop_ar.shape[0],
@@ -221,10 +231,10 @@ class RioWrkr(Basic):
                         dtype=crop_ar.dtype,
                         crs=dataset.crs,
                         transform=dataset.transform,
-                        nodata=self.nodata,
+                        nodata=dataset.nodata,
                     ) as dst:
             
-                dst.write(crop_ar, indexes=1, 
+                dst.write(cropM_ar, indexes=1, 
                               masked=False, #not using numpy.ma
                               )
         
@@ -295,8 +305,9 @@ class RioWrkr(Basic):
             
         return res
     
+    
     #===========================================================================
-    # HELPERS----------
+    # IO---------
     #===========================================================================
     
     def open_dataset(self,
@@ -322,6 +333,7 @@ class RioWrkr(Basic):
         # load
         #=======================================================================
         dataset = rasterio.open(fp, mode='r', **kwargs)
+ 
         
         #=======================================================================
         # clean up the name
@@ -358,18 +370,11 @@ class RioWrkr(Basic):
         return dataset
     
     
-    def get_ndcnt(self, **kwargs):
-        logger, dataset, *args = self._func_kwargs(**kwargs)
-        
-        msk = dataset.read_masks(1)  #read the GDAL RFC 15 mask
-        nodata_cnt = (msk==0).sum()
-        
-        del msk
-        return nodata_cnt
+
  
-    def write_dataset(self,data,
+    def write_dataset(self,raw_ar,
                        
-                       crs=None,nodata=None,transform=None,
+                       crs=None,nodata=None,transform=None,dtype=None,
                        write_kwargs=dict(),
                        **kwargs):
         
@@ -380,34 +385,66 @@ class RioWrkr(Basic):
         
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
+        if dtype is None: dtype=raw_ar.dtype
         #=======================================================================
         # precheck
         #=======================================================================
-        assert len(data.shape)==2
+        assert len(raw_ar.shape)==2
+ 
+        assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
         #assert 'float' in data.dtype.name
+        
+        
+        #=======================================================================
+        # #handle nulls
+        #=======================================================================
+        """becuase we usually deal with nulls (instead of raster no data values)
+        here we convert back to raster nodata vals before writing to disk"""
+        
+        if np.any(np.isnan(raw_ar)):
+            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        else:
+            data = raw_ar.astype(dtype)
         #=======================================================================
         # write
         #=======================================================================
-        with rasterio.open(
-                ofp,
-                'w',
+        with rasterio.open(ofp,'w',
                 driver=self.driver,
-                height=data.shape[0],
-                width=data.shape[1],
+                height=raw_ar.shape[0],width=raw_ar.shape[1],
                 count=self.bandCount,
-                dtype=data.dtype,
-                crs=crs,
-                transform=transform,
-                nodata=nodata,
+                dtype=dtype,crs=crs,transform=transform,nodata=nodata,
                 ) as dst:
             
+
+            
             dst.write(data, indexes=1, 
-                          masked=False, #not using numpy.ma
+                          masked=False, #build mask from location of nodata values
                           **write_kwargs)
                 
             log.info('wrote %s on crs %s to \n    %s'%(str(dst.shape), crs, ofp))
         
         return ofp
+    
+    """
+    with rasterio.open(ofp, mode='r') as ds:
+        ds.read(1)
+        ds.read_masks(1)
+        ds.dtypes[0]
+    """
+
+    #===========================================================================
+    # HELPERS----------
+    #===========================================================================
+ 
+    
+    def get_ndcnt(self, **kwargs):
+        logger, dataset, *args = self._func_kwargs(**kwargs)
+        
+        msk = dataset.read_masks(1)  #read the GDAL RFC 15 mask
+        nodata_cnt = (msk==0).sum()
+        
+        del msk
+        return nodata_cnt
         
     #===========================================================================
     # PRIVATES---------
@@ -495,7 +532,8 @@ class RioWrkr(Basic):
 def write_array(data,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
- 
+                nodata=-9999,
+                dtype=None,
                 init_kwargs={},
                 **kwargs):
     """skinny array to raster file writer"""
@@ -507,15 +545,19 @@ def write_array(data,ofp,
     from hp.oop import Session
     kd1=Session.default_kwargs.copy() #because we have no session
     init_kwargs = {**init_kwargs, **kd1} #append user defaults to session defaults
+ 
     #===========================================================================
     # execute
     #===========================================================================
     with RioWrkr(crs=crs, 
                  height=data.shape[0],
                  width=data.shape[1],
-                 transform=transform,
+                 transform=transform, nodata=nodata,
                  **init_kwargs,
                  ) as wrkr:
+        
+
+            
         
         wrkr.write_dataset(data, ofp=ofp, **kwargs)
         
@@ -527,7 +569,15 @@ def load_array(rlay_fp,
     """skinny array from raster file"""
     
     with rasterio.open(rlay_fp, mode='r',  **kwargs) as dataset:
-        ar = dataset.read(indexes)
+        raw_ar = dataset.read(indexes)
+        
+        #switch to np.nan
+        mask = dataset.read_masks(indexes)
+        
+        ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
+        
+        #check against nodatavalue
+        assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
         
     return ar
 

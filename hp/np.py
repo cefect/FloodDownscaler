@@ -149,3 +149,7 @@ def build_blocks(a, n=2):
     it = np.nditer(a, flags=['multi_index'])
     for x in it:
         yield np.full((n,n), x)
+        
+def dropna(a):
+    """mimic pandas behavior"""
+    return a[~np.isnan(a)]
