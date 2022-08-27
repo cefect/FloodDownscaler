@@ -13,7 +13,7 @@ import rasterio.merge
  
 from rasterio.enums import Resampling
 
-import hp.gdal
+#import hp.gdal
 from hp.oop import Basic
 #from hp.plot import plot_rast #for debugging
 
