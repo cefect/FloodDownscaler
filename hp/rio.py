@@ -14,6 +14,8 @@ import rasterio.io
  
 from rasterio.enums import Resampling
 
+from skimage.transform import downscale_local_mean
+
 #import hp.gdal
 from hp.oop import Basic
 #from hp.plot import plot_rast #for debugging
@@ -140,6 +142,16 @@ class RioWrkr(Basic):
         
         update_ref : bool, default False
             Whether to update the reference values based on the resample
+            
+        Notes
+        ---------
+        for cases w/ all real... this is pretty simple
+        w/ nulls
+            there is some bleeding for 'average' methods
+            so we need to build a new mask and re-apply
+            for this, we use a mask which is null ONLY when all child cells are null
+            
+            alternatively, we could set null when ANY child cell is null
         """
         
         #=======================================================================
@@ -149,6 +161,11 @@ class RioWrkr(Basic):
         _, log, dataset, out_dir, ofp = self._func_kwargs(name = name, **kwargs)        
         if prec is None: prec=self.prec        
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
+        """
+        dataset.read(1)
+        dataset.read_masks(1)
+        load_array(dataset)
+        """
         
         #===========================================================================
         # # resample data to target shape
@@ -158,7 +175,7 @@ class RioWrkr(Basic):
         data_rsmp = dataset.read(1,
             out_shape=out_shape,
             resampling=resampling
-                                ).round(prec)
+                                )
         
         # scale image transform
         transform = dataset.transform * dataset.transform.scale(
@@ -170,10 +187,17 @@ class RioWrkr(Basic):
         #===========================================================================
         # resample nulls
         #===========================================================================
+        """opaque handling of nulls
         msk_rsmp = dataset.read_masks(1, 
                 out_shape=out_shape,
                 resampling=Resampling.nearest, #doesnt bleed
-            ) 
+            )""" 
+        
+        #local mean
+        msk_rsmp_avg = downscale_local_mean(dataset.read_masks(1).astype(float), (int(1/scale), int(1/scale)))
+        
+        msk_rsmp = np.where(msk_rsmp_avg==0, 0, 255) 
+ 
         
         #===============================================================================
         # coerce transformed nulls
@@ -485,6 +509,7 @@ class RioWrkr(Basic):
     
     def write_memDataset(self, dataset, 
                          compress=None,
+                         dtype=None,
                          **kwargs):
         """surprised there is no builtin..."""
         
@@ -498,11 +523,12 @@ class RioWrkr(Basic):
         profile = {k:getattr(dataset, k) for k in ['height', 'width', 'crs', 'transform', 'nodata']}
         
         data = dataset.read(1)
+        if dtype is None: dtype = dataset.dtypes[0]
         #=======================================================================
         # write
         #=======================================================================
         with rasterio.open(ofp,'w',
-                driver=self.driver, count=self.bandCount,compress=compress, dtype=dataset.dtypes[0],
+                driver=self.driver, count=self.bandCount,compress=compress, dtype=dtype,
                 **profile) as dst:
             
 
@@ -607,7 +633,7 @@ class RioWrkr(Basic):
         return self
     
     def __exit__(self,  *args,**kwargs):
-        print('RioWrkr.__exit__')
+        #print('RioWrkr.__exit__')
  
         #close all open datasets
         for k,v in self.dataset_d.items():
@@ -649,7 +675,7 @@ def write_array(data,ofp,
 
             
         
-        wrkr.write_array(data, ofp=ofp, **kwargs)
+        wrkr.write_array(data, ofp=ofp,dtype=dtype, **kwargs)
         
     return ofp
 
@@ -682,13 +708,57 @@ def rlay_apply(rlay, func):
         with rio.open(rlay, mode='r') as ds:
             res = func(ds)
             
-    elif isinstance(rlay, rio.io.DatasetReader):
+    elif isinstance(rlay, rio.io.DatasetReader) or isinstance(rlay, rio.io.DatasetWriter):
         res = func(rlay)
         
     else:
         raise IOError(type(rlay))
     
     return res
+
+def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
+    """skinny resampling"""
+    
+    
+    
+    def func(dataset):
+        out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+        
+        data_rsmp = dataset.read(1,
+            out_shape=out_shape,
+            resampling=resampling
+                                )
+        
+        # scale image transform
+        transform = dataset.transform * dataset.transform.scale(
+            (dataset.width / data_rsmp.shape[-1]),
+            (dataset.height / data_rsmp.shape[-2])
+        )
+        
+ 
+        #===========================================================================
+        # resample nulls
+        #===========================================================================
+        msk_rsmp = dataset.read_masks(1, 
+                out_shape=out_shape,
+                resampling=Resampling.nearest, #doesnt bleed
+            ) 
+        
+        #===============================================================================
+        # coerce transformed nulls
+        #===============================================================================
+        """needed as some resampling methods bleed out
+        theres a few ways to handle this... 
+            here we manipulate the data values directly.. which seems the cleanest"""
+ 
+        assert data_rsmp.shape==msk_rsmp.shape
+        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+        
+        profile = {k:getattr(dataset, k) for k in ['crs', 'nodata']}
+        
+        return write_array(data_rsmp_f1, ofp,dtype=dataset.dtypes[0],transform=transform, **profile)
+    
+    return rlay_apply(rlay, func)
     
     
 def is_divisible(rlay, divisor):
@@ -702,6 +772,9 @@ def is_divisible(rlay, divisor):
             return False
 
     return True
+ 
+
+
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================
