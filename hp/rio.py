@@ -10,6 +10,7 @@ import numpy.ma as ma
 import rasterio as rio
  
 import rasterio.merge
+import rasterio.io
  
 from rasterio.enums import Resampling
 
@@ -32,13 +33,18 @@ class RioWrkr(Basic):
     height=None
     width=None
     transform=None
+ 
 
 
     def __init__(self,
                  rlay_ref_fp = None,  
                  
+                 #default behaviors
+                 compress=None,
+                 
                  #reference inheritance
                  crs=None,height=None,width=None,transform=None,nodata=None,
+                 
                  **kwargs):
         """"
         
@@ -49,13 +55,19 @@ class RioWrkr(Basic):
         super().__init__(**kwargs)
         
         self.dataset_d = dict() #all loaded datasets
+        self.memoryfile_d=dict()
+        
+        #=======================================================================
+        # simple attachments
+        #=======================================================================
+        self.compress=compress
  
         #=======================================================================
         # set reference
         #=======================================================================        
         if not rlay_ref_fp is None:
             self._base_set(rlay_ref_fp)
- 
+            
         #=======================================================================
         # inherit properties from reference 
         #=======================================================================
@@ -63,8 +75,8 @@ class RioWrkr(Basic):
         
         self.logger.debug('init w/ %s'%pars_d)
         
-    def _base_set(self, rlay_ref_fp):
-        rds = self.open_dataset(rlay_ref_fp, meta=False)
+    def _base_set(self, rlay_ref_fp, **kwargs):
+        rds = self.open_dataset(rlay_ref_fp, meta=False, **kwargs)
         self.ref_name = rds.name
         return rds
         
@@ -117,9 +129,10 @@ class RioWrkr(Basic):
  
                  resampling=Resampling.nearest,
                  scale=1.0,
-                 write=True,
-                 update_ref=False, 
+                 #write=True,
+                 #update_ref=False, 
                  prec=None,
+                 name=None,
                  **kwargs):
         """"
         Parameters
@@ -132,7 +145,8 @@ class RioWrkr(Basic):
         #=======================================================================
         # defaults
         #=======================================================================
-        _, log, dataset, out_dir, ofp = self._func_kwargs(name = 'resample_r%i'%scale, **kwargs)        
+        if name is None: 'resamp_r%i'%scale
+        _, log, dataset, out_dir, ofp = self._func_kwargs(name = name, **kwargs)        
         if prec is None: prec=self.prec        
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
         
@@ -152,9 +166,7 @@ class RioWrkr(Basic):
             (dataset.height / data_rsmp.shape[-2])
         )
         
-        
-        dataset.dtypes
-         
+ 
         #===========================================================================
         # resample nulls
         #===========================================================================
@@ -175,21 +187,9 @@ class RioWrkr(Basic):
         
         log.info('resampled from %s to %s'%(dataset.shape, data_rsmp.shape))
         
-        #=======================================================================
-        # write
-        #=======================================================================
-        if not write:
-            res= data_rsmp_f1
-        else:
-            res =self.write_dataset(data_rsmp_f1, ofp=ofp, logger=log, transform=transform)
-        
-        #=======================================================================
-        # update
-        #=======================================================================
-        if update_ref:
-            raise IOError('not implemented')
-        
-        return res
+ 
+        return self.load_memDataset(data_rsmp_f1, transform=transform, name=name, logger=log, nodata=dataset.nodata,
+                                    crs=dataset.crs)
     
     def crop(self,window,
  
@@ -338,18 +338,20 @@ class RioWrkr(Basic):
         #=======================================================================
         # clean up the name
         #=======================================================================
-        try:
-            dataset.clean_name=os.path.basename(dataset.name).replace('.tif', '')
-        except Exception as e:
-            log.warning('failed to build clean_name w/ %s'%e)
-            dataset.clean_name = dataset.name
+        #=======================================================================
+        # try:
+        #     dataset.clean_name=os.path.basename(dataset.name).replace('.tif', '')
+        # except Exception as e:
+        #     log.warning('failed to build clean_name w/ %s'%e)
+        #     dataset.clean_name = dataset.name
+        #=======================================================================
         
         
         #=======================================================================
         # #meta
         #=======================================================================
         if meta:
-            dataset.profile
+ 
             assert dataset.count==self.bandCount, 'only setup for single band'
             msk = dataset.read_masks(self.bandCount)  #read the GDAL RFC 15 mask
             nodata_cnt = (msk==0).sum()
@@ -372,11 +374,12 @@ class RioWrkr(Basic):
     
 
  
-    def write_dataset(self,raw_ar,
+    def write_array(self,raw_ar,
                        
-                       crs=None,nodata=None,transform=None,dtype=None,
+                       crs=None,nodata=None,transform=None,dtype=None,compress=None,
                        write_kwargs=dict(),
                        **kwargs):
+        """write an array to raster using rio"""
         
         #=======================================================================
         # defaults
@@ -385,6 +388,7 @@ class RioWrkr(Basic):
         
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
+        if compress is None: compress=self.compress
         if dtype is None: dtype=raw_ar.dtype
         #=======================================================================
         # precheck
@@ -412,7 +416,7 @@ class RioWrkr(Basic):
                 driver=self.driver,
                 height=raw_ar.shape[0],width=raw_ar.shape[1],
                 count=self.bandCount,
-                dtype=dtype,crs=crs,transform=transform,nodata=nodata,
+                dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                 ) as dst:
             
 
@@ -431,6 +435,87 @@ class RioWrkr(Basic):
         ds.read_masks(1)
         ds.dtypes[0]
     """
+    
+    def load_memDataset(self,raw_ar,
+                       name='memfile',
+                       crs=None,nodata=None,transform=None,dtype=None,
+                       write_kwargs=dict(),
+                       **kwargs):
+        """load an array as a memory data source"""
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        _, log, _, _, ofp = self._func_kwargs(name = 'memDS', **kwargs)
+        
+        crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
+        if dtype is None: dtype=raw_ar.dtype
+        #=======================================================================
+        # #handle nulls
+        #=======================================================================
+        """becuase we usually deal with nulls (instead of raster no data values)
+        here we convert back to raster nodata vals before writing to disk"""
+        
+        if np.any(np.isnan(raw_ar)):
+            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        else:
+            data = raw_ar.astype(dtype)
+            
+        
+        #=======================================================================
+        # build memory data
+        #=======================================================================
+        memfile= rasterio.io.MemoryFile()
+        dataset = memfile.open(crs=crs, transform=transform, nodata=nodata, 
+                              height=raw_ar.shape[0],width=raw_ar.shape[1],
+                              driver=self.driver,
+                              count=self.bandCount, dtype=dtype)  
+        dataset.write(data, indexes=1, 
+                          masked=False, #build mask from location of nodata values
+                          **write_kwargs)
+        
+        #=======================================================================
+        # add for cleanup
+        #=======================================================================
+ 
+        self.dataset_d[name] = dataset
+        self.memoryfile_d[name] = memfile
+    
+        return dataset
+    
+    def write_memDataset(self, dataset, 
+                         compress=None,
+                         **kwargs):
+        """surprised there is no builtin..."""
+        
+        _, log, _, _, ofp = self._func_kwargs(name = 'wmemDS', **kwargs)
+        if compress is None: compress=self.compress
+        
+        #=======================================================================
+        # extract
+        #=======================================================================
+        #kwargs from dataset
+        profile = {k:getattr(dataset, k) for k in ['height', 'width', 'crs', 'transform', 'nodata']}
+        
+        data = dataset.read(1)
+        #=======================================================================
+        # write
+        #=======================================================================
+        with rasterio.open(ofp,'w',
+                driver=self.driver, count=self.bandCount,compress=compress, dtype=dataset.dtypes[0],
+                **profile) as dst:
+            
+
+            
+            dst.write(data, indexes=1, 
+                          masked=False, #build mask from location of nodata values
+                          )
+                
+            log.info('wrote %s on crs %s to \n    %s'%(str(dst.shape), dataset.crs, ofp))
+        
+        return ofp
+        
+        
 
     #===========================================================================
     # HELPERS----------
@@ -459,7 +544,8 @@ class RioWrkr(Basic):
             
         return res_l
     
-    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None):
+    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None, 
+                     tmp_dir=None, write=None):
         """typical default for class functions"""
  
         if logger is None:
@@ -521,9 +607,13 @@ class RioWrkr(Basic):
         return self
     
     def __exit__(self,  *args,**kwargs):
+        print('RioWrkr.__exit__')
  
         #close all open datasets
         for k,v in self.dataset_d.items():
+            v.close()
+            
+        for k,v in self.memoryfile_d.items():
             v.close()
             
 #===============================================================================
@@ -559,16 +649,17 @@ def write_array(data,ofp,
 
             
         
-        wrkr.write_dataset(data, ofp=ofp, **kwargs)
+        wrkr.write_array(data, ofp=ofp, **kwargs)
         
     return ofp
 
-def load_array(rlay_fp, 
+def load_array(rlay_obj, 
                indexes=1,
-                **kwargs):
-    """skinny array from raster file"""
+                 ):
+    """skinny array from raster object"""
     
-    with rasterio.open(rlay_fp, mode='r',  **kwargs) as dataset:
+    #retrival function
+    def get_ar(dataset):
         raw_ar = dataset.read(indexes)
         
         #switch to np.nan
@@ -578,8 +669,11 @@ def load_array(rlay_fp,
         
         #check against nodatavalue
         assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
-        
-    return ar
+        return ar
+    
+    #flexible application
+
+    return rlay_apply(rlay_obj, get_ar)
 
 def rlay_apply(rlay, func):
     """flexible apply a function to either a filepath or a rio ds"""
@@ -628,9 +722,7 @@ def assert_rlay_simple(rlay, msg='',):
     # retrieve stats
     #===========================================================================
     rlay_apply(rlay, set_stats)
-
-            
-        
+   
     #===========================================================================
     # check
     #===========================================================================
