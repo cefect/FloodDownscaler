@@ -52,11 +52,12 @@ class Basic(object): #simple base class
                  
                  #inheritancee
                  session        = None,
+                 subdir         = False,
                  
                  #controls
                  prec           = None,
-                 overwrite      = None, #file overwriting control
-                 relative       = None, #specify whether 
+                 overwrite      = None,  
+                 relative       = None,  
                  write          = None,
                  
                  logger         = None,                 
@@ -68,12 +69,12 @@ class Basic(object): #simple base class
     
         Parameters
         ----------
-        wrk_dir: str, default os.path.expanduser('~')
-            Base directory of the project. Used for generating default directories.            
+        wrk_dir: str, optional
+            Base directory of the project.  
         out_dir : str, optional
-            Directory used for outputs. Defaults to a sub-directory of wrk_dir            
+            Directory used for outputs.    
         tmp_dir: str, optional
-            Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
+            Directory for temporary outputs (i.e., cache).  
 
         proj_name: str, default src_name definitions
             Project name
@@ -95,6 +96,9 @@ class Basic(object): #simple base class
 
         session: scripts.Session, optional
             Reference to parent session
+            
+        subdir: bool, default False
+            whether to create subidrectories (in the session defaults) using obj_name
         
         """
         
@@ -111,19 +115,29 @@ class Basic(object): #simple base class
         self.session=session
         
         pars_d = dict()
-        def inherit(attVal, attName, directory=False, typeCheck=None):
+        def inherit(attVal, attName, directory=False, typeCheck=None, subdir=False):
+            #get from session
             if attVal is None:
                 assert not session is None, 'for \'%s\' passed None but got no session'%attName
                 attVal = getattr(session, attName)
+                
+            #make sub directories
+            if subdir and directory:
+                attVal = os.path.join(attVal, obj_name)
+            elif subdir:
+                attVal = attVal + '_' + obj_name
+                
+            #attach
             assert not attVal is None, attName
             setattr(self, attName, attVal)
-            
             pars_d[attName] = attVal
             
+            #handle directories
             if directory:
                 if not os.path.exists(attVal):
                     os.makedirs(attVal)
-                    
+            
+            #check
             if not typeCheck is None:
                 assert isinstance(getattr(self, attName), typeCheck), \
                     'bad type on \'%s\': %s'%(attName, type(getattr(self, attName)))
@@ -136,13 +150,13 @@ class Basic(object): #simple base class
         inherit(prec,       'prec', typeCheck=int)
         inherit(relative,   'relative', typeCheck=bool)
         inherit(write,      'write', typeCheck=bool)
-        inherit(proj_name, 'proj_name', typeCheck=str)
+        inherit(proj_name,  'proj_name', typeCheck=str)
         inherit(run_name,   'run_name', typeCheck=str)
-        inherit(fancy_name, 'fancy_name', typeCheck=str)
+        inherit(fancy_name, 'fancy_name', typeCheck=str, subdir=subdir)
  
         inherit(wrk_dir,    'wrk_dir', directory=True)
-        inherit(out_dir,    'out_dir', directory=True)
-        inherit(tmp_dir,    'tmp_dir', directory=True)
+        inherit(out_dir,    'out_dir', directory=True, subdir=subdir)
+        inherit(tmp_dir,    'tmp_dir', directory=True, subdir=subdir)
  
         if obj_name is None:
             obj_name = self.__class__.__name__
@@ -152,6 +166,7 @@ class Basic(object): #simple base class
         #=======================================================================
         # #setup the logger
         #=======================================================================
+        """TODO: add this to inheritance?"""
         if logger is None:
  
             if not session is None:
@@ -248,6 +263,13 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         Parameters
         ------------
         see Basic
+        
+        wrk_dir: str, default os.path.expanduser('~')
+            Base directory of the project. Used for generating default directories.            
+        out_dir : str, optional
+            Directory used for outputs. Defaults to a sub-directory of wrk_dir            
+        tmp_dir: str, optional
+            Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
         
         logfile_duplicate : bool, default True
             Duplicate the logger into the output directory

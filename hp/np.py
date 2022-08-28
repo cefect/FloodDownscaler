@@ -82,14 +82,13 @@ def apply_blockwise_ufunc(a, ufuncName, n=2):
     
     assert np.array_equal(np.array(res_ar.shape)*n,np.array(a.shape)) 
     
-    
-    
+
     return res_ar
 
  
 
 def apply_blockwise(a, func,n=2, **kwargs):
-    """apply a numpy ufunc to 2d blocks
+    """apply a function to 2d blocks
     
     Parameters
     ----------
