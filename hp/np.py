@@ -13,6 +13,7 @@ Created on Mar 5, 2019
 #===============================================================================
 import numpy as np
 import warnings
+from scipy.ndimage import uniform_filter, generic_filter, zoom
 np.set_printoptions(linewidth=200)
 
 #===============================================================================
@@ -33,17 +34,18 @@ def get_flat_blocks(a, n=2, errors='raise'):
     
     surprised there is no builtin..."""
     
-    #check for uniform blocks
-    errs = list()
-    for i, dim in enumerate(a.shape):
-        if not dim%n==0:
-            errs.append('axis %i has bad split: %.2f (shape needs to be a multiple of n)'%(i, dim%n))
-            
-    if len(errs)>0:
-        if errors=='raise':
-            raise IndexError(errs)
-        elif errors=='warn':
-            warnings.warn(errs)
+    if __debug__:
+        #check for uniform blocks
+        errs = list()
+        for i, dim in enumerate(a.shape):
+            if not dim%n==0:
+                errs.append('axis %i has bad split: %.2f (shape needs to be a multiple of n)'%(i, dim%n))
+                
+        if len(errs)>0:
+            if errors=='raise':
+                raise IndexError(errs)
+            elif errors=='warn':
+                warnings.warn(errs)
     
     res_ar = np.array([sa.flatten() for sa in get_all_blocks(a, n=n)])
     
@@ -87,8 +89,8 @@ def apply_blockwise_ufunc(a, ufuncName, n=2):
 
  
 
-def apply_blockwise(a, func,n=2, **kwargs):
-    """apply a function to 2d blocks
+def apply_blockwise(a, func,downscale=2, **kwargs):
+    """apply a reducing function to square blocks (window w/o overlap)
     
     Parameters
     ----------
@@ -98,29 +100,114 @@ def apply_blockwise(a, func,n=2, **kwargs):
         must take an array and an axis kwarg
     n: int, default 2
         dimension for square block
+        
+    Note
+    --------
+    spent a few hours looking for native methods. 
+    
+    https://stackoverflow.com/questions/73529481/numpy-based-spatial-reduction/73529581#73529581
         """
-    #broadcast each square block as a row
-    blocked_ar = get_flat_blocks(a, n=n)
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    #new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
+    
+    """doesnt seem to work for 2D windows
+    #===========================================================================
+    # np.stride_tricks
+    #===========================================================================
+    new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
+    
+    a.flatten
+        
+    nrows = ((a.size-n)//n)+1
+    a.strides
+    strides = a.strides[0]
+        
+
+    
+    np.lib.stride_tricks.as_strided(a, shape=new_shape, strides=(downscale, downscale))"""
+    
+    """
+    #===========================================================================
+    # scipy.ndimage
+    #===========================================================================
+    #uniform_filter(a, size=downscale, mode='constant', cval=0.0)
+    
+    generic_filter(a, func, size=downscale, mode='constant', cval=0.0)
+    
+    #build the mask
+    afi = np.full((downscale, downscale), 0)
+    afi[-1,-1]=1    
+    mask =   np.tile(np.tile(afi, a.shape[1]//downscale).T, a.shape[0]//downscale)
+    """
+    
+    #===========================================================================
+    # np.reshape
+    #===========================================================================
+    #stack windows into axis 1 and 3
+    a1 = a.reshape(a.shape[0]//downscale, downscale, a.shape[1]//downscale, downscale)
+    
+    """
+    a1.shape
+    a1.ndim
+    
+    """
+    
+    #res_ar2 = a1.max(axis=(1,3)) #sum rows and depth
+    
+    res_ar2=func(a1, axis=(1,3))
+    
     
  
-    #apply the reduction
-    bred_ar = func(blocked_ar, axis=1, **kwargs)
+
     
-    #recast to match raw shape (reduced)    
-    new_shape = [int(e) for e in np.fix(np.array(a.shape)/n).tolist()]
-    res_ar = bred_ar.reshape(new_shape)
+    #===========================================================================
+    # using custom block functions
+    #===========================================================================
+    """quite slow for loops..."""
+    #===========================================================================
+    # #broadcast each square block as a row
+    # blocked_ar = get_flat_blocks(a, n=downscale)
+    # 
+    # #apply the reduction
+    # bred_ar = func(blocked_ar, axis=1, **kwargs)
+    # 
+    # #recast to match raw shape (reduced) 
+    # res_ar = bred_ar.reshape(new_shape)
+    # 
+    # 
+    # assert np.array_equal(np.array(res_ar.shape)*downscale,np.array(a.shape))
+    # 
+    # assert np.array_equal(res_ar2, res_ar)    
+    #===========================================================================
     
-    
-    assert np.array_equal(np.array(res_ar.shape)*n,np.array(a.shape))    
-    
-    return res_ar
+    return res_ar2
 
 def upsample(a, n=2, **kwargs):
     """scale up an array by replicating parent cells onto children with spatial awareness
     
     very confusing.. surprised there is no builtin"""
     
-    new_shape = tuple([int(e) for e in np.fix(np.array(a.shape)*n).tolist()])
+    new_shape = (a.shape[0]*n, a.shape[1]*n)
+    
+    raise IOError('use np.kron')
+    
+    np.kron(a, np.ones((n,n)))
+    
+    """interploates
+    #===========================================================================
+    # scipy.ndimage.zoom
+    #===========================================================================
+    zoom(a, n, """
+    #===========================================================================
+    # np.tile
+    #===========================================================================
+    #np.tile(np.tile(a, n).T, a.shape[0]//downscale)
+    
+    #===========================================================================
+    # concat list
+    #===========================================================================
     
     l=list()
     for i in range(a.shape[0]):
@@ -144,7 +231,9 @@ def upsample(a, n=2, **kwargs):
 def upsample2(a, n=2):
     """scale up an array by replicating parent cells onto children with spatial awareness
     
-    using apply"""
+    using apply
+    
+    this is slower!"""
     
     
     
