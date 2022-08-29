@@ -158,7 +158,7 @@ class RioWrkr(Basic):
         # defaults
         #=======================================================================
         if name is None: 'resamp_r%i'%scale
-        _, log, dataset, out_dir, ofp = self._func_kwargs(name = name, **kwargs)        
+        _, log, dataset, _, _ = self._func_kwargs(name = name, **kwargs)        
         if prec is None: prec=self.prec        
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
         """
@@ -763,7 +763,7 @@ def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
     
 def is_divisible(rlay, divisor):
     """check if the rlays dimensions are evenly divislbe by the divisor"""
-    
+    assert isinstance(divisor, int)
     
     shape = rlay_apply(rlay, lambda x:x.shape)
         
