@@ -15,6 +15,7 @@ import numpy as np
 import warnings
 from scipy.ndimage import uniform_filter, generic_filter, zoom
 np.set_printoptions(linewidth=200)
+import skimage.transform
 
 #===============================================================================
 # np.set_printoptions(edgeitems=10,linewidth=180)
@@ -89,7 +90,7 @@ def apply_blockwise_ufunc(a, ufuncName, n=2):
 
  
 
-def apply_blockwise(a, func,downscale=2, **kwargs):
+def apply_blockwise(a, func,downscale=2):
     """apply a reducing function to square blocks (window w/o overlap)
     
     Parameters
@@ -110,7 +111,7 @@ def apply_blockwise(a, func,downscale=2, **kwargs):
     #===========================================================================
     # defaults
     #===========================================================================
-    #new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
+    new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
     
     """doesnt seem to work for 2D windows
     #===========================================================================
@@ -182,29 +183,43 @@ def apply_blockwise(a, func,downscale=2, **kwargs):
     # assert np.array_equal(res_ar2, res_ar)    
     #===========================================================================
     
+    assert res_ar2.shape==new_shape
+    
     return res_ar2
 
-def upsample(a, n=2, **kwargs):
+def upsample(a, n=2):
     """scale up an array by replicating parent cells onto children with spatial awareness
     
     very confusing.. surprised there is no builtin"""
     
     new_shape = (a.shape[0]*n, a.shape[1]*n)
     
-    raise IOError('use np.kron')
+    """runs out of memory
+    #===========================================================================
+    # np.kron
+    #===========================================================================
     
-    np.kron(a, np.ones((n,n)))
+    np.kron(a, np.ones((n,n)))"""
     
     """interploates
     #===========================================================================
     # scipy.ndimage.zoom
     #===========================================================================
     zoom(a, n, """
+    
+    
+    #===========================================================================
+    # skimage.transform.resize
+    #===========================================================================
+    """seems to work.. should be a faster way though w/o polynomial"""
+    res_ar2 = skimage.transform.resize(a, new_shape, order=0, mode='constant')
+    res_ar = res_ar2
     #===========================================================================
     # np.tile
     #===========================================================================
     #np.tile(np.tile(a, n).T, a.shape[0]//downscale)
     
+    """
     #===========================================================================
     # concat list
     #===========================================================================
@@ -223,8 +238,11 @@ def upsample(a, n=2, **kwargs):
         l.append(new_ar)
     
     res_ar = np.concatenate(l, axis=0) 
+    assert np.array_equal(res_ar2, res_ar)
+    """
     
     assert res_ar.shape==new_shape
+    
     return res_ar
 
 
