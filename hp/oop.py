@@ -185,6 +185,74 @@ class Basic(object): #simple base class
         #self._install_info()
         self.init_pars_d=pars_d
         self.logger.debug('finished Basic.__init__ w/\n    %s '%pars_d)
+        
+    
+    def _func_setup(self, dkey, 
+                    logger=None, out_dir=None, tmp_dir=None,ofp=None,
+ 
+                    write=None,layname=None,ext='.tif',
+                    subdir=False,
+                    ):
+        """common function default setup
+        
+        Parameters
+        ----------
+        subdir: bool, default False
+            build the out_dir as a subdir of the default out_dir (using dkey)
+            
+            
+        TODO
+        ----------
+        setup so we can inherit additional parameters from parent classes
+        
+        """
+        #=======================================================================
+        # #logger
+        #=======================================================================
+        if logger is None:
+            logger = self.logger
+        log = logger.getChild(dkey)
+ 
+        
+        #=======================================================================
+        # #temporary directory
+        #=======================================================================
+        if tmp_dir is None:
+            tmp_dir = os.path.join(self.tmp_dir, dkey)
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+            
+        #=======================================================================
+        # out_dir
+        #=======================================================================
+        if out_dir is None: 
+            out_dir = self.out_dir
+        
+        if subdir:
+            out_dir = os.path.join(out_dir, dkey)
+            
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+            
+        #=======================================================================
+        # ofp
+        #=======================================================================
+        if write is None: write=self.write
+        
+        if layname is None:layname = '%s_%s'%(self.fancy_name, dkey)
+         
+        if ofp is None:
+            if write:            
+                ofp = os.path.join(out_dir, layname+ext)            
+            else:
+                ofp=os.path.join(tmp_dir, layname+ext)
+            
+        if os.path.exists(ofp):
+            assert self.overwrite
+            os.remove(ofp)
+ 
+            
+        return log, tmp_dir, out_dir, ofp, layname, write
 
 
             
