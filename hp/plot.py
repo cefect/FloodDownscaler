@@ -19,7 +19,7 @@ import logging, configparser, datetime
 #==============================================================================
 # imports------------
 #==============================================================================
-import os
+import os, string
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -620,6 +620,7 @@ class Plotr(Basic):
                         constrained_layout=True,
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
+                        add_subfigLabel=False,
                         **kwargs):
         
         """get a matrix plot with consistent object access
@@ -691,6 +692,16 @@ class Plotr(Basic):
                         ax_title='%s.%s'%(row_keys[i], col_keys[j])
                     
                     ax.set_title(ax_title)
+                    
+                    
+                if add_subfigLabel:
+                    ax.text(0.05, 0.95, '(%s%s)'%(list(string.ascii_lowercase)[j], i), transform=ax.transAxes, va='top', ha='left',
+                            size=matplotlib.rcParams['axes.titlesize'],
+                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                            )
+                    """
+                    plt.show()
+                    """
                 
             
  
