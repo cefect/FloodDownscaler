@@ -17,11 +17,18 @@ class BuildLogr(object): #simple class to build a logger
     def __init__(self,
 
             logcfg_file =None,
+            out_dir=None,
             ):
         """
         creates a log file (according to the logger.conf parameters) in the passed working directory
+        
+        Parameters
+        -------
+        out_dir: str, default os.path.expanduser('~')
+            location to output log files to. defaults ot 
         """
-
+        if out_dir is None: out_dir = os.path.expanduser('~')
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
         #===============================================================================
         # FILE SETUP
         #===============================================================================
@@ -38,7 +45,7 @@ class BuildLogr(object): #simple class to build a logger
         
         logger = logging.getLogger() #get the root logger
         logging.config.fileConfig(logcfg_file,
- 
+                                  defaults={'logdir':out_dir.replace('\\','/')},
                                   #disable_existing_loggers=True,
                                   ) #load the configuration file
         'usually adds a log file to the working directory/_outs/root.log'

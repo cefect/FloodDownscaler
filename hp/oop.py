@@ -351,19 +351,7 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         if data_retrieve_hndls is None: data_retrieve_hndls=dict()
         if bk_lib is None: bk_lib=dict()
         
-        #=======================================================================
-        # logger
-        #=======================================================================
-        if logger is None:
-            from hp.logr import BuildLogr
-            
-            if logcfg_file is None:
-                from definitions import logcfg_file
 
-            lwrkr = BuildLogr(logcfg_file = logcfg_file)
-            logger=lwrkr.logger
-            
-        kwargs['logger']=logger
         #=======================================================================
         # precheck
         #=======================================================================
@@ -398,6 +386,20 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         os.makedirs(tmp_dir)
             
         kwargs['tmp_dir']=tmp_dir
+        
+        #=======================================================================
+        # logger
+        #=======================================================================
+        if logger is None:
+            from hp.logr import BuildLogr
+            
+            if logcfg_file is None:
+                from definitions import logcfg_file
+
+            lwrkr = BuildLogr(logcfg_file = logcfg_file, out_dir=wrk_dir)
+            logger=lwrkr.logger
+            
+        kwargs['logger']=logger
         #=======================================================================
         # init cascade
         #=======================================================================
