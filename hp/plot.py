@@ -2,6 +2,10 @@
 Created on Feb. 15, 2021
 
 @author: cefect
+
+2022-08-03
+simplified this a lot
+now we should setup matplotlib (and defaults) in the caller script
 '''
 
 
@@ -605,7 +609,7 @@ class Plotr(Basic):
                 
         return val_str
     
-    def get_matrix_fig(self, #conveneince for getting a matrix plot with consistent object access
+    def get_matrix_fig(self, #conveneince for getting 
                        row_keys, #row labels for axis
                        col_keys, #column labels for axis (1 per column)
                        
@@ -617,6 +621,15 @@ class Plotr(Basic):
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
                         **kwargs):
+        
+        """get a matrix plot with consistent object access
+        
+        Parameters
+        ---------
+        figsize_scaler: int
+            multipler for computing figsize from the number of col and row keys
+            
+        """
         
         
         #=======================================================================
@@ -630,7 +643,7 @@ class Plotr(Basic):
         
         if figsize is None: 
             if figsize_scaler is None:
-                figsize=self.figsize
+                figsize=matplotlib.rcParams['figure.figsize']
             else:
                 figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
         
@@ -644,7 +657,7 @@ class Plotr(Basic):
         # build figure
         #=======================================================================
         # populate with subplots
-        fig = self.plt.figure(fig_id,
+        fig = plt.figure(fig_id,
             figsize=figsize,
             tight_layout=tight_layout,
             constrained_layout=constrained_layout,
@@ -684,30 +697,50 @@ class Plotr(Basic):
         log.info('built %ix%i w/ figsize=%s'%(len(col_keys), len(row_keys), figsize))
         return fig, ax_d
             
-    def get_color_d(self,
+ 
+    def _get_color_d(self,
+                    ckey,
                     cvals,
-                    colorMap=None,
-                    plot_colr=None,
+                    colorMap=None,color_d=None,
+ 
                     ):
+        """retrieve color dict by key
         
-        #=======================================================================
-        # check preconfigured
-        #=======================================================================
-        """allows fixing the color of each value (better for variable lengths)"""
-        color_d = None
-        if not plot_colr is None and hasattr(self, 'color_lib'):
-            if plot_colr in self.color_lib:
-                color_d = {k:self.color_lib[plot_colr][k] for k in cvals}
-            
-        #=======================================================================
-        # build default
-        #=======================================================================
-        if color_d is None:
-            if colorMap is None: colorMap=self.colorMap
-            cmap = self.plt.cm.get_cmap(name=colorMap) 
-            
-            color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        Parameters
+        ----------
+        ckey: str
         
+        cvals: list
+            
+ 
+        """
+        
+        
+        if color_d is None: 
+            #===================================================================
+            # from library           
+            #===================================================================
+            if ckey in self.color_lib:
+                color_d = self.color_lib[ckey]
+                
+            #===================================================================
+            # from map
+            #===================================================================
+            else:
+            
+                if colorMap is None: 
+                    colorMap = self.colorMap_d[ckey]
+                    
+                cmap = plt.cm.get_cmap(name=colorMap) 
+            
+                color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert isinstance(color_d, dict)
+        for k,v in color_d.items(): assert isinstance(v, str)
         return color_d
     
     #===========================================================================
@@ -718,7 +751,7 @@ class Plotr(Basic):
                    
                    #file controls
                    out_dir = None, overwrite=None, 
-                   out_fp=None, #defaults to figure name w/ a date stamp
+                   ofp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
                    clean_ofp=True,
                    
@@ -727,21 +760,21 @@ class Plotr(Basic):
                    
                    #figure write controls
                  fmt='svg', 
-                  transparent=None, 
+                  transparent=True, 
                   dpi = 300,
                   logger=None,
                   ):
         #======================================================================
         # defaults
         #======================================================================
-        if out_dir is None: out_dir = self.out_dir
+        
         if overwrite is None: overwrite = self.overwrite
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
-        if transparent is None: transparent=self.transparent
+ 
         
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        
         #=======================================================================
         # precheck
         #=======================================================================
@@ -751,7 +784,10 @@ class Plotr(Basic):
         #======================================================================
         # filepath
         #======================================================================
-        if out_fp is None:
+        if ofp is None:
+            if out_dir is None: out_dir = self.out_dir
+            if not os.path.exists(out_dir):os.makedirs(out_dir)
+            
             #file setup
             if fname is None:
                 try:
@@ -761,16 +797,16 @@ class Plotr(Basic):
                     
                 fname =str('%s_%s'%(fname, self.resname)).replace(' ','')
                 
-            out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
+            ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
             
             
         if clean_ofp:
             for s in [',', ';', ')', '(', '=', ' ', '\'']:
-                out_fp = out_fp.replace(s,'')
+                ofp = ofp.replace(s,'')
             
-        if os.path.exists(out_fp): 
+        if os.path.exists(ofp): 
             assert overwrite
-            os.remove(out_fp)
+            os.remove(ofp)
             
             
 
@@ -782,16 +818,16 @@ class Plotr(Basic):
         #=======================================================================
         if add_stamp:
  
-            txt = '%s (%s)'%(os.path.basename(out_fp), datetime.datetime.now().strftime('%Y-%m-%d'))
+            txt = '%s (%s)'%(os.path.basename(ofp), datetime.datetime.now().strftime('%Y-%m-%d'))
             fig.text(1,0, txt, fontsize=2, color='black', alpha=0.5, ha='right', va='bottom')
         #=======================================================================
         # #write the file
         #=======================================================================
         try: 
-            fig.savefig(out_fp, dpi = dpi, format = fmt, transparent=transparent)
-            log.info('saved figure to file:\n   %s'%out_fp)
+            fig.savefig(ofp, dpi = dpi, format = fmt, transparent=transparent)
+            log.info('saved figure to file:\n   %s'%ofp)
         except Exception as e:
             raise Error('failed to write figure to file w/ \n    %s'%e)
         
-        return out_fp
+        return ofp
     
