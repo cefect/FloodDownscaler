@@ -120,17 +120,19 @@ class Plotr(Basic):
     #===========================================================================
     #[plotting]
 
-    color = 'black'
-    linestyle = 'dashdot'
-    linewidth = 2.0
-    alpha =     0.75        #0=transparent 1=opaque
-    marker =    'o'
-    markersize = 4.0
-    fillstyle = 'none'    #marker fill style
-    impactfmt_str = '.2e'
-        #',.0f' #Thousands separator
-        
-    impactFmtFunc = None
+    #===========================================================================
+    # color = 'black'
+    # linestyle = 'dashdot'
+    # linewidth = 2.0
+    # alpha =     0.75        #0=transparent 1=opaque
+    # marker =    'o'
+    # markersize = 4.0
+    # fillstyle = 'none'    #marker fill style
+    # impactfmt_str = '.2e'
+    #     #',.0f' #Thousands separator
+    #     
+    # impactFmtFunc = None
+    #===========================================================================
     
     #===========================================================================
     # controls
@@ -140,142 +142,148 @@ class Plotr(Basic):
     #===========================================================================
     # defaults
     #===========================================================================
-    val_str='*default'
-        
-    """values are dummies.. upd_impStyle will reset form attributes"""
-    impStyle_d = {
-            'color': 'black',
-            'linestyle': 'dashdot',
-            'linewidth': 2.0,
-            'alpha':0.75 , # 0=transparent, 1=opaque
-            'marker':'o',
-            'markersize':  4.0,
-            'fillstyle': 'none' #marker fill style
-                            }
+    #===========================================================================
+    # val_str='*default'
+    #     
+    # """values are dummies.. upd_impStyle will reset form attributes"""
+    # impStyle_d = {
+    #         'color': 'black',
+    #         'linestyle': 'dashdot',
+    #         'linewidth': 2.0,
+    #         'alpha':0.75 , # 0=transparent, 1=opaque
+    #         'marker':'o',
+    #         'markersize':  4.0,
+    #         'fillstyle': 'none' #marker fill style
+    #                         }
+    #===========================================================================
 
     
-    def __init__(self,
-
- 
-                 
-                 #init controls
-                 init_plt_d = {}, #container of initilzied objects
- 
-                  #format controls
-                  grid = True, logx = False, 
-                  
-                  
-                  #figure parametrs
-                figsize     = (6.5, 4), 
-                transparent = False,
-                    
-                #hatch pars
-                    hatch =  None,
-                    h_color = 'blue',
-                    h_alpha = 0.1,
-                    
-                    #impactFmtFunc=None, #function for formatting the impact results
-                        
-                        #Option1: pass a raw function here
-                        #Option2: pass function to init_fmtFunc
-                        #Option3: use 'impactfmt_str' kwarg to have init_fmtFunc build
-                            #default for 'Model' classes (see init_model)
-
-
-                 **kwargs
-                 ):
-        
-
-
-        
-        super().__init__( **kwargs) #initilzie teh baseclass
-
-        #=======================================================================
-        # attached passed        
-        #=======================================================================
-
-        self.plotTag = self.tag #easier to store in methods this way
- 
-        self.grid    =grid
-        self.logx    =logx
- 
-        self.figsize    =figsize
-        self.hatch    =hatch
-        self.h_color    =h_color
-        self.h_alpha    =h_alpha
-        self.transparent=transparent
-        
-        #init matplotlib
-        """TODO: need a simpler way to handle this"""
-        if init_plt_d is None:
-            pass
-        elif len(init_plt_d)==0:
-            self.init_plt_d = self._init_plt() #setup matplotlib
-        else:
-            for k,v in init_plt_d.items():
-                setattr(self, k, v)
-                
-            self.init_plt_d = init_plt_d
-        
-
-            
-
-        
-        
-        self.logger.debug('init finished')
-        
-        """call explicitly... sometimes we want lots of children who shouldnt call this
-        self._init_plt()"""
-        
-
-    
-    def _init_plt(self,  #initilize matplotlib
-                #**kwargs
-                  ):
-        """
-        calling this here so we get clean parameters each time the class is instanced
-        
-        
-        """
-
-        
-        #=======================================================================
-        # imports
-        #=======================================================================
-        import matplotlib
-        matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
-        matplotlib.set_loglevel("info") #reduce logging level
-        import matplotlib.pyplot as plt
-        
-        #set teh styles
-        plt.style.use('default')
-        
-        #font
-        matplotlib_font = {
-                'family' : 'serif',
-                'weight' : 'normal',
-                'size'   : 8}
-        
-        matplotlib.rc('font', **matplotlib_font)
-        matplotlib.rcParams['axes.titlesize'] = 10 #set the figure title size
-        
-        #spacing parameters
-        matplotlib.rcParams['figure.autolayout'] = False #use tight layout
-        
-        #legends
-        matplotlib.rcParams['legend.title_fontsize'] = 'large'
-        
-        self.plt, self.matplotlib = plt, matplotlib
-        
-        self.logger.info('matplotlib version = %s'%matplotlib.__version__)
-        
-        #=======================================================================
-        # seaborn
-        #=======================================================================
-        import seaborn as sns
-        self.sns = sns
-        
-        return {'plt':plt, 'matplotlib':matplotlib, 'sns':sns}
+#===============================================================================
+#     def __init__(self,
+# 
+#  
+#                  
+#                  #init controls
+#                  #init_plt_d = {}, #container of initilzied objects
+#  
+#                   #format controls
+#                   grid = True, logx = False, 
+#                   
+#                   
+#                   #figure parametrs
+#                 #figsize     = (6.5, 4), 
+#                 transparent = False,
+#                     
+#                 #hatch pars
+#                     hatch =  None,
+#                     h_color = 'blue',
+#                     h_alpha = 0.1,
+#                     
+#                     #impactFmtFunc=None, #function for formatting the impact results
+#                         
+#                         #Option1: pass a raw function here
+#                         #Option2: pass function to init_fmtFunc
+#                         #Option3: use 'impactfmt_str' kwarg to have init_fmtFunc build
+#                             #default for 'Model' classes (see init_model)
+# 
+# 
+#                  **kwargs
+#                  ):
+#         
+# 
+# 
+#         
+#         super().__init__( **kwargs) #initilzie teh baseclass
+# 
+#         #=======================================================================
+#         # attached passed        
+#         #=======================================================================
+# 
+#         #self.plotTag = self.tag #easier to store in methods this way
+#  
+#         self.grid    =grid
+#         self.logx    =logx
+#  
+#         #self.figsize    =figsize
+#         self.hatch    =hatch
+#         self.h_color    =h_color
+#         self.h_alpha    =h_alpha
+#         self.transparent=transparent
+#         
+#         #init matplotlib
+#         #=======================================================================
+#         # """TODO: need a simpler way to handle this"""
+#         # if init_plt_d is None:
+#         #     pass
+#         # elif len(init_plt_d)==0:
+#         #     self.init_plt_d = self._init_plt() #setup matplotlib
+#         # else:
+#         #     for k,v in init_plt_d.items():
+#         #         setattr(self, k, v)
+#         #         
+#         #     self.init_plt_d = init_plt_d
+#         #=======================================================================
+#         
+# 
+#             
+# 
+#         
+#         
+#         self.logger.debug('init finished')
+#         
+#         """call explicitly... sometimes we want lots of children who shouldnt call this
+#         self._init_plt()"""
+#         
+# 
+#     
+#     def _init_plt(self,  #initilize matplotlib
+#                 #**kwargs
+#                   ):
+#         """
+#         calling this here so we get clean parameters each time the class is instanced
+#         
+#         
+#         """
+# 
+#         
+#         #=======================================================================
+#         # imports
+#         #=======================================================================
+#         import matplotlib
+#         matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+#         matplotlib.set_loglevel("info") #reduce logging level
+#         import matplotlib.pyplot as plt
+#         
+#         #set teh styles
+#         plt.style.use('default')
+#         
+#         #font
+#         matplotlib_font = {
+#                 'family' : 'serif',
+#                 'weight' : 'normal',
+#                 'size'   : 8}
+#         
+#         matplotlib.rc('font', **matplotlib_font)
+#         matplotlib.rcParams['axes.titlesize'] = 10 #set the figure title size
+#         
+#         #spacing parameters
+#         matplotlib.rcParams['figure.autolayout'] = False #use tight layout
+#         
+#         #legends
+#         matplotlib.rcParams['legend.title_fontsize'] = 'large'
+#         
+#         self.plt, self.matplotlib = plt, matplotlib
+#         
+#         self.logger.info('matplotlib version = %s'%matplotlib.__version__)
+#         
+#         #=======================================================================
+#         # seaborn
+#         #=======================================================================
+#         import seaborn as sns
+#         self.sns = sns
+#         
+#         return {'plt':plt, 'matplotlib':matplotlib, 'sns':sns}
+#===============================================================================
     
 
         
