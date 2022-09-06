@@ -8,13 +8,20 @@ import numpy as np
  
 import numpy.ma as ma
 import rasterio as rio
+
+ 
+#print('rasterio.__version__:%s'%rio.__version__)
+ 
+assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB'
  
 import rasterio.merge
 import rasterio.io
  
 from rasterio.enums import Resampling
 
-from skimage.transform import downscale_local_mean
+import scipy.ndimage
+#import skimage
+#from skimage.transform import downscale_local_mean
 
 #import hp.gdal
 from hp.oop import Basic
@@ -136,22 +143,28 @@ class RioWrkr(Basic):
                  prec=None,
                  name=None,
                  **kwargs):
-        """"
+        """"resample a rio.dataset handling nulls
+        
+        
         Parameters
         ---------
         
-        update_ref : bool, default False
-            Whether to update the reference values based on the resample
+        scale: float, default 1.0
+            value with which to scale the datasource shape
             
         Notes
         ---------
         for cases w/ all real... this is pretty simple
         w/ nulls
             there is some bleeding for 'average' methods
-            so we need to build a new mask and re-apply
-            for this, we use a mask which is null ONLY when all child cells are null
+            so we need to build a new mask and re-apply w/ numpy
+                for this, we use a mask which is null ONLY when all child cells are null
             
-            alternatively, we could set null when ANY child cell is null
+                alternatively, we could set null when ANY child cell is null
+                
+            WARNING: for upsample/aggregate... we don't know how null values are treated
+                (i.e., included in the denom or not)
+                better to use numpy funcs
         """
         
         #=======================================================================
@@ -166,12 +179,14 @@ class RioWrkr(Basic):
         dataset.read_masks(1)
         load_array(dataset)
         """
-        
+ 
         #===========================================================================
         # # resample data to target shape
         #===========================================================================
+         
         out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
         log.debug('transforming from %s to %s'%(dataset.shape, out_shape))
+        
         data_rsmp = dataset.read(1,
             out_shape=out_shape,
             resampling=resampling
@@ -192,11 +207,24 @@ class RioWrkr(Basic):
                 out_shape=out_shape,
                 resampling=Resampling.nearest, #doesnt bleed
             )""" 
-        
-        #local mean
-        msk_rsmp_avg = downscale_local_mean(dataset.read_masks(1).astype(float), (int(1/scale), int(1/scale)))
-        
-        msk_rsmp = np.where(msk_rsmp_avg==0, 0, 255) 
+        mar_raw = dataset.read_masks(1)
+        #downsample.disag. (zoom in)
+        if scale>1.0:
+            #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
+            msk_rsmp = scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
+ 
+ 
+        #upsample. aggregate (those with ALL nulls)
+        else:
+            """see also  hp.np.apply_block_reduce"""
+            #stack windows into axis 1 and 3
+            downscale = int(1//scale)
+            mar1 = mar_raw.reshape(mar_raw.shape[0]//downscale, downscale, mar_raw.shape[1]//downscale, downscale)
+            
+ 
+            #those where the max of the children equals exactly the null value
+            msk_rsmp = np.where(np.max(mar1, axis=(1,3))==0, 0,255)
+ 
  
         
         #===============================================================================
@@ -716,49 +744,51 @@ def rlay_apply(rlay, func):
     
     return res
 
-def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
-    """skinny resampling"""
-    
-    
-    
-    def func(dataset):
-        out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
-        
-        data_rsmp = dataset.read(1,
-            out_shape=out_shape,
-            resampling=resampling
-                                )
-        
-        # scale image transform
-        transform = dataset.transform * dataset.transform.scale(
-            (dataset.width / data_rsmp.shape[-1]),
-            (dataset.height / data_rsmp.shape[-2])
-        )
-        
- 
-        #===========================================================================
-        # resample nulls
-        #===========================================================================
-        msk_rsmp = dataset.read_masks(1, 
-                out_shape=out_shape,
-                resampling=Resampling.nearest, #doesnt bleed
-            ) 
-        
-        #===============================================================================
-        # coerce transformed nulls
-        #===============================================================================
-        """needed as some resampling methods bleed out
-        theres a few ways to handle this... 
-            here we manipulate the data values directly.. which seems the cleanest"""
- 
-        assert data_rsmp.shape==msk_rsmp.shape
-        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
-        
-        profile = {k:getattr(dataset, k) for k in ['crs', 'nodata']}
-        
-        return write_array(data_rsmp_f1, ofp,dtype=dataset.dtypes[0],transform=transform, **profile)
-    
-    return rlay_apply(rlay, func)
+#===============================================================================
+# def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
+#     """skinny resampling"""
+#     
+#     
+#     
+#     def func(dataset):
+#         out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+#         
+#         data_rsmp = dataset.read(1,
+#             out_shape=out_shape,
+#             resampling=resampling
+#                                 )
+#         
+#         # scale image transform
+#         transform = dataset.transform * dataset.transform.scale(
+#             (dataset.width / data_rsmp.shape[-1]),
+#             (dataset.height / data_rsmp.shape[-2])
+#         )
+#         
+#  
+#         #===========================================================================
+#         # resample nulls
+#         #===========================================================================
+#         msk_rsmp = dataset.read_masks(1, 
+#                 out_shape=out_shape,
+#                 resampling=Resampling.nearest, #doesnt bleed
+#             ) 
+#         
+#         #===============================================================================
+#         # coerce transformed nulls
+#         #===============================================================================
+#         """needed as some resampling methods bleed out
+#         theres a few ways to handle this... 
+#             here we manipulate the data values directly.. which seems the cleanest"""
+#  
+#         assert data_rsmp.shape==msk_rsmp.shape
+#         data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+#         
+#         profile = {k:getattr(dataset, k) for k in ['crs', 'nodata']}
+#         
+#         return write_array(data_rsmp_f1, ofp,dtype=dataset.dtypes[0],transform=transform, **profile)
+#     
+#     return rlay_apply(rlay, func)
+#===============================================================================
     
     
 def is_divisible(rlay, divisor):
