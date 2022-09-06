@@ -10,7 +10,7 @@ py3.7
 pd.__version__
 
 '''
-import logging, copy, os, time, re, xlrd, math, gc, inspect
+import logging
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt

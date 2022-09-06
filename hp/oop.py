@@ -21,7 +21,7 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 import os, sys, datetime, gc, copy, pickle, pprint, logging
-from qgis.core import QgsMapLayer
+#from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
 from definitions import src_name
 from hp.exceptions import Error
@@ -521,13 +521,15 @@ class Session(Basic): #analysis with flexible loading of intermediate results
         #=======================================================================
         assert data is not None, '\'%s\' got None'%dkey
         
+        """
         if isinstance(data, QgsMapLayer):
             self.mstore.addMapLayer(data)
             
             meta_d.update({'layname':data.name(), 'source':data.source()})
             
         else:
-            assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey
+            assert hasattr(data, '__len__'), '\'%s\' failed to retrieve some data'%dkey"""
+            
         self.data_d[dkey] = data
         
         #=======================================================================
