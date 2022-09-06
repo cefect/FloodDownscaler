@@ -30,4 +30,4 @@ def test_blockwise(func, n, k, j):
 def test_upsample(n, k, j):
     ar = (np.random.random((k ,j))*10).astype(int)
      
-    res_ar = upsample(ar,n=n) 
+    res_ar = downsample(ar,n=n) 
