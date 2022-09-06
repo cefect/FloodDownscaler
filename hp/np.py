@@ -13,10 +13,10 @@ Created on Mar 5, 2019
 #===============================================================================
 import numpy as np
 import warnings
-from scipy.ndimage import uniform_filter, generic_filter, zoom
-np.set_printoptions(linewidth=200)
-import skimage.transform
 
+np.set_printoptions(linewidth=200)
+#import skimage.transform
+#from scipy.ndimage import uniform_filter, generic_filter, zoom
 #===============================================================================
 # np.set_printoptions(edgeitems=10,linewidth=180)
 # np.set_printoptions(edgeitems=10)
@@ -103,8 +103,8 @@ def apply_block_reduce(a, func,downscale=2):
         raw array
     func: numpy method to apply
         must take an array and an axis kwarg
-    n: int, default 2
-        dimension for square block
+    downscale: int, default 2
+        reducer for new shape
         
     Note
     --------
@@ -115,6 +115,9 @@ def apply_block_reduce(a, func,downscale=2):
     #===========================================================================
     # defaults
     #===========================================================================
+    assert isinstance(downscale, int)
+    assert downscale>1
+    
     new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
     
     """doesnt seem to work for 2D windows
@@ -215,8 +218,9 @@ def downsample(a, n=2):
     # scipy.ndimage.zoom
     #===========================================================================
     """preferred method"""
-    scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
     raise IOError('use ndimage.zoom in place')
+    scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
+    
     #===========================================================================
     # skimage.transform.resize
     #===========================================================================
