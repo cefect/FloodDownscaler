@@ -12,7 +12,7 @@ import rasterio as rio
  
 #print('rasterio.__version__:%s'%rio.__version__)
  
-assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB'
+assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s'%os.getenv('PROJ_LIB')
  
 import rasterio.merge
 import rasterio.io
