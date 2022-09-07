@@ -51,9 +51,11 @@ class GeoPandasWrkr(Basic):
             
         self.crs=crs
         
-def ds_get_bounds(ds):
-    b =ds.bounds
-    return sgeo.box(b.left, b.right, b.top, b.bottom)
+#===============================================================================
+# def ds_get_bounds(ds):
+#     b =ds.bounds
+#     return sgeo.box(b.left, b.right, b.top, b.bottom)
+#===============================================================================
     
     
 def assert_intersect(bounds_left,bounds_right, msg='',): 

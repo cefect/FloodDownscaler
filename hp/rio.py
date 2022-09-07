@@ -8,7 +8,7 @@ import numpy as np
  
 import numpy.ma as ma
 import rasterio as rio
-
+import shapely.geometry as sgeo
  
 #print('rasterio.__version__:%s'%rio.__version__)
  
@@ -709,15 +709,15 @@ def write_array(data,ofp,
 
 def load_array(rlay_obj, 
                indexes=1,
-                 ):
+                 window=None):
     """skinny array from raster object"""
     
     #retrival function
     def get_ar(dataset):
-        raw_ar = dataset.read(indexes)
+        raw_ar = dataset.read(indexes, window=window)
         
         #switch to np.nan
-        mask = dataset.read_masks(indexes)
+        mask = dataset.read_masks(indexes, window=window)
         
         ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
         
@@ -802,7 +802,22 @@ def is_divisible(rlay, divisor):
             return False
 
     return True
- 
+
+def get_window(ds, bbox):
+    """get a well rounded window from a bbox"""
+    #buffer 1 pixel  
+    bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
+    
+    #build a window and round                   
+    window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform).round_lengths().round_offsets()
+    
+    #check the bounds
+    wbnds = sgeo.box(*rasterio.windows.bounds(window, ds.transform))
+    
+    assert wbnds.within(sgeo.box(*ds.bounds)), 'bounding box exceeds raster extent'
+    
+    return window
+    
 
 
 #===============================================================================
