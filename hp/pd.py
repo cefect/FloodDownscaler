@@ -28,7 +28,7 @@ pd.set_option("display.max_colwidth", 20)
 #truncated views
 pd.set_option("display.min_rows", 15)
 pd.set_option("display.min_rows", 15)
-pd.set_option('display.width', 100)
+pd.set_option('display.width', 200)
 
  
 #===============================================================================
@@ -41,7 +41,7 @@ from hp.exceptions import Error
 
 
 
-mod_logger = logging.getLogger(__name__) #creates a child logger of the root
+#mod_logger = logging.getLogger(__name__) #creates a child logger of the root
 
 bool_strs = {'False':False,
              'false':False,
@@ -179,7 +179,8 @@ def data_report( #generate a data report on a frame
         #value report behavcior
         vc_dropna = False, #whether to drop nas from the value count tabs
         
-        logger = mod_logger):
+        #logger = mod_logger,
+        ):
     warnings.warn('2021-12-13', DeprecationWarning)
     #===========================================================================
     # setup
