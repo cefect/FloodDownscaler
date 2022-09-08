@@ -232,16 +232,25 @@ class RioWrkr(Basic):
         #===============================================================================
         """needed as some resampling methods bleed out
         theres a few ways to handle this... 
-            here we manipulate the data values directly.. which seems the cleanest"""
- 
-        assert data_rsmp.shape==msk_rsmp.shape
-        data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+            here we manipulate the data values directly.. which seems the cleanest
+        2022-09-08: switched to masked arrays
+            
+            """
+            
+        
+        #=======================================================================
+        # assert data_rsmp.shape==msk_rsmp.shape
+        # data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+        #=======================================================================
+        
+        #numpy  mask
+        res_mar = ma.array(data_rsmp, mask=np.where(msk_rsmp==0, True, False), fill_value=dataset.nodata)
         
         log.info('resampled from %s to %s'%(dataset.shape, data_rsmp.shape))
         
  
-        return self.load_memDataset(data_rsmp_f1, transform=transform, name=name, logger=log, nodata=dataset.nodata,
-                                    crs=dataset.crs)
+        return self.load_memDataset(res_mar, transform=transform, name=name, logger=log, nodata=dataset.nodata,
+                                    crs=dataset.crs, masked=True)
     
     def crop(self,window,
  
@@ -427,7 +436,7 @@ class RioWrkr(Basic):
 
  
     def write_array(self,raw_ar,
-                       
+                       masked=False,
                        crs=None,nodata=None,transform=None,dtype=None,compress=None,
                        write_kwargs=dict(),
                        **kwargs):
@@ -456,11 +465,16 @@ class RioWrkr(Basic):
         #=======================================================================
         """becuase we usually deal with nulls (instead of raster no data values)
         here we convert back to raster nodata vals before writing to disk"""
-        
-        if np.any(np.isnan(raw_ar)):
-            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        if masked:
+            assert isinstance(raw_ar, ma.MaskedArray)
+            data = raw_ar
         else:
-            data = raw_ar.astype(dtype)
+            assert not isinstance(raw_ar, ma.MaskedArray)
+            
+            if np.any(np.isnan(raw_ar)):
+                data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+            else:
+                data = raw_ar.astype(dtype)
         #=======================================================================
         # write
         #=======================================================================
@@ -474,10 +488,10 @@ class RioWrkr(Basic):
 
             
             dst.write(data, indexes=1, 
-                          masked=False, #build mask from location of nodata values
+                          masked=masked, #build mask from location of nodata values
                           **write_kwargs)
                 
-            log.info('wrote %s on crs %s to \n    %s'%(str(dst.shape), crs, ofp))
+            log.info('wrote %s on crs %s (masked=%s) to \n    %s'%(str(dst.shape), crs, masked, ofp))
         
         return ofp
     
@@ -490,6 +504,7 @@ class RioWrkr(Basic):
     
     def load_memDataset(self,raw_ar,
                        name='memfile',
+                       masked=False,
                        crs=None,nodata=None,transform=None,dtype=None,
                        write_kwargs=dict(),
                        **kwargs):
@@ -507,11 +522,20 @@ class RioWrkr(Basic):
         #=======================================================================
         """becuase we usually deal with nulls (instead of raster no data values)
         here we convert back to raster nodata vals before writing to disk"""
-        
-        if np.any(np.isnan(raw_ar)):
-            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        if not masked:
+            assert not isinstance(raw_ar, ma.MaskedArray)
+            if np.any(np.isnan(raw_ar)):
+                data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+            else:
+                data = raw_ar.astype(dtype)
+                
         else:
-            data = raw_ar.astype(dtype)
+            assert isinstance(raw_ar, ma.MaskedArray)
+            assert raw_ar.fill_value==nodata,'fill_value mismatch'
+            if np.all(raw_ar.mask):
+                log.warning('fully masked!')
+                
+            data = raw_ar
             
         
         #=======================================================================
@@ -521,9 +545,10 @@ class RioWrkr(Basic):
         dataset = memfile.open(crs=crs, transform=transform, nodata=nodata, 
                               height=raw_ar.shape[0],width=raw_ar.shape[1],
                               driver=self.driver,
-                              count=self.bandCount, dtype=dtype)  
+                              count=self.bandCount, dtype=dtype)
+          
         dataset.write(data, indexes=1, 
-                          masked=False, #build mask from location of nodata values
+                          masked=masked, #build mask from location of nodata values
                           **write_kwargs)
         
         #=======================================================================
@@ -535,7 +560,8 @@ class RioWrkr(Basic):
     
         return dataset
     
-    def write_memDataset(self, dataset, 
+    def write_memDataset(self, dataset,
+                         masked=False, 
                          compress=None,
                          dtype=None,
                          **kwargs):
@@ -550,7 +576,7 @@ class RioWrkr(Basic):
         #kwargs from dataset
         profile = {k:getattr(dataset, k) for k in ['height', 'width', 'crs', 'transform', 'nodata']}
         
-        data = dataset.read(1)
+        data = dataset.read(1, masked=masked)
         if dtype is None: dtype = dataset.dtypes[0]
         #=======================================================================
         # write
@@ -562,7 +588,7 @@ class RioWrkr(Basic):
 
             
             dst.write(data, indexes=1, 
-                          masked=False, #build mask from location of nodata values
+                          masked=masked, #build mask from location of nodata values
                           )
                 
             log.info('wrote %s on crs %s to \n    %s'%(str(dst.shape), dataset.crs, ofp))
@@ -709,20 +735,28 @@ def write_array(data,ofp,
 
 def load_array(rlay_obj, 
                indexes=1,
-                 window=None):
+                 window=None,
+                 masked=False,
+                 ):
     """skinny array from raster object"""
     
     #retrival function
     def get_ar(dataset):
-        raw_ar = dataset.read(indexes, window=window)
+        raw_ar = dataset.read(indexes, window=window, masked=masked)
         
-        #switch to np.nan
-        mask = dataset.read_masks(indexes, window=window)
-        
-        ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
-        
-        #check against nodatavalue
-        assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
+        if masked:
+            ar = raw_ar
+            assert isinstance(ar, ma.MaskedArray)
+            assert not np.all(ar.mask)
+            assert ar.mask.shape==raw_ar.shape
+        else:
+            #switch to np.nan
+            mask = dataset.read_masks(indexes, window=window)
+            
+            ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
+            
+            #check against nodatavalue
+            assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
         return ar
     
     #flexible application
