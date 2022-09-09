@@ -24,12 +24,12 @@ import os, sys, datetime, gc, copy, pickle, pprint, logging
 #from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
 from definitions import src_name
-from hp.exceptions import Error
+ 
 
 import numpy as np
 import pandas as pd
-
 today_str = datetime.datetime.today().strftime('%Y%m%d')
+
 #===============================================================================
 # functions------------------------------------------------------------------- 
 #===============================================================================
@@ -66,6 +66,10 @@ class Basic(object): #simple base class
         Initialize a generic class object.
     
         Provides common methods and parameters for object based programming.
+        
+        TODO: break this apart into simpler responsibilities
+            logger?
+            directories?
     
         Parameters
         ----------

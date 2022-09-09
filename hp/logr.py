@@ -45,7 +45,7 @@ class BuildLogr(object): #simple class to build a logger
         
         logger = logging.getLogger() #get the root logger
         logging.config.fileConfig(logcfg_file,
-                                  defaults={'logdir':out_dir.replace('\\','/')},
+                                  defaults={'logdir':str(out_dir).replace('\\','/')},
                                   #disable_existing_loggers=True,
                                   ) #load the configuration file
         'usually adds a log file to the working directory/_outs/root.log'

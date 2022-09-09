@@ -15,6 +15,6 @@ def open_pick(fp):
     
     
 if __name__ == "__main__":
-    fp = r'C:\LS\10_OUT\2112_Agg\outs\SJ\r4_filter\20220908\errStats\SJ_r4_filter_0908_errStats.pkl'
+    fp = r'C:\Users\cefect\AppData\Local\Temp\pytest-of-cefect\pytest-2807\test_runHaz_proj_d0_filter_dsc0\outs\agg2\tRn\tCn\filter\20220909\errStats\tCn_tRn_filter_0909_errStats.pkl'
     
     open_pick(fp)

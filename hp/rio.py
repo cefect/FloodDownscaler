@@ -468,6 +468,8 @@ class RioWrkr(Basic):
         if masked:
             assert isinstance(raw_ar, ma.MaskedArray)
             data = raw_ar
+            
+            assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
         else:
             assert not isinstance(raw_ar, ma.MaskedArray)
             
@@ -494,13 +496,7 @@ class RioWrkr(Basic):
             log.info('wrote %s on crs %s (masked=%s) to \n    %s'%(str(dst.shape), crs, masked, ofp))
         
         return ofp
-    
-    """
-    with rasterio.open(ofp, mode='r') as ds:
-        ds.read(1)
-        ds.read_masks(1)
-        ds.dtypes[0]
-    """
+ 
     
     def load_memDataset(self,raw_ar,
                        name='memfile',
@@ -853,7 +849,12 @@ def get_window(ds, bbox):
     return window
     
 
-
+def get_stats(ds):
+    d = dict()
+    for attn in ['crs', 'height', 'width', 'transform', 'nodata', 'bounds']:
+        d[attn] = getattr(ds, attn)
+    return d
+    
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================
@@ -912,7 +913,31 @@ def assert_extent_equal(left, right, msg='',):
     if not le==re:
         raise AssertionError('extent mismatch \n    %s != %s\n    '%(
                 le, re) +msg) 
-        
+
+def assert_ds_attribute_match(rlay,
+                          crs=None, height=None, width=None, transform=None, nodata=None,bounds=None,
+                          msg=''):
+
+    
+    stats_d = rlay_apply(rlay, get_stats)
+    
+    chk_d = {'crs':crs, 'height':height, 'width':width, 'transform':transform, 'nodata':nodata, 'bounds':bounds}
+    
+    cnt=0
+    for k, cval in chk_d.items():
+        if not cval is None:
+            if not cval==stats_d[k]:
+                raise AssertionError('stat \'%s\' does not meet passed expectation (%s vs. %s) \n '%(
+                    k, cval, stats_d[k])+msg)
+            cnt+=1
+    
+    if not cnt>0:
+        raise IOError('no check values passed')
+ 
+    
+    
+             
+                          
         
         
         
