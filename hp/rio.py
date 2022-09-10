@@ -16,7 +16,7 @@ assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s
  
 import rasterio.merge
 import rasterio.io
- 
+from rasterio.plot import show
 from rasterio.enums import Resampling
 
 import scipy.ndimage
@@ -25,8 +25,9 @@ import scipy.ndimage
 
 #import hp.gdal
 from hp.oop import Basic
+from hp.basic import get_dict_str
 #from hp.plot import plot_rast #for debugging
-
+import matplotlib.pyplot as plt
 
 class RioWrkr(Basic):
     """work session for single band raster calcs"""
@@ -700,32 +701,33 @@ def write_array(data,ofp,
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
                 nodata=-9999,
                 dtype=None,
-                init_kwargs={},
-                **kwargs):
+                driver='GTiff',
+                count=1,
+                compress=None,
+                masked=False,
+                ):
     """skinny array to raster file writer"""
     
     #===========================================================================
     # build init
     #===========================================================================
  
-    from hp.oop import Session
-    kd1=Session.default_kwargs.copy() #because we have no session
-    init_kwargs = {**init_kwargs, **kd1} #append user defaults to session defaults
+    shape = data.shape
+    if dtype is None:
+        dtype=data.dtype
  
     #===========================================================================
     # execute
     #===========================================================================
-    with RioWrkr(crs=crs, 
-                 height=data.shape[0],
-                 width=data.shape[1],
-                 transform=transform, nodata=nodata,
-                 **init_kwargs,
-                 ) as wrkr:
-        
+    with rio.open(ofp,'w',driver='GTiff',
+                  height=shape[0],width=shape[1],count=count,
+                dtype=dtype,crs=crs,transform=transform,nodata=nodata,
+                compress=compress,
+                ) as dst:
+            
 
             
-        
-        wrkr.write_array(data, ofp=ofp,dtype=dtype, **kwargs)
+            dst.write(data, indexes=count,masked=masked)
         
     return ofp
 
@@ -846,7 +848,7 @@ def get_window(ds, bbox):
     
     assert wbnds.within(sgeo.box(*ds.bounds)), 'bounding box exceeds raster extent'
     
-    return window
+    return window, ds.window_transform(window)
     
 
 def get_stats(ds):
@@ -854,7 +856,56 @@ def get_stats(ds):
     for attn in ['crs', 'height', 'width', 'transform', 'nodata', 'bounds']:
         d[attn] = getattr(ds, attn)
     return d
+
+def plot_rast(ar_raw,
+              ax=None,
+              cmap='gray',
+              interpolation='nearest',
+              txt_d = None,
+ 
+              transform=None,
+              **kwargs):
+    """plot a raster array
+    see also hp.plot
+    TODO: add a histogram"""
     
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ax is None:
+        fig, ax = plt.subplots()  # Create a figure containing a single axes.
+        limits = None
+    else:
+        limits = ax.axis()
+        
+    if txt_d is None: txt_d=dict()
+    
+    imkwargs = {**dict(cmap=cmap,interpolation=interpolation), **kwargs}
+    
+    #===========================================================================
+    # plot the image
+    #===========================================================================
+    ax_img = show(ar_raw, transform=transform, ax=ax,contour=False, **imkwargs)
+    #ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
+ 
+    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
+    #===========================================================================
+    # add some details
+    #===========================================================================
+    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
+ 
+    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
+    
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    if not limits is None:
+        ax.axis(limits)
+    """
+    plt.show()
+    """
+    
+    return ax
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================

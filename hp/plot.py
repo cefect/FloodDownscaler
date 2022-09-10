@@ -76,6 +76,8 @@ def plot_rast(ar_raw,
               **kwargs):
     """plot a raster array
     
+    see also hp.rio
+    
     TODO: add a histogram"""
     #===========================================================================
     # defaults
@@ -104,7 +106,7 @@ def plot_rast(ar_raw,
     
     ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
  
-    plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
+    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
     #===========================================================================
     # add some details
     #===========================================================================
