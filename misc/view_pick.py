@@ -18,6 +18,6 @@ def open_pick(fp):
     
     
 if __name__ == "__main__":
-    fp = r'C:\Users\cefect\AppData\Local\Temp\pytest-of-cefect\pytest-2863\test_02_dsc_C___LS__09_REPOS__0\cMasks\SJ_test02_direct_0910_cMasks.pkl'
+    fp = r'C:\LS\10_OUT\2112_Agg\outs\agg2\r7\SJ\direct\20220910\arsc\SJ_r7_direct_0910_arsc.pkl'
     
     open_pick(fp)

@@ -56,15 +56,37 @@ class GeoPandasWrkr(Basic):
 #     b =ds.bounds
 #     return sgeo.box(b.left, b.right, b.top, b.bottom)
 #===============================================================================
+
+def get_multi_intersection(poly_l):
+    """compute the intersection of many shapely polygons
+    surprised there is no builtin
+    """
+    
+    res = None
+    for poly in poly_l:
+        if poly is None: continue
+        if res is None: 
+            res=poly
+            continue
+        assert isinstance(poly, sgeo.polygon.Polygon)
+        assert res.intersects(poly)
+        res = res.intersection(poly)
+        
+    assert res.area>0
+    
+    return res
     
     
-def assert_intersect(bounds_left,bounds_right, msg='',): 
-    """check if objects intersect"""
-    if not __debug__: # true if Python was not started with an -O option
-        return
     
-    __tracebackhide__ = True 
-    
-    assert rio.coords.disjoint_bounds(bounds_left, bounds_right), 'disjoint'
+#===============================================================================
+# def assert_intersect(bounds_left,bounds_right, msg='',): 
+#     """check if objects intersect"""
+#     if not __debug__: # true if Python was not started with an -O option
+#         return
+#     
+#     __tracebackhide__ = True 
+#     
+#     assert rio.coords.disjoint_bounds(bounds_left, bounds_right), 'disjoint'
+#===============================================================================
     
     

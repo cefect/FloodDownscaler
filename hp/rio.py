@@ -680,18 +680,22 @@ class RioWrkr(Basic):
             return None
         
 
-    def __enter__(self):
-        return self
-    
-    def __exit__(self,  *args,**kwargs):
-        #print('RioWrkr.__exit__')
- 
+    def _clear(self):
         #close all open datasets
         for k,v in self.dataset_d.items():
             v.close()
             
         for k,v in self.memoryfile_d.items():
             v.close()
+            
+    def __enter__(self):
+        return self
+    
+    def __exit__(self,  *args,**kwargs):
+        #print('RioWrkr.__exit__')
+        self._clear()
+ 
+
             
 #===============================================================================
 # HELPERS----------
@@ -846,16 +850,19 @@ def get_window(ds, bbox):
     #check the bounds
     wbnds = sgeo.box(*rasterio.windows.bounds(window, ds.transform))
     
-    assert wbnds.within(sgeo.box(*ds.bounds)), 'bounding box exceeds raster extent'
+    assert sgeo.box(*ds.bounds).covers(wbnds), 'bounding box exceeds raster extent'
     
     return window, ds.window_transform(window)
     
 
-def get_stats(ds):
+def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds']):
     d = dict()
-    for attn in ['crs', 'height', 'width', 'transform', 'nodata', 'bounds']:
+    for attn in att_l:
         d[attn] = getattr(ds, attn)
     return d
+
+def get_ds_attr(rlay, stat):
+    return rlay_apply(rlay, lambda ds:getattr(ds, stat))
 
 def plot_rast(ar_raw,
               ax=None,
