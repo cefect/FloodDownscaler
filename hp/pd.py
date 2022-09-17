@@ -23,7 +23,9 @@ pd.options.mode.chained_assignment = None   #setting with copy warning handling
 
 #truncate thresholds
 pd.set_option("display.max_rows", 20)
-pd.set_option("display.max_colwidth", 20)
+
+pd.set_option("display.max_columns", 15)
+pd.set_option("display.max_colwidth", 10)
 
 #truncated views
 pd.set_option("display.min_rows", 15)
@@ -156,132 +158,26 @@ def get_bx_multiVal(df, #get boolean based on multi-column matching (single valu
 #===============================================================================
 # MULTINDEX-----------
 #===============================================================================
- 
+def append_levels(mdex, keys_d):
+    """append dummy levels"""
+    
+    for k,v in keys_d.items():
+        assert not k is None, k
+    
+    df = mdex.to_frame().reset_index(drop=True)
+    for name, level in keys_d.items():
+        df[name] = level
+        
+    df = df.loc[:, list(keys_d.keys())+ list(mdex.names)] #rerder
+    
+    return pd.MultiIndex.from_frame(df)
 #===============================================================================
 # MISC --------------------------------------------------------------------
 #===============================================================================
  
     
 
-def data_report( #generate a data report on a frame
-        df,
-        ofp = None, #Optional filename for writing the report xls to file
-        
-        
-        
-        include_df = False, #whether to include the full dataset
-        
-        #value report selection
-        val_rpt=True,
-        skip_unique = True, #whether to skip attribute value count p ublishing on unique values
-        max_uvals = 500, #maximum number of unique value check 
-        
-        #value report behavcior
-        vc_dropna = False, #whether to drop nas from the value count tabs
-        
-        #logger = mod_logger,
-        ):
-    warnings.warn('2021-12-13', DeprecationWarning)
-    #===========================================================================
-    # setup
-    #===========================================================================
-    log = logger.getChild('data_report')
-    
-    #setup results ocntainer
-    res_df = pd.DataFrame(index = df.columns, columns=('empty','dtype', 'isunique','unique_vals', 'nulls', 'reals', 'real_frac', 'mode'))
-    
-    
-    res_d = dict() #empty container for unique values
-    
-    #===========================================================================
-    # loop and calc
-    #===========================================================================
-    for coln, col_ser in df.iteritems():
-        log.debug('collecting data for \'%s\''%coln)
-        res_df.loc[coln, 'empty'] = len(col_ser) == col_ser.isna().sum()
 
-        #type
-        res_df.loc[coln, 'dtype'] = str(col_ser.dtype.name)
-        
-        #unique
-        res_df.loc[coln, 'isunique'] = str(col_ser.is_unique)
-        
-        #unique values
-        uq_vals_cnt = len(col_ser.unique())
-        res_df.loc[coln, 'unique_vals'] = uq_vals_cnt
-        
-        #nulls
-        res_df.loc[coln, 'nulls'] = col_ser.isna().sum()
-        res_df.loc[coln, 'reals'] = len(col_ser) - col_ser.isna().sum()
-        
-        res_df.loc[coln, 'real_frac'] =  float((len(col_ser) - col_ser.isna().sum()))/float(len(col_ser))
-        
-        #mode
-        if len(col_ser.mode()) ==1:
-            res_df.loc[coln, 'mode'] = col_ser.mode()[0]
-
-        
-        #=======================================================================
-        # float reports
-        #=======================================================================
-        
-        if np.issubdtype(col_ser.dtype, np.number):
-            res_df.loc[coln, 'min']=col_ser.min()
-            res_df.loc[coln, 'max']=col_ser.max()
-            res_df.loc[coln, 'mean']=col_ser.mean()
-            res_df.loc[coln, 'median']=col_ser.median()
-            res_df.loc[coln, 'sum']=col_ser.sum()
-            
-
-            
-        
-        #=======================================================================
-        # value reports
-        #=======================================================================
-        if not val_rpt: continue
-        #unique ness check
-        if skip_unique and col_ser.is_unique:
-            log.warning('skipping val report for \'%s\''%coln)
-            continue
-        
-        #ratio check
-        if uq_vals_cnt > max_uvals:
-
-            log.info('skippin val report for \'%s\' unique vals (%i) > max (%i)'%(
-                coln, uq_vals_cnt, max_uvals))
-            continue
-
-        vc_df = pd.DataFrame(col_ser.value_counts(dropna=vc_dropna))
-        
-        if len(vc_df)> 0:
-            res_d[coln] = vc_df
-        else:
-            """shouldnt trip if dropna=True?"""
-            log.warning('got no value report for \'%s\''%coln)
-        
-        
-    #===========================================================================
-    # wrap up
-    #===========================================================================
-    #create a new dict with this at the front
-    res_d1 = {'_smry':res_df} 
-    res_d1.update(res_d)
-    
-    if include_df:
-        res_d1['data'] = df
-
-    """
-    res_d1.keys()
-    """
-    #===========================================================================
-    # write
-    #===========================================================================
-    if not ofp is None:
-        log.debug('sending report to file:\n    %s'%ofp)
-        hp.pd.write_to_xls(ofp, res_d1, logger=log, allow_fail=True)
-    
-    
-    return res_d1
 
 #===============================================================================
 # assertions
