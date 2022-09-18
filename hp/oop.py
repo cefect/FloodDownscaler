@@ -23,12 +23,13 @@ I've spent far too many weeks of my life strugglig with inheritance
 import os, sys, datetime, gc, copy, pickle, pprint, logging
 #from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
+from hp.basic import today_str
 from definitions import src_name
  
 
 import numpy as np
 import pandas as pd
-today_str = datetime.datetime.today().strftime('%Y%m%d')
+
 
 #===============================================================================
 # functions------------------------------------------------------------------- 

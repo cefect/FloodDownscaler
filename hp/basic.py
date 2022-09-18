@@ -3,7 +3,9 @@ Created on Dec. 29, 2021
 
 @author: cefect
 '''
-import pprint
+import pprint, datetime
+
+today_str = datetime.datetime.today().strftime('%Y%m%d')
 
 def set_info( #get all the  membership info from two containers
         left, right,
@@ -50,3 +52,6 @@ def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull f
         txt = txt.replace(c, '') #clear some unwanted characters..
     
     return txt
+
+def now():
+    return datetime.datetime.now()
