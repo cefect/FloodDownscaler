@@ -618,7 +618,7 @@ class Plotr(Basic):
                        fig_id=0,
                        figsize=None, #None: calc using figsize_scaler if present
                        figsize_scaler=None,
-                        tight_layout=False,
+                        #tight_layout=False,
                         constrained_layout=True,
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
@@ -662,7 +662,7 @@ class Plotr(Basic):
         # populate with subplots
         fig = plt.figure(fig_id,
             figsize=figsize,
-            tight_layout=tight_layout,
+            #tight_layout=tight_layout,
             constrained_layout=constrained_layout,
             )
         
