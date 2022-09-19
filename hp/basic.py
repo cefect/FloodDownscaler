@@ -55,3 +55,10 @@ def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull f
 
 def now():
     return datetime.datetime.now()
+
+
+def lib_iter(d):
+    """simple nested dictionary iterator"""
+    for k1, d1 in d.items():
+        for k2, v in d1.items():
+            yield k1, k2, v

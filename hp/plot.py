@@ -632,6 +632,11 @@ class Plotr(Basic):
         figsize_scaler: int
             multipler for computing figsize from the number of col and row keys
             
+        Returns
+        --------
+        dict
+            {row_key:{col_key:ax}}
+            
         """
         
         
