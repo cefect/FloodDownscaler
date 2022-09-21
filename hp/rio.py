@@ -710,7 +710,10 @@ def write_array(data,ofp,
                 compress=None,
                 masked=False,
                 ):
-    """skinny array to raster file writer"""
+    """skinny array to raster file writer
+    
+    better to just use the sourcecode
+    """
     
     #===========================================================================
     # build init
@@ -727,10 +730,7 @@ def write_array(data,ofp,
                   height=shape[0],width=shape[1],count=count,
                 dtype=dtype,crs=crs,transform=transform,nodata=nodata,
                 compress=compress,
-                ) as dst:
-            
-
-            
+                ) as dst:            
             dst.write(data, indexes=count,masked=masked)
         
     return ofp
