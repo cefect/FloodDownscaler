@@ -55,11 +55,17 @@ class RioWrkr(Basic):
                  #reference inheritance
                  crs=None,height=None,width=None,transform=None,nodata=None,
                  
+                 #subsetting
+                 bbox=None,
+                 
                  **kwargs):
         """"
         
         Parameters
         -----------
+        
+        bbox: shapely.polygon
+            bounds assumed to be on the same crs as the data
         """
  
         super().__init__(**kwargs)
@@ -71,6 +77,7 @@ class RioWrkr(Basic):
         # simple attachments
         #=======================================================================
         self.compress=compress
+        self.bbox=bbox
  
         #=======================================================================
         # set reference
@@ -281,6 +288,10 @@ class RioWrkr(Basic):
         
         #ensure the nans match the nodata value
         cropM_ar = np.where(crop_mask==0,  dataset.nodata, crop_ar)
+        
+        """
+        crop_ar.shape
+        """
                 
         #=======================================================================
         # write result
@@ -292,7 +303,7 @@ class RioWrkr(Basic):
                         count=self.bandCount,
                         dtype=crop_ar.dtype,
                         crs=dataset.crs,
-                        transform=dataset.transform,
+                        transform=dataset.window_transform(window),
                         nodata=dataset.nodata,
                     ) as dst:
             
@@ -376,6 +387,7 @@ class RioWrkr(Basic):
                      fp,
                      logger=None,
                      meta=True,
+ 
                      **kwargs):
         """open a dataset"""
         #=======================================================================
