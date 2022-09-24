@@ -195,7 +195,7 @@ class Basic(object): #simple base class
     def _func_setup(self, dkey, 
                     logger=None, out_dir=None, tmp_dir=None,ofp=None,
  
-                    write=None,layname=None,ext='.tif',
+                    write=None,resname=None,ext='.tif',
                     subdir=False,
                     ):
         """common function default setup
@@ -244,20 +244,20 @@ class Basic(object): #simple base class
         #=======================================================================
         if write is None: write=self.write
         
-        if layname is None:layname = '%s_%s'%(self.fancy_name, dkey)
+        if resname is None:resname = '%s_%s'%(self.fancy_name, dkey)
          
         if ofp is None:
             if write:            
-                ofp = os.path.join(out_dir, layname+ext)            
+                ofp = os.path.join(out_dir, resname+ext)            
             else:
-                ofp=os.path.join(tmp_dir, layname+ext)
+                ofp=os.path.join(tmp_dir, resname+ext)
             
         if os.path.exists(ofp):
             assert self.overwrite
             os.remove(ofp)
  
             
-        return log, tmp_dir, out_dir, ofp, layname, write
+        return log, tmp_dir, out_dir, ofp, resname, write
 
 
             

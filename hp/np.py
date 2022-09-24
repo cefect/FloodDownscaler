@@ -94,7 +94,7 @@ np.set_printoptions(linewidth=200)
 
  
 
-def apply_block_reduce(a, func,downscale=2):
+def apply_block_reduce(a, func,aggscale=2):
     """apply a reducing function to square blocks (window w/o overlap)
     
     Parameters
@@ -103,7 +103,7 @@ def apply_block_reduce(a, func,downscale=2):
         raw array
     func: numpy method to apply
         must take an array and an axis kwarg
-    downscale: int, default 2
+    aggscale: int, default 2
         reducer for new shape
         
     Note
@@ -115,16 +115,16 @@ def apply_block_reduce(a, func,downscale=2):
     #===========================================================================
     # defaults
     #===========================================================================
-    assert isinstance(downscale, int)
-    assert downscale>1
+    assert isinstance(aggscale, int)
+    assert aggscale>1
     
-    new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
+    new_shape = (a.shape[0]//aggscale, a.shape[1]//aggscale)
     
     """doesnt seem to work for 2D windows
     #===========================================================================
     # np.stride_tricks
     #===========================================================================
-    new_shape = (a.shape[0]//downscale, a.shape[1]//downscale)
+    new_shape = (a.shape[0]//aggscale, a.shape[1]//aggscale)
     
     a.flatten
         
@@ -134,27 +134,27 @@ def apply_block_reduce(a, func,downscale=2):
         
 
     
-    np.lib.stride_tricks.as_strided(a, shape=new_shape, strides=(downscale, downscale))"""
+    np.lib.stride_tricks.as_strided(a, shape=new_shape, strides=(aggscale, aggscale))"""
     
     """
     #===========================================================================
     # scipy.ndimage
     #===========================================================================
-    #uniform_filter(a, size=downscale, mode='constant', cval=0.0)
+    #uniform_filter(a, size=aggscale, mode='constant', cval=0.0)
     
-    generic_filter(a, func, size=downscale, mode='constant', cval=0.0)
+    generic_filter(a, func, size=aggscale, mode='constant', cval=0.0)
     
     #build the mask
-    afi = np.full((downscale, downscale), 0)
+    afi = np.full((aggscale, aggscale), 0)
     afi[-1,-1]=1    
-    mask =   np.tile(np.tile(afi, a.shape[1]//downscale).T, a.shape[0]//downscale)
+    mask =   np.tile(np.tile(afi, a.shape[1]//aggscale).T, a.shape[0]//aggscale)
     """
     
     #===========================================================================
     # np.reshape
     #===========================================================================
     #stack windows into axis 1 and 3
-    a1 = a.reshape(a.shape[0]//downscale, downscale, a.shape[1]//downscale, downscale)
+    a1 = a.reshape(a.shape[0]//aggscale, aggscale, a.shape[1]//aggscale, aggscale)
     
  
     res_ar2=func(a1, axis=(1,3))
@@ -167,7 +167,7 @@ def apply_block_reduce(a, func,downscale=2):
     """quite slow for loops..."""
     #===========================================================================
     # #broadcast each square block as a row
-    # blocked_ar = get_flat_blocks(a, n=downscale)
+    # blocked_ar = get_flat_blocks(a, n=aggscale)
     # 
     # #apply the reduction
     # bred_ar = func(blocked_ar, axis=1, **kwargs)
@@ -176,7 +176,7 @@ def apply_block_reduce(a, func,downscale=2):
     # res_ar = bred_ar.reshape(new_shape)
     # 
     # 
-    # assert np.array_equal(np.array(res_ar.shape)*downscale,np.array(a.shape))
+    # assert np.array_equal(np.array(res_ar.shape)*aggscale,np.array(a.shape))
     # 
     # assert np.array_equal(res_ar2, res_ar)    
     #===========================================================================

@@ -751,12 +751,24 @@ def load_array(rlay_obj,
                indexes=1,
                  window=None,
                  masked=False,
+                 bbox=None,
                  ):
     """skinny array from raster object"""
     
+    if window is not None:
+        assert bbox is None
+ 
+    
     #retrival function
     def get_ar(dataset):
-        raw_ar = dataset.read(indexes, window=window, masked=masked)
+        if bbox is not None:
+            window1 =  rio.windows.from_bounds(*bbox.bounds, transform=dataset.transform)
+        else:
+            window1 = window
+
+        
+        
+        raw_ar = dataset.read(indexes, window=window1, masked=masked)
         
         if masked:
             ar = raw_ar
@@ -765,7 +777,7 @@ def load_array(rlay_obj,
             assert ar.mask.shape==raw_ar.shape
         else:
             #switch to np.nan
-            mask = dataset.read_masks(indexes, window=window)
+            mask = dataset.read_masks(indexes, window=window1)
             
             ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
             
@@ -925,6 +937,23 @@ def plot_rast(ar_raw,
     """
     
     return ax
+
+def get_xy_coords(transform, shape):
+    """return an array of spatial values for x and y
+    
+    surprised there is no builtin
+    
+    this is needed  by xarray
+    
+    print(f'x, cols:{s[1]}    y, rows:{s[0]}')
+    """
+    transformer = rio.transform.AffineTransformer(transform) 
+    x_ar, _ = transformer.xy(np.full(shape[1], 0), np.arange(shape[1])) #rows, cols            
+    _, y_ar = transformer.xy(np.arange(shape[0]), np.full(shape[0], 0)) #rows, cols
+    
+    return x_ar, y_ar
+    
+    
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================
