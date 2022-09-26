@@ -24,13 +24,13 @@ pd.options.mode.chained_assignment = None   #setting with copy warning handling
 #truncate thresholds
 pd.set_option("display.max_rows", 20)
 
-pd.set_option("display.max_columns", 15)
-pd.set_option("display.max_colwidth", 10)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.max_colwidth", 12)
 
 #truncated views
 pd.set_option("display.min_rows", 15)
 pd.set_option("display.min_rows", 15)
-pd.set_option('display.width', 200)
+pd.set_option('display.width', 150)
 
  
 #===============================================================================
