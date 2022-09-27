@@ -683,7 +683,9 @@ class Plotr(Basic):
             assert fig_id is None
         
 
- 
+        #=======================================================================
+        # add subplots
+        #=======================================================================
         ax_ar = fig.subplots(nrows=len(row_keys), ncols=ncols, **kwargs)
         
         #convert to array
@@ -695,14 +697,20 @@ class Plotr(Basic):
             
         
         #=======================================================================
-        # convert to dictionary
+        # convert to dictionary 
         #=======================================================================
         ax_d = dict()
         for i, row_ar in enumerate(ax_ar.reshape(len(row_keys), len(col_keys))):
             ax_d[row_keys[i]]=dict()
             for j, ax in enumerate(row_ar.T):
                 ax_d[row_keys[i]][col_keys[j]]=ax
-                
+        
+        #=======================================================================
+        # post format
+        #=======================================================================
+        for i, d in ax_d.items(): #rows
+            for j, ax in d.items(): #cols
+ 
                 if set_ax_title:
                     if col_keys[j] == '':
                         ax_title = row_keys[i]
@@ -713,13 +721,13 @@ class Plotr(Basic):
                     
                     
                 if add_subfigLabel:
-                    ax.text(0.05, 0.95, '(%s%s)'%(list(string.ascii_lowercase)[j], i), transform=ax.transAxes, va='top', ha='left',
+                    ax.text(0.05, 0.95, 
+                            '(%s%s)'%(list(string.ascii_lowercase)[j], i), 
+                            transform=ax.transAxes, va='top', ha='left',
                             size=matplotlib.rcParams['axes.titlesize'],
                             bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
                             )
-                    """
-                    plt.show()
-                    """
+ 
                 
             
  
