@@ -623,6 +623,7 @@ class Plotr(Basic):
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
                         add_subfigLabel=False,
+                        fig=None,
                         **kwargs):
         
         """get a matrix plot with consistent object access
@@ -649,11 +650,7 @@ class Plotr(Basic):
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
         
-        if figsize is None: 
-            if figsize_scaler is None:
-                figsize=matplotlib.rcParams['figure.figsize']
-            else:
-                figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
+
         
         #=======================================================================
         # precheck
@@ -665,14 +662,28 @@ class Plotr(Basic):
         # build figure
         #=======================================================================
         # populate with subplots
-        fig = plt.figure(fig_id,
-            figsize=figsize,
-            #tight_layout=tight_layout,
-            constrained_layout=constrained_layout,
-            )
+        if fig is None:
+            if figsize is None: 
+                if figsize_scaler is None:
+                    figsize=matplotlib.rcParams['figure.figsize']
+                else:
+                    figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
+                
+        
+            fig = plt.figure(fig_id,
+                figsize=figsize,
+                #tight_layout=tight_layout,
+                constrained_layout=constrained_layout,
+                )
+        else:
+            #check the user doesnt expect to create a new figure
+            assert figsize_scaler is None
+            assert figsize is None
+            assert constrained_layout is None
+            assert fig_id is None
         
 
-        
+ 
         ax_ar = fig.subplots(nrows=len(row_keys), ncols=ncols, **kwargs)
         
         #convert to array
