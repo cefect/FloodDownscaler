@@ -705,12 +705,9 @@ class Plotr(Basic):
             for j, ax in enumerate(row_ar.T):
                 ax_d[row_keys[i]][col_keys[j]]=ax
         
-        #=======================================================================
-        # post format
-        #=======================================================================
-        for i, d in ax_d.items(): #rows
-            for j, ax in d.items(): #cols
- 
+                #=======================================================================
+                # post format
+                #=======================================================================
                 if set_ax_title:
                     if col_keys[j] == '':
                         ax_title = row_keys[i]
@@ -721,8 +718,9 @@ class Plotr(Basic):
                     
                     
                 if add_subfigLabel:
+                    letter=list(string.ascii_lowercase)[j]
                     ax.text(0.05, 0.95, 
-                            '(%s%s)'%(list(string.ascii_lowercase)[j], i), 
+                            '(%s%s)'%(letter, i), 
                             transform=ax.transAxes, va='top', ha='left',
                             size=matplotlib.rcParams['axes.titlesize'],
                             bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
