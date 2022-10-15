@@ -29,7 +29,7 @@ from hp.basic import get_dict_str
 #from hp.plot import plot_rast #for debugging
 import matplotlib.pyplot as plt
 
-class RioWrkr(object):
+class RioWrkr(Basic):
     """work session for single band raster calcs"""
     
     driver='GTiff'
@@ -90,7 +90,7 @@ class RioWrkr(object):
         #=======================================================================
         pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
         
-        self.logger.debug('init w/ %s'%pars_d)
+        #self.logger.debug('init w/ %s'%pars_d)
         
     def _base_set(self, rlay_ref_fp, **kwargs):
         rds = self.open_dataset(rlay_ref_fp, meta=False, **kwargs)
@@ -110,7 +110,7 @@ class RioWrkr(object):
         def inherit(attVal, attName, obj=ds, typeCheck=None):
             if attVal is None:
                 if obj is None:
-                    self.logger.debug('no value passed for %s'%attName)
+                    #self.logger.debug('no value passed for %s'%attName)
                     return
                     
                 attVal = getattr(obj, attName)
