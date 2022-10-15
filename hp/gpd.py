@@ -15,7 +15,7 @@ from pyproj.crs import CRS
 import geopandas as gpd
 
 from hp.oop import Basic
-class GeoPandasWrkr(Basic):
+class GeoPandasWrkr(object):
     def __init__(self, 
                  bbox=None,
                  aoi_fp=None,

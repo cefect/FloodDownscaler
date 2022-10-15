@@ -29,7 +29,7 @@ from hp.basic import get_dict_str
 #from hp.plot import plot_rast #for debugging
 import matplotlib.pyplot as plt
 
-class RioWrkr(Basic):
+class RioWrkr(object):
     """work session for single band raster calcs"""
     
     driver='GTiff'
