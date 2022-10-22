@@ -27,7 +27,7 @@ pd.set_option("display.max_colwidth", 20)
 #truncated views
 pd.set_option("display.min_rows", 15)
 pd.set_option("display.min_rows", 15)
-pd.set_option('display.width', 100)
+pd.set_option('display.width', 200)
 
  
 #===============================================================================
