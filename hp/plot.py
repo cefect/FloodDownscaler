@@ -2,6 +2,10 @@
 Created on Feb. 15, 2021
 
 @author: cefect
+
+2022-08-03
+simplified this a lot
+now we should setup matplotlib (and defaults) in the caller script
 '''
 
 
@@ -15,7 +19,7 @@ import logging, configparser, datetime
 #==============================================================================
 # imports------------
 #==============================================================================
-import os
+import os, string
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -24,176 +28,107 @@ import scipy.stats
 # # custom
 #==============================================================================
 from hp.exceptions import Error
-
+from hp.basic import get_dict_str
 from hp.pd import view
 from hp.oop import Basic
 
 import matplotlib
+import matplotlib.pyplot as plt
+ 
 
-
-class Plotr(Basic):
+#===============================================================================
+# #===============================================================================
+# # setup matplotlib
+# #===============================================================================
+#  
+# import matplotlib
+# matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+# matplotlib.set_loglevel("info") #reduce logging level
+# import matplotlib.pyplot as plt
+# 
+# #set teh styles
+# plt.style.use('default')
+# 
+# #font
+# matplotlib.rc('font', **{
+#         'family' : 'serif',
+#         'weight' : 'normal',
+#         'size'   : 8})
+# 
+# for k,v in {
+#     'axes.titlesize':10,
+#     'axes.labelsize':10,
+#     'figure.titlesize':12,
+#     'figure.autolayout':False,
+#     'figure.figsize':(10,6),
+#     'legend.title_fontsize':'large'
+#     }.items():
+#         matplotlib.rcParams[k] = v
+#  
+# print('loaded matplotlib %s'%matplotlib.__version__)
+#===============================================================================
+def plot_rast(ar_raw,
+              ax=None,
+              cmap='gray',
+              interpolation='nearest',
+              txt_d = None,
+              nodata=None,
+              **kwargs):
+    """plot a raster array
+    
+    see also hp.rio
+    
+    TODO: add a histogram"""
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ax is None:
+        fig, ax = plt.subplots()  # Create a figure containing a single axes.
+        
+    if txt_d is None: txt_d=dict()
     
     #===========================================================================
-    # parameters from control file
+    # handle nodata
     #===========================================================================
-    #[plotting]
-
-    color = 'black'
-    linestyle = 'dashdot'
-    linewidth = 2.0
-    alpha =     0.75        #0=transparent 1=opaque
-    marker =    'o'
-    markersize = 4.0
-    fillstyle = 'none'    #marker fill style
-    impactfmt_str = '.2e'
-        #',.0f' #Thousands separator
+    if not nodata is None:
+        masked_ar = np.ma.masked_where(ar_raw==nodata, ar_raw)
         
-    impactFmtFunc = None
+        #update meta
+        txt_d.update({'nodata':'%.4e'%nodata, 'ndcnt':masked_ar.mask.sum()})
+ 
+    else:
+        masked_ar=ar_raw
+        txt_d['nodata']='none'
+    
+    #===========================================================================
+    # plot the image
+    #===========================================================================
+    
+    ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
+ 
+    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
+    #===========================================================================
+    # add some details
+    #===========================================================================
+    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
+ 
+    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
+    """
+    plt.show()
+    """
+    
+    return ax
+
+class Plotr(object):
+    
+
     
     #===========================================================================
     # controls
     #===========================================================================
     fignum = 0 #counter for figure numbers
     
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    val_str='*default'
-        
-    """values are dummies.. upd_impStyle will reset form attributes"""
-    impStyle_d = {
-            'color': 'black',
-            'linestyle': 'dashdot',
-            'linewidth': 2.0,
-            'alpha':0.75 , # 0=transparent, 1=opaque
-            'marker':'o',
-            'markersize':  4.0,
-            'fillstyle': 'none' #marker fill style
-                            }
-
-    
-    def __init__(self,
-
- 
-                 
-                 #init controls
-                 init_plt_d = {}, #container of initilzied objects
- 
-                  #format controls
-                  grid = True, logx = False, 
-                  
-                  
-                  #figure parametrs
-                figsize     = (6.5, 4), 
-                transparent = False,
-                    
-                #hatch pars
-                    hatch =  None,
-                    h_color = 'blue',
-                    h_alpha = 0.1,
-                    
-                    #impactFmtFunc=None, #function for formatting the impact results
-                        
-                        #Option1: pass a raw function here
-                        #Option2: pass function to init_fmtFunc
-                        #Option3: use 'impactfmt_str' kwarg to have init_fmtFunc build
-                            #default for 'Model' classes (see init_model)
-
-
-                 **kwargs
-                 ):
-        
-
-
-        
-        super().__init__( **kwargs) #initilzie teh baseclass
-
-        #=======================================================================
-        # attached passed        
-        #=======================================================================
-
-        self.plotTag = self.tag #easier to store in methods this way
- 
-        self.grid    =grid
-        self.logx    =logx
- 
-        self.figsize    =figsize
-        self.hatch    =hatch
-        self.h_color    =h_color
-        self.h_alpha    =h_alpha
-        self.transparent=transparent
-        
-        #init matplotlib
-        """TODO: need a simpler way to handle this"""
-        if init_plt_d is None:
-            pass
-        elif len(init_plt_d)==0:
-            self.init_plt_d = self._init_plt() #setup matplotlib
-        else:
-            for k,v in init_plt_d.items():
-                setattr(self, k, v)
-                
-            self.init_plt_d = init_plt_d
-        
-
-            
-
-        
-        
-        self.logger.debug('init finished')
-        
-        """call explicitly... sometimes we want lots of children who shouldnt call this
-        self._init_plt()"""
-        
-
-    
-    def _init_plt(self,  #initilize matplotlib
-                #**kwargs
-                  ):
-        """
-        calling this here so we get clean parameters each time the class is instanced
-        
-        
-        """
-
-        
-        #=======================================================================
-        # imports
-        #=======================================================================
-        import matplotlib
-        matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
-        matplotlib.set_loglevel("info") #reduce logging level
-        import matplotlib.pyplot as plt
-        
-        #set teh styles
-        plt.style.use('default')
-        
-        #font
-        matplotlib_font = {
-                'family' : 'serif',
-                'weight' : 'normal',
-                'size'   : 8}
-        
-        matplotlib.rc('font', **matplotlib_font)
-        matplotlib.rcParams['axes.titlesize'] = 10 #set the figure title size
-        
-        #spacing parameters
-        matplotlib.rcParams['figure.autolayout'] = False #use tight layout
-        
-        #legends
-        matplotlib.rcParams['legend.title_fontsize'] = 'large'
-        
-        self.plt, self.matplotlib = plt, matplotlib
-        
-        self.logger.info('matplotlib version = %s'%matplotlib.__version__)
-        
-        #=======================================================================
-        # seaborn
-        #=======================================================================
-        import seaborn as sns
-        self.sns = sns
-        
-        return {'plt':plt, 'matplotlib':matplotlib, 'sns':sns}
+  
     
 
         
@@ -515,18 +450,34 @@ class Plotr(Basic):
                 
         return val_str
     
-    def get_matrix_fig(self, #conveneince for getting a matrix plot with consistent object access
+    def get_matrix_fig(self, #conveneince for getting 
                        row_keys, #row labels for axis
                        col_keys, #column labels for axis (1 per column)
                        
                        fig_id=0,
                        figsize=None, #None: calc using figsize_scaler if present
                        figsize_scaler=None,
-                        tight_layout=False,
+                        #tight_layout=False,
                         constrained_layout=True,
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
+                        add_subfigLabel=False,
+                        fig=None,
                         **kwargs):
+        
+        """get a matrix plot with consistent object access
+        
+        Parameters
+        ---------
+        figsize_scaler: int
+            multipler for computing figsize from the number of col and row keys
+            
+        Returns
+        --------
+        dict
+            {row_key:{col_key:ax}}
+            
+        """
         
         
         #=======================================================================
@@ -538,11 +489,7 @@ class Plotr(Basic):
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
         
-        if figsize is None: 
-            if figsize_scaler is None:
-                figsize=self.figsize
-            else:
-                figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
+
         
         #=======================================================================
         # precheck
@@ -554,14 +501,31 @@ class Plotr(Basic):
         # build figure
         #=======================================================================
         # populate with subplots
-        fig = self.plt.figure(fig_id,
-            figsize=figsize,
-            tight_layout=tight_layout,
-            constrained_layout=constrained_layout,
-            )
+        if fig is None:
+            if figsize is None: 
+                if figsize_scaler is None:
+                    figsize=matplotlib.rcParams['figure.figsize']
+                else:
+                    figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
+                
+        
+            fig = plt.figure(fig_id,
+                figsize=figsize,
+                #tight_layout=tight_layout,
+                constrained_layout=constrained_layout,
+ 
+                )
+        else:
+            #check the user doesnt expect to create a new figure
+            assert figsize_scaler is None
+            assert figsize is None
+            assert constrained_layout is None
+            assert fig_id is None
         
 
-        
+        #=======================================================================
+        # add subplots
+        #=======================================================================
         ax_ar = fig.subplots(nrows=len(row_keys), ncols=ncols, **kwargs)
         
         #convert to array
@@ -573,14 +537,17 @@ class Plotr(Basic):
             
         
         #=======================================================================
-        # convert to dictionary
+        # convert to dictionary 
         #=======================================================================
         ax_d = dict()
         for i, row_ar in enumerate(ax_ar.reshape(len(row_keys), len(col_keys))):
             ax_d[row_keys[i]]=dict()
             for j, ax in enumerate(row_ar.T):
                 ax_d[row_keys[i]][col_keys[j]]=ax
-                
+        
+                #=======================================================================
+                # post format
+                #=======================================================================
                 if set_ax_title:
                     if col_keys[j] == '':
                         ax_title = row_keys[i]
@@ -588,36 +555,67 @@ class Plotr(Basic):
                         ax_title='%s.%s'%(row_keys[i], col_keys[j])
                     
                     ax.set_title(ax_title)
+                    
+                    
+                if add_subfigLabel:
+                    letter=list(string.ascii_lowercase)[j]
+                    ax.text(0.05, 0.95, 
+                            '(%s%s)'%(letter, i), 
+                            transform=ax.transAxes, va='top', ha='left',
+                            size=matplotlib.rcParams['axes.titlesize'],
+                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                            )
+ 
                 
             
  
         log.info('built %ix%i w/ figsize=%s'%(len(col_keys), len(row_keys), figsize))
         return fig, ax_d
             
-    def get_color_d(self,
+ 
+    def _get_color_d(self,
+                    ckey,
                     cvals,
-                    colorMap=None,
-                    plot_colr=None,
+                    colorMap=None,color_d=None,
+ 
                     ):
+        """retrieve color dict by key
         
-        #=======================================================================
-        # check preconfigured
-        #=======================================================================
-        """allows fixing the color of each value (better for variable lengths)"""
-        color_d = None
-        if not plot_colr is None and hasattr(self, 'color_lib'):
-            if plot_colr in self.color_lib:
-                color_d = {k:self.color_lib[plot_colr][k] for k in cvals}
-            
-        #=======================================================================
-        # build default
-        #=======================================================================
-        if color_d is None:
-            if colorMap is None: colorMap=self.colorMap
-            cmap = self.plt.cm.get_cmap(name=colorMap) 
-            
-            color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        Parameters
+        ----------
+        ckey: str
         
+        cvals: list
+            
+ 
+        """
+        
+        
+        if color_d is None: 
+            #===================================================================
+            # from library           
+            #===================================================================
+            if ckey in self.color_lib:
+                color_d = self.color_lib[ckey]
+                
+            #===================================================================
+            # from map
+            #===================================================================
+            else:
+            
+                if colorMap is None: 
+                    colorMap = self.colorMap_d[ckey]
+                    
+                cmap = plt.cm.get_cmap(name=colorMap) 
+            
+                color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
+        
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert isinstance(color_d, dict)
+        for k,v in color_d.items(): assert isinstance(v, str)
         return color_d
     
     #===========================================================================
@@ -628,7 +626,7 @@ class Plotr(Basic):
                    
                    #file controls
                    out_dir = None, overwrite=None, 
-                   out_fp=None, #defaults to figure name w/ a date stamp
+                   ofp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
                    clean_ofp=True,
                    
@@ -637,21 +635,21 @@ class Plotr(Basic):
                    
                    #figure write controls
                  fmt='svg', 
-                  transparent=None, 
+                  transparent=True, 
                   dpi = 300,
                   logger=None,
                   ):
         #======================================================================
         # defaults
         #======================================================================
-        if out_dir is None: out_dir = self.out_dir
+        
         if overwrite is None: overwrite = self.overwrite
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
-        if transparent is None: transparent=self.transparent
+ 
         
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        
         #=======================================================================
         # precheck
         #=======================================================================
@@ -661,7 +659,10 @@ class Plotr(Basic):
         #======================================================================
         # filepath
         #======================================================================
-        if out_fp is None:
+        if ofp is None:
+            if out_dir is None: out_dir = self.out_dir
+            if not os.path.exists(out_dir):os.makedirs(out_dir)
+            
             #file setup
             if fname is None:
                 try:
@@ -671,16 +672,16 @@ class Plotr(Basic):
                     
                 fname =str('%s_%s'%(fname, self.resname)).replace(' ','')
                 
-            out_fp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
+            ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
             
             
         if clean_ofp:
             for s in [',', ';', ')', '(', '=', ' ', '\'']:
-                out_fp = out_fp.replace(s,'')
+                ofp = ofp.replace(s,'')
             
-        if os.path.exists(out_fp): 
+        if os.path.exists(ofp): 
             assert overwrite
-            os.remove(out_fp)
+            os.remove(ofp)
             
             
 
@@ -692,16 +693,16 @@ class Plotr(Basic):
         #=======================================================================
         if add_stamp:
  
-            txt = '%s (%s)'%(os.path.basename(out_fp), datetime.datetime.now().strftime('%Y-%m-%d'))
+            txt = '%s (%s)'%(os.path.basename(ofp), datetime.datetime.now().strftime('%Y-%m-%d'))
             fig.text(1,0, txt, fontsize=2, color='black', alpha=0.5, ha='right', va='bottom')
         #=======================================================================
         # #write the file
         #=======================================================================
         try: 
-            fig.savefig(out_fp, dpi = dpi, format = fmt, transparent=transparent)
-            log.info('saved figure to file:\n   %s'%out_fp)
+            fig.savefig(ofp, dpi = dpi, format = fmt, transparent=transparent)
+            log.info('saved figure to file:\n   %s'%ofp)
         except Exception as e:
             raise Error('failed to write figure to file w/ \n    %s'%e)
         
-        return out_fp
+        return ofp
     

@@ -257,7 +257,7 @@ class mbfpSession(Qproj):
                                   {'INPUT' : vlay,'OUTPUT' :os.path.join(self.temp_dir, '%s_sel.gpkg'%vlay.name())},  
                                   feedback=self.feedback)['OUTPUT']
         #self.mstore.addMapLayer(vlay_sel)
-        log.debug(sel_fp)
+        log.info(sel_fp)
  
         #=======================================================================
         # reproject
@@ -328,8 +328,11 @@ def calgary_0715():
         prov='Alberta'.lower(), points=False
         )
 
-
-
+def sj_0819():
+    return get_mbfp(
+        aoi_fp=r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\SaintJohn\aoi\aoi17_20220819.geojson',
+        prov='NewBrunswick'.lower(), points=False
+        )
 
 
 
@@ -341,7 +344,7 @@ def calgary_0715():
 if __name__ =="__main__": 
     
     #obwb_0715()
-    calgary_0715()
+    sj_0819()
 
     
     tdelta = datetime.datetime.now() - start

@@ -3,9 +3,7 @@ Created on Mar 5, 2019
 
 @author: cef
 
-np.version.version
-
-py2.7
+ 
 '''
 
 
@@ -14,524 +12,294 @@ py2.7
 # # imports --------------------------------------------------------------------
 #===============================================================================
 import numpy as np
-import pandas as pd
+import warnings
 
-import os, logging, shutil, random, re, copy
-
-
-from hp.exceptions import Error
-
-raise Error('depreciated 2021-12-29')
-
+np.set_printoptions(linewidth=200)
+#import skimage.transform
+#from scipy.ndimage import uniform_filter, generic_filter, zoom
 #===============================================================================
-# # # logger config ------------------------------------------------------------
-#===============================================================================
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG) #lower the logging level for debug runs
-    
-mod_logger = logging.getLogger(__name__)
-mod_logger.debug('initialized')
-
-
-
-
-
-
-
-    
-    
-#===============================================================================
-# IN/OUT --------------------------------------------------------------------
+# np.set_printoptions(edgeitems=10,linewidth=180)
+# np.set_printoptions(edgeitems=10)
+# np.core.arrayprint._line_width = 180
 #===============================================================================
 
-def write_to_csv(filepath,
-                 data,
-                 logger=mod_logger):
-    
-    log = logger.getChild('write_to_csv')
-    
-    if isinstance(data, dict):
-        raise IOError
-        data_raw = copy.copy(data)
-        data = np.array(list(data_raw.items()))
-        
-        names = ['id','data']
-        formats = ['f8','f8']
-        dtype = dict(names = names, formats=formats)
-        
-        array = np.fromiter(data_raw.items(),dtype=dtype, count=len(data_raw))
-        
-    
-    np.savetxt(filepath, data, delimiter=',')
-    
-    log.info('saved data to filepath: \n       %s'%filepath)
-
-def csv_to_dict( #load two columns from a csv to a dictionary
-                fpath,  #filepath to csv
-                kind = 0, #key indexer (column)
-                typeind = 2, #index to find type 
-                vind = 1, # value column indexer
-                delimiter = '\t', #\t: tab
-                skip_header = 1,
-                logger=mod_logger): 
-    """
-    expects the second column to contain the type code for the data in that row
-    
-    
-    There must be a better way to handle the type setting
-    
-    WARNING:
-    req
-    
-    """
-    
-    #===========================================================================
-    # prechecks
-    #===========================================================================
-    if not fpath.endswith(('.txt','.csv')):
-        raise IOError
-
-    logger.debug('loading from: \n %s'%fpath)
-    #load the csv where everything is a string
-    array = np.genfromtxt(fpath, delimiter=delimiter, dtype=np.object, skip_header=skip_header).astype(str)
-    'may expect values on each row?'
-    
-    logger.debug('converting passed array to dict: \n %s'%array)
-    
-    ins_d = dict()
-    
-    if len(array.shape) < 2:
-        logger.error('need at least 2 rows in teh data file')
-        raise IOError
-    
-    for row in array:
-        typeask = row[typeind]
-        
-        try:
-            typef = eval(typeask) #get the type class
-        except:
-            raise IOError
-        
-        k = row[kind] #set teh key
-        vraw = row[vind]
-        
-        #get the value and format it
-        if typeask in ['str', 'int', 'float']:
-            
-            v = typef(vraw) #use it to set the value
-        elif typeask in ['list', 'dict']:
-            v = eval(vraw)
-            
-            """
-        if 'str' in mytype:
-            v = row[vind]
-        elif 'int' in mytype:
-            v = int(row[vind])
-        elif 'float' in mytype:
-            v = float(row[vind])
-            
-        elif 'list':
-            v = dgap(row[vind])
-        elif 'dict':
-            v = dgap(row[vind])"""
-        else:
-            logger.error('got unexpected value for mytype: \'%s\''%typeask)
-            raise TypeError
-        
-        if not isinstance(v, typef):
-            raise IOError
-        
-        #set the entry
-        ins_d[k] = v
-        
-    logger.debug('built dictionary with %i entries'%len(ins_d))
-        
-    return ins_d
-
 #===============================================================================
-# TYPE CONVERSION ------------------------------------------------------------------
+# def get_all_blocks(a, n=2):
+#     """generate 2D blocks"""
+#     for i in range(a.shape[0] // n):
+#         for j in range(a.shape[1]//n):
+#             yield a[n*i:n*(i+1), n*j:n*(j+1)]
+#     
+#         
+# def get_flat_blocks(a, n=2, errors='raise'):
+#     """block the array then build a new array where each row is a flat block
+#     
+#     surprised there is no builtin..."""
+#     
+#     if __debug__:
+#         #check for uniform blocks
+#         errs = list()
+#         for i, dim in enumerate(a.shape):
+#             if not dim%n==0:
+#                 errs.append('axis %i has bad split: %.2f (shape needs to be a multiple of n)'%(i, dim%n))
+#                 
+#         if len(errs)>0:
+#             if errors=='raise':
+#                 raise IndexError(errs)
+#             elif errors=='warn':
+#                 warnings.warn(errs)
+#     
+#     res_ar = np.array([sa.flatten() for sa in get_all_blocks(a, n=n)])
+#     
+#     #post check
+#     assert res_ar.shape[1]==n**2
+#     assert res_ar.shape[0]==int(np.array(res_ar.shape).prod()/(n**2))
+#     
+#     return res_ar
 #===============================================================================
 
-def build_type_conv(): #build a numpy character to python type conversion dictionary
-    """
-    THIS IS BREAKING SOMETHING
-    as thsi si system specific, I generally load at module init
-    """
-    
-    d = dict() 
+#===============================================================================
+# def apply_blockwise_ufunc(a, ufuncName, n=2):
+#     """apply a numpy ufunc to 2d blocks
+#     
+#     Parameters
+#     ----------
+#     a: np.array
+#         raw array
+#     ufunc: str
+#         name of numpy ufunc
+#     n: int, default 2
+#         dimension for square block
+#         
+#     """
+#     #broadcast each square block as a row
+#     blocked_ar = get_flat_blocks(a, n=n)
+#     
+#     #get this ufunc
+#     ufunc = getattr(np, ufuncName)
+#     
+#     #apply the reduction
+#     bred_ar = ufunc.reduce(blocked_ar.T)
+#     
+#     #recast to match raw shape (reduced)    
+#     new_shape = [int(e) for e in np.fix(np.array(a.shape)/n).tolist()]
+#     res_ar = bred_ar.reshape(new_shape)
+#     
+#     
+#     assert np.array_equal(np.array(res_ar.shape)*n,np.array(a.shape)) 
+#     
+# 
+#     return res_ar
+#===============================================================================
 
-    for name in dir(np):
-        obj = getattr(np, name)
-        if hasattr(obj, 'dtype'):
-            try:
-                if 'time' in name:
-                    npn = obj(0, 'D')
-                else:
-                    npn = obj(0)
-                nat = npn.item()
-                d[npn.dtype.char] = type(nat)
-    
-            except:
-                pass
-            
-    mod_logger.info('built numpy type conversion dictionary with %i types'%len(d))
-            
-    return d
+ 
 
-def np_to_pytype(npdobj, logger=mod_logger):
+def apply_block_reduce(a, func,aggscale=2):
+    """apply a reducing function to square blocks (window w/o overlap)
     
-    if not isinstance(npdobj, np.dtype):
-        raise Error('not passed a numpy type')
+    Parameters
+    ----------
+    a: np.array
+        raw array
+    func: numpy method to apply
+        must take an array and an axis kwarg
+    aggscale: int, default 2
+        reducer for new shape
+        
+    Note
+    --------
+    spent a few hours looking for native methods. 
     
-    try:
-        return npc_pytype_d[npdobj.char]
-
-    except Exception as e:
-        log = logger.getChild('np_to_pytype')
-        
-        if not npdobj.char in npc_pytype_d.keys():
-            log.error('passed npdtype \'%s\' not found in the conversion dictionary'%npdobj.name)
-            
-        raise Error('failed oto convert w/ \n    %s'%e)
-
-def typeset_fail_bool( #identify where in the data the typeset is failing
-        in_ar,
-        typeset_str, 
-        logger=mod_logger):
-    """
-    seems like there should be a built in function to do this
-    """
-    
-    log = logger.getChild('typeset_fail_bool')
-    
-    typef = eval(typeset_str)
-     
-    boolar = np.full(len(in_ar),False, dtype=bool) #all False
-    
-    for loc, val in enumerate(in_ar):
-        try: 
-            _ = typef(val)
-        except:
-            boolar[loc] = True #flag this one as failing
-            
-    log.debug('idnetified %i (of %i) entries as failing to typeset from \'%s\''
-              %(boolar.sum(), len(in_ar), typeset_str))
-    
-    return boolar
-
-        
-    """
-    len(boolar)
-    boolar.sum()
-    """
-    
-def left_in_right( #fancy check if left elements are in right elements
-        ldata_raw, rdata_raw, 
-                  lname_raw = 'left',
-                  rname_raw = 'right',
-                  sort_values = False, #whether to sort the elements prior to checking
-                  result_type = 'bool', #format to return result in
-                    #missing: return a list of left elements not in the right
-                    #matching: list of elements in both
-                    #boolar: return boolean where True = left element found in right (np.isin)
-                    #bool: return True if all left elements are found on the right
-                    #exact: return True if perfect element match
-                  invert = False, #flip left and right
-                  
-                  #expectations
-                  dims= 1, #expected dimeions
-                  
-                  fancy_log = False, #whether to log stuff                  
-                  logger=mod_logger
-                  ):
-    
-    #===========================================================================
-    # precheck
-    #===========================================================================
-    if isinstance(ldata_raw, str):
-        raise Error('expected array type')
-    if isinstance(rdata_raw, str):
-        raise Error('expected array type')
-    
-    #===========================================================================
-    # do flipping
-    #===========================================================================
-    if invert:
-        ldata = rdata_raw
-        lname = rname_raw
-        rdata = ldata_raw
-        rname = lname_raw
-    else:
-        ldata = ldata_raw
-        lname = lname_raw
-        rdata = rdata_raw
-        rname = rname_raw
-        
-        
-    #===========================================================================
-    # data conversion
-    #===========================================================================
-    if not isinstance(ldata, np.ndarray):
-        l_ar = np.array(list(ldata))
-    else:
-        l_ar = ldata
-        
-    if not isinstance(rdata, np.ndarray):
-        r_ar = np.array(list(rdata))
-    else:
-        r_ar = rdata
-        
-    #===========================================================================
-    # do any sorting
-    #===========================================================================
-    if sort_values:
-        l_ar = np.sort(l_ar)
-        r_ar = np.sort(r_ar)
-        
-        #check logic validty of result type
-        if result_type =='boolar':
-            raise Error('requested result type does not make sense with sorted=True')
-
-        
-    #===========================================================================
-    # pre check
-    #===========================================================================
-    #check for empty containers and uniqueness
-    for data, dname in (
-        (l_ar, lname),
-        (r_ar, rname)
-        ):
-        #empty container
-        if data.size == 0:
-            raise Error('got empty container for \'%s\''%dname)
-        
-        #simensions/shape
-        """probably not necessary"""
-        if not len(data.shape) == dims:
-            raise Error('expected %i dimensions got %s'%(
-                dims, str(data.shape)))
-            
-        
-        if not pd.Series(data).is_unique:
-            #get detailed print outs
-            ser = pd.Series(data)
-            boolidx = ser.duplicated(keep=False)            
-            
-            raise Error('got %i (of %i) non-unique elements for \'%s\' \n    %s'%(
-                boolidx.sum(), len(boolidx), dname, ser[boolidx]))
-        
-        #=======================================================================
-        # #uniqueness
-        # if not data.size == np.unique(data).size:
-        #     raise Error('got non-unique elements for \'%s\' \n    %s'%(dname, data))
-        #=======================================================================
-        
-        """data
-        data.shape
-        
+    https://stackoverflow.com/questions/73529481/numpy-based-spatial-reduction/73529581#73529581
         """
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    assert isinstance(aggscale, int)
+    assert aggscale>1
+    
+    new_shape = (a.shape[0]//aggscale, a.shape[1]//aggscale)
+    
+    """doesnt seem to work for 2D windows
+    #===========================================================================
+    # np.stride_tricks
+    #===========================================================================
+    new_shape = (a.shape[0]//aggscale, a.shape[1]//aggscale)
+    
+    a.flatten
+        
+    nrows = ((a.size-n)//n)+1
+    a.strides
+    strides = a.strides[0]
         
 
     
+    np.lib.stride_tricks.as_strided(a, shape=new_shape, strides=(aggscale, aggscale))"""
+    
+    """
+    #===========================================================================
+    # scipy.ndimage
+    #===========================================================================
+    #uniform_filter(a, size=aggscale, mode='constant', cval=0.0)
+    
+    generic_filter(a, func, size=aggscale, mode='constant', cval=0.0)
+    
+    #build the mask
+    afi = np.full((aggscale, aggscale), 0)
+    afi[-1,-1]=1    
+    mask =   np.tile(np.tile(afi, a.shape[1]//aggscale).T, a.shape[0]//aggscale)
+    """
+    
+    #===========================================================================
+    # np.reshape
+    #===========================================================================
+    #stack windows into axis 1 and 3
+    a1 = a.reshape(a.shape[0]//aggscale, aggscale, a.shape[1]//aggscale, aggscale)
+    
+ 
+    res_ar2=func(a1, axis=(1,3))
+    
+    
+ 
+    #===========================================================================
+    # using custom block functions
+    #===========================================================================
+    """quite slow for loops..."""
+    #===========================================================================
+    # #broadcast each square block as a row
+    # blocked_ar = get_flat_blocks(a, n=aggscale)
+    # 
+    # #apply the reduction
+    # bred_ar = func(blocked_ar, axis=1, **kwargs)
+    # 
+    # #recast to match raw shape (reduced) 
+    # res_ar = bred_ar.reshape(new_shape)
+    # 
+    # 
+    # assert np.array_equal(np.array(res_ar.shape)*aggscale,np.array(a.shape))
+    # 
+    # assert np.array_equal(res_ar2, res_ar)    
+    #===========================================================================
+    
+    assert res_ar2.shape==new_shape
+    
+    return res_ar2
 
+def downsample(a, n=2):
+    """increase shape. scale up an array by replicating parent cells onto children with spatial awareness
+    
+    Parameters
+    ----------
+    n: int, default 2
+        amount to scale shape by
+    
+    very confusing.. surprised there is no builtin"""
+    
+    
+    
+    assert isinstance(n, int)
+    assert n>1
+    new_shape = (a.shape[0]*n, a.shape[1]*n)
+    
+    """runs out of memory
     #===========================================================================
-    # do the chekcing
+    # np.kron
     #===========================================================================
-
-    boolar = ~np.isin(l_ar, r_ar) #misses from left to right
     
-    if fancy_log:
-        
-        log = logger.getChild('left_in_right')
-        msg = ('%i (of %i) elements in \'%s\'  not found in \'%s\': \n    mismatch: %s \n    \'%s\' %s: %s \n    \'%s\' %s: %s'
-                    %(boolar.sum(),len(boolar), lname, rname, 
-                      l_ar[boolar].tolist(),
-                      lname, str(l_ar.shape), l_ar.tolist(), 
-                      rname, str(r_ar.shape), r_ar.tolist()
-                      )
-                    )
-        if np.any(boolar):
-            logger.debug(msg)
-        elif result_type=='exact' and (not np.array_equal(l_ar, r_ar)):
-            logger.debug(msg)
-        
+    np.kron(a, np.ones((n,n)))"""
+    
+    """interploates
     #===========================================================================
-    # reformat and return result
+    # scipy.ndimage.zoom
     #===========================================================================
-    if result_type == 'boolar': #left elements in the right
-        return ~boolar
-    elif result_type == 'bool': #all left elements in the right
-        if np.any(boolar):
-            return False
-        else:
-            return True
-        
-    elif result_type == 'missing':
-        return l_ar[boolar].tolist()
+    zoom(a, n, """
     
-    elif result_type == 'matching':
-        return l_ar[~boolar].tolist()
-    
-    elif result_type == 'exact':
-        return np.array_equal(l_ar, r_ar)
-    
-    else:
-        raise Error('unrecognized result format')
-    
-    
-def relation( #get the set relation between 2 unique data sets
-        ldata, rdata, 
-                  lname = 'left',
-                  rname = 'right',                  
-               
-                  logger=mod_logger
-                  ):
-    
-    log = logger.getChild('relation')
     #===========================================================================
-    # precheck
+    # scipy.ndimage.zoom
     #===========================================================================
-    if isinstance(ldata, str):
-        raise Error('expected array type')
-    if isinstance(rdata, str):
-        raise Error('expected array type')
+    """preferred method"""
+    raise IOError('use ndimage.zoom in place')
+    scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
     
-
-        
-        
     #===========================================================================
-    # data conversion
+    # skimage.transform.resize
     #===========================================================================
-    if not isinstance(ldata, np.ndarray):
-        l_ar = np.array(list(ldata))
-    else:
-        l_ar = ldata
-        
-    if not isinstance(rdata, np.ndarray):
-        r_ar = np.array(list(rdata))
-    else:
-        r_ar = rdata
-        
-
-
-        
-    #===========================================================================
-    # pre check
-    #===========================================================================
-    #check for empty containers and uniqueness
-    for data, dname in (
-        (l_ar, lname),
-        (r_ar, rname)
-        ):
-        #empty container
-        if data.size == 0:
-            raise Error('got empty container for \'%s\''%dname)
-                   
-        if not pd.Series(data).is_unique:
-            #get detailed print outs
-            ser = pd.Series(data)
-            boolidx = ser.duplicated(keep=False)            
-            
-            raise Error('got %i (of %i) non-unique elements for \'%s\' \n    %s'%(
-                boolidx.sum(), len(boolidx), dname, ser[boolidx]))
-            
-            
-    #===========================================================================
-    # get the relation
-    #===========================================================================
-    #check for both
-    dif_s = set(l_ar.tolist()).symmetric_difference(set(r_ar.tolist()))
-    
-    
-    if len(dif_s) == 0:
-        log.debug('no difference between %i %s els and %i %s els... returning \'inner\''%(
-            len(l_ar),lname,  len(r_ar), rname))
-        return 'inner'
-    
-    #check misses
-    left_miss = set(l_ar.tolist()).difference(set(r_ar.tolist()))
-    
-    right_miss = set(r_ar.tolist()).difference(set(l_ar.tolist()))
-    
-    log.debug('got %i %s misses and %i %s misses'%(
-        len(left_miss), lname, len(right_miss), rname))
-    #===========================================================================
-    # return result based on misses
-    #===========================================================================
-    if len(left_miss)>0 and len(right_miss)>0:
-        return 'outer'
-    
-    if len(left_miss)<0:
-        return 'left'
-    
-    if len(right_miss)>0:
-        return 'right'
-    
-    
-    
-
-        
+ #==============================================================================
+ #    """seems to work.. should be a faster way though w/o polynomial"""
+ #    
+ #    res_ar2 = skimage.transform.resize(a, new_shape, order=0, mode='constant')
+ #    res_ar = res_ar2
+ #    
+ #    """tiles blocks... doesn't zoom
+ #    #===========================================================================
+ #    # np.tile
+ #    #===========================================================================
+ #    #np.tile(np.tile(a, n).T, a.shape[0]//downscale)"""
+ #    
+ #    """
+ #    #===========================================================================
+ #    # concat list
+ #    #===========================================================================
+ #    
+ #    l=list()
+ #    for i in range(a.shape[0]):
+ #        #=======================================================================
+ #        # l = list()
+ #        # for b in build_blocks(a[i, :].reshape(-1), n=n):
+ #        #     l.append(b)
+ #        #=======================================================================
+ # 
+ #        
+ #        new_ar = np.concatenate([b for b in build_blocks(a[i, :].reshape(-1), n=n)], axis=1)
+ #        #print('i=%i\n%s'%(i, new_ar))
+ #        l.append(new_ar)
+ #    
+ #    res_ar = np.concatenate(l, axis=0) 
+ #    assert np.array_equal(res_ar2, res_ar)
+ #    """
+ #    
+ #    assert res_ar.shape==new_shape
+ #    
+ #    return res_ar
+ #==============================================================================
 
 
-    
-  
 #===============================================================================
-# # module vars ----------------------------------------------------------------
+# def xxxupsample2(a, n=2):
+#     """scale up an array by replicating parent cells onto children with spatial awareness
+#     
+#     using apply
+#     
+#     this is slower!"""
+#     
+#     
+#     
+#     def row_builder(a1, n=2):
+#         row_ar = np.concatenate([b for b in build_blocks(a1, n=n)], axis=1)
+#         return row_ar
+#  
+#     """only useful for 3d it seems
+#     np.apply_over_axes(row_builder, a, [0,1])"""
+#     
+#     #build blocks for each row (results are stacked as in 3D)
+#     res3d_ar = np.apply_along_axis(row_builder, 1, a, n=n)
+#     
+#     #split out each 3D and recombine horizontally
+#     res_ar = np.hstack(np.split(res3d_ar, res3d_ar.shape[0], axis=0))[0]
+#  
+#     #check
+#     new_shape = tuple([int(e) for e in np.fix(np.array(a.shape)*n).tolist()])
+#     assert res_ar.shape==new_shape
+#     return res_ar
+#         
+#      
+# 
+# def build_blocks(a, n=2):
+#     """generate 2D blocks"""
+#     for x in np.nditer(a):
+#         yield np.full((n,n), x)
 #===============================================================================
-
-"""this auto is breaking. just use manual
-#build type conversion
-npc_pytype_d1 = build_type_conv()
-
-for k, v in npc_pytype_d1.items():
-    print(k,v)
-    
-e <class 'float'>
-f <class 'float'>
-q <class 'int'>
-h <class 'int'>
-l <class 'int'>
-i <class 'int'>
-g <class 'numpy.float64'>
-V <class 'bytes'>
-U <class 'str'>
-m <class 'datetime.timedelta'>
-B <class 'int'>
-L <class 'int'>
-Q <class 'int'>
-H <class 'int'>
-I <class 'int'>
-
-"""
-
-npc_pytype_d = {'?':bool,
-                'b':int,
-                'd':float,
-                'e':float,
-                'f':float,
-                'q':int,
-                'h':int,
-                'l':int,
-                'i':int,
-                'g':float,
-                'U':str,
-                'B':int,
-                'L':int,
-                'Q':int,
-                'H':int,
-                'I':int, 
-                'O':str, #this is the catchall 'object'
-                }
-
-
-if __name__ == '__main__':
-    
-    
-    fn = r'C:\LocalStore\03_TOOLS\SOFDA\cplx\_ins\SOFDA-cplx_pars001.csv'
-    
-    ins_d = csv_to_dict(fn)
-    
-    mod_logger.info('finished')
-    
         
-
+def dropna(a):
+    """mimic pandas behavior"""
+    return a[~np.isnan(a)]
