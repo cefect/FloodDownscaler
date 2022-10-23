@@ -20,14 +20,14 @@ from hp.np import *
 @pytest.mark.parametrize('j', [2, 3])
 def test_blockwise(func, n, k, j):
     ar = (np.random.random((n*k ,n*j))*10).astype(int)
-    apply_blockwise(ar, func, downscale=n)
+    apply_block_reduce(ar, func, aggscale=n)
     
 
-
+"""retired this function
 @pytest.mark.parametrize('n', [2,   10])
 @pytest.mark.parametrize('k', [2,   10**2])
 @pytest.mark.parametrize('j', [  3, 10**3])
 def test_upsample(n, k, j):
     ar = (np.random.random((k ,j))*10).astype(int)
      
-    res_ar = downsample(ar,n=n) 
+    res_ar = downsample(ar,n=n)"""
