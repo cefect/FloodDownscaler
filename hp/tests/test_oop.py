@@ -48,9 +48,15 @@ def test_basic(
         logger):
     """should all fail except the last"""
     
-    Basic(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
+    o = Basic(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
           proj_name=proj_name, run_name=run_name, obj_name=obj_name, fancy_name=fancy_name,
           overwrite=overwrite, relative=relative, write=write, logger=logger)
+    
+    d = o._get_init_pars()
+    
+    assert isinstance(d, dict)
+    assert d['out_dir']==out_dir
+    
 
 @pytest.mark.dev
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
@@ -72,10 +78,15 @@ def test_session(
         logger,
         logfile_duplicate):
     
-    Session(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
+    o = Session(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
           proj_name=proj_name, run_name=run_name, obj_name=obj_name, fancy_name=fancy_name,
            overwrite=overwrite, relative=relative, write=write, logger=logger,
            logfile_duplicate=logfile_duplicate)
+    
+    d = o._get_init_pars()
+    
+    assert isinstance(d, dict)
+ 
     
     
  
@@ -109,4 +120,12 @@ def test_inherit(
         #d = ses.init_pars_d.copy()
         
         #init a second child object
-        Basic(**{**ses.init_pars_d, **kwargs})
+        o=Basic(**{**ses._get_init_pars(), **kwargs})
+        
+        d = o._get_init_pars()
+    
+        assert isinstance(d, dict)
+ 
+        
+        
+        

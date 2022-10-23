@@ -84,7 +84,7 @@ class Basic(object): #simple base class
                  fancy_name     = None,
                  
                  #inheritancee
-                 init_pars_d    =None,
+                 init_pars      = None,
                  subdir         = False,
                  
                  #controls
@@ -124,15 +124,14 @@ class Basic(object): #simple base class
         logger: logging.RootLogger, optional
             Logging worker.
 
-        prec: int, default 2
-            Default float precision.
+ 
         overwrite: bool, default False
             Default behavior when attempting to overwrite a file
         relative: bool, default False
             Default behavior of filepaths (relative vs. absolute)
 
-        session: scripts.Session, optional
-            Reference to parent session
+        init_pars: list,
+             Names of attributes set by init. useful for spawning children
             
         subdir: bool, default False
             whether to create subidrectories (in the session defaults) using obj_name
@@ -142,7 +141,7 @@ class Basic(object): #simple base class
         #=======================================================================
         # personal
         #=======================================================================
-        if init_pars_d is None: init_pars_d=dict()
+        if init_pars is None: init_pars=list()
         self.start = datetime.datetime.now()
         self.today_str = today_str
         
@@ -169,7 +168,7 @@ class Basic(object): #simple base class
             #attach
             assert not attVal is None, attName
             setattr(self, attName, attVal)
-            init_pars_d[attName] = attVal
+            init_pars.append(attName)
             
             #handle directories
             if directory:
@@ -209,8 +208,12 @@ class Basic(object): #simple base class
         #=======================================================================
             
         #self._install_info()
-        self.init_pars_d=init_pars_d
-        self.logger.info('finished Basic.__init__ w/\n    %s '%init_pars_d)
+        self.init_pars=init_pars
+        self.logger.info('finished Basic.__init__ w/\n    %s '%init_pars)
+        
+    def _get_init_pars(self):
+        """only for simple atts... no containers"""
+        return {k:getattr(self, k) for k in self.init_pars}
         
     def __enter__(self):
         return self
