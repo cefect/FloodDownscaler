@@ -36,21 +36,21 @@ def logger(request):
 @pytest.mark.parametrize('proj_name, run_name, obj_name, fancy_name',[
     pytest.param(None, None, None, None, marks=pytest.mark.xfail),
     ['proj_name', 'run_name', 'obj_name', 'fancy_name']]) 
-@pytest.mark.parametrize('prec, overwrite, relative, write',[
-    pytest.param(None, None, None, None, marks=pytest.mark.xfail),
-    [5, True, True, True]])
+@pytest.mark.parametrize('overwrite, relative, write',[
+    pytest.param( None, None, None, marks=pytest.mark.xfail),
+    [True, True, True]])
 
 def test_basic(
         tmp_path, 
         out_dir, tmp_dir, wrk_dir,
         proj_name, run_name, obj_name, fancy_name,
-        prec, overwrite, relative, write,
+        overwrite, relative, write,
         logger):
     """should all fail except the last"""
     
     Basic(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
           proj_name=proj_name, run_name=run_name, obj_name=obj_name, fancy_name=fancy_name,
-          prec=prec, overwrite=overwrite, relative=relative, write=write, logger=logger)
+          overwrite=overwrite, relative=relative, write=write, logger=logger)
 
 @pytest.mark.dev
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
@@ -59,23 +59,23 @@ def test_basic(
 @pytest.mark.parametrize('proj_name, run_name, obj_name, fancy_name',[
     #[None, 'r1', 'Ses', None],
     ['proj_name', 'run_name', 'obj_name', 'fancy_name']]) 
-@pytest.mark.parametrize('prec, overwrite, relative, write',[
+@pytest.mark.parametrize('overwrite, relative, write',[
     #[None, None, None, None],
-    [5, True, True, True]])
+    [True, True, True]])
 @pytest.mark.parametrize('logger', [True, False], indirect=True)
 @pytest.mark.parametrize('logfile_duplicate', [True, False])
 def test_session(
         tmp_path, 
         out_dir, tmp_dir, wrk_dir,
         proj_name, run_name, obj_name, fancy_name,
-        prec, overwrite, relative, write,
+        overwrite, relative, write,
         logger,
         logfile_duplicate):
     
     Session(out_dir=out_dir, tmp_dir=tmp_dir, wrk_dir=wrk_dir,
           proj_name=proj_name, run_name=run_name, obj_name=obj_name, fancy_name=fancy_name,
-          prec=prec, overwrite=overwrite, relative=relative, write=write, logger=logger,
-          data_retrieve_hndls={}, logfile_duplicate=logfile_duplicate)
+           overwrite=overwrite, relative=relative, write=write, logger=logger,
+           logfile_duplicate=logfile_duplicate)
     
     
  
@@ -86,19 +86,19 @@ def test_session(
 @pytest.mark.parametrize('proj_name, run_name, obj_name, fancy_name',[
     [None, None, None, None],
     ['proj_name', 'run_name', 'obj_name', 'fancy_name']]) 
-@pytest.mark.parametrize('prec, overwrite, relative, write',[
-    [None, None, None, None],
-    [5, True, True, True]])
+@pytest.mark.parametrize('overwrite, relative, write',[
+    [ None, None, None],
+    [True, True, True]])
 def test_inherit(
         tmp_path, logger,
                 out_dir, tmp_dir, wrk_dir,
         proj_name, run_name, obj_name, fancy_name,
-        prec, overwrite, relative, write,
+        overwrite, relative, write,
         ):
     #build kwargs
     kwargs={'out_dir':out_dir, 'tmp_dir':tmp_dir, 'wrk_dir':wrk_dir,
             'proj_name':proj_name, 'run_name':run_name, 'obj_name':obj_name,'fancy_name':fancy_name,
-            'prec':prec, 'overwrite':overwrite, 'relative':relative, 'write':write}
+             'overwrite':overwrite, 'relative':relative, 'write':write}
     
     for k,v in copy.deepcopy(kwargs).items():
         if v is None:
@@ -106,5 +106,7 @@ def test_inherit(
         
     
     with Session(wrk_dir=tmp_path, logger=logger) as ses:
+        #d = ses.init_pars_d.copy()
         
-        Basic(session=ses, **kwargs)
+        #init a second child object
+        Basic(**{**ses.init_pars_d, **kwargs})
