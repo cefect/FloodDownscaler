@@ -286,18 +286,7 @@ class ComputeSession(Session, ComputeChild):
         
         return out_fp
     
-    def _install_info(self,
-                         log = None): #print version info
-        if log is None: log = self.logger
- 
-        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
-             'exe':sys.executable}
- 
-        txt = pprint.PrettyPrinter(indent=4).pformat(d)
-        log.info(txt)
-        #systenm paths
-        for k in sys.path: 
-            log.info('    %s'%k)
+
         
     def _get_meta(self, #get a dictoinary of metadat for this model
                  ):

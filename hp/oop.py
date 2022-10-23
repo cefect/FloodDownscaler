@@ -214,6 +214,19 @@ class Basic(object): #simple base class
     def _get_init_pars(self):
         """only for simple atts... no containers"""
         return {k:getattr(self, k) for k in self.init_pars}
+    
+    def _install_info(self,
+                         log = None): #print version info
+        if log is None: log = self.logger
+ 
+        d = {'python':sys.version, 'numpy':np.__version__, 'pandas':pd.__version__,
+             'exe':sys.executable}
+ 
+        txt = pprint.PrettyPrinter(indent=4).pformat(d)
+        log.info(txt)
+        #systenm paths
+        for k in sys.path: 
+            log.info('    %s'%k)
         
     def __enter__(self):
         return self
@@ -431,4 +444,6 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
                           **kwargs)
         
         self.logger.info('finished Session.__init__')
+        
+
     
