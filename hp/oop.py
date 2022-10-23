@@ -84,7 +84,7 @@ class Basic(object): #simple base class
                  fancy_name     = None,
                  
                  #inheritancee
-                 #session        = None,
+                 init_pars_d    =None,
                  subdir         = False,
                  
                  #controls
@@ -142,7 +142,7 @@ class Basic(object): #simple base class
         #=======================================================================
         # personal
         #=======================================================================
- 
+        if init_pars_d is None: init_pars_d=dict()
         self.start = datetime.datetime.now()
         self.today_str = today_str
         
@@ -151,7 +151,7 @@ class Basic(object): #simple base class
         #=======================================================================
         #self.session=session
         
-        pars_d = dict()
+ 
         def attach(attVal, attName, directory=False, typeCheck=None, subdir=False):
             #get from session
             if attVal is None:
@@ -169,7 +169,7 @@ class Basic(object): #simple base class
             #attach
             assert not attVal is None, attName
             setattr(self, attName, attVal)
-            pars_d[attName] = attVal
+            init_pars_d[attName] = attVal
             
             #handle directories
             if directory:
@@ -209,8 +209,8 @@ class Basic(object): #simple base class
         #=======================================================================
             
         #self._install_info()
-        self.init_pars_d=pars_d
-        self.logger.debug('finished Basic.__init__ w/\n    %s '%pars_d)
+        self.init_pars_d=init_pars_d
+        self.logger.info('finished Basic.__init__ w/\n    %s '%init_pars_d)
         
     def __enter__(self):
         return self
@@ -404,7 +404,7 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         kwargs['fancy_name']=fancy_name
  
         if wrk_dir is None:
-            wrk_dir = os.path.expanduser('~')
+            from definitions import wrk_dir
         kwargs['wrk_dir']=wrk_dir
             
         if out_dir is None:
@@ -426,4 +426,6 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         #=======================================================================
         super().__init__(obj_name=obj_name,run_name=run_name,
                           **kwargs)
+        
+        self.logger.info('finished Session.__init__')
     
