@@ -50,7 +50,7 @@ from hp.Qrcalc import RasterCalc
 
 from hp.exceptions import Error
 
-from hp.oop import Basic
+from hp.oop import Basic, Session, LogSession
 from hp.dirz import get_valid_filename
 from hp.Qalg import QAlgos
 from hp.logr import get_new_file_logger
@@ -111,7 +111,7 @@ def np_to_qt(dtype): #helper to retrieve a qvariant type from a numpy dtype
 # workers
 #===============================================================================
 
-class Qproj(QAlgos, Basic):
+class Qwrkr(QAlgos, Basic):
     """
     common methods for Qgis projects
     """
@@ -132,202 +132,70 @@ class Qproj(QAlgos, Basic):
     aoi_vlay=None
     
     def __init__(self, 
-                 feedback           =None, 
-                 crs                = None,
+                 
+               #defaults
+             compression        ='med', #raster compression default
+             driverName         ='GPKG', #default writing for vectorl ayers
+             
+             #from parent
+             aoi_vlay=None,
+             crs=None,
+             feedback=None,
+             #qap=None, #just keep this on the session?
+             qproj=None,
+             vlay_drivers=None,
+             context=None, #no inits on Qalg
  
-                 
-                 #aois
-                 aoi_fp             = None,
-                 aoi_set_proj_crs   = False, #force hte project crs from the aoi
-                 aoi_vlay           = None,
-                 
-                 #defaults
-                 compression           ='med', #raster compression default
-                 driverName         ='GPKG', #default writing for vectorl ayers
-                 
-                 #inheritance
-                 session            =None, #parent session for child mode
-                 
-                   #pytest-qgis fixtures
-                 qgis_app=None, qgis_processing=None,
+             
+             #inheritance
+             init_pars_d=None,
  
                  **kwargs):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if init_pars_d is None: init_pars_d=dict()
+        
+        
+        #=======================================================================
+        # attachments
+        #=======================================================================
+        def attach(attv, attn):
+            #assert not attv is None, attn
+            assert not attn in init_pars_d, attn
+            setattr(self,  attn, attv)
+            init_pars_d[attn] = attv
+        
+        attach(compression, 'compression')
+        attach(driverName, 'driverName')
+        attach(aoi_vlay, 'aoi_vlay')
+        attach(crs, 'crs')
+        attach(feedback, 'feedback')
+        attach(vlay_drivers, 'vlay_drivers')
+        attach(context, 'context')
+        attach(qproj, 'qproj')
  
-        #init cascade
-        super().__init__(session=session,
-            
-            **kwargs) #initilzie teh baseclass
+ 
+        #=======================================================================
+        # #init cascade
+        #=======================================================================
+        super().__init__(init_pars_d=init_pars_d, **kwargs) #initilzie teh baseclass
         
+ 
+ 
         #=======================================================================
-        # attach
+        # setup for this worker
         #=======================================================================
-        self.compression=compression
-        self.driverName=driverName
-        #=======================================================================
-        # setup qgis
-        #=======================================================================
-        
-        if aoi_set_proj_crs:
-            assert crs is None
-            
-        #standalone
-        if session is None:
-            if crs is None:
-                crs = QgsCoordinateReferenceSystem('EPSG:4326')
-            
-            #===================================================================
-            # feedback
-            #===================================================================
-            if feedback is None:
-                #build a separate logger to capture algorhtihim feedback
-                qlogger= get_new_file_logger('Qproj',
-                    fp=os.path.join(self.wrk_dir, 'Qproj.log'))
-     
-                feedback = MyFeedBackQ(logger=qlogger)
-            
-            self.feedback = feedback
-        
-            #===================================================================
-            # setups
-            #===================================================================
-            self._init_qgis(crs=crs, qgis_app=qgis_app)
-            
-            self._init_algos()
-            
-            self._set_vdrivers()
-            
-        #child mode
-        else:
-            """automating inheritance here
-            may be better to add these to init default variables, then load when None
-                but these are always/only called during Q startup
-            """
-            
-            if not crs is None:
-                raise Error('not letting crs pass to children')
-            
-            for attn in [
-                'qap',  'qproj', 'vlay_drivers', 'feedback','context','driverName', 'compression'
-                ]:
-                val = getattr(session, attn) #retrieve
-                assert not val is None, attn
-                setattr(self, attn, val) #set
-            
-            #build a new map store 
-            self.mstore = QgsMapLayerStore() 
+ 
+        #build a new map store 
+        self.mstore = QgsMapLayerStore() 
         
         if not self.proj_checks():
             raise Error('failed checks')
-        
-        #=======================================================================
-        # aois
-        #=======================================================================
-
-        #load from file
-        if aoi_vlay is None:
-            if not aoi_fp is None:
-                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
-            
-        else:
-            assert aoi_fp is None, 'cant pass a layer and a filepath'
-            
-        #assign/check
-        if not aoi_vlay is None:
-            self._check_aoi(aoi_vlay)
-            self.aoi_vlay= aoi_vlay #redundant if loaded from file
-        
-        self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
+ 
+        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
     
-    def _init_qgis(self, #instantiate qgis
-                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
-                  gui = False,
-                  qgis_app=None,  #pytest fixture
-                  QGIS_PREFIX_PATH=None,
-                  ): 
-        """
-        Initialize QGIS for standalone runs (pyqgis)
-        
-        This function sets up a session class to run the QGIS api outside of the GUI
-        and does some basic project setup (crs).Also handles running with pytest-qgis.
-        
-        Notes
-        ----------
-        WARNING: need to hold this app somewhere. call in the module you're working in 
-        
-        """
-        log = self.logger.getChild('_init_qgis')
-        
-        
-        if QGIS_PREFIX_PATH is None:#call from environment
-            QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
-            
-        assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
-        
-        
-        #=======================================================================
-        # init the application
-        #=======================================================================
-        if qgis_app is None: #non-test runs
-            try:                
-                QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
-                
-                qgis_app = QgsApplication([], gui)
-    
-                qgis_app.initQgis()
-     
-            
-            except:
-                raise Error('QGIS failed to initiate')
-        
-        #=======================================================================
-        # store the references
-        #=======================================================================
-        self.qap = qgis_app
-        self.qproj = QgsProject.instance()
-        self.mstore = QgsMapLayerStore() #build a new map store
-        
-        #=======================================================================
-        # crs
-        #=======================================================================         
-            
-        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
-        assert crs.isValid()
-            
-        self.qproj.setCrs(crs)
-        
-        log.info('set project crs to %s'%self.qproj.crs().authid())
-        
-
-    
-    
-
-    def _set_vdrivers(self):
-        
-        #build vector drivers list by extension
-        """couldnt find a good built-in to link extensions with drivers"""
-        vlay_drivers = {'SpatiaLite':'sqlite', 'OGR':'shp'}
-        
-        
-        #vlay_drivers = {'sqlite':'SpatiaLite', 'shp':'OGR','csv':'delimitedtext'}
-        
-        for ext in QgsVectorFileWriter.supportedFormatExtensions():
-            dname = QgsVectorFileWriter.driverForExtension(ext)
-            
-            if not dname in vlay_drivers.keys():
-            
-                vlay_drivers[dname] = ext
-            
-        #add in missing/duplicated
-        for vdriver in QgsVectorFileWriter.ogrDriverList():
-            if not vdriver.driverName in vlay_drivers.keys():
-                vlay_drivers[vdriver.driverName] ='?'
-                
-        self.vlay_drivers = vlay_drivers
-        
-        #self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
-        
-        return
-        
 
            
     def proj_checks(self):
@@ -2060,11 +1928,210 @@ class Qproj(QAlgos, Basic):
         super().__exit__(*args,**kwargs)  
         
     
-
-
-
+class QSession(Qwrkr, Session):
+    def __init__(self, 
+             feedback           =None, 
+             crs                = None,
+             
+             #feedback and logging
+             #==================================================================
+             # logger=None,
+             # logcfg_file=None,
+             # wrk_dir=None,
+             #==================================================================
+ 
+ 
+             #aois
+             aoi_fp             = None,
+             aoi_set_proj_crs   = False, #force hte project crs from the aoi
+             aoi_vlay           = None,
+             
+ 
+               #pytest-qgis fixtures
+             qgis_app=None, qgis_processing=None,
+ 
     
+             **kwargs):
+        """setup the QGIS session"""
+        
+        
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        pars_d = dict()
+        
+        if crs is None:
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        pars_d['crs'] = crs
+        
+        #init loger and Basic
+        LogSession.__init__(self, **kwargs)
+        
+ 
+        #===================================================================
+        # feedback
+        #===================================================================            
+        if feedback is None:
+            """not ideal, but we need the logger configured BEFORE the init cascade"""
+            #===================================================================
+            # if logger is None:
+            #     if wrk_dir is None:
+            #         from definitions import wrk_dir
+            # 
+            #     if logcfg_file is None:
+            #         from definitions import logcfg_file
+            #                         
+            #     logger = self.from_cfg_file(logcfg_file=logcfg_file, out_dir=wrk_dir)
+            #     
+            #     pars_d['logger'] = logger
+            #     pars_d['wrk_dir'] = wrk_dir
+            #===================================================================
+            
+ 
+            #build a separate logger to capture algorhtihim feedback
+            #===================================================================
+            # qlogger= get_new_file_logger('Qproj',
+            #     fp=os.path.join(self.wrk_dir, 'Qproj.log'))
+            #===================================================================
+ 
+            feedback = MyFeedBackQ(logger=self.logger) 
+        
+        
     
+        #===================================================================
+        # setups
+        #===================================================================
+        self._init_qgis(crs=crs, qgis_app=qgis_app)
+        
+        self._init_algos(feedback=feedback) #sets context and feedback
+        
+        self._set_vdrivers()
+        
+        #=======================================================================
+        # extract for child
+        #=======================================================================
+        for attn in ['vlay_drivers', 'context', 'qproj', 'feedback']:
+            pars_d[attn] = getattr(self, attn)
+        
+        #=======================================================================
+        # aois
+        #=======================================================================
+
+        #load from file
+        if aoi_vlay is None:
+            if not aoi_fp is None:
+                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
+            
+        else:
+            assert aoi_fp is None, 'cant pass a layer and a filepath'
+            
+        #assign/check
+        if not aoi_vlay is None:
+            self._check_aoi(aoi_vlay)
+            
+        pars_d['aoi_vlay'] = aoi_vlay
+ 
+        
+        
+        #init cascade
+        super().__init__(logger=self.logger, **pars_d, **kwargs) #initilzie teh baseclass
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        self.logger.info('finished QSes.__init__')
+
+    def _init_qgis(self, #instantiate qgis
+                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
+                  gui = False,
+                  qgis_app=None,  #pytest fixture
+                  QGIS_PREFIX_PATH=None,
+                  ): 
+        """
+        Initialize QGIS for standalone runs (pyqgis)
+        
+        This function sets up a session class to run the QGIS api outside of the GUI
+        and does some basic project setup (crs).Also handles running with pytest-qgis.
+        
+        Notes
+        ----------
+        WARNING: need to hold this app somewhere. call in the module you're working in 
+        
+        """
+        log = self.logger.getChild('_init_qgis')
+        
+        
+        if QGIS_PREFIX_PATH is None:#call from environment
+            QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
+            
+        assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
+        
+        
+        #=======================================================================
+        # init the application
+        #=======================================================================
+        if qgis_app is None: #non-test runs
+            try:                
+                QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
+                
+                qgis_app = QgsApplication([], gui)
+    
+                qgis_app.initQgis()
+     
+            
+            except:
+                raise Error('QGIS failed to initiate')
+        
+        #=======================================================================
+        # store the references
+        #=======================================================================
+        self.qap = qgis_app
+        self.qproj = QgsProject.instance()
+        
+        """built during init
+        self.mstore = QgsMapLayerStore() #build a new map store"""
+        
+        #=======================================================================
+        # crs
+        #=======================================================================         
+            
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert crs.isValid()
+            
+        self.qproj.setCrs(crs)
+        
+        log.info('set project crs to %s'%self.qproj.crs().authid())
+        
+ 
+    def _set_vdrivers(self):
+        
+        #build vector drivers list by extension
+        """couldnt find a good built-in to link extensions with drivers"""
+        vlay_drivers = {'SpatiaLite':'sqlite', 'OGR':'shp'}
+        
+        
+        #vlay_drivers = {'sqlite':'SpatiaLite', 'shp':'OGR','csv':'delimitedtext'}
+        
+        for ext in QgsVectorFileWriter.supportedFormatExtensions():
+            dname = QgsVectorFileWriter.driverForExtension(ext)
+            
+            if not dname in vlay_drivers.keys():
+            
+                vlay_drivers[dname] = ext
+            
+        #add in missing/duplicated
+        for vdriver in QgsVectorFileWriter.ogrDriverList():
+            if not vdriver.driverName in vlay_drivers.keys():
+                vlay_drivers[vdriver.driverName] ='?'
+                
+        self.vlay_drivers = vlay_drivers
+        
+        #self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
+        
+        return
+        
+
 
     
 class RasterFeedback(QgsRasterBlockFeedback):
@@ -2919,9 +2986,8 @@ def assert_rlay_simple(rlay, msg='',):
 # ENVIRONMENT-------------
 #===============================================================================
 def test_install(): #test your qgis install
- 
-    proj = Qproj()
-    proj._install_info()
+    with QSession() as proj: 
+        proj._install_info()
     
     
     

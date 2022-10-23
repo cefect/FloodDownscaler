@@ -105,6 +105,7 @@ class QAlgos(object):
         
         
     def _init_algos(self,
+                    feedback=None,
                     context=None,
                     invalidGeometry=QgsFeatureRequest.GeometrySkipInvalid,
                         #GeometryNoCheck
@@ -121,6 +122,7 @@ class QAlgos(object):
         if not isinstance(self.qap, QgsApplication):
             raise Error('qgis has not been properly initlized yet')
         
+        self.feedback=feedback
         #=======================================================================
         # build default co ntext
         #=======================================================================
@@ -144,10 +146,10 @@ class QAlgos(object):
         pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
  
         
-        assert not self.feedback is None, 'instance needs a feedback method for algos to work'
+        assert not feedback is None, 'instance needs a feedback method for algos to work'
         
         log.debug('processing initilzied w/ feedback: \'%s\' and %i providers'%(
-            type(self.feedback).__name__, len(pName_l)))
+            type(feedback).__name__, len(pName_l)))
         
 
         return True
