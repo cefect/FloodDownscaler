@@ -1055,6 +1055,7 @@ class QAlgos(object):
             formula_str,
             fieldName = 'new_field',
             fieldType = 'String',
+            fieldLength=0,
             output='TEMPORARY_OUTPUT',
             logger=None,
             ):
@@ -1066,7 +1067,7 @@ class QAlgos(object):
         algo_nm = 'native:fieldcalculator'
         log = logger.getChild('fieldcalculator')
 
-        ins_d = { 'FIELD_LENGTH' : 0,  'FIELD_PRECISION' : 0, 
+        ins_d = { 'FIELD_LENGTH' : fieldLength,  'FIELD_PRECISION' : 0, 
                  'FIELD_NAME' : fieldName,
                  'FIELD_TYPE' : self.field_dtype_d[fieldType], 
                  'FORMULA' : formula_str, 
