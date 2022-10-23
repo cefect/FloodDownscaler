@@ -148,14 +148,14 @@ class Qwrkr(QAlgos, Basic):
  
              
              #inheritance
-             init_pars_d=None,
+             init_pars=None,
  
                  **kwargs):
         
         #=======================================================================
         # defaults
         #=======================================================================
-        if init_pars_d is None: init_pars_d=dict()
+        if init_pars is None: init_pars=list()
         
         
         #=======================================================================
@@ -163,9 +163,9 @@ class Qwrkr(QAlgos, Basic):
         #=======================================================================
         def attach(attv, attn):
             #assert not attv is None, attn
-            assert not attn in init_pars_d, attn
+            assert not attn in init_pars, attn
             setattr(self,  attn, attv)
-            init_pars_d[attn] = attv
+            init_pars.append(attn)
         
         attach(compression, 'compression')
         attach(driverName, 'driverName')
@@ -180,7 +180,7 @@ class Qwrkr(QAlgos, Basic):
         #=======================================================================
         # #init cascade
         #=======================================================================
-        super().__init__(init_pars_d=init_pars_d, **kwargs) #initilzie teh baseclass
+        super().__init__(init_pars=init_pars, **kwargs) #initilzie teh baseclass
         
  
  
@@ -1934,8 +1934,8 @@ class QSession(Qwrkr, Session):
              crs                = None,
              
              #feedback and logging
-             #==================================================================
-             # logger=None,
+ 
+            logger=None,
              # logcfg_file=None,
              # wrk_dir=None,
              #==================================================================
@@ -1966,7 +1966,7 @@ class QSession(Qwrkr, Session):
         pars_d['crs'] = crs
         
         #init loger and Basic
-        LogSession.__init__(self, **kwargs)
+        LogSession.__init__(self, logger=logger, **kwargs)
         
  
         #===================================================================
