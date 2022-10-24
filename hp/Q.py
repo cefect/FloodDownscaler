@@ -11,10 +11,11 @@ Created on Oct. 8, 2020
 #===============================================================================
 
 import time, sys, os, logging, datetime, inspect, gc, shutil
-from pprint import PrettyPrinter
+
 import warnings
 import numpy as np
 import pandas as pd
+from osgeo import gdal
 
 #===============================================================================
 # import QGIS librarires
@@ -25,6 +26,7 @@ from qgis.core import *
 from qgis.gui import QgisInterface
 from hp.gdal import get_nodata_val
 import hp.gdal
+from hp.basic import get_dict_str
 
 from PyQt5.QtCore import QVariant, QMetaType 
 import processing  
@@ -32,6 +34,7 @@ import processing
 
 from qgis.analysis import QgsNativeAlgorithms, QgsRasterCalculatorEntry, QgsRasterCalculator
 
+from hp.Qrcalc import RasterCalc
 
 
 #whitebox
@@ -47,7 +50,7 @@ from qgis.analysis import QgsNativeAlgorithms, QgsRasterCalculatorEntry, QgsRast
 
 from hp.exceptions import Error
 
-from hp.oop import Basic
+from hp.oop import Basic, Session, LogSession
 from hp.dirz import get_valid_filename
 from hp.Qalg import QAlgos
 from hp.logr import get_new_file_logger
@@ -108,7 +111,7 @@ def np_to_qt(dtype): #helper to retrieve a qvariant type from a numpy dtype
 # workers
 #===============================================================================
 
-class Qproj(QAlgos, Basic):
+class Qwrkr(QAlgos, Basic):
     """
     common methods for Qgis projects
     """
@@ -129,214 +132,70 @@ class Qproj(QAlgos, Basic):
     aoi_vlay=None
     
     def __init__(self, 
-                 feedback           =None, 
-                 crs                = None,
+                 
+               #defaults
+             compression        ='med', #raster compression default
+             driverName         ='GPKG', #default writing for vectorl ayers
+             
+             #from parent
+             aoi_vlay=None,
+             crs=None,
+             feedback=None,
+             #qap=None, #just keep this on the session?
+             qproj=None,
+             vlay_drivers=None,
+             context=None, #no inits on Qalg
  
-                 
-                 #aois
-                 aoi_fp             = None,
-                 aoi_set_proj_crs   = False, #force hte project crs from the aoi
-                 aoi_vlay           = None,
-                 
-                 #defaults
-                 compression           ='med', #raster compression default
-                 driverName         ='GPKG', #default writing for vectorl ayers
-                 
-                 #inheritance
-                 session            =None, #parent session for child mode
+             
+             #inheritance
+             init_pars=None,
  
                  **kwargs):
-
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if init_pars is None: init_pars=list()
+        
+        
+        #=======================================================================
+        # attachments
+        #=======================================================================
+        def attach(attv, attn):
+            #assert not attv is None, attn
+            assert not attn in init_pars, attn
+            setattr(self,  attn, attv)
+            init_pars.append(attn)
+        
+        attach(compression, 'compression')
+        attach(driverName, 'driverName')
+        attach(aoi_vlay, 'aoi_vlay')
+        attach(crs, 'crs')
+        attach(feedback, 'feedback')
+        attach(vlay_drivers, 'vlay_drivers')
+        attach(context, 'context')
+        attach(qproj, 'qproj')
  
  
-        #init cascade
-        super().__init__(session=session,
-            
-            **kwargs) #initilzie teh baseclass
-        
         #=======================================================================
-        # attach
+        # #init cascade
         #=======================================================================
-        self.compression=compression
-        self.driverName=driverName
-        #=======================================================================
-        # setup qgis
-        #=======================================================================
-
-        
-        if aoi_set_proj_crs:
-            assert crs is None
-            
-
+        super().__init__(init_pars=init_pars, **kwargs) #initilzie teh baseclass
         
  
-            
-        #standalone
-        if session is None:
-            if crs is None:
-                crs = QgsCoordinateReferenceSystem('EPSG:4326')
-            
-            #===================================================================
-            # feedback
-            #===================================================================
-            if feedback is None:
-                #build a separate logger to capture algorhtihim feedback
-                qlogger= get_new_file_logger('Qproj',
-                    fp=os.path.join(self.work_dir, 'Qproj.log'))
-     
-                feedback = MyFeedBackQ(logger=qlogger)
-            
-            self.feedback = feedback
-        
-            #===================================================================
-            # setups
-            #===================================================================
-            self._init_qgis(crs=crs)
-            
-            self._init_algos()
-            
-            self._set_vdrivers()
-            
-
-            
-        #child mode
-        else:
-            """automating inheritance here
-            may be better to add these to init default variables, then load when None
-                but these are always/only called during Q startup
-            """
-            
-            if not crs is None:
-                raise Error('not letting crs pass to children')
-            
-            for attn in [
-                'qap',  'qproj', 'vlay_drivers', 'feedback','context','driverName', 'compression'
-                ]:
-                val = getattr(session, attn) #retrieve
-                assert not val is None, attn
-                setattr(self, attn, val) #set
-            
-            #build a new map store 
-            self.mstore = QgsMapLayerStore() 
-        
+ 
+        #=======================================================================
+        # setup for this worker
+        #=======================================================================
+ 
+        #build a new map store 
+        self.mstore = QgsMapLayerStore() 
         
         if not self.proj_checks():
             raise Error('failed checks')
-        
-        #=======================================================================
-        # aois
-        #=======================================================================
-
-        #load from file
-        if aoi_vlay is None:
-            if not aoi_fp is None:
-                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
-            
-        else:
-            assert aoi_fp is None, 'cant pass a layer and a filepath'
-            
-        #assign/check
-        if not aoi_vlay is None:
-            self._check_aoi(aoi_vlay)
-            self.aoi_vlay= aoi_vlay #redundant if loaded from file
  
-        
-        self.logger.debug('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
-        
-        
-        return
+        self.logger.info('Qproj __INIT__ finished w/ crs \'%s\''%self.qproj.crs().authid())
     
-    
-    def _init_qgis(self, #instantiate qgis
-                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
-                  gui = False,
-                  qgis_app=None,  #pytest fixture
-                  QGIS_PREFIX_PATH=None,
-                  ): 
-        """
-        Initialize QGIS for standalone runs (pyqgis)
-        
-        This function sets up a session class to run the QGIS api outside of the GUI
-        and does some basic project setup (crs).Also handles running with pytest-qgis.
-        
-        Notes
-        ----------
-        WARNING: need to hold this app somewhere. call in the module you're working in 
-        
-        """
-        log = self.logger.getChild('_init_qgis')
-        
-        
-        if QGIS_PREFIX_PATH is None:#call from environment
-            QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
-            
-        assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
-        
-        
-        #=======================================================================
-        # init the application
-        #=======================================================================
-        if qgis_app is None: #non-test runs
-            try:                
-                QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
-                
-                qgis_app = QgsApplication([], gui)
-    
-                qgis_app.initQgis()
-     
-            
-            except:
-                raise Error('QGIS failed to initiate')
-        
-        #=======================================================================
-        # store the references
-        #=======================================================================
-        self.qap = qgis_app
-        self.qproj = QgsProject.instance()
-        self.mstore = QgsMapLayerStore() #build a new map store
-        
-        #=======================================================================
-        # crs
-        #=======================================================================         
-            
-        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
-        assert crs.isValid()
-            
-        self.qproj.setCrs(crs)
-        
-        log.info('set project crs to %s'%self.qproj.crs().authid())
-        
-
-    
-    
-
-    def _set_vdrivers(self):
-        
-        #build vector drivers list by extension
-        """couldnt find a good built-in to link extensions with drivers"""
-        vlay_drivers = {'SpatiaLite':'sqlite', 'OGR':'shp'}
-        
-        
-        #vlay_drivers = {'sqlite':'SpatiaLite', 'shp':'OGR','csv':'delimitedtext'}
-        
-        for ext in QgsVectorFileWriter.supportedFormatExtensions():
-            dname = QgsVectorFileWriter.driverForExtension(ext)
-            
-            if not dname in vlay_drivers.keys():
-            
-                vlay_drivers[dname] = ext
-            
-        #add in missing/duplicated
-        for vdriver in QgsVectorFileWriter.ogrDriverList():
-            if not vdriver.driverName in vlay_drivers.keys():
-                vlay_drivers[vdriver.driverName] ='?'
-                
-        self.vlay_drivers = vlay_drivers
-        
-        #self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
-        
-        return
-        
 
            
     def proj_checks(self):
@@ -776,22 +635,19 @@ class Qproj(QAlgos, Basic):
  
                   logger=None,
                   dkey=None, #dummy recievor for retrieve calls
-                  
- 
- 
 
                   mstore=None,
+                  exit_summary=False,
                   ):
- 
-        
+        """load raster layer"""
+        assert not fp is None, 'no fp passed for %s'%dkey
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger = self.logger
         log = logger.getChild('rlay_load')
-
         
-        assert os.path.exists(fp), 'requested file does not exist: \n    %s'%fp
+        assert os.path.exists(fp), 'requested \'%s\' file does not exist: \n    %s'%(dkey, fp)
         assert QgsRasterLayer.isValidRasterFileName(fp),  \
             'requested file is not a valid raster file type: %s'%fp
         
@@ -818,17 +674,22 @@ class Qproj(QAlgos, Basic):
             log.debug('\'%s\'  crs does not match project (%s v %s)'%(
                 rlay_raw.name(), rlay_raw.crs().authid(), self.qproj.crs().authid()))
             
- 
+        #=======================================================================
+        # stats
+        #=======================================================================
 
+        if exit_summary:
+            meta_d = self.rlay_get_stats(rlay_raw)
+ 
+            self.smry_d[dkey] = pd.Series(meta_d).to_frame()
+            
+        
         #=======================================================================
         # wrap
         #=======================================================================
- 
 
         if not mstore is None:
             mstore.addMapLayer(rlay_raw)
- 
-            
         
         return rlay_raw
     #===========================================================================
@@ -957,6 +818,7 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         assert isinstance(df_raw.columns, pd.Index)
         assert isinstance(df_raw.index, pd.Index)
+        assert len(df)>0
 
         #make sure none of hte field names execeed the driver limitations
         max_len = fieldn_max_d[self.driverName]
@@ -1068,7 +930,7 @@ class Qproj(QAlgos, Basic):
             assert feat.isValid(), fid
             #stor eit
             feats_d[fid]=feat
-        
+        assert len(feats_d)>0
         log.debug('built %i \'%s\'  features'%(
             len(feats_d),
             QgsWkbTypes.geometryDisplayString(feat.geometry().type()),
@@ -1301,6 +1163,8 @@ class Qproj(QAlgos, Basic):
             return
         else:
             raise Error('unrecognized result key: %s'%result)
+        
+
             
     #===========================================================================
     # RLAYs--------
@@ -1331,6 +1195,7 @@ class Qproj(QAlgos, Basic):
                logger=None,
                clear_all=False, #clear all rasters from memory
                compression='none', #optional compression. #usually we are deleting calc results
+               mstore=None,
                ):
         """
         see __rCalcEntry
@@ -1344,13 +1209,14 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('rcalc1')
-        mstore = QgsMapLayerStore()
+        if mstore is None:
+            mstore = QgsMapLayerStore()
         if compression is None: compression=self.compression
         #=======================================================================
         # output file
         #=======================================================================
         if ofp is None:
-            if out_dir is None: out_dir=self.temp_dir
+            if out_dir is None: out_dir=self.tmp_dir
     
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
@@ -1372,13 +1238,13 @@ class Qproj(QAlgos, Basic):
         if compression == 'none':
             ofp1=ofp
         else:
-            ofp1 = os.path.join(self.temp_dir,layname+'_raw.tif')
+            ofp1 = os.path.join(self.tmp_dir,layname+'_raw.tif')
         #=======================================================================
         # assemble parameters
         #=======================================================================
         if isinstance(ref_lay, str):
-            rlay = self.rlay_load(ref_lay, logger=log)
-            mstore.addMapLayer(rlay)
+            rlay = self.rlay_load(ref_lay, logger=log, mstore=mstore)
+ 
         else:
             rlay = ref_lay
         
@@ -1433,9 +1299,10 @@ class Qproj(QAlgos, Basic):
         log.debug('finished')
         return ofp
     
-    def mask_build(self, #get a mask from a raster with data
+    def mask_build(self, 
                    rlay,
                    
+                   name='mask',
                    #mask parameters
                    zero_shift=False, #necessary for preserving zero values
                    thresh=None, #optional threshold value with which to build raster
@@ -1443,84 +1310,66 @@ class Qproj(QAlgos, Basic):
                    rval=None, #make a mask from a specific value
                    
                    #misc
-                   layname=None,ofp=None,logger=None, **kwargs):
-        
+                   logger=None, **kwargs):
+        """
+        get a mask from a raster with data
+        """
+
         #=======================================================================
         # defaults
         #=======================================================================
         if logger is None: logger=self.logger
-        log=logger.getChild('mask_invert')
-        
-        rcentry = self._rCalcEntry(rlay)
-
-        if layname is None: layname='%s_mask'%rcentry.raster.name()
+        log=logger.getChild('mask_build')
+ 
         
         log.debug('on %s w/ zero_shift=%s, thresh=%s'%(
             rlay, zero_shift, thresh))
-        #=======================================================================
-        # build formula--
-        #=======================================================================
-        if rval is None:
-            #=======================================================================
-            # #from teh data as is
-            #=======================================================================
-            if thresh is None:
-
-                if zero_shift:
-                    """
-                    without this.. zero values will show up as null on the mask
-                    """
-                    f1 = '(abs(\"{0}\")+999)'.format(rcentry.ref)
-                    formula = f1 + '/' + f1
-                else: #take any real values
-                
-                    formula = '\"{0}\"/\"{0}\"'.format(rcentry.ref)
-            #=======================================================================
-            # #apply a threshold to the data
-            #=======================================================================
-
-            else:
-                """
-                WARNING: strange treatment of values right around some specified threshold (e.g., rlay<1.01). 
-                I think the data has more precision than what is shown (even with using the raster rounder)
-                """
-                
-                if thresh_type=='lower': # val=1 where greater than the lower bound
-                    thresh_i = thresh-.001
-                    f1 = '(\"{0}\">={1:.3f})'.format(rcentry.ref, thresh_i)
-                    
-                elif thresh_type=='upper':
-                    thresh_i = thresh+.001
-                    f1 = '(\"{0}\"<={1:.3f})'.format(rcentry.ref, thresh_i)
-                elif thresh_type=='lower_neq':
-                    f1 = '(\"{0}\">{1:.3f})'.format(rcentry.ref, thresh)
-                elif thresh_type=='upper_neq':
-                    f1 = '(\"{0}\"<{1:.3f})'.format(rcentry.ref, thresh)
-                else:
-                    raise Error('bad thresh_type: %s'%thresh_type)
-                formula = f1 + '/' + f1
         
-        #=======================================================================
-        # fixed values
-        #=======================================================================
-        else:
-            """note... this is sensitivite to precision"""
-            f1 = '(\"{0}\"={1:.1f})'.format(rcentry.ref, rval)
-            formula = f1 + '/' + f1
+        with RasterCalc(rlay, name=name, session=self, logger=log, **kwargs) as wrkr:
+            
+            formula=wrkr.formula_mbuild(zero_shift=zero_shift, thresh=thresh, thresh_type=thresh_type, rval=rval)
+                
+            res = wrkr.rcalc(formula)
  
         #=======================================================================
         # get
         #=======================================================================
-        return self.rcalc1(rlay, formula, [rcentry], logger=log,ofp=ofp,
-                           layname=layname, **kwargs)
+
+        
+        return res
+        
+    
+    def mask_build_nan(self,
+                        rlay,
+                        logger=None, ofp=None, layname=None, out_dir=None,
+                        **kwargs):
+        """build a mask from non-null values"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if out_dir is None: out_dir=self.out_dir
+        if layname is None: layname = '%s_mask_nan'%rlay.name()
+        if ofp is None: ofp=os.path.join(out_dir, '%s.tif'%layname)
+        
+        
+        with RasterCalc(rlay, name='mask_build_nan', session=self, 
+                        logger=logger,out_dir=out_dir,**kwargs) as wrkr:
+ 
+            rcentry = wrkr._rCalcEntry(rlay)
+            formula = '({lay})/({lay})'.format(lay=rcentry.ref)
+            wrkr.rcalc(formula, layname=layname, ofp=ofp)
+            
+        return ofp
+        
  
      
     def mask_invert(self, #take a mask layer, and invert it
                     rlay,
                     logger=None,
-                    ofp=None,
+                    
+                    name='mask_invert',
                     include_nulls=False, #whether to treat nulls as postiive in the result
-                    layname='mask_invert',
+ 
                     **kwargs):
         """ surprised there isnt a builtin wayu to do this
         """
@@ -1528,31 +1377,22 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # defaults
         #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('mask_invert')
  
         if include_nulls: 
             raise Error('not implememnted')
+        
         #=======================================================================
         # add 2 to nodata
         #=======================================================================
-        rlay1_fp= self.fillnodata(rlay, fval=2, logger=log)
+        rlay1_fp= self.fillnodata(rlay, fval=2, logger=logger)
         
-        #=======================================================================
-        # subtract 1 from all
-        #=======================================================================
-        """were assuming the layer is already a mask"""
+        with RasterCalc(rlay1_fp,  session=self, logger=logger, name=name, **kwargs) as wrkr:
+            
+            formula='({0}-1)/({0}-1)'.format(wrkr.ref())               
+            res = wrkr.rcalc(formula)
         
-        rcentry = self._rCalcEntry(rlay1_fp)
-        
-        formula = '({0}-1)/({0}-1)'.format(rcentry.ref)
-        
-        """
-        rcentry.raster
-        """
-        
-        return self.rcalc1(rlay1_fp, formula, [rcentry], logger=log,ofp=ofp,
-                           layname=layname, **kwargs)
+ 
+        return res
         
 
     def mask_apply(self, #apply a mask to a la yer
@@ -1560,15 +1400,12 @@ class Qproj(QAlgos, Basic):
                    mask_rlay, #mask raseter
                         #1=dont mask; 0 or nan = mask 
                    invert_mask=False,
-                   layname=None,
-                   logger=None,
+ 
+                   logger=None,name='mapply',
                    **kwargs):
         """
 
-        mask=1: result = rlay
-        mask=0: result = nan
-        mask=nan: result=nan
-        rlay=nan: result=nan
+
         """
         #=======================================================================
         # defaults
@@ -1583,7 +1420,7 @@ class Qproj(QAlgos, Basic):
         if invert_mask:
  
             mask_rlay1 = self.mask_invert(mask_rlay, logger=log,
-                          ofp=os.path.join(self.temp_dir, 
+                          ofp=os.path.join(self.tmp_dir, 
                            '%s_invert.tif'%os.path.basename(mask_rlay).replace('.tif', '')),
                           )
         else:
@@ -1591,40 +1428,13 @@ class Qproj(QAlgos, Basic):
         #===================================================================
         # build the raster calc entries
         #===================================================================
-        log.debug('building entries')
-
- 
-        rlay_obj_d = {'raw':rlay, 'mask':mask_rlay1}
-        rcentry_d = dict()
-        
-        for k,obj in rlay_obj_d.items():
-            rcentry_d[k] = self._rCalcEntry(obj, logger=log)
- 
-        
-        
-        if layname is None: 
-            layname = (rcentry_d['raw'].raster.name() + '%s_maskd'%(
-                rcentry_d['raw'].raster.name())) 
-        #===================================================================
-        # build the formula
-        #===================================================================
-
-        formula = '(\"{0}\"/\"{1}\")'.format(rcentry_d['raw'].ref, rcentry_d['mask'].ref)
- 
-        #=======================================================================
-        # execute
-        #=======================================================================
-        
-        ofp = self.rcalc1(rcentry_d['raw'].raster, formula,
-                          list(rcentry_d.values()),
-                          layname=layname,
-                          logger=log,**kwargs)
-        
-        log.debug('finished w/ %s'%ofp)
+        with RasterCalc(rlay,  session=self, logger=log, name=name, **kwargs) as wrkr:
+            
+            formula=wrkr.formula_mapply(mask_rlay1)                
+            res = wrkr.rcalc(formula)
         
  
-        
-        return ofp
+        return res
     
     def rlay_get_resolution(self,  
                        rlay):
@@ -1662,6 +1472,7 @@ class Qproj(QAlgos, Basic):
     def rlay_get_cellCnt(self,
                          rlay,
                          exclude_nulls=True,
+                         invert=False, #whether to invert a mask
                          log=None,
                          ):
         """surprised there is no builtin"""
@@ -1682,6 +1493,9 @@ class Qproj(QAlgos, Basic):
 
         assert isinstance(rlay, QgsRasterLayer)
         
+        if invert:
+            rlay = self.mask_invert(rlay, logger=log)
+        
         if exclude_nulls:
             
             mask = self.mask_build(rlay, zero_shift=True, logger=log)
@@ -1695,15 +1509,46 @@ class Qproj(QAlgos, Basic):
         log.debug('got %i'%res)
         return int(res)
     
-    def rlay_getstats(self, rlay, logger=None): #get some raster stats
+    def rlay_get_cellCnt2(self,
+                         rlay,
+                         exclude_nulls=True,
+ 
+                         log=None,
+                         ):
+        """surprised there is no builtin
+        trying with gdal
+        """
+ 
+        #setup
+
+        mstore=QgsMapLayerStore()
+        
+        if isinstance(rlay, str):
+ 
+            rlay = self.rlay_load(rlay, logger=log)
+            mstore.addMapLayer(rlay)
+ 
+
+ 
+        nd_cnt=0
+        if exclude_nulls:
+            nd_cnt = hp.gdal.getNoDataCount(rlay.source())
+ 
+ 
+        res = int(rlay.width()*rlay.height() - nd_cnt)
+        
+        mstore.removeAllMapLayers()
+        return res
+    
+    def rlay_get_stats(self, rlay, logger=None): #get some raster stats
         #=======================================================================
         # defautls
         #=======================================================================
         if logger is None: logger=self.logger
-        log=logger.getChild('rlay_getstats')
+        log=logger.getChild('rlay_get_stats')
         
         mstore=QgsMapLayerStore()
-        
+        rlay = self.get_layer(rlay, mstore=mstore)
         #=======================================================================
         # #builtin stats
         #=======================================================================
@@ -1717,29 +1562,28 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         # nodata counts
         #=======================================================================
-        if isinstance(rlay, str):
-            rlay_fp = rlay
-        else:
-            rlay_fp = rlay.source()
-        
-        stats_d['noData_cnt'] = hp.gdal.getNoDataCount(rlay_fp)
-        #=======================================================================
-        # preload
-        #=======================================================================
-        if isinstance(rlay, str):
  
-            rlay = self.rlay_load(rlay, logger=log)
-            mstore.addMapLayer(rlay)
-            
+        stats_d['noData_cnt'] = hp.gdal.getNoDataCount(rlay.source())
+        
+ 
         #=======================================================================
         # generals
         #=======================================================================
         stats_d['cell_cnt'] = rlay.width()*rlay.height()
+        stats_d['real_cnt'] = stats_d['cell_cnt'] - stats_d['noData_cnt']
         stats_d['resolution'] = self.rlay_get_resolution(rlay)
         stats_d['crs'] = rlay.crs().authid()
         for attn in ['width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX']:
             stats_d[attn] = getattr(rlay, attn)()
-            
+        
+        #=======================================================================
+        # post
+        #=======================================================================
+        stats_d['cell_area'] = stats_d['rasterUnitsPerPixelY']*stats_d['rasterUnitsPerPixelX']
+        stats_d['volume'] = stats_d['SUM']*stats_d['cell_area']
+        #=======================================================================
+        # wrap
+        #=======================================================================
         mstore.removeAllMapLayers()
         
             
@@ -1789,11 +1633,11 @@ class Qproj(QAlgos, Basic):
         """should preserve nodata?
         also consider simply copying the source"""
         if logger is None: logger=self.logger
-        if out_dir is None: out_dir=self.temp_dir
+        if out_dir is None: out_dir=self.tmp_dir
         #log=logger.getChild('rlay_mcopy')
         
         """too complicated
-        with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.temp_dir,
+        with RasterCalc(rlay, name='dep', session=self, logger=log, out_dir=self.tmp_dir,
                         ) as wrkr:
             
             entries_d = {k:wrkr._rCalcEntry(v) for k,v in {'lay':rlay}.items()}
@@ -1820,6 +1664,29 @@ class Qproj(QAlgos, Basic):
         assert_rlay_equal(rlay, rlay_copy, msg='rlay_mcopy')
         
         return rlay_copy
+    
+    
+    def rlay_warp_simp(self,
+                      rlay, 
+                      dstNodata=-9999, resampleAlg='nearest',
+                      reso=None,
+                      ofp=None,
+                      logger=None,
+                      mstore=None):
+        """simple gdal warps"""
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if ofp is None: ofp=os.path.join(self.tmp_dir, '%s_warp.tif'%rlay.name())
+        
+        if reso is None: reso=rlay.rasterUnitsPerPixelX()
+        
+        ds = gdal.Warp(ofp, rlay.source(), 
+                       xRes=reso,yRes=reso,
+                       dstNodata=dstNodata, resampleAlg=resampleAlg)
+        
+        ds = None
+        return self.rlay_load(ofp, mstore=mstore)
         
         
  
@@ -1908,66 +1775,6 @@ class Qproj(QAlgos, Basic):
         
         return df
  
-        
-    def rlay_check_match(self, #check if raster dimensions and resolutions match
-                         rlay1_raw,
-                         rlay2_raw,
-                         logger=None):
-        """todo: migrate to assert_rlay_equal"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('rlay_check_match')
-        
-        #=======================================================================
-        # load
-        #=======================================================================
-        mstore = QgsMapLayerStore()
-        rlay1 = self.get_layer(rlay1_raw, logger=log, mstore=mstore)
-        rlay2 = self.get_layer(rlay2_raw, logger=log, mstore=mstore)
-        
-        #=======================================================================
-        # run tests
-        #=======================================================================
-        
-        """
-        rlay1.extent()
-        """
-        
-        
-        log.debug('testing %s vs %s'%(rlay1.name(), rlay2.name()))
-        res_d = dict()
-        for i, testName in enumerate([
-            'width', 'height', 'rasterUnitsPerPixelY', 'rasterUnitsPerPixelX', 'crs', 'extent'
-            ]):
-            
-        
-            v1 = getattr(rlay1, testName)()
-            v2 = getattr(rlay2, testName)()
-            
-            res_d[testName] = {'result':v1==v2, rlay1.name():v1, rlay2.name():v2}
-            
-            
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        res_df = pd.DataFrame.from_dict(res_d).T.infer_objects()
-        mstore.removeAllMapLayers()
-        
-        if not res_df['result'].all():
-            with pd.option_context('display.max_rows', None,'display.max_columns', None,'display.width',1000):
- 
-                msg = 'failed %i/%i tests: \n\n%s'%(len(res_df) - res_df['result'].sum(), len(res_df), res_df[~res_df['result']])
-            """
-            view(res_df)
-            """
-            log.debug(msg)
-            return False, msg
-        
-        log.debug('passed %i tests'%len(res_df))
-        return True, ''
-    
     #===========================================================================
     # HELPERS---------
     #===========================================================================
@@ -1997,6 +1804,9 @@ class Qproj(QAlgos, Basic):
         # passed a layer
         #=======================================================================
         elif isinstance(obj, QgsMapLayer):
+            """a bit confusing... but generally I use this function to lazily retreave a layer from a fp
+            in these cases, only worried about cleaning up NEWLY loaded layers"""
+            #mstore.addMapLayer(obj)
             return obj
         else:
             raise Error('bad type: %s'%type(obj))
@@ -2020,32 +1830,27 @@ class Qproj(QAlgos, Basic):
         #=======================================================================
         if logger is None: logger=self.logger
         log = logger
+ 
+        
+        d = self._get_mstore_d(mstore=mstore)
+        
+        #txt = pprint.pformat(d, width=30, indent=0, compact=True, sort_dicts =False)
+        
+        log.info('mstore has %i layers \n%s'%(len(d), get_dict_str(d, indent=5)))
+        
+    
+    def _get_mstore_d(self, mstore=None):
         if mstore is None: mstore=self.mstore
-        
-        
-        
-        d = {lay.name():QgsMapLayerType(lay.type()).name for lay in mstore.mapLayers().values()}
-        
-        txt = pprint.pformat(d, width=30, indent=0, compact=True, sort_dicts =False)
-        
-        log.info('mstore has %i layers \n%s'%(len(d), txt))
+        return {lay.name():QgsMapLayerType(lay.type()).name for lay in mstore.mapLayers().values()}
  
      
     def _rCalcEntry(self, #helper for raster calculations 
-                         rlay_obj, bandNumber=1,
- 
-                          **kwargs):
+                         rlay_obj, bandNumber=1, mstore=None):
         #=======================================================================
         # load the object
         #=======================================================================
-        
-        if isinstance(rlay_obj, str):
-            assert os.path.exists(rlay_obj), rlay_obj
-            rlay = QgsRasterLayer(rlay_obj, os.path.basename(rlay_obj).replace('.tif', ''))
-            self.mstore.addMapLayer(rlay)
+        rlay = self.get_layer(rlay_obj, mstore=mstore)
  
-        else:
-            rlay = rlay_obj
  
         #=======================================================================
         # check
@@ -2098,6 +1903,20 @@ class Qproj(QAlgos, Basic):
         d['QGIS_RELEASE'] = Qgis.QGIS_RELEASE_NAME.encode('utf-8')
             
         return d
+    
+    def _set_creep(self, mstore=None):
+        """for debugging the mstore"""
+        self.creep_mstore_d = self._get_mstore_d(mstore=mstore)
+        
+    def _get_creep(self, mstore=None):
+        mstore_d = self.creep_mstore_d.copy()
+        creep_d = {k:v for k,v in self._get_mstore_d(mstore=mstore).items() if not k in mstore_d}
+    
+        if len(creep_d)>0:
+            print(get_dict_str(self._get_mstore_d()))
+            self.logger.warning('accumulated %i new layers in the store\n    %s'%(len(creep_d), creep_d))
+            
+        return len(creep_d)
  
     def __exit__(self, #destructor
                  *args,**kwargs):
@@ -2109,11 +1928,210 @@ class Qproj(QAlgos, Basic):
         super().__exit__(*args,**kwargs)  
         
     
-
-
-
+class QSession(Qwrkr, Session):
+    def __init__(self, 
+             feedback           =None, 
+             crs                = None,
+             
+             #feedback and logging
+ 
+            logger=None,
+             # logcfg_file=None,
+             # wrk_dir=None,
+             #==================================================================
+ 
+ 
+             #aois
+             aoi_fp             = None,
+             aoi_set_proj_crs   = False, #force hte project crs from the aoi
+             aoi_vlay           = None,
+             
+ 
+               #pytest-qgis fixtures
+             qgis_app=None, qgis_processing=None,
+ 
     
+             **kwargs):
+        """setup the QGIS session"""
+        
+        
+
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        pars_d = dict()
+        
+        if crs is None:
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        pars_d['crs'] = crs
+        
+        #init loger and Basic
+        LogSession.__init__(self, logger=logger, **kwargs)
+        
+ 
+        #===================================================================
+        # feedback
+        #===================================================================            
+        if feedback is None:
+            """not ideal, but we need the logger configured BEFORE the init cascade"""
+            #===================================================================
+            # if logger is None:
+            #     if wrk_dir is None:
+            #         from definitions import wrk_dir
+            # 
+            #     if logcfg_file is None:
+            #         from definitions import logcfg_file
+            #                         
+            #     logger = self.from_cfg_file(logcfg_file=logcfg_file, out_dir=wrk_dir)
+            #     
+            #     pars_d['logger'] = logger
+            #     pars_d['wrk_dir'] = wrk_dir
+            #===================================================================
+            
+ 
+            #build a separate logger to capture algorhtihim feedback
+            #===================================================================
+            # qlogger= get_new_file_logger('Qproj',
+            #     fp=os.path.join(self.wrk_dir, 'Qproj.log'))
+            #===================================================================
+ 
+            feedback = MyFeedBackQ(logger=self.logger) 
+        
+        
     
+        #===================================================================
+        # setups
+        #===================================================================
+        self._init_qgis(crs=crs, qgis_app=qgis_app)
+        
+        self._init_algos(feedback=feedback) #sets context and feedback
+        
+        self._set_vdrivers()
+        
+        #=======================================================================
+        # extract for child
+        #=======================================================================
+        for attn in ['vlay_drivers', 'context', 'qproj', 'feedback']:
+            pars_d[attn] = getattr(self, attn)
+        
+        #=======================================================================
+        # aois
+        #=======================================================================
+
+        #load from file
+        if aoi_vlay is None:
+            if not aoi_fp is None:
+                aoi_vlay = self.load_aoi(aoi_fp, set_proj_crs=aoi_set_proj_crs)
+            
+        else:
+            assert aoi_fp is None, 'cant pass a layer and a filepath'
+            
+        #assign/check
+        if not aoi_vlay is None:
+            self._check_aoi(aoi_vlay)
+            
+        pars_d['aoi_vlay'] = aoi_vlay
+ 
+        
+        
+        #init cascade
+        super().__init__(logger=self.logger, **pars_d, **kwargs) #initilzie teh baseclass
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        self.logger.info('finished QSes.__init__')
+
+    def _init_qgis(self, #instantiate qgis
+                   crs=QgsCoordinateReferenceSystem('EPSG:4326'),
+                  gui = False,
+                  qgis_app=None,  #pytest fixture
+                  QGIS_PREFIX_PATH=None,
+                  ): 
+        """
+        Initialize QGIS for standalone runs (pyqgis)
+        
+        This function sets up a session class to run the QGIS api outside of the GUI
+        and does some basic project setup (crs).Also handles running with pytest-qgis.
+        
+        Notes
+        ----------
+        WARNING: need to hold this app somewhere. call in the module you're working in 
+        
+        """
+        log = self.logger.getChild('_init_qgis')
+        
+        
+        if QGIS_PREFIX_PATH is None:#call from environment
+            QGIS_PREFIX_PATH=os.environ['QGIS_PREFIX_PATH']
+            
+        assert os.path.exists(os.environ['QGIS_PREFIX_PATH']) 
+        
+        
+        #=======================================================================
+        # init the application
+        #=======================================================================
+        if qgis_app is None: #non-test runs
+            try:                
+                QgsApplication.setPrefixPath(QGIS_PREFIX_PATH, True)
+                
+                qgis_app = QgsApplication([], gui)
+    
+                qgis_app.initQgis()
+     
+            
+            except:
+                raise Error('QGIS failed to initiate')
+        
+        #=======================================================================
+        # store the references
+        #=======================================================================
+        self.qap = qgis_app
+        self.qproj = QgsProject.instance()
+        
+        """built during init
+        self.mstore = QgsMapLayerStore() #build a new map store"""
+        
+        #=======================================================================
+        # crs
+        #=======================================================================         
+            
+        assert isinstance(crs, QgsCoordinateReferenceSystem), 'bad crs type'
+        assert crs.isValid()
+            
+        self.qproj.setCrs(crs)
+        
+        log.info('set project crs to %s'%self.qproj.crs().authid())
+        
+ 
+    def _set_vdrivers(self):
+        
+        #build vector drivers list by extension
+        """couldnt find a good built-in to link extensions with drivers"""
+        vlay_drivers = {'SpatiaLite':'sqlite', 'OGR':'shp'}
+        
+        
+        #vlay_drivers = {'sqlite':'SpatiaLite', 'shp':'OGR','csv':'delimitedtext'}
+        
+        for ext in QgsVectorFileWriter.supportedFormatExtensions():
+            dname = QgsVectorFileWriter.driverForExtension(ext)
+            
+            if not dname in vlay_drivers.keys():
+            
+                vlay_drivers[dname] = ext
+            
+        #add in missing/duplicated
+        for vdriver in QgsVectorFileWriter.ogrDriverList():
+            if not vdriver.driverName in vlay_drivers.keys():
+                vlay_drivers[vdriver.driverName] ='?'
+                
+        self.vlay_drivers = vlay_drivers
+        
+        #self.logger.debug('built driver:extensions dict: \n    %s'%vlay_drivers)
+        
+        return
+        
+
 
     
 class RasterFeedback(QgsRasterBlockFeedback):
@@ -2230,271 +2248,6 @@ class MyFeedBackQ(QgsProcessingFeedback):
         # emit signalling
         #===================================================================
         self.setProgress(prog)
-        
-class RasterCalc(object):
-    
-    result= None
-    layers_d = dict()
-    def __init__(self,
-                 ref_lay,
-                 logger=None,
-                 name='rcalc', 
-                 session=None,
- 
-                 out_dir=None,
-                 temp_dir=None,
-                 mstore=None,
-                 ):
-        
-        #=======================================================================
-        # precheck
-        #=======================================================================
-
-                
- 
-        #=======================================================================
-        # attach
-        #=======================================================================
-        
-        self.logger = logger.getChild(name)
-        self.name=name
-        if mstore is None:
-            mstore = QgsMapLayerStore()
-        self.mstore = mstore
-        self.start = datetime.datetime.now()
-        
-        #from session
-        self.session=session
-        self.qproj=session.qproj
-        self.feedback=session.feedback
-        self.overwrite=self.session.overwrite
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        self.rasterEntries = list() #list of QgsRasterCalculatorEntry
-        #out_dir
-        if out_dir is None:
-            out_dir = os.environ['TEMP']
-            
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        self.out_dir=out_dir
-            
-        #temp dir
-        if temp_dir is None: temp_dir=out_dir
-        self.temp_dir=temp_dir
-        
-        
-        #reference layer
-        if isinstance(ref_lay, str):
-            ref_lay = self.load(ref_lay)
-            
-        
-        assert isinstance(ref_lay, QgsRasterLayer)
-        self.ref_lay=ref_lay
-        
-        self.logger.debug('on ref_lay: %s'%self.ref_lay.name())
-    
-    def rcalc(self, #simple raster calculations with a single raster
-               
-               #calc control
-               formula, #string formatted formula
-               rasterEntries=None, #list of QgsRasterCalculatorEntry
-               
-               #output control
-               ofp=None,
-               layname=None,
-               compress='none', #optional compression. #usually we are deleting calc results
-               
-               #general control
-               #allow_empty=True, 
-               report=False,
-               logger=None,
-               ):
-        """
-        see __rCalcEntry
-        
-        phantom crashing
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if logger is None: logger=self.logger
-        log=logger.getChild('rcalc1')
- 
-        if compress is None: compress=self.compress
-        if rasterEntries is None: rasterEntries=self.rasterEntries
-        
-        
-        
-        
-        out_dir=self.out_dir
-        ref_lay=self.ref_lay
-        
-        #add the reference to the entries 
-        """for simple runs? consider doing this during __init__"""
-        if len(rasterEntries)>0:
-            self._rCalcEntry(ref_lay)
-        
-        if layname is None: layname='%s_%s'%(ref_lay.name(), self.name)
-        assert not '.tif' in layname
-        #=======================================================================
-        # output file
-        #=======================================================================
-        if ofp is None:
-            ofp = os.path.join(out_dir,layname+'.tif' )
-            
-        if os.path.exists(ofp):
-            log.debug('file expsts: %s'%ofp) 
-            assert self.overwrite
-            
-            try:
-                os.remove(ofp)
-            except Exception as e:
-                raise Error('failed to clear existing file.. unable to write \n    %s \n    %s'%(
-                    ofp, e))
-                
-        assert ofp.endswith('.tif')
-        
- 
-        #=======================================================================
-        # assemble parameters
-        #=======================================================================
-
-        d = dict(
-                formula=formula,
-                ofp=ofp,
-                outputExtent  = ref_lay.extent(),
-                outputFormat = 'GTiff',
-                crs = self.qproj.crs(),
-                nOutputColumns = ref_lay.width(),
-                nOutputRows = ref_lay.height(),
-                crsTrnsf = QgsCoordinateTransformContext(),
-                rasterEntries = rasterEntries,
-            )
-        #=======================================================================
-        # execute
-        #=======================================================================
-        msg = PrettyPrinter(indent=4).pformat(d)
-        #msg = '\n'.join(['%s:    %s'%(k,v) for k,v in d.items()])
-        log.debug('QgsRasterCalculator w/ \n%s'%msg)
-        
-        rcalc = QgsRasterCalculator(d['formula'], d['ofp'],
-                                     d['outputFormat'], d['outputExtent'], d['crs'],
-                                     d['nOutputColumns'], d['nOutputRows'], d['rasterEntries'], d['crsTrnsf'])
- 
- 
-        
-        try:
-            result = rcalc.processCalculation(feedback=self.feedback)
-        except Exception as e:
-            raise Error('failed to processCalculation w/ \n    %s'%e)
-        
-        #=======================================================================
-        # check    
-        #=======================================================================
-        if not result == 0:
-            raise Error('formula=%s failed w/ \n    %s'%(formula, rcalc.lastError()))
- 
-        log.debug('saved result to: \n    %s'%ofp)
- 
-        #=======================================================================
-        # wrap
-        #=======================================================================
- 
-        #check and report
-        if report:
-            stats_d = self.session.rasterlayerstatistics(ofp)
-            log.debug('finished w/ \n    %s'%stats_d)
-        self.result = ofp
-        return ofp
-    
-    
-    def _rCalcEntry(self, #helper for raster calculations 
-                         rlay_obj, bandNumber=1,
- 
-                         ):
-        #=======================================================================
-        # load the object
-        #=======================================================================
-        
-        if isinstance(rlay_obj, str):
-            rlay = self.load(rlay_obj)
- 
-        else:
-            rlay = rlay_obj
- 
-        #=======================================================================
-        # check
-        #=======================================================================
-        assert isinstance(rlay, QgsRasterLayer)
-        assert rlay.crs()==self.qproj.crs(), 'bad crs on \'%s\' (%s)'%(rlay.name(),rlay.crs().authid())
-        
-        #=======================================================================
-        # build the entry
-        #=======================================================================
-        rcentry = QgsRasterCalculatorEntry()
-        rcentry.raster =rlay #not accesesible for some reason
-        rcentry.ref = '%s@%i'%(rlay.name(), bandNumber)
-        rcentry.bandNumber=bandNumber
-        
-        self.rasterEntries.append(rcentry)
-        return rcentry
-
-    def load(self, fp, 
- 
-                  logger=None):
-        
-        if logger is None: logger = self.logger
-        log = logger.getChild('load')
-        
-        assert os.path.exists(fp), 'requested file does not exist: %s'%fp
-        assert QgsRasterLayer.isValidRasterFileName(fp), 'requested file is not a valid raster file type: %s'%fp
-        
-        basefn = os.path.splitext(os.path.split(fp)[1])[0]
-        
-
-        #Import a Raster Layer
-        log.debug('QgsRasterLayer(%s, %s)'%(fp, basefn))
-        rlayer = QgsRasterLayer(fp, basefn)
- 
- 
-        
-        #===========================================================================
-        # check
-        #===========================================================================
-        assert isinstance(rlayer, QgsRasterLayer), 'failed to get a QgsRasterLayer'
-        assert rlayer.isValid(), "Layer failed to load!"
-        
-        
-        if not rlayer.crs() == self.qproj.crs():
-            log.warning('loaded layer \'%s\' crs mismatch!'%rlayer.name())
-
-        #log.debug('loaded \'%s\' from \n    %s'%(rlayer.name(), fp))
-        
-        stats_d = self.session.rasterlayerstatistics(rlayer)
-        
-        assert not pd.isnull(stats_d['MEAN']), 'got a bad layer from \n    %s'%fp
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        self.mstore.addMapLayer(rlayer)
-        self.layers_d[rlayer.name() ] =rlayer #holding the layer?
-        
-        return rlayer
-    
-    def __enter__(self,*args,**kwargs):
-        return self
- 
-    def __exit__(self, #destructor
-                 *args,**kwargs):
-         
-        #clear your map store
-        self.mstore.removeAllMapLayers()
-        #print('clearing mstore')
-        self.logger.info('finished in %.2f secs w/ %s'%((datetime.datetime.now() - self.start).total_seconds(), self.result))
-        #super().__exit__(*args,**kwargs) #initilzie teh baseclass
         
 
 #===============================================================================
@@ -3009,25 +2762,9 @@ def view(#view the vector data (or just a df) as a html frame
     
     return
 
-#===============================================================================
-# rlay helpers--------
-#===============================================================================
-def assert_rlay_equal(left, right, msg=''): #simple rlay comparison check
-    assert isinstance(left, QgsRasterLayer), msg
-    assert isinstance(right, QgsRasterLayer), msg
-    __tracebackhide__ = True
-    
- 
-    
-    #check basic methods
-    for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
-        lval = getattr(left, method)()
-        rval = getattr(right, method)()
+
         
-        if not lval == rval:
-            raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
-                left.name(), method, lval, right.name(), method, rval) +msg) 
- 
+
 
 #==============================================================================
 # type conversions----------------
@@ -3142,11 +2879,7 @@ def rlay_to_npArray(lyr, dtype=np.dtype(float)): #Input: QgsRasterLayer
     
  
     return np.array(l, dtype=dtype)
-
  
-        
- 
-
 #==============================================================================
 # type checks-----------------
 #==============================================================================
@@ -3184,11 +2917,77 @@ def is_qtype_match(obj, qtype_code, logger=mod_logger): #check if the object mat
         return False
     else:
         return True
+    
 
-def test_install(): #test your qgis install
+#===============================================================================
+# ASSERTIONS--------
+#===============================================================================
+def assert_rlay_equal(left, right, msg='',): 
+    """simple rlay spatial comparison check"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
  
-    proj = Qproj()
-    proj._install_info()
+    #check extents
+    assert_extent_equal(left, right, msg=msg)  
+    
+    __tracebackhide__ = True  
+     
+    #check basic methods
+    for method in ['width', 'height', 'rasterUnitsPerPixelX', 'rasterUnitsPerPixelY', 'crs']:
+ 
+        lval = getattr(left, method)()
+        rval = getattr(right, method)()
+        
+        if not lval == rval:
+            raise AssertionError('%s.%s (%s) != %s.%s. (%s)\n'%(
+                left.name(), method, lval, right.name(), method, rval) +msg) 
+            
+
+def assert_extent_equal(left, right, msg='',): 
+    """ extents check"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    assert isinstance(left, QgsRasterLayer), type(left).__name__+ '\n'+msg
+    assert isinstance(right, QgsRasterLayer), type(right).__name__+ '\n'+msg
+    __tracebackhide__ = True
+    
+    #===========================================================================
+    # crs
+    #===========================================================================
+    if not left.crs()==right.crs():
+        raise AssertionError('crs mismatch')
+    #===========================================================================
+    # extents
+    #===========================================================================
+    if not left.extent()==right.extent():
+        raise AssertionError('%s != %s extent\n    %s != %s\n    '%(
+                left.name(),   right.name(), left.extent(), right.extent()) +msg) 
+        
+def assert_rlay_simple(rlay, msg='',): 
+    """square pixels with integer size"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+ 
+    
+    __tracebackhide__ = True  
+    
+    x = rlay.rasterUnitsPerPixelX()
+    y = rlay.rasterUnitsPerPixelY()
+    
+    if not x==y:
+        raise AssertionError('non-square pixels\n' + msg)
+ 
+    if not round(x, 10)==int(x):
+        raise AssertionError('non-integer pixel size\n' + msg)
+     
+ 
+#===============================================================================
+# ENVIRONMENT-------------
+#===============================================================================
+def test_install(): #test your qgis install
+    with QSession() as proj: 
+        proj._install_info()
     
     
     

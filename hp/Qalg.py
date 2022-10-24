@@ -42,7 +42,9 @@ class QAlgos(object):
             'EPSG:3979':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
             'EPSG:3857':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
             'EPSG:2950':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=tmerc +lat_0=0 +lon_0=-73.5 +k=0.9999 +x_0=304800 +y_0=0 +ellps=GRS80',
-            'EPSG:2955':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=utm +zone=11 +ellps=GRS80'
+            'EPSG:2955':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=utm +zone=11 +ellps=GRS80',
+            'EPSG:2953':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +inv +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=GRS80 +step +proj=pop +v_3 +step +proj=sterea +lat_0=46.5 +lon_0=-66.5 +k=0.999912 +x_0=2500000 +y_0=7500000 +ellps=GRS80'
+    
             },
         'EPSG:3979':{
             'EPSG:3857':'+proj=pipeline +step +inv +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84',
@@ -69,7 +71,12 @@ class QAlgos(object):
             },
         'EPSG:3776':{
             'EPSG:4326':'+proj=pipeline +step +inv +proj=tmerc +lat_0=0 +lon_0=-114 +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +step +proj=hgridshift +grids=ca_nrc_ABCSRSV4.tif +step +proj=unitconvert +xy_in=rad +xy_out=deg'
-            }
+            },
+        'EPSG:2953':{
+            'EPSG:3979':'+proj=pipeline +step +inv +proj=sterea +lat_0=46.5 +lon_0=-66.5 +k=0.999912 +x_0=2500000 +y_0=7500000 +ellps=GRS80 +step +proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80',
+            'EPSG:4326':'+proj=pipeline +step +inv +proj=sterea +lat_0=46.5 +lon_0=-66.5 +k=0.999912 +x_0=2500000 +y_0=7500000 +ellps=GRS80 +step +proj=push +v_3 +step +proj=cart +ellps=GRS80 +step +proj=helmert +x=-0.991 +y=1.9072 +z=0.5129 +rx=-0.0257899075194932 +ry=-0.0096500989602704 +rz=-0.0116599432323421 +s=0 +convention=coordinate_frame +step +inv +proj=cart +ellps=WGS84 +step +proj=pop +v_3 +step +proj=unitconvert +xy_in=rad +xy_out=deg',
+            
+            },
  
 
         }
@@ -98,6 +105,7 @@ class QAlgos(object):
         
         
     def _init_algos(self,
+                    feedback=None,
                     context=None,
                     invalidGeometry=QgsFeatureRequest.GeometrySkipInvalid,
                         #GeometryNoCheck
@@ -114,6 +122,7 @@ class QAlgos(object):
         if not isinstance(self.qap, QgsApplication):
             raise Error('qgis has not been properly initlized yet')
         
+        self.feedback=feedback
         #=======================================================================
         # build default co ntext
         #=======================================================================
@@ -137,10 +146,10 @@ class QAlgos(object):
         pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
  
         
-        assert not self.feedback is None, 'instance needs a feedback method for algos to work'
+        assert not feedback is None, 'instance needs a feedback method for algos to work'
         
         log.debug('processing initilzied w/ feedback: \'%s\' and %i providers'%(
-            type(self.feedback).__name__, len(pName_l)))
+            type(feedback).__name__, len(pName_l)))
         
 
         return True
@@ -554,6 +563,7 @@ class QAlgos(object):
         #=======================================================================
         # # build inputs
         #=======================================================================
+        
         ins_d = {'INPUT' : vlay,
                  'OUTPUT' : output}
         
@@ -1047,6 +1057,7 @@ class QAlgos(object):
             formula_str,
             fieldName = 'new_field',
             fieldType = 'String',
+            fieldLength=0,
             output='TEMPORARY_OUTPUT',
             logger=None,
             ):
@@ -1058,7 +1069,7 @@ class QAlgos(object):
         algo_nm = 'native:fieldcalculator'
         log = logger.getChild('fieldcalculator')
 
-        ins_d = { 'FIELD_LENGTH' : 0,  'FIELD_PRECISION' : 0, 
+        ins_d = { 'FIELD_LENGTH' : fieldLength,  'FIELD_PRECISION' : 0, 
                  'FIELD_NAME' : fieldName,
                  'FIELD_TYPE' : self.field_dtype_d[fieldType], 
                  'FORMULA' : formula_str, 
@@ -1178,6 +1189,51 @@ class QAlgos(object):
  
         res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)
         
+        return res_d['OUTPUT']
+    
+    
+    def randomnormalraster(self,
+            pixel_size=None,
+            mean=1.0,stddev=1.0,
+            
+            extent=None, #layer to pull raster extents from
+               #None: use pts_vlay
+            output='TEMPORARY_OUTPUT',
+            logger=None,
+            ):
+        
+        #=======================================================================
+        # setups and defaults
+        #=======================================================================
+        if logger is None: logger=self.logger    
+        algo_nm = 'native:createrandomnormalrasterlayer'
+        log = logger.getChild('randomnormalraster')
+        
+ 
+        #=======================================================================
+        # prep
+        #=======================================================================
+        if pixel_size is None:
+            assert isinstance(extent, QgsRasterLayer)
+            pixel_size = extent.rasterUnitsPerPixelX()
+            
+        if isinstance(extent, QgsMapLayer):
+            extent = extent.extent()
+            
+        
+            
+            
+        ins_d = { 'EXTENT' : extent,
+                  'MEAN' : mean,'STDDEV' : stddev, 
+                   'OUTPUT' :output,
+                 'OUTPUT_TYPE' : 0, #Float32
+                 'PIXEL_SIZE' : pixel_size, 
+                 'TARGET_CRS' :self.qproj.crs(), 
+                  }
+ 
+    
+        log.debug('executing \'%s\' with: \n     %s'%(algo_nm,  ins_d)) 
+        res_d = processing.run(algo_nm, ins_d,  feedback=self.feedback, context=self.context)        
         return res_d['OUTPUT']
     
     
@@ -1585,7 +1641,7 @@ class QAlgos(object):
         
         #log.debug('executing \'%s\' with ins_d: \n    %s'%(algo_nm, ins_d))
         
-        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback)
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
         
         return res_d['OUTPUT']
     
@@ -2027,7 +2083,7 @@ class QAlgos(object):
         #=======================================================================
         # execute
         #=======================================================================
-        ins_d = { 'DATA_TYPE' : 5, 
+        ins_d = { 'DATA_TYPE' : 5 , #Float32
                  'EXTRA' : '',
                   'INPUT' : rlays_l, 
                   #'NODATA_INPUT' : -9999, 
@@ -2074,13 +2130,14 @@ class QAlgos(object):
     def rasterize_value(self, #build a rastser with a fixed value from a polygon
                 bval, #fixed value to burn,
                 poly_vlay, #polygon layer with geometry
-                resolution=10,
+                ref_lay=None,
+                resolution=None,
                 output = 'TEMPORARY_OUTPUT',
-                result = 'layer', #type fo result to provide
+                #result = 'layer', #type fo result to provide
                 #layer: default, returns a raster layuer
                 #fp: #returns the filepath result
                 layname=None,
-                logger=None,
+                logger=None, selected_only=False,
                   ):
         #=======================================================================
         # defaults
@@ -2090,23 +2147,28 @@ class QAlgos(object):
         if layname is None: layname = '%s_%.2f'%(poly_vlay.name(), bval)
         algo_nm = 'gdal:rasterize'
         
-        
-        
-        """
-        extents =  QgsRectangle(-127.6, 44.1, -106.5, 54.1)
-        """
+        if ref_lay is None: ref_lay=poly_vlay
         #=======================================================================
         # get extents
         #=======================================================================
-        rect = poly_vlay.extent()
+        rect = ref_lay.extent()
         
         extent = '%s,%s,%s,%s'%(rect.xMinimum(), rect.xMaximum(), rect.yMinimum(), rect.yMaximum())+ \
                 ' [%s]'%poly_vlay.crs().authid()
 
-        
+        if resolution is None:
+            assert isinstance(ref_lay, QgsRasterLayer)
+            resolution = ref_lay.rasterUnitsPerPixelX()
         #=======================================================================
         # build pars
         #=======================================================================
+        #selection handling
+        if selected_only:
+            """not working well"""
+            input_obj = self._get_sel_obj(poly_vlay)
+        else:
+            input_obj = poly_vlay
+        
         pars_d = { 'BURN' : bval, #fixed value to burn
                   'EXTENT' : extent,
                    #'EXTENT' : '1221974.375000000,1224554.125000000,466981.406300000,469354.031300000 [EPSG:3005]',
@@ -2118,18 +2180,16 @@ class QAlgos(object):
                      
                       'INVERT' : False,
                    'NODATA' : -9999, 'DATA_TYPE' : 5,'OPTIONS' : '',
-                   'INPUT' : poly_vlay, 'OUTPUT' : output,
+                   'INPUT' : input_obj, 'OUTPUT' : output,
                     
                      
                       }
         
         log.debug('%s w/ \n    %s'%(algo_nm, pars_d))
         res_d = processing.run(algo_nm, pars_d, feedback=self.feedback)
-        
-        #laod teh rlay
-        
+ 
     
-        return self._get_rlay_res(res_d, result, layname=layname)
+        return res_d['OUTPUT']
     
     
     def rastercalculatorGDAL(self, #build a rastser with a fixed value from a polygon
@@ -2177,6 +2237,7 @@ class QAlgos(object):
     def polygonizeGDAL(self,
                        rlay,
                        output = 'TEMPORARY_OUTPUT',
+                       EIGHT_CONNECTEDNESS=True,
                        logger=None,
                        ):
         
@@ -2189,7 +2250,7 @@ class QAlgos(object):
 
         algo_nm = 'gdal:polygonize'
         
-        ins_d = { 'BAND' : 1, 'EIGHT_CONNECTEDNESS' : True, 
+        ins_d = { 'BAND' : 1, 'EIGHT_CONNECTEDNESS' : EIGHT_CONNECTEDNESS, 
                  'EXTRA' : '', 'FIELD' : 'DN', 
                  'INPUT' : rlay, 
                  'OUTPUT' : output }
@@ -2200,8 +2261,81 @@ class QAlgos(object):
         
         return res_d['OUTPUT']
     
+    def buildvrt(self,
+                       rlay_l,
+                       output = 'TEMPORARY_OUTPUT',
+                       separate=False,
+                       logger=None,
+                       ):
+        
+        """
+        Parameters
+        -----------
+        separate: bool, default False
+            whether to separate each raster onto separate bands
+        """
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('buildvrt')
+        
+        assert isinstance(rlay_l, list)
 
-    
+        algo_nm = 'gdal:buildvirtualraster'
+        
+        ins_d = { 'ADD_ALPHA' : False, 
+                 'ASSIGN_CRS' :'', 
+                 'EXTRA' : '', 
+                 'INPUT' : rlay_l, 
+                 'OUTPUT' : output, 
+                 'PROJ_DIFFERENCE' : False, 
+                 'RESAMPLING' : 0, 
+                 'RESOLUTION' : 0, 
+                 'SEPARATE' : separate, 
+                 'SRC_NODATA' : '' }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return res_d['OUTPUT']
+
+    def assignprojection(self,
+                       rlay,
+                       output = 'TEMPORARY_OUTPUT',
+                       crs=None,
+                       logger=None,
+                       ):
+        
+        """
+        Parameters
+        -----------
+        separate: bool, default False
+            whether to separate each raster onto separate bands
+        """
+        
+ 
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log = logger.getChild('assignprojection')
+        
+        if crs is None: crs=self.qproj.crs()
+
+        algo_nm = 'gdal:assignprojection'
+        
+        ins_d = { 'CRS' : crs, 
+                 'INPUT' : rlay }
+        
+        log.debug('executing \'%s\' with ins_d: \n    %s \n\n'%(algo_nm, ins_d))
+        
+        res_d = processing.run(algo_nm, ins_d, feedback=self.feedback, context=self.context)
+        
+        return #no result
     #===========================================================================
     # GRASS--------
     #===========================================================================
@@ -2478,6 +2612,14 @@ class QAlgos(object):
         #get list of loadedp rovider names
         pName_l = [p.name() for p in QgsApplication.processingRegistry().providers()]
         log.info('    %i providers: %s'%(len(pName_l), pName_l))
+        
+        #=======================================================================
+        # GRASS
+        #=======================================================================
+
+        from grassprovider.Grass7Utils import Grass7Utils
+        log.info('Grass7Utils.installedVersion:%s'%Grass7Utils.installedVersion())
+
  
             
         super()._install_info(**kwargs) #initilzie teh baseclass
