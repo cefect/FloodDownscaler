@@ -6,8 +6,10 @@ Created on Sep. 6, 2022
 geopandas
 '''
 
-import shapely
+import shapely, os
 import shapely.geometry as sgeo
+import numpy as np
+import pandas as pd
 from shapely.geometry import polygon
 import rasterio as rio
 from pyproj.crs import CRS
@@ -51,11 +53,7 @@ class GeoPandasWrkr(object):
             
         self.crs=crs
         
-#===============================================================================
-# def ds_get_bounds(ds):
-#     b =ds.bounds
-#     return sgeo.box(b.left, b.right, b.top, b.bottom)
-#===============================================================================
+ 
 
 def get_multi_intersection(poly_l):
     """compute the intersection of many shapely polygons
@@ -78,15 +76,23 @@ def get_multi_intersection(poly_l):
     
     
     
-#===============================================================================
-# def assert_intersect(bounds_left,bounds_right, msg='',): 
-#     """check if objects intersect"""
-#     if not __debug__: # true if Python was not started with an -O option
-#         return
-#     
-#     __tracebackhide__ = True 
-#     
-#     assert rio.coords.disjoint_bounds(bounds_left, bounds_right), 'disjoint'
-#===============================================================================
+def get_samples(gser, rlay_ds, colName=None):
+    assert isinstance(gser, gpd.geoseries.GeoSeries)
+    assert np.all(gser.geom_type=='Point')
+    assert isinstance(rlay_ds, rio.io.DatasetReader), type(rlay_ds)
+    if colName is None: colName = os.path.basename(rlay_ds.name)
+    
+    #get points
+    coord_l = [(x,y) for x,y in zip(gser.x , gser.y)]
+    samp_l = [x[0] for x in rlay_ds.sample(coord_l)]
+ 
+    
+    #replace nulls
+    samp_ar = np.where(np.array([samp_l])==rlay_ds.nodata, np.nan, np.array([samp_l]))[0]
+    
+    
+    
+    return gpd.GeoDataFrame(data={colName:samp_ar}, geometry=gser)
+    
     
     

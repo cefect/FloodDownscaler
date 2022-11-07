@@ -12,7 +12,7 @@ now we should setup matplotlib (and defaults) in the caller script
 #==========================================================================
 # logger setup-----------------------
 #==========================================================================
-import logging, configparser, datetime
+import datetime
 
 
 
@@ -21,16 +21,15 @@ import logging, configparser, datetime
 #==============================================================================
 import os, string
 import numpy as np
-import pandas as pd
-import scipy.stats
+#import pandas as pd
+#import scipy.stats
 
 #==============================================================================
 # # custom
 #==============================================================================
-from hp.exceptions import Error
+ 
 from hp.basic import get_dict_str
-from hp.pd import view
-from hp.oop import Basic
+ 
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -421,34 +420,7 @@ class Plotr(object):
             #apply the new labels
             ax.set_yticklabels(l, rotation=ylrot)
         
-    def _get_val_str(self, #helper to get value string for writing text on the plot
-                     val_str, #cant be a kwarg.. allowing None
-                     impactFmtFunc=None,
-                     ):
-        """
-        generally just returns the val_str
-            but also provides some special handles
-        """
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if impactFmtFunc is None: impactFmtFunc=self.impactFmtFunc
-        if val_str is None:
-            val_str = self.val_str
-        
-        #=======================================================================
-        # special keys
-        #=======================================================================
-        if isinstance(val_str, str):
-            if val_str=='*default':
-                assert isinstance(self.ead_tot, float)
-                val_str='total annualized impacts = ' + impactFmtFunc(self.ead_tot)
-            elif val_str=='*no':
-                val_str=None
-            elif val_str.startswith('*'):
-                raise Error('unrecognized val_str: %s'%val_str)
-                
-        return val_str
+ 
     
     def get_matrix_fig(self, #conveneince for getting 
                        row_keys, #row labels for axis
@@ -643,7 +615,7 @@ class Plotr(object):
         # defaults
         #======================================================================
         
-        if overwrite is None: overwrite = self.overwrite
+        #if overwrite is None: overwrite = self.overwrite
         if logger is None: logger=self.logger
         log = logger.getChild('output_fig')
         
@@ -668,9 +640,9 @@ class Plotr(object):
                 try:
                     fname = fig._suptitle.get_text()
                 except:
-                    fname = self.name
+                    fname = self.run_name
                     
-                fname =str('%s_%s'%(fname, self.resname)).replace(' ','')
+                fname =str('%s_%s'%(fname, self.fancy_name)).replace(' ','')
                 
             ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
             
@@ -679,9 +651,11 @@ class Plotr(object):
             for s in [',', ';', ')', '(', '=', ' ', '\'']:
                 ofp = ofp.replace(s,'')
             
-        if os.path.exists(ofp): 
-            assert overwrite
-            os.remove(ofp)
+        #=======================================================================
+        # if os.path.exists(ofp): 
+        #     assert overwrite
+        #     os.remove(ofp)
+        #=======================================================================
             
             
 
@@ -702,7 +676,7 @@ class Plotr(object):
             fig.savefig(ofp, dpi = dpi, format = fmt, transparent=transparent)
             log.info('saved figure to file:\n   %s'%ofp)
         except Exception as e:
-            raise Error('failed to write figure to file w/ \n    %s'%e)
+            raise IOError('failed to write figure to file w/ \n    %s'%e)
         
         return ofp
     
