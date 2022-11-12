@@ -129,7 +129,11 @@ class Plotr(object):
     
   
     
-
+    def __init__(self, output_format='svg', add_stamp=True, **kwargs):
+        self.output_format=output_format
+        self.add_stamp=add_stamp
+        
+        super().__init__(**kwargs)
         
     #===========================================================================
     # plotters------
