@@ -120,6 +120,13 @@ def plot_rast(ar_raw,
 
 class Plotr(object):
     
+    def __init__(self, output_format='svg', add_stamp=True, **kwargs):
+        self.output_format=output_format
+        self.add_stamp=add_stamp
+        
+        super().__init__(**kwargs)
+        
+    
 
     
     #===========================================================================
@@ -607,10 +614,10 @@ class Plotr(object):
                    clean_ofp=True,
                    
                    #stylig
-                   add_stamp=True, #whether to write the filepath as a small stamp
+                   add_stamp=None, #whether to write the filepath as a small stamp
                    
                    #figure write controls
-                 fmt='svg', 
+                 fmt=None, 
                   transparent=True, 
                   dpi = 300,
                   logger=None,
@@ -621,6 +628,8 @@ class Plotr(object):
         
         #if overwrite is None: overwrite = self.overwrite
         if logger is None: logger=self.logger
+        if fmt is None: fmt = self.output_format
+        if add_stamp is None: add_stamp=self.add_stamp
         log = logger.getChild('output_fig')
         
  
