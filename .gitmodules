@@ -1,0 +1,4 @@
+[submodule "coms"]
+	path = coms
+	url = https://github.com/cefect/coms.git
+	branch = FloodDownscaler
