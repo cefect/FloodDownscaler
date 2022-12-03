@@ -13,3 +13,6 @@ dependencies:
   - openpyxl
   - numba=0.56.*
   - cudatoolkit
+  - colorama
+  - pyyaml
+  
