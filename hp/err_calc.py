@@ -23,7 +23,7 @@ class ErrorCalcs(object):
             pred_ser=None,
             true_ser=None,
             logger=None,
-            normed=True,
+            normed=False,
             ):
         #attach
         
@@ -204,9 +204,20 @@ class ErrorCalcs(object):
     
     def get_confusion(self,
                       dkey='confusion',
-                     wetdry=True,
+                     wetdry=False,
                      normed=None, #normalize confusion values by total count
                      logger=None):
+        """get a confusion matrix with nice labels
+        
+        Returns
+        -------------
+        pd.DataFrame
+            classic confusion matrix
+            
+        pd.DataFrame
+            unstacked confusion matrix
+            
+        """
         #=======================================================================
         # defaults
         #=======================================================================
@@ -220,7 +231,7 @@ class ErrorCalcs(object):
         # prep data
         #=======================================================================
         if wetdry:
-            assert (df_raw.dtypes == 'float64').all()
+            assert np.array([['float' in e for e in [d.name for d in df_raw.dtypes]]]).all()
             
             df1 = pd.DataFrame('dry', index=df_raw.index, columns=df_raw.columns)
             
@@ -231,6 +242,8 @@ class ErrorCalcs(object):
         else:
             raise IOError('not impelemented')
             df1 = df_raw.copy()
+            
+            labels=['pred', 'true']
             
  
         #build matrix

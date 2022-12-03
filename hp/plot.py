@@ -608,7 +608,7 @@ class Plotr(object):
                    fig,
                    
                    #file controls
-                   out_dir = None, overwrite=None, 
+                   out_dir = None,  
                    ofp=None, #defaults to figure name w/ a date stamp
                    fname = None, #filename
                    clean_ofp=True,
@@ -632,7 +632,7 @@ class Plotr(object):
         if add_stamp is None: add_stamp=self.add_stamp
         log = logger.getChild('output_fig')
         
- 
+        if add_stamp is None: add_stamp=self.add_stamp
         
         
         #=======================================================================
@@ -645,6 +645,7 @@ class Plotr(object):
         # filepath
         #======================================================================
         if ofp is None:
+            if fmt is None: fmt=self.output_format
             if out_dir is None: out_dir = self.out_dir
             if not os.path.exists(out_dir):os.makedirs(out_dir)
             
@@ -658,23 +659,16 @@ class Plotr(object):
                 fname =str('%s_%s'%(fname, self.fancy_name)).replace(' ','')
                 
             ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
+        else:
+            assert fmt is None
+            fmt = os.path.splitext(ofp)[1].replace('.', '')
+            assert not fmt=='', 'forget the period?'
             
             
         if clean_ofp:
             for s in [',', ';', ')', '(', '=', ' ', '\'']:
                 ofp = ofp.replace(s,'')
-            
-        #=======================================================================
-        # if os.path.exists(ofp): 
-        #     assert overwrite
-        #     os.remove(ofp)
-        #=======================================================================
-            
-            
-
-        """
-        fig.show()
-        """
+ 
         #=======================================================================
         # plot stamp
         #=======================================================================

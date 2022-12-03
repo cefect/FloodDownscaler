@@ -6,7 +6,7 @@ Created on Sep. 6, 2022
 geopandas
 '''
 
-import shapely, os
+import shapely, os, logging
 import shapely.geometry as sgeo
 import numpy as np
 import pandas as pd
@@ -15,6 +15,12 @@ import rasterio as rio
 from pyproj.crs import CRS
 
 import geopandas as gpd
+
+#set fiona logging level
+
+logging.getLogger("fiona.collection").setLevel(logging.WARNING)
+logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
+logging.getLogger("fiona").setLevel(logging.WARNING)
 
 from hp.oop import Basic
 class GeoPandasWrkr(object):

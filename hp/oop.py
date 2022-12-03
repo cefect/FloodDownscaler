@@ -52,6 +52,7 @@ I've spent far too many weeks of my life strugglig with inheritance
 '''
 
 import os, sys, datetime, gc, copy, pickle, pprint, logging
+import logging.config
 #from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
 from hp.basic import today_str
@@ -209,7 +210,7 @@ class Basic(object): #simple base class
             
         #self._install_info()
         self.init_pars=init_pars
-        self.logger.info('finished Basic.__init__ w/\n    %s '%init_pars)
+        self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
         
     def _get_init_pars(self):
         """only for simple atts... no containers"""
@@ -287,7 +288,7 @@ class Basic(object): #simple base class
             ofp = os.path.join(out_dir, resname+ext)  
             
         if os.path.exists(ofp):
-            assert self.overwrite
+            log.warning('ofp exists... overwriting')
             os.remove(ofp)
  
             
@@ -461,10 +462,7 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
             Directory used for outputs. Defaults to a sub-directory of wrk_dir            
         tmp_dir: str, optional
             Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
-        
-
-        
-        
+ 
         """
 
         #=======================================================================
@@ -496,9 +494,12 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
             tmp_dir = os.path.join(out_dir, 'temp_%s_%s'%(
                 obj_name, datetime.datetime.now().strftime('%M%S')))
             
-        if os.path.exists(tmp_dir):
-            delete_dir(tmp_dir)
-        os.makedirs(tmp_dir)
+        try:
+            if os.path.exists(tmp_dir):
+                delete_dir(tmp_dir)            
+            os.makedirs(tmp_dir)
+        except Exception as e:
+            print('failed to init tmp_dir w/ \n    %s'%e)
             
         kwargs['tmp_dir']=tmp_dir
  
@@ -508,7 +509,7 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         super().__init__(obj_name=obj_name,run_name=run_name,
                           **kwargs)
         
-        self.logger.info('finished Session.__init__')
+        self.logger.debug('finished Session.__init__')
         
 
     
