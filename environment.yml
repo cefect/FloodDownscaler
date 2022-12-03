@@ -1,4 +1,4 @@
-name: pyLISF
+name: fdsc
 channels:
   - conda-forge
 dependencies:
