@@ -15,4 +15,8 @@ dependencies:
   - cudatoolkit
   - colorama
   - pyyaml
+  - xarray=2022.12.*
+  - dask
+  - numbagg
+  - rioxarray=0.13.*
   
