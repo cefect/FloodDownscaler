@@ -879,9 +879,9 @@ def get_window(ds, bbox):
     return window, ds.window_transform(window)
     
 
-def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds']):
+def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res']):
     d = dict()
-    for attn in att_l:
+    for attn in att_l:        
         d[attn] = getattr(ds, attn)
     return d
 
