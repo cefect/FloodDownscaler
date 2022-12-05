@@ -19,6 +19,9 @@ logcfg_file=os.path.join(src_dir, r'coms\logger.conf')
 #default working directory
 wrk_dir = r'L:\10_IO\fdsc'
 
+#whitebox exe location
+wbt_dir = os.path.join(src_dir, r'whitebox-tools\target\release')
+
  
 
  

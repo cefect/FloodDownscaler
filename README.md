@@ -13,6 +13,11 @@
 
 ## Submodules
 
+PYTHONPATH:
+PROJECT_DIR_NAME
+PROJECT_DIR_NAME\coms
+PROJECT_DIR_NAME\whitebox-tools\target\release
+
 ### Coms
 git submodule add -b FloodDownscaler https://github.com/cefect/coms.git
 
