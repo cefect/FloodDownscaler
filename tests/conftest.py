@@ -3,52 +3,37 @@ Created on Dec. 4, 2022
 
 @author: cefect
 '''
-import pytest, os
+import pytest, os, tempfile, datetime
 import numpy as np
 import pandas as pd
 import rasterio as rio
 import shapely.geometry as sgeo
-from io import StringIO
+
 import xarray as xr
 import rioxarray
 from pyproj.crs import CRS
+from definitions import src_dir
+
+
+from hp.logr import get_new_console_logger, logging
 
 crs_default = CRS.from_user_input(25832)
 bbox_default = sgeo.box(0, 0, 60, 90)
  
 
 #===============================================================================
-# build test arrays
+# setup test arrays
 #===============================================================================
-proj_lib=dict()
 
-def get_ar_from_str(ar_str, dtype=float):
-    return pd.read_csv(StringIO(ar_str), sep='\s+', header=None).astype(dtype).values
+proj_lib = dict()
+proj_lib['fred01'] = {
+    'wse2_rlay_fp':os.path.join(src_dir, r'tests/data/fred01/testr_test00_0806_fwse.tif'),
+    'wse1_rlay_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar2.tif'),
+    'dem1_rlay_fp':os.path.join(src_dir, r'tests\data\fred01\dem.tif'),
+    }
 
-def get_wse_ar(ar_str, **kwargs):
-    ar1 = get_ar_from_str(ar_str, **kwargs)
-    return np.where(ar1==-9999, np.nan, ar1) #replace nans
-    
 
-#6x9
-proj_lib['dem1'] = get_ar_from_str("""
-    1    1    1    9    9    9
-    1    1    1    9    9    9
-    1    1    1    2    2    9
-    2    2    2    9    2    9
-    6    2    2    9    2    9
-    2    2    2    9    2    9
-    4    4    4    2    2    9
-    4    4    4    9    9    9
-    4    4    4    9    9    9
-    """)
-
-#2x3
-proj_lib['wse1'] = get_wse_ar("""
-    3    -9999
-    4    -9999
-    5    -9999    
-    """) 
+ 
  
  
 
@@ -93,14 +78,22 @@ def get_xda(ar,
                       
                       
  
-def get_rlay_fp(ar, layName, tmp_path, 
+def get_rlay_fp(ar, layName, 
+            ofp=None, 
             crs = crs_default,
             bbox=bbox_default,
             ):
-    assert isinstance(ar, np.ndarray)
     
+    assert isinstance(ar, np.ndarray)
     height, width  = ar.shape
-    ofp = os.path.join(tmp_path, f'{layName}_{width}{height}.tif')
+    
+    if ofp is None:
+        out_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        ofp = os.path.join(out_dir,f'{layName}_{width}{height}.tif')
+    
+    
+ 
     
     
     
@@ -113,11 +106,29 @@ def get_rlay_fp(ar, layName, tmp_path,
       
         ds.write(ar, indexes=1,masked=False)
         
-        
+    print(f'wrote {ar.shape} to {ofp}')
     
         
     return ofp
     
+#===============================================================================
+# MISC----
+#===============================================================================
+@pytest.fixture(scope='session')
+def write():
+    write=False
+    if write:
+        print('WARNING!!! runnig in write mode')
+    return write
+
+@pytest.fixture(scope='function')
+def test_name(request):
+    return request.node.name.replace('[','_').replace(']', '_')
+
+@pytest.fixture(scope='session')
+def logger():
+    return get_new_console_logger(level=logging.DEBUG)
+
 #===============================================================================
 # fixtuires
 #===============================================================================
