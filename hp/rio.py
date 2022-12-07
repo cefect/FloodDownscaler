@@ -53,7 +53,7 @@ class RioWrkr(Basic):
                  compress=None,
                  
                  #reference inheritance
-                 crs=None,height=None,width=None,transform=None,nodata=None,
+                 #crs=None,height=None,width=None,transform=None,nodata=None,
                  
                  #subsetting
                  bbox=None,
@@ -70,8 +70,7 @@ class RioWrkr(Basic):
  
         super().__init__(**kwargs)
         
-        self.dataset_d = dict() #all loaded datasets
-        self.memoryfile_d=dict()
+ 
         
         #=======================================================================
         # simple attachments
@@ -79,6 +78,8 @@ class RioWrkr(Basic):
         self.compress=compress
         self.bbox=bbox
  
+        self.dataset_d = dict() #all loaded datasets
+        self.memoryfile_d=dict()
         #=======================================================================
         # set reference
         #=======================================================================        
@@ -88,7 +89,7 @@ class RioWrkr(Basic):
         #=======================================================================
         # inherit properties from reference 
         #=======================================================================
-        pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
+        #pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
         
         #self.logger.debug('init w/ %s'%pars_d)
         
@@ -444,13 +445,10 @@ class RioWrkr(Basic):
         self.dataset_d[dataset.name] = dataset
         
         return dataset
-    
-    
-
  
     def write_array(self,raw_ar,
                        masked=False,
-                       crs=None,nodata=None,transform=None,dtype=None,compress=None,
+                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,
                        write_kwargs=dict(),
                        **kwargs):
         """write an array to raster using rio"""
@@ -458,12 +456,13 @@ class RioWrkr(Basic):
         #=======================================================================
         # defaults
         #=======================================================================
-        _, log, _, _, ofp = self._func_kwargs(name = 'write', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('write_array',ext='.tif', **kwargs)
         
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
         if compress is None: compress=self.compress
         if dtype is None: dtype=raw_ar.dtype
+        if driver is None: driver=self.driver
         #=======================================================================
         # precheck
         #=======================================================================
@@ -471,7 +470,6 @@ class RioWrkr(Basic):
  
         assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
         #assert 'float' in data.dtype.name
-        
         
         #=======================================================================
         # #handle nulls
@@ -494,13 +492,11 @@ class RioWrkr(Basic):
         # write
         #=======================================================================
         with rasterio.open(ofp,'w',
-                driver=self.driver,
+                driver=driver,
                 height=raw_ar.shape[0],width=raw_ar.shape[1],
                 count=self.bandCount,
                 dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                 ) as dst:
-            
-
             
             dst.write(data, indexes=1, 
                           masked=masked, #build mask from location of nodata values
@@ -509,7 +505,6 @@ class RioWrkr(Basic):
             log.info('wrote %s on crs %s (masked=%s) to \n    %s'%(str(dst.shape), crs, masked, ofp))
         
         return ofp
- 
     
     def load_memDataset(self,raw_ar,
                        name='memfile',
@@ -623,6 +618,14 @@ class RioWrkr(Basic):
     #===========================================================================
     # PRIVATES---------
     #===========================================================================
+    def _get_write_kwargs(self, stats_d,**kwargs):
+        """convenience for getting write kwargsfrom datasource stats"""
+        rlay_kwargs = {**kwargs,
+            **{k:stats_d[k] for k in ['crs', 'transform', 'nodata']}}        
+        rlay_kwargs['dtype'] = stats_d['dtypes'][0]
+        
+        return rlay_kwargs
+        
     def _get_dsn(self, input):
         if not isinstance(input, list):
             input = [input]
@@ -633,35 +636,37 @@ class RioWrkr(Basic):
             
         return res_l
     
-    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None, 
-                     tmp_dir=None, write=None):
-        """typical default for class functions"""
- 
-        if logger is None:
-            logger=self.logger
- 
-        
-        if not name is None:
-            log = logger.getChild(name)
-        else:
-            log = logger
- 
-        
-        if dataset is None:
-            dataset = self._base()
-        
- 
-        if out_dir is None:
-            out_dir=self.out_dir
-            
-        if ofp is None:
-            if name is None:
-                ofp = os.path.join(out_dir, self.fancy_name + '.tif')
-            else:
-                ofp = os.path.join(out_dir, self.fancy_name + '_%s.tif'%name)
-            
-            
-        return logger, log, dataset, out_dir, ofp
+ #==============================================================================
+ #    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None, 
+ #                     tmp_dir=None, write=None):
+ #        """typical default for class functions"""
+ # 
+ #        if logger is None:
+ #            logger=self.logger
+ # 
+ #        
+ #        if not name is None:
+ #            log = logger.getChild(name)
+ #        else:
+ #            log = logger
+ # 
+ #        
+ #        if dataset is None:
+ #            dataset = self._base()
+ #        
+ # 
+ #        if out_dir is None:
+ #            out_dir=self.out_dir
+ #            
+ #        if ofp is None:
+ #            if name is None:
+ #                ofp = os.path.join(out_dir, self.fancy_name + '.tif')
+ #            else:
+ #                ofp = os.path.join(out_dir, self.fancy_name + '_%s.tif'%name)
+ #            
+ #            
+ #        return logger, log, dataset, out_dir, ofp
+ #==============================================================================
     
     def _get_refs(self, **kwargs):
         
@@ -738,7 +743,7 @@ def write_array(data,ofp,
     #===========================================================================
     # execute
     #===========================================================================
-    with rio.open(ofp,'w',driver='GTiff',
+    with rio.open(ofp,'w',driver=driver,
                   height=shape[0],width=shape[1],count=count,
                 dtype=dtype,crs=crs,transform=transform,nodata=nodata,
                 compress=compress,
@@ -879,7 +884,7 @@ def get_window(ds, bbox):
     return window, ds.window_transform(window)
     
 
-def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res']):
+def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
     d = dict()
     for attn in att_l:        
         d[attn] = getattr(ds, attn)
@@ -991,18 +996,17 @@ def assert_rlay_simple(rlay, msg='',):
     if not round(x, 10)==int(x):
         raise AssertionError('non-integer pixel size\n' + msg)
     
-def assert_extent_equal(left, right, msg='',): 
+def assert_extent_equal(left, right,  msg='',): 
     """ extents check"""
     if not __debug__: # true if Python was not started with an -O option
         return
  
     __tracebackhide__ = True
     
-    def get_stats(ds):
-        return {'bounds':ds.bounds, 'crs':ds.crs}
+    f= lambda ds, att_l=['crs',  'bounds']:get_stats(ds, att_l=att_l) 
     
-    ld = rlay_apply(left, get_stats)
-    rd = rlay_apply(right, get_stats)
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
     #===========================================================================
     # crs
     #===========================================================================
@@ -1015,6 +1019,32 @@ def assert_extent_equal(left, right, msg='',):
     if not le==re:
         raise AssertionError('extent mismatch \n    %s != %s\n    '%(
                 le, re) +msg) 
+
+def assert_spatial_equal(left, right,  msg='',): 
+    """check all spatial attributes match"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+    __tracebackhide__ = True
+    
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l) 
+    
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
+    
+    #===========================================================================
+    # check
+    #===========================================================================
+    for k, lval in ld.items():
+        rval = rd[k]
+        
+        if not lval==rval:
+            raise AssertionError(f'{k} mismatch\n    right={rval}\n    left={lval}\n'+msg)
+ 
+        
+        
+        
+     
 
 def assert_ds_attribute_match(rlay,
                           crs=None, height=None, width=None, transform=None, nodata=None,bounds=None,
