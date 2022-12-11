@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from io import StringIO
 #from tests.conftest import get_rlay_fp
+nan, array = np.nan, np.array
 
 """setup to construct when called
 seems cleaner then building each time we init (some tests dont need these)
@@ -41,7 +42,7 @@ dem1_ar = get_ar_from_str("""
     2    2    2    9    2    9
     4    4    4    2    2    9
     4    4    4    9    9    9
-    4    4    4    9    9    9
+    4    4    4    9    9    1
     """)
 wse2_ar = get_wse_ar("""
     3    -9999
@@ -55,8 +56,9 @@ wse2_ar = get_wse_ar("""
 #===============================================================================
 # intermittent data
 #===============================================================================
-
-wse1_ar =np.array([[ 3.,  3.,  3., np.nan, np.nan, np.nan],
+"""p1_downscale_wetPartials"""
+wse1_ar2 =np.array([
+        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 4.,  4.,  4., np.nan, np.nan, np.nan],
@@ -65,3 +67,15 @@ wse1_ar =np.array([[ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan]])
+
+"""phase2: _null_dem_violators"""
+wse1_ar3 = array([
+        [ 3.,  3.,  3., nan, nan, nan],
+       [ 3.,  3.,  3., nan, nan, nan],
+       [ 3.,  3.,  3.,  3.,  3., nan],
+       [ 4.,  4.,  4., nan,  4., nan],
+       [nan,  4.,  4., nan,  4., nan],
+       [ 4.,  4.,  4., nan,  4., nan],
+       [ 5.,  5.,  5.,  5.,  5., nan],
+       [ 5.,  5.,  5., nan, nan, nan],
+       [ 5.,  5.,  5., nan, nan,  5.]])

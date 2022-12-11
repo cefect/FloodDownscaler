@@ -24,11 +24,12 @@ from tests.conftest import (
 #===============================================================================
 # test data
 #===============================================================================
-from tests.data.toy import dem1_ar, wse2_ar, wse1_ar
+from tests.data.toy import dem1_ar, wse2_ar, wse1_ar2, wse1_ar3
 
 dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1') 
 wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
-wse1_rlay_fp = get_rlay_fp(wse1_ar, 'wse1')
+wse1_rlay2_fp = get_rlay_fp(wse1_ar2, 'wse12')
+wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
 
 #===============================================================================
 # fixtures------------
@@ -69,9 +70,50 @@ def wrkr(tmp_path,write,logger, test_name,
 #===============================================================================
 # tests-------
 #===============================================================================
-
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    ]) 
+def test_p0(dem_fp, wse_fp, tmp_path, wrkr):    
+    wrkr.p0_load_rasters(wse_fp, dem_fp, out_dir=tmp_path)
+    
+
+
+    
+
+@pytest.mark.parametrize('wse_ar, dem_ar, downscale', [
+    (wse2_ar, dem1_ar, 3.0),
+    ]) 
+def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):    
+    wrkr.p1_downscale_wetPartials(wse_ar, dem_ar,  downscale=downscale, out_dir=tmp_path)
+
+
+
+@pytest.mark.dev
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    (dem1_rlay_fp, wse1_rlay2_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
+ 
+    ])
+def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
+    wrkr.p2_dp_costGrowSimple(wse_fp, dem_fp)
+    
+    
+
+
+@pytest.mark.parametrize('wse_fp', [
+    (wse1_rlay3_fp),
+    (proj_lib['fred01']['wse1_rlay3_fp']),
+ 
+    ])
+def test_p2_filter_isolated(wse_fp, wrkr):
+    wrkr.filter_isolated(wse_fp)
+    
+    
+
+
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    #(dem1_rlay_fp, wse2_rlay_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
@@ -81,18 +123,8 @@ def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):
     run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',
                   dryPartial_method=dryPartial_method)
     
-
-@pytest.mark.dev
-@pytest.mark.parametrize('dem_fp, wse_fp', [
-    #(dem1_rlay_fp, wse1_rlay_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay_fp']),
- 
-    ])
-def test_costGrowSimple(dem_fp, wse_fp, wrkr):
-    wrkr.dp_costGrowSimple(dem_fp, wse_fp)
     
     
-
 
 @pytest.mark.parametrize('dem_ar, wse_ar', [
     (dem1_ar, wse2_ar)

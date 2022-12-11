@@ -28,7 +28,13 @@ bbox_default = sgeo.box(0, 0, 60, 90)
 proj_lib = dict()
 proj_lib['fred01'] = {
     'wse2_rlay_fp':os.path.join(src_dir, r'tests/data/fred01/testr_test00_0806_fwse.tif'),
-    'wse1_rlay_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar2.tif'),
+    
+    #p1_downscale_wetPartials
+    'wse1_rlay2_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar2.tif'),
+    
+    #p2_dp_costGrowSimple._filter_dem_violators
+    'wse1_rlay3_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar3.tif'),
+        
     'dem1_rlay_fp':os.path.join(src_dir, r'tests\data\fred01\dem.tif'),
     }
 
