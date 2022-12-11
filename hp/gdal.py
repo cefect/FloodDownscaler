@@ -19,10 +19,10 @@ import time, sys, os, logging, copy, tempfile, datetime
 from osgeo import ogr, gdal_array, gdal, osr
 
 import numpy as np
-import pandas as pd
+ 
 
 
-from qgis.core import QgsVectorLayer, QgsMapLayerStore
+ 
 
 from hp.exceptions import Error
 
@@ -185,12 +185,12 @@ def rlay_to_array(rlay_fp, dtype=np.dtype('float32')):
     #remove nodata values
     ndval = band.GetNoDataValue()
     
-    ar_raw[ar_raw==ndval]=np.nan
+ 
     
     del ds
     del band
     
-    return ar_raw
+    return np.where(ar_raw==ndval, np.nan, ar_raw)
 
 def array_to_rlay(ar_raw, #convert a numpy array to a raster
                   
@@ -323,22 +323,9 @@ def getNoDataCount(fp, dtype=np.dtype('float')):
     """2022-05-10: this was returning some nulls
     for rasters where I could not find any nulls"""
     #get raw data
-    ds = gdal.Open(fp)
-    band = ds.GetRasterBand(1)
+    ar = rlay_to_array(fp)
     
-    
-    ar_raw = np.array(band.ReadAsArray(), dtype=dtype)
-    
-    #remove nodata values
-    ndval = band.GetNoDataValue()
-    
-    #get count
-    bx_ar = ar_raw == ndval
-    
-    del ds
-    del band
- 
-    return bx_ar.sum()
+    return np.isnan(ar).astype(int).sum()
     
  
     

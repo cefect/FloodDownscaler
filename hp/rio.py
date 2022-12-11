@@ -618,13 +618,9 @@ class RioWrkr(Basic):
     #===========================================================================
     # PRIVATES---------
     #===========================================================================
-    def _get_write_kwargs(self, stats_d,**kwargs):
-        """convenience for getting write kwargsfrom datasource stats"""
-        rlay_kwargs = {**kwargs,
-            **{k:stats_d[k] for k in ['crs', 'transform', 'nodata']}}        
-        rlay_kwargs['dtype'] = stats_d['dtypes'][0]
+
         
-        return rlay_kwargs
+        #return rlay_kwargs
         
     def _get_dsn(self, input):
         if not isinstance(input, list):
@@ -781,10 +777,17 @@ def load_array(rlay_obj,
             assert not np.all(ar.mask)
             assert ar.mask.shape==raw_ar.shape
         else:
+            
             #switch to np.nan
             mask = dataset.read_masks(indexes, window=window1)
             
-            ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
+            bx = mask==0
+            if bx.any():
+                assert 'float' in dataset.dtypes[0], 'unmaked arrays not supported for non-float dtypes'
+            
+                ar = np.where(bx, np.nan, raw_ar).astype(dataset.dtypes[0])
+            else:
+                ar=raw_ar.astype(dataset.dtypes[0])
             
             #check against nodatavalue
             assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
@@ -794,15 +797,15 @@ def load_array(rlay_obj,
 
     return rlay_apply(rlay_obj, get_ar)
 
-def rlay_apply(rlay, func):
+def rlay_apply(rlay, func, **kwargs):
     """flexible apply a function to either a filepath or a rio ds"""
     
     if isinstance(rlay, str):
         with rio.open(rlay, mode='r') as ds:
-            res = func(ds)
+            res = func(ds, **kwargs)
             
     elif isinstance(rlay, rio.io.DatasetReader) or isinstance(rlay, rio.io.DatasetWriter):
-        res = func(rlay)
+        res = func(rlay, **kwargs)
         
     else:
         raise IOError(type(rlay))
@@ -892,6 +895,52 @@ def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
 
 def get_ds_attr(rlay, stat):
     return rlay_apply(rlay, lambda ds:getattr(ds, stat))
+
+def get_write_kwargs( obj,
+                      att_l = ['crs', 'transform', 'nodata'],
+                      **kwargs):
+    """convenience for getting write kwargsfrom datasource stats"""
+    #=======================================================================
+    # load from filepath
+    #=======================================================================
+    if isinstance(obj, str):
+        stats_d  = rlay_apply(obj, get_stats, att_l=att_l+['dtypes'])
+    elif isinstance(obj, dict):
+        stats_d = obj
+    else:
+        raise TypeError(type(obj))
+                        
+    rlay_kwargs = {**kwargs,
+        **{k:stats_d[k] for k in att_l}}  
+          
+    #handle tuple
+    rlay_kwargs['dtype'] = stats_d['dtypes'][0]
+    
+    return rlay_kwargs
+
+def rlay_calc1(rlay_fp, ofp, statement):
+    """evaluate a statement with numpy math on a single raster"""
+    
+    with rio.open(rlay_fp, mode='r') as ds:
+        ar = load_array(ds)
+        
+        result = statement(ar)
+        
+        assert isinstance(result, np.ndarray)
+        
+        profile = ds.profile
+        
+    #write
+    with rio.open(ofp, mode='w', **profile) as dest:
+        dest.write(
+            np.where(np.isnan(result), profile['nodata'],result),
+             1)
+    
+    return ofp
+        
+    
+        
+    
 
 def plot_rast(ar_raw,
               ax=None,
