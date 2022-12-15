@@ -12,7 +12,7 @@ import pandas as pd
 import xarray as xr
 xfail = pytest.mark.xfail
 
-from fdsc.scripts.basic import disag
+#from fdsc.scripts.disag import disag
 from fdsc.scripts.scripts import run_downscale
 from fdsc.scripts.scripts import Dsc_Session as Session
 
