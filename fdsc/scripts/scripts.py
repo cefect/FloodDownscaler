@@ -9,6 +9,9 @@ import scipy
 from pyproj.crs import CRS
 import shapely.geometry as sgeo
 import rasterio as rio
+import geopandas as gpd
+import fiona
+
 
  
 def now():
@@ -32,27 +35,46 @@ class Dsc_Session(RioWrkr,  Session, WBT_worker):
                  # crs=CRS.from_user_input(25832),
                  # bbox=sgeo.box(0, 0, 100, 100),
                  #==============================================================
+                 crs=None, bbox=None, aoi_fp=None,
+                 
                  **kwargs):
         
+        #=======================================================================
+        # set aoi
+        #=======================================================================
+        if not aoi_fp is None:
+            assert os.path.exists(aoi_fp)
+            assert crs is None
+            assert bbox is None
+            
+            #open file and get bounds and crs using fiona
+            with fiona.open(aoi_fp, "r") as source:
+                bbox = sgeo.box(*source.bounds) 
+                crs = CRS(source.crs['init'])
+            
+ 
         super().__init__(**kwargs)
         
-        #=======================================================================
-        # self.crs=crs
-        # self.bbox = bbox
-        #=======================================================================
+        self.crs=crs
+        self.bbox = bbox
       
     #===========================================================================
     # phase0-------  
     #===========================================================================
-    def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, **kwargs):
+    def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, 
+                        bbox=None,   **kwargs):
         """load and extract some data from the raster files"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters',  **kwargs)
+        crs, log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters',  **kwargs)
         
+        if bbox is None: bbox=self.bbox
+        #if crs is None: crs=self.crs
         #=======================================================================
         # load
         #=======================================================================
-        dem_stats, dem1_ar = rlay_extract(dem1_rlay_fp)
-        wse_stats, wse2_ar = rlay_extract(wse2_rlay_fp)
+        
+        
+        dem_stats, dem1_ar = rlay_extract(dem1_rlay_fp, bbox=bbox, crs=crs)
+        wse_stats, wse2_ar = rlay_extract(wse2_rlay_fp, bbox=bbox, crs=crs)
         s2, s1 = dem_stats['res'][0], wse_stats['res'][0]
         
         #=======================================================================
@@ -259,16 +281,39 @@ class Dsc_Session(RioWrkr,  Session, WBT_worker):
         log.info(f'wrote {filtered_ar.shape} in {tdelta:.2f} secs to \n    {ofp}')
         
         return ofp
+    
+    #===========================================================================
+    # PRIVATES--------
+    #===========================================================================
+    def _func_setup(self, *args, crs=None, **kwargs):
+        """function setup wrapper"""
+        
+        if crs is None:
+            crs=self.crs
+            
+        return crs, *super(Dsc_Session, self)._func_setup(*args, **kwargs)
+    
  
 
 def rlay_extract(fp,
-                 window=None, masked=False
+                 window=None, masked=False,
+                 crs=None, bbox=None,
                  ):
     """load rlay data and arrays"""
     with rio.open(fp, mode='r') as ds:
         assert_rlay_simple(ds)
         stats_d = get_stats(ds)
+        
+        if not crs is None:
+            assert crs==ds.crs
+        
+        #window
+        if window is None and not bbox is None:
+            #get a nice rounded window from the bbox
+            window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform).round_offsets().round_lengths()
+        
         ar = ds.read(1, window=window, masked=masked)
+        
     return stats_d, ar
 
 
