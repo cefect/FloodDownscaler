@@ -248,6 +248,15 @@ class Basic(object): #simple base class
         ----------
         setup so we can inherit additional parameters from parent classes
         
+        SUBCLASS EXAMPLE
+        --------------
+        def _func_setup(self, *args, crs=None, **kwargs):
+        
+            if crs is None:
+                crs=self.crs
+                
+            return crs, *super(Dsc_Session, self)._func_setup(*args, **kwargs)
+        
         """
         #=======================================================================
         # #logger
