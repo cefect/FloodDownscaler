@@ -20,66 +20,77 @@ def now():
 
 from hp.oop import Session
 from hp.rio import (
-    assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioWrkr,
-    write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array)
+    assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
+    write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip)
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
 
 
-class Dsc_Session(RioWrkr,  Session, WBT_worker):
+class Dsc_Session(RioSession,  Session, WBT_worker):
     
     def __init__(self, 
-                 #==============================================================
-                 # crs=CRS.from_user_input(25832),
-                 # bbox=sgeo.box(0, 0, 100, 100),
-                 #==============================================================
-                 crs=None, bbox=None, aoi_fp=None,
-                 
+ 
                  **kwargs):
-        
-        #=======================================================================
-        # set aoi
-        #=======================================================================
-        if not aoi_fp is None:
-            assert os.path.exists(aoi_fp)
-            assert crs is None
-            assert bbox is None
-            
-            #open file and get bounds and crs using fiona
-            with fiona.open(aoi_fp, "r") as source:
-                bbox = sgeo.box(*source.bounds) 
-                crs = CRS(source.crs['init'])
-            
  
         super().__init__(**kwargs)
-        
-        self.crs=crs
-        self.bbox = bbox
       
     #===========================================================================
     # phase0-------  
     #===========================================================================
-    def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, 
-                        bbox=None,   **kwargs):
-        """load and extract some data from the raster files"""
-        crs, log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters',  **kwargs)
+    def p0_clip_rasters(self, wse_fp, dem_fp, 
+                        bbox=None,crs=None, 
+                        **kwargs):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_rasters',  **kwargs) 
+     
+        write_kwargs =RioSession._get_defaults(self, bbox=bbox, crs=crs, as_dict=True)
+        bbox = write_kwargs['bbox']
+ 
+        #=======================================================================
+        # clip wse
+        #=======================================================================
+        wse_clip_fp, wse_stats = write_clip(wse_fp, ofp=os.path.join(tmp_dir, 'wse2_clip.tif'), **write_kwargs)
         
-        if bbox is None: bbox=self.bbox
-        #if crs is None: crs=self.crs
+        dem_clip_fp, dem_stats = write_clip(dem_fp, ofp=os.path.join(tmp_dir, 'dem1_clip.tif'), **write_kwargs)
+ 
+        #=======================================================================
+        # warp
+        #=======================================================================
+ 
+        log.info(f'clipped rasters and wrote to\n    {tmp_dir}\n    {bbox.bounds}')
+        return wse_clip_fp, dem_clip_fp
+        
+        
+    def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, crs=None,
+                          **kwargs):
+        """load and extract some data from the raster files"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters',  **kwargs)
+        crs, bbox, compress, nodata =RioSession._get_defaults(self, crs=crs)
+        
+
         #=======================================================================
         # load
         #=======================================================================
-        
-        
-        dem_stats, dem1_ar = rlay_extract(dem1_rlay_fp, bbox=bbox, crs=crs)
-        wse_stats, wse2_ar = rlay_extract(wse2_rlay_fp, bbox=bbox, crs=crs)
+        #load wse with aoi rounded
+        wse_stats, wse2_ar = rlay_extract(wse2_rlay_fp)
+ 
+        dem_stats, dem1_ar = rlay_extract(dem1_rlay_fp)        
         s2, s1 = dem_stats['res'][0], wse_stats['res'][0]
         
         #=======================================================================
         # check
         #=======================================================================
+        if crs is None:
+            self.crs = dem_stats['crs']
+            crs = self.crs
+            
+            log.info('set crs from dem (%s)'%crs.to_epsg())
+            
+        assert dem_stats['crs']==crs, f'DEM crs %s doesnt match session {crs}'%dem_stats['crs']
         for stat in ['crs', 'bounds']:
             assert dem_stats[stat] == wse_stats[stat]
  
@@ -93,15 +104,10 @@ class Dsc_Session(RioWrkr,  Session, WBT_worker):
         # wrap
         #=======================================================================
         #get rlay write kwargs for this session
-        rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)
-        
-        #attach some session defaults
-        for k in ['crs', 'nodata', 'transform']:
-            setattr(self, k, dem_stats[k])
-        
-        self.s2, self.s1, self.downscale, self.rlay_kwargs = s2, s1, downscale, rlay_kwargs
-
-        return dem1_ar, wse2_ar, rlay_kwargs
+        #rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)        
+      
+        self.s2, self.s1, self.downscale = s2, s1, downscale 
+        return wse2_ar, dem1_ar, wse_stats, dem_stats 
 
     #===========================================================================
     # PHASE1---------
@@ -112,7 +118,7 @@ class Dsc_Session(RioWrkr,  Session, WBT_worker):
         
         #precheck
         for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
-            assert ds1/ds2==downscale
+            assert ds1/ds2==downscale, downscale
         
         #simple zoom
         wse1_ar1 = scipy.ndimage.zoom(wse2_ar, downscale, order=0, mode='reflect',   grid_mode=True)
@@ -285,41 +291,37 @@ class Dsc_Session(RioWrkr,  Session, WBT_worker):
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
-    def _func_setup(self, *args, crs=None, **kwargs):
-        """function setup wrapper"""
-        
-        if crs is None:
-            crs=self.crs
-            
-        return crs, *super(Dsc_Session, self)._func_setup(*args, **kwargs)
+    #===========================================================================
+    # def func_setup(self, *args, crs=None,bbox=None, **kwargs):
+    #     """function setup wrapper"""
+    #      
+    #     if crs is None:
+    #         crs=self.crs
+    #          
+    #     return crs, *self._func_setup(*args, **kwargs)
+    #===========================================================================
     
  
 
 def rlay_extract(fp,
                  window=None, masked=False,
-                 crs=None, bbox=None,
+ 
                  ):
+    
     """load rlay data and arrays"""
     with rio.open(fp, mode='r') as ds:
         assert_rlay_simple(ds)
-        stats_d = get_stats(ds)
-        
-        if not crs is None:
-            assert crs==ds.crs
-        
-        #window
-        if window is None and not bbox is None:
-            #get a nice rounded window from the bbox
-            window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform).round_offsets().round_lengths()
-        
+        stats_d = get_stats(ds) 
+ 
         ar = ds.read(1, window=window, masked=masked)
         
-    return stats_d, ar
+    return stats_d, ar 
 
 
 def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
+        aoi_fp=None,
  
         dryPartial_method = 'costDistanceSimple',
         **kwargs):
@@ -329,15 +331,30 @@ def run_downscale(
     ----------
     dryPartial_method: str
         dry partial algo method
+        
+    aoi_fp: str, Optional
+        filepath to AOI. must be well rounded to the coarse raster
     """
     
-    with Dsc_Session(**kwargs) as ses:
+    with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
         log=ses.logger.getChild('m')
         #=======================================================================
-        # precheck rasters
+        # precheck and load rasters
         #=======================================================================
-        dem1_ar, wse2_ar, rlay_kwargs = ses.p0_load_rasters(wse2_rlay_fp, dem1_rlay_fp)
- 
+        #trim rasters
+        if not aoi_fp is None:
+            wse2_rlay1_fp, dem1_rlay1_fp = ses.p0_clip_rasters(wse2_rlay_fp, dem1_rlay_fp)
+        else:
+            wse2_rlay1_fp, dem1_rlay1_fp = wse2_rlay_fp, dem1_rlay_fp
+            
+        
+        
+        wse2_ar, dem1_ar, wse_stats, dem_stats  = ses.p0_load_rasters(wse2_rlay1_fp, dem1_rlay1_fp)
+        
+        #get default writing parmaeters
+        rlay_kwargs = ses._get_defaults(as_dict=True)        
+        rlay_kwargs.update({'transform':dem_stats['transform'], 'dtype':'float32'})
+        del rlay_kwargs['bbox']
         #=======================================================================
         # wet partials
         #=======================================================================
@@ -362,7 +379,7 @@ def run_downscale(
             wse1_wp_fp = ses.write_array(wse1_ar2, resname='wse1_wp', out_dir=ses.tmp_dir,  **rlay_kwargs) 
             
             #grow out into dry partials
-            wse1_dp_fp = ses.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay_fp)
+            wse1_dp_fp = ses.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp)
             
         else:
             raise KeyError(dryPartial_method)
@@ -374,3 +391,9 @@ def run_downscale(
         
         """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing"""
         
+    #=======================================================================
+    # wrap
+    #=======================================================================
+    log.info(f'finished on\n    {wse1_dp_fp}')
+        
+    return wse1_dp_fp

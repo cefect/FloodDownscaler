@@ -8,7 +8,7 @@ import pytest, copy, os, random, re
 import numpy as np
 import pandas as pd
 
-
+import shapely.geometry as sgeo
 import xarray as xr
 xfail = pytest.mark.xfail
 
@@ -17,7 +17,7 @@ from fdsc.scripts.scripts import run_downscale
 from fdsc.scripts.scripts import Dsc_Session as Session
 
 from tests.conftest import (
-    get_xda, get_rlay_fp, crs_default, proj_lib,
+    get_xda, get_rlay_fp, crs_default, proj_lib,get_aoi_fp,
  
     )
  
@@ -30,6 +30,7 @@ dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1')
 wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
 wse1_rlay2_fp = get_rlay_fp(wse1_ar2, 'wse12')
 wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
+aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
 
 #===============================================================================
 # fixtures------------
@@ -37,7 +38,8 @@ wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
  
 
 @pytest.fixture(scope='function')
-def wrkr(tmp_path,write,logger, test_name, 
+def wrkr(tmp_path,write,logger, test_name,
+         crs= crs_default,
                     ):
     
     """Mock session for tests"""
@@ -61,6 +63,9 @@ def wrkr(tmp_path,write,logger, test_name,
                    
                    #oop.Session
                    logfile_duplicate=False,
+                   
+                   #RioSession
+                   crs=crs,
  
  
                    ) as ses:
@@ -70,12 +75,22 @@ def wrkr(tmp_path,write,logger, test_name,
 #===============================================================================
 # tests-------
 #===============================================================================
-@pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+@pytest.mark.dev
+@pytest.mark.parametrize('dem_fp, wse_fp, aoi_fp', [
+    (dem1_rlay_fp, wse2_rlay_fp, aoi_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['aoi_fp'])
     ]) 
-def test_p0(dem_fp, wse_fp, tmp_path, wrkr):    
-    wrkr.p0_load_rasters(wse_fp, dem_fp, out_dir=tmp_path)
+def test_p0_clip(dem_fp, wse_fp, aoi_fp, tmp_path, wrkr): 
+    wrkr._set_aoi(aoi_fp)
+    wrkr.p0_clip_rasters(wse_fp, dem_fp, out_dir=tmp_path)
+    
+    
+@pytest.mark.parametrize('dem_fp, wse_fp, crs', [
+    (dem1_rlay_fp, wse2_rlay_fp, crs_default),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['crs'])
+    ]) 
+def test_p0(dem_fp, wse_fp, crs, tmp_path, wrkr):    
+    wrkr.p0_load_rasters(wse_fp, dem_fp, crs=crs, out_dir=tmp_path)
     
 
 
@@ -89,7 +104,7 @@ def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):
 
 
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
@@ -126,31 +141,6 @@ def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):
     
     
 
-@pytest.mark.parametrize('dem_ar, wse_ar', [
-    (dem1_ar, wse2_ar)
-    ])
-def test_xar(dem_ar, wse_ar):
- 
-    #build a dataset from the dataarrays
-    dem_ds = get_xda(dem_ar)
-    wse_ds = get_xda(wse_ar)
  
  
-    
-    """
-    xds['dem'].plot()
-    xds['wse'].plot()
-    plt.show()
-    """
- 
-
-
-#===============================================================================
-# @pytest.mark.parametrize('ar', [
-#     np.arange(4*4).reshape(4,4),
-#     ])
-# @pytest.mark.parametrize('scale', [2])
-# def test_disag_ar(ar, scale):
-#     disag(ar, downscale=scale)
-#===============================================================================
     

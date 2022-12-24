@@ -4,30 +4,41 @@ Created on Dec. 4, 2022
 @author: cefect
 '''
 import pytest, os, tempfile, datetime
+from collections import OrderedDict
 import numpy as np
 import pandas as pd
 import rasterio as rio
 import shapely.geometry as sgeo
+from shapely.geometry import mapping, Polygon
 
 import xarray as xr
-import rioxarray
+ 
+import fiona
+import fiona.crs
 from pyproj.crs import CRS
 from definitions import src_dir
+#from osgeo import ogr
 
 
 from hp.logr import get_new_console_logger, logging
 
 crs_default = CRS.from_user_input(25832)
 bbox_default = sgeo.box(0, 0, 60, 90)
- 
 
+
+temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
+if not os.path.exists(temp_dir):
+    os.makedirs(temp_dir)
 #===============================================================================
 # setup test arrays
 #===============================================================================
 
 proj_lib = dict()
 proj_lib['fred01'] = {
+    #test raw data
     'wse2_rlay_fp':os.path.join(src_dir, r'tests/data/fred01/testr_test00_0806_fwse.tif'),
+    'aoi_fp':os.path.join(src_dir, r'tests/data/fred01/aoi_T01.geojson'),
+    'crs':CRS.from_user_input(3979),
     
     #p1_downscale_wetPartials
     'wse1_rlay2_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar2.tif'),
@@ -93,10 +104,8 @@ def get_rlay_fp(ar, layName,
     assert isinstance(ar, np.ndarray)
     height, width  = ar.shape
     
-    if ofp is None:
-        out_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
-        ofp = os.path.join(out_dir,f'{layName}_{width}{height}.tif')
+    if ofp is None: 
+        ofp = os.path.join(temp_dir,f'{layName}_{width}{height}.tif')
     
     
  
@@ -114,6 +123,30 @@ def get_rlay_fp(ar, layName,
         
     print(f'wrote {ar.shape} to {ofp}')
     
+        
+    return ofp
+
+
+def get_aoi_fp(bbox, crs=crs_default, ofp=None):
+    
+    
+    if ofp is None:
+        ofp = os.path.join(temp_dir, 'aoi.geojson')
+        
+    #write a vectorlayer from a single bounding box
+    assert isinstance(bbox, Polygon)
+    with fiona.open(ofp,'w',driver='GeoJSON', 
+        crs=fiona.crs.from_epsg(crs.to_epsg()),
+        schema={'geometry': 'Polygon',
+                'properties': {'id':'int'},
+            },
+ 
+        ) as c:
+        
+        c.write({ 
+            'geometry':mapping(bbox), 
+            'properties':{'id':0},
+            })
         
     return ofp
     
