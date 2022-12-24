@@ -733,7 +733,8 @@ class RioSession(RioWrkr):
         crs: <class 'pyproj.crs.crs.CRS'>
             coordinate reference system
         """
- 
+        super().__init__(**kwargs)
+        
         #=======================================================================
         # set aoi
         #=======================================================================
@@ -753,7 +754,7 @@ class RioSession(RioWrkr):
         if not self.bbox is None:
             assert isinstance(self.bbox, Polygon)
  
-        super().__init__(**kwargs)
+        
         
     def _set_aoi(self, aoi_fp):
         assert os.path.exists(aoi_fp)
@@ -765,6 +766,8 @@ class RioSession(RioWrkr):
             
         self.crs=crs
         self.bbox = bbox
+        
+        self.logger.info('set crs: %s'%crs.to_epsg())
         
         return self.crs, self.bbox
     
