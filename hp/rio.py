@@ -9,15 +9,19 @@ import numpy as np
 import numpy.ma as ma
 import rasterio as rio
 import shapely.geometry as sgeo
+from shapely.geometry.polygon import Polygon
  
 #print('rasterio.__version__:%s'%rio.__version__)
- 
+
 assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s'%os.getenv('PROJ_LIB')
  
 import rasterio.merge
 import rasterio.io
 from rasterio.plot import show
-from rasterio.enums import Resampling
+from rasterio.enums import Resampling, Compression
+
+import fiona #not a rasterio dependency? needed for aoi work
+from pyproj.crs import CRS
 
 import scipy.ndimage
 #import skimage
@@ -50,23 +54,15 @@ class RioWrkr(Basic):
                  rlay_ref_fp = None,  
                  
                  #default behaviors
-                 compress=None,
+                compress=Compression('NONE'),nodata=-9999, 
                  
                  #reference inheritance
                  #crs=None,height=None,width=None,transform=None,nodata=None,
                  
-                 #subsetting
-                 bbox=None,
+ 
                  
                  **kwargs):
-        """"
-        
-        Parameters
-        -----------
-        
-        bbox: shapely.polygon
-            bounds assumed to be on the same crs as the data
-        """
+
  
         super().__init__(**kwargs)
         
@@ -76,7 +72,10 @@ class RioWrkr(Basic):
         # simple attachments
         #=======================================================================
         self.compress=compress
-        self.bbox=bbox
+        
+        assert isinstance(compress, Compression)
+        self.nodata=nodata
+ 
  
         self.dataset_d = dict() #all loaded datasets
         self.memoryfile_d=dict()
@@ -707,7 +706,85 @@ class RioWrkr(Basic):
     def __exit__(self,  *args,**kwargs):
         #print('RioWrkr.__exit__')
         self._clear()
+        
+class RioSession(RioWrkr):
+    
+    def __init__(self, 
+                 #==============================================================
+                 # crs=CRS.from_user_input(25832),
+                 # bbox=
+                 #==============================================================
+                 crs=None, bbox=None, aoi_fp=None,
+                 
+                 #defaults
+                 
+                 
+                 **kwargs):
+        
+        """"
+        
+        Parameters
+        -----------
+        
+        bbox: shapely.polygon
+            bounds assumed to be on the same crs as the data
+            sgeo.box(0, 0, 100, 100),
+            
+        crs: <class 'pyproj.crs.crs.CRS'>
+            coordinate reference system
+        """
  
+        #=======================================================================
+        # set aoi
+        #=======================================================================
+        if not aoi_fp is None:            
+            assert crs is None
+            assert bbox is None
+            self._set_aoi(aoi_fp)
+            
+        else:
+            self.crs=crs
+            self.bbox = bbox
+            
+        #check
+        if not self.crs is None:
+            assert isinstance(self.crs, CRS)
+            
+        if not self.bbox is None:
+            assert isinstance(self.bbox, Polygon)
+ 
+        super().__init__(**kwargs)
+        
+    def _set_aoi(self, aoi_fp):
+        assert os.path.exists(aoi_fp)
+        
+        #open file and get bounds and crs using fiona
+        with fiona.open(aoi_fp, "r") as source:
+            bbox = sgeo.box(*source.bounds) 
+            crs = CRS(source.crs['init'])
+            
+        self.crs=crs
+        self.bbox = bbox
+        
+        return self.crs, self.bbox
+    
+    def _get_defaults(self, crs=None, bbox=None, nodata=None, compress=None,
+                      as_dict=False):
+        """return session defaults for this worker
+        
+        EXAMPLE
+        ----------
+        crs, bbox, compress, nodata =RioSession._get_defaults(self)
+        """
+        if crs is None: crs=self.crs
+        if bbox is  None: bbox=self.bbox
+        if compress is None: compress=self.compress
+        if nodata is None: nodata=self.nodata
+        
+        if not as_dict:
+            return crs, bbox, compress, nodata
+        else:
+            return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
 
             
 #===============================================================================
@@ -871,13 +948,24 @@ def is_divisible(rlay, divisor):
 
     return True
 
-def get_window(ds, bbox):
+def get_window(ds, bbox,
+                round_offsets=False,
+                 round_lengths=False,
+                 ):
     """get a well rounded window from a bbox"""
     #buffer 1 pixel  
     bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
     
     #build a window and round                   
-    window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform).round_lengths().round_offsets()
+    window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform)
+    
+    if round_offsets:
+        window = window.round_offsets()
+        
+    if round_lengths:
+        window = window.round_lengths()
+    
+ 
     
     #check the bounds
     wbnds = sgeo.box(*rasterio.windows.bounds(window, ds.transform))
@@ -903,10 +991,11 @@ def get_write_kwargs( obj,
     #=======================================================================
     # load from filepath
     #=======================================================================
-    if isinstance(obj, str):
+    if isinstance(obj, str) or isinstance(obj,rasterio.io.DatasetReader):
         stats_d  = rlay_apply(obj, get_stats, att_l=att_l+['dtypes'])
     elif isinstance(obj, dict):
         stats_d = obj
+
     else:
         raise TypeError(type(obj))
                         
@@ -1008,7 +1097,56 @@ def get_xy_coords(transform, shape):
     return x_ar, y_ar
 
 
+def write_clip(raw_fp, 
+                window=None,
+                bbox=None,
+                 
+                masked=True,
+                 crs=None, 
+ 
+                 ofp=None,
+                 **kwargs):
+    """write a new raster from a window"""
     
+    with rio.open(raw_fp, mode='r') as ds:
+        
+        #crs check/load
+        if not crs is None:
+            assert crs==ds.crs
+        else:
+            crs = ds.crs
+        
+        #window default
+        if window is None:
+            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+ 
+        else:
+ 
+            assert bbox is None
+            
+        #get the windowed transform
+        transform = rasterio.windows.transform(window, ds.transform)
+        
+        #get stats
+        stats_d = get_stats(ds)
+        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+            
+        #load the windowed data
+        ar = ds.read(1, window=window, masked=masked)
+        
+        #=======================================================================
+        # #write clipped data
+        #=======================================================================
+        if ofp is None:
+            fname = os.path.splitext( os.path.basename(raw_fp))[0] + '_clip.tif'
+            ofp = os.path.join(os.path.dirname(raw_fp),fname)
+        
+        write_kwargs = get_write_kwargs(ds)
+        write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
+        
+        ofp = write_array(ar, ofp,  masked=masked,   **write_kwargs1)
+        
+    return ofp, stats_d
     
     
 #===============================================================================
