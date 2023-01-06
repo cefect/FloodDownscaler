@@ -287,10 +287,10 @@ class Basic(object): #simple base class
  
         
         if resname is None:
-            resname = '%s_%s'%(self.fancy_name, dkey)
+            resname = self._get_resname(dkey=dkey)
          
         if ofp is None:
-            ofp = os.path.join(out_dir, resname+ext)  
+            ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
             
         if os.path.exists(ofp):
             log.warning('ofp exists... overwriting')
@@ -298,6 +298,29 @@ class Basic(object): #simple base class
  
             
         return log, tmp_dir, out_dir, ofp, resname 
+    
+    def _get_ofp(self,
+                  dkey='',
+                 fancy_name=None,
+                 out_dir=None,
+                 resname=None,
+                 ext=''):
+        if out_dir is None:
+            out_dir=self.out_dir
+        
+        if resname is None:
+            resname=self._get_resname(dkey, fancy_name)
+            
+        return os.path.join(out_dir, resname+ext)
+    
+    def _get_resname(self,
+                     dkey='',
+                     fancy_name=None,
+                     ):
+        if fancy_name is None:
+            fancy_name=self.fancy_name
+            
+        return '%s_%s'%(fancy_name, dkey)
         
     def __enter__(self):
         return self
