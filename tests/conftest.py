@@ -47,6 +47,9 @@ proj_lib['fred01'] = {
     'wse1_rlay3_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_ar3.tif'),
         
     'dem1_rlay_fp':os.path.join(src_dir, r'tests\data\fred01\dem.tif'),
+    
+    #validation data
+    'wse1_rlayV_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_arV.tif'),
     }
 
 

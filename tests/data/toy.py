@@ -50,6 +50,18 @@ wse2_ar = get_wse_ar("""
     5    -9999    
     """)
 
+"""dummy validation against wse1_ar3
+1FP, 1FN"""
+wse1_arV = array([
+        [ 3.,  3.,  3., nan, nan, nan],
+       [ 3.,  3.,  3., nan, nan, nan],
+       [ 3.,  3.,  3.,  3.,  3., nan],
+       [ 4.,  4.,  4., nan,  3., nan],
+       [nan,  4.,  4., nan,  3., nan],
+       [ 4.,  4.,  4., nan,  3., nan],
+       [ 5.,  5.,  5.,  5.,  5., nan],
+       [ 5.,  5.,  5., nan, nan, 5.],
+       [ 5.,  5.,  5., nan, nan, nan]])
 
 
 
@@ -62,7 +74,7 @@ wse1_ar2 =np.array([
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 4.,  4.,  4., np.nan, np.nan, np.nan],
-       [np.nan,  4.,  4., np.nan, np.nan, np.nan],
+       [nan,  4.,  4., np.nan, np.nan, np.nan],
        [ 4.,  4.,  4., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],

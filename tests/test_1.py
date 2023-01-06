@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 import shapely.geometry as sgeo
-import xarray as xr
+ 
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
@@ -46,7 +46,6 @@ def wrkr(tmp_path,write,logger, test_name,
  
     #np.random.seed(100)
     #random.seed(100)
- 
     
     with Session(  
  
@@ -67,7 +66,6 @@ def wrkr(tmp_path,write,logger, test_name,
                    #RioSession
                    crs=crs,
  
- 
                    ) as ses:
  
         yield ses
@@ -75,6 +73,7 @@ def wrkr(tmp_path,write,logger, test_name,
 #===============================================================================
 # tests-------
 #===============================================================================
+
 
 @pytest.mark.parametrize('dem_fp, wse_fp, aoi_fp', [
     (dem1_rlay_fp, wse2_rlay_fp, aoi_fp),
@@ -93,16 +92,11 @@ def test_p0(dem_fp, wse_fp, crs, tmp_path, wrkr):
     wrkr.p0_load_rasters(wse_fp, dem_fp, crs=crs, out_dir=tmp_path)
     
 
-
-    
-
 @pytest.mark.parametrize('wse_ar, dem_ar, downscale', [
     (wse2_ar, dem1_ar, 3.0),
     ]) 
 def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):    
     wrkr.p1_downscale_wetPartials(wse_ar, dem_ar,  downscale=downscale, out_dir=tmp_path)
-
-
 
 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
@@ -112,8 +106,6 @@ def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):
     ])
 def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
     wrkr.p2_dp_costGrowSimple(wse_fp, dem_fp)
-    
-    
 
 
 @pytest.mark.parametrize('wse_fp', [
@@ -123,7 +115,6 @@ def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
     ])
 def test_p2_filter_isolated(wse_fp, wrkr):
     wrkr.filter_isolated(wse_fp)
-    
     
 
 @pytest.mark.dev
@@ -137,10 +128,4 @@ def test_p2_filter_isolated(wse_fp, wrkr):
 def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):    
     run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',
                   dryPartial_method=dryPartial_method)
-    
-    
-    
-
- 
- 
     
