@@ -186,7 +186,7 @@ class Dsc_Session(RioSession,  Session, WBT_worker):
         #smooth
         """
         start = now()
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dp1', subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dpCGS', subdir=True,  **kwargs)
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         assert_spatial_equal(dem_fp, wse2_fp)
         
@@ -221,13 +221,14 @@ class Dsc_Session(RioSession,  Session, WBT_worker):
         rlay_kwargs = get_write_kwargs(dem_fp, driver='GTiff', masked=False)
         wse1_ar1_fp = self.write_array(wse1_ar1, resname='wse1_ar3', out_dir=tmp_dir,  logger=log, **rlay_kwargs) 
         
+        #filter
         wse1_ar2_fp = self.filter_isolated(wse1_ar1_fp, **skwargs)
         
         #=======================================================================
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        log.info(f'finished in {tdelta:.2f}secs')
+        log.info(f'finished in {tdelta:.2f} secs')
         
         return wse1_ar2_fp
 

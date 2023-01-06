@@ -19,3 +19,4 @@ def aoi08_r32_1215_53():
     
 if __name__=='__main__':
     aoi08_r32_1215_53()
+    print('done')
