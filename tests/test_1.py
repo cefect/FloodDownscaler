@@ -13,8 +13,8 @@ import xarray as xr
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
-from fdsc.scripts.scripts import run_downscale
-from fdsc.scripts.scripts import Dsc_Session as Session
+from fdsc.scripts.dsc import run_downscale
+from fdsc.scripts.dsc import Dsc_Session as Session
 
 from tests.conftest import (
     get_xda, get_rlay_fp, crs_default, proj_lib,get_aoi_fp,

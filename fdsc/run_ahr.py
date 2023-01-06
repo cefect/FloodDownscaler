@@ -6,7 +6,7 @@ Created on Dec. 15, 2022
 downscaling ahr case study
 '''
 
-from fdsc.scripts.scripts import run_downscale
+from fdsc.scripts.dsc import run_downscale
 
 def aoi08_r32_1215_53(**kwargs):
     """t=53 for aoi09"""
