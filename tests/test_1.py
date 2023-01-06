@@ -75,7 +75,7 @@ def wrkr(tmp_path,write,logger, test_name,
 #===============================================================================
 # tests-------
 #===============================================================================
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp, aoi_fp', [
     (dem1_rlay_fp, wse2_rlay_fp, aoi_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['aoi_fp'])
@@ -126,13 +126,13 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     
     
 
-
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     #(dem1_rlay_fp, wse2_rlay_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
-    'costDistanceSimple',
+    'costDistanceSimple','none'
     ])
 def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):    
     run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',

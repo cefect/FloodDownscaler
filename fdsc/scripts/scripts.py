@@ -31,10 +31,10 @@ from fdsc.scripts.wbt import WBT_worker
 class Dsc_Session(RioSession,  Session, WBT_worker):
     
     def __init__(self, 
- 
+                 run_name='v1', #using v instead of r to avoid resolution confusion
                  **kwargs):
  
-        super().__init__(**kwargs)
+        super().__init__(run_name=run_name, **kwargs)
       
     #===========================================================================
     # phase0-------  
@@ -222,7 +222,7 @@ class Dsc_Session(RioSession,  Session, WBT_worker):
         wse1_ar1_fp = self.write_array(wse1_ar1, resname='wse1_ar3', out_dir=tmp_dir,  logger=log, **rlay_kwargs) 
         
         #filter
-        wse1_ar2_fp = self.filter_isolated(wse1_ar1_fp, **skwargs)
+        wse1_ar2_fp = self.filter_isolated(wse1_ar1_fp, ofp=ofp, **skwargs)
         
         #=======================================================================
         # wrap
@@ -356,6 +356,9 @@ def run_downscale(
         rlay_kwargs = ses._get_defaults(as_dict=True)        
         rlay_kwargs.update({'transform':dem_stats['transform'], 'dtype':'float32'})
         del rlay_kwargs['bbox']
+        
+        outres = dem_stats['res'][0]
+        outName_sfx = f'r{outres:02.0f}'
         #=======================================================================
         # wet partials
         #=======================================================================
@@ -370,20 +373,26 @@ def run_downscale(
         #=======================================================================
         """should develop a few options here"""
         
-        """option 0.... Schuman 2014"""
-        #buffer fixed number of pixels?
-        
-        """option 1... just cost distance"""
+        if dryPartial_method=='none':
+            wse1_dp_fp = ses.write_array(wse1_ar2, ofp=ses._get_ofp(dkey='dpNone_'+outName_sfx,  ext='.tif') ,  
+                                         **rlay_kwargs)
+            
 
-        if dryPartial_method=='costDistanceSimple':
+        elif dryPartial_method=='costDistanceSimple':
+ 
             #convert back to rasters
             wse1_wp_fp = ses.write_array(wse1_ar2, resname='wse1_wp', out_dir=ses.tmp_dir,  **rlay_kwargs) 
             
             #grow out into dry partials
-            wse1_dp_fp = ses.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp)
+            wse1_dp_fp = ses.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp, 
+                                                  ofp=ses._get_ofp(dkey='cds_'+outName_sfx,  ext='.tif'))
             
         else:
             raise KeyError(dryPartial_method)
+        
+        """option 0.... Schuman 2014"""
+        #buffer fixed number of pixels?
+        
         
         """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
         #for 1 cell
