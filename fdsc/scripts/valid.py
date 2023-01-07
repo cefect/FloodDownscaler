@@ -17,7 +17,7 @@ from hp.rio import (
 
 from hp.logr import get_new_console_logger
 from fdsc.scripts.coms2 import Master_Session
-from definitions import src_name
+#from definitions import src_name
 
 
 def rlay_extract(fp,
@@ -36,10 +36,44 @@ def rlay_extract(fp,
 
 
 class ValidateWorker(RioWrkr):
+    """compute validation metrics for a raster by comparing to some true raster""" 
+    
     confusion_ser=None
     confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
     
-    """compute validation metrics for a raster by comparing to some true raster""" 
+    pred_fp=None
+    true_fp=None
+    
+    
+
+
+    def _load_true(self, true_fp):
+
+        stats_d, self.true_ar = rlay_extract(true_fp)
+        self.logger.info('loaded true raster from file w/\n    %s' % stats_d)
+        #set the session defaults from this
+        if 'dtypes' in stats_d:
+            stats_d['dtype'] = stats_d['dtypes'][0]
+        self.stats_d = stats_d
+        self._set_defaults(stats_d)
+        self.true_fp = true_fp
+        
+        if not self.pred_fp is None:
+            assert_spatial_equal(self.true_fp, self.pred_fp)
+            
+            
+        return
+
+
+    def _load_pred(self, pred_fp):
+        stats_d, self.pred_ar = rlay_extract(pred_fp)
+        self.pred_fp=pred_fp
+        
+        if not self.true_fp is None:
+            assert_spatial_equal(self.true_fp, self.pred_fp)
+            
+        self.logger.info('loaded pred raster from file w/\n    %s' % stats_d)
+        
 
     def __init__(self,
                  true_fp=None,
@@ -62,29 +96,12 @@ class ValidateWorker(RioWrkr):
         """using ocnditional loading mostly for testing"""
         
         if not true_fp is None:
-            #compare rasters
-            if not pred_fp is None:
-                assert_spatial_equal(true_fp, pred_fp)
-                
-            stats_d, self.true_ar = rlay_extract(true_fp)
-            self.logger.info('loaded true raster from file w/\n    %s'%stats_d)
+            self._load_true(true_fp) 
             
-            #set the session defaults from this
-            if 'dtypes' in stats_d:
-                stats_d['dtype'] = stats_d['dtypes'][0]
+        if not pred_fp is None:            
+            self._load_pred(pred_fp)
             
-            self.stats_d=stats_d        
-            self._set_defaults(stats_d)
-            
-        if not pred_fp is None:
-            stats_d, self.pred_ar = rlay_extract(pred_fp)
-            self.logger.info('loaded pred raster from file w/\n    %s'%stats_d)
-            
-        #=======================================================================
-        # attachments
-        #=======================================================================
-        self.true_fp=true_fp
-        self.pred_fp=pred_fp
+ 
     
     #===========================================================================
     # grid inundation metrics------

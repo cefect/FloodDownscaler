@@ -288,6 +288,84 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         return ofp
     
     #===========================================================================
+    # PIPELINE
+    #===========================================================================
+    def run_dsc(self,
+            wse2_rlay_fp,
+            dem1_rlay_fp,
+ 
+            dryPartial_method = 'costDistanceSimple',
+                **kwargs):
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('r', subdir=False,  **kwargs)
+        #=======================================================================
+        # precheck and load rasters
+        #=======================================================================
+        #trim rasters
+        if not self.aoi_fp is None:
+            wse2_rlay1_fp, dem1_rlay1_fp = self.p0_clip_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
+        else:
+            wse2_rlay1_fp, dem1_rlay1_fp = wse2_rlay_fp, dem1_rlay_fp
+            
+        
+        
+        wse2_ar, dem1_ar, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay1_fp, dem1_rlay1_fp, logger=log)
+        
+        #get default writing parmaeters
+        rlay_kwargs = self._get_defaults(as_dict=True)        
+        rlay_kwargs.update({'transform':dem_stats['transform'], 'dtype':'float32'})
+        del rlay_kwargs['bbox']
+        
+        outres = dem_stats['res'][0]
+        outName_sfx = f'r{outres:02.0f}'
+        #=======================================================================
+        # wet partials
+        #=======================================================================
+        wse1_ar2 = self.p1_downscale_wetPartials(wse2_ar, dem1_ar, logger=log)
+        
+        """
+        np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
+        """
+        
+        #=======================================================================
+        # dry partials
+        #=======================================================================
+        """should develop a few options here"""
+        
+        if dryPartial_method=='none':
+            wse1_dp_fp = self.write_array(wse1_ar2, ofp=self._get_ofp(dkey='dpNone_'+outName_sfx,  ext='.tif') ,  
+                                         **rlay_kwargs)
+            
+
+        elif dryPartial_method=='costDistanceSimple':
+ 
+            #convert back to rasters
+            wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', out_dir=self.tmp_dir,  **rlay_kwargs) 
+            
+            #grow out into dry partials
+            wse1_dp_fp = self.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp, logger=log,
+                                                  ofp=self._get_ofp(dkey='cds_'+outName_sfx,  ext='.tif'))
+            
+        else:
+            raise KeyError(dryPartial_method)
+        
+        """option 0.... Schuman 2014"""
+        #buffer fixed number of pixels?
+        
+        
+        """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
+        #for 1 cell
+            #grow/buffer 1
+            #filter dem violators
+        
+        """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing"""
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished on\n    {wse1_dp_fp}')
+    
+    #===========================================================================
     # PRIVATES--------
     #===========================================================================
     #===========================================================================
@@ -320,8 +398,7 @@ def rlay_extract(fp,
 def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
-        aoi_fp=None,
- 
+        aoi_fp=None, 
         dryPartial_method = 'costDistanceSimple',
         **kwargs):
     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
@@ -336,72 +413,7 @@ def run_downscale(
     """
     
     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        log=ses.logger.getChild('m')
-        #=======================================================================
-        # precheck and load rasters
-        #=======================================================================
-        #trim rasters
-        if not aoi_fp is None:
-            wse2_rlay1_fp, dem1_rlay1_fp = ses.p0_clip_rasters(wse2_rlay_fp, dem1_rlay_fp)
-        else:
-            wse2_rlay1_fp, dem1_rlay1_fp = wse2_rlay_fp, dem1_rlay_fp
-            
-        
-        
-        wse2_ar, dem1_ar, wse_stats, dem_stats  = ses.p0_load_rasters(wse2_rlay1_fp, dem1_rlay1_fp)
-        
-        #get default writing parmaeters
-        rlay_kwargs = ses._get_defaults(as_dict=True)        
-        rlay_kwargs.update({'transform':dem_stats['transform'], 'dtype':'float32'})
-        del rlay_kwargs['bbox']
-        
-        outres = dem_stats['res'][0]
-        outName_sfx = f'r{outres:02.0f}'
-        #=======================================================================
-        # wet partials
-        #=======================================================================
-        wse1_ar2 = ses.p1_downscale_wetPartials(wse2_ar, dem1_ar)
-        
-        """
-        np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
-        """
-        
-        #=======================================================================
-        # dry partials
-        #=======================================================================
-        """should develop a few options here"""
-        
-        if dryPartial_method=='none':
-            wse1_dp_fp = ses.write_array(wse1_ar2, ofp=ses._get_ofp(dkey='dpNone_'+outName_sfx,  ext='.tif') ,  
-                                         **rlay_kwargs)
-            
+        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp,dem1_rlay_fp,dryPartial_method=dryPartial_method)
 
-        elif dryPartial_method=='costDistanceSimple':
- 
-            #convert back to rasters
-            wse1_wp_fp = ses.write_array(wse1_ar2, resname='wse1_wp', out_dir=ses.tmp_dir,  **rlay_kwargs) 
-            
-            #grow out into dry partials
-            wse1_dp_fp = ses.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp, 
-                                                  ofp=ses._get_ofp(dkey='cds_'+outName_sfx,  ext='.tif'))
-            
-        else:
-            raise KeyError(dryPartial_method)
-        
-        """option 0.... Schuman 2014"""
-        #buffer fixed number of pixels?
-        
-        
-        """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
-        #for 1 cell
-            #grow/buffer 1
-            #filter dem violators
-        
-        """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing"""
-        
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        log.info(f'finished on\n    {wse1_dp_fp}')
         
     return wse1_dp_fp

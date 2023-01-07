@@ -10,7 +10,7 @@ xfail = pytest.mark.xfail
 import numpy as np
 
 
-from fdsc.valid.scripts import ValidateWorker, ValidateSession, run_validator
+from fdsc.scripts.valid import ValidateWorker, ValidateSession, run_validator
 
 from tests.conftest import (
       proj_lib, get_rlay_fp 

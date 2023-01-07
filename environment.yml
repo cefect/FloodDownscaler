@@ -19,4 +19,5 @@ dependencies:
   - dask
   - numbagg
   - rioxarray=0.13.*
+  - xlsxwriter=3.0.*
   
