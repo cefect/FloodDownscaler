@@ -717,6 +717,7 @@ class RioWrkr(Basic):
         self._clear()
         
 class RioSession(RioWrkr):
+    aoi_fp=None
     
     def __init__(self, 
                  #==============================================================
@@ -777,6 +778,7 @@ class RioSession(RioWrkr):
         self.bbox = bbox
         
         self.logger.info('set crs: %s'%crs.to_epsg())
+        self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
     
