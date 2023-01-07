@@ -297,7 +297,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             dryPartial_method = 'costDistanceSimple',
                 **kwargs):
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('r', subdir=False,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=False,  **kwargs)
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
@@ -364,6 +364,8 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         # wrap
         #=======================================================================
         log.info(f'finished on\n    {wse1_dp_fp}')
+        
+        return wse1_dp_fp
     
     #===========================================================================
     # PRIVATES--------

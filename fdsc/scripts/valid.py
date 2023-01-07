@@ -44,9 +44,32 @@ class ValidateWorker(RioWrkr):
     pred_fp=None
     true_fp=None
     
-    
-
-
+    def __init__(self,
+                 true_fp=None,
+                 pred_fp=None,
+                 sample_pts_fp=None, 
+                 logger=None,
+                 **kwargs):
+        
+        #=======================================================================
+        # pre init
+        #=======================================================================
+        if logger is None:
+            logger=get_new_console_logger(level=logging.DEBUG)
+        
+        super().__init__(logger=logger,**kwargs)
+                
+        #=======================================================================
+        # load rasters
+        #=======================================================================
+        """using ocnditional loading mostly for testing"""
+        
+        if not true_fp is None:
+            self._load_true(true_fp) 
+            
+        if not pred_fp is None:            
+            self._load_pred(pred_fp)
+            
     def _load_true(self, true_fp):
 
         stats_d, self.true_ar = rlay_extract(true_fp)
@@ -75,31 +98,7 @@ class ValidateWorker(RioWrkr):
         self.logger.info('loaded pred raster from file w/\n    %s' % stats_d)
         
 
-    def __init__(self,
-                 true_fp=None,
-                 pred_fp=None,
-                 sample_pts_fp=None, 
-                 logger=None,
-                 **kwargs):
-        
-        #=======================================================================
-        # pre init
-        #=======================================================================
-        if logger is None:
-            logger=get_new_console_logger(level=logging.DEBUG)
-        
-        super().__init__(logger=logger,**kwargs)
-                
-        #=======================================================================
-        # load rasters
-        #=======================================================================
-        """using ocnditional loading mostly for testing"""
-        
-        if not true_fp is None:
-            self._load_true(true_fp) 
-            
-        if not pred_fp is None:            
-            self._load_pred(pred_fp)
+
             
  
     
@@ -211,9 +210,68 @@ class ValidateWorker(RioWrkr):
         log.info('finished on %s'%str(res_ar.shape))
         
         return res_ar
+    
+    #===========================================================================
+    # pipeline------
+    #===========================================================================
+    def run_vali(self,
+                 true_fp=None, pred_fp=None,
+                 write=True,
+                 ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log=self.logger.getChild('vali')
+        meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
+        
+        #=======================================================================
+        # load
+        #=======================================================================
+        if not true_fp is None:
+            self._load_true(true_fp) 
+            
+        if not pred_fp is None:            
+            self._load_pred(pred_fp)
+        
+        assert isinstance(self.pred_ar, np.ndarray)
+        #=======================================================================
+        # grid metrics
+        #=======================================================================
+        shape, size = self.true_ar.shape, self.true_ar.size
+        meta_lib['grid'] = {**{'shape':str(shape), 'size':size}, **copy.deepcopy(self.stats_d)}
+        
+        
+        #=======================================================================
+        # inundation metrics
+        #=======================================================================
+        log.info(f'computing inundation metrics on %s ({size})'%str(shape))
+        confusion_ser = self._confusion()
+        inun_metrics_d = self.get_inundation_all()
+        
+        #confusion grid
+        confusion_grid_ar = self.get_confusion_grid()
+        if write:
+            confusion_grid_fp = self.write_array(confusion_grid_ar, resname = self._get_resname(dkey='confuGrid'))
+        
+        #meta
+        meta_lib['inundation'] = {**confusion_ser.to_dict(), **inun_metrics_d, **{'confusion_grid_fp':confusion_grid_fp}}
+        
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        if write:
+            ofp = self._get_ofp(dkey='meta', ext='.xls')
+            with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:       
+                for tabnm, d in meta_lib.items():
+                    pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
+            
+            log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+        
+        return confusion_ser, inun_metrics_d
         
     #===========================================================================
-    # private helpers
+    # private helpers------
     #===========================================================================
     def _confusion(self, **kwargs):
         """retrieve or construct the wet/dry confusion series"""
@@ -289,43 +347,8 @@ def run_validator(true_fp, pred_fp,
     """compute error metrics and layers on a wse layer"""
     
     with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, **kwargs) as ses:
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log=ses.logger.getChild('m')
-        meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
-        
-        #=======================================================================
-        # grid metrics
-        #=======================================================================
-        shape, size = ses.true_ar.shape, ses.true_ar.size
-        meta_lib['grid'] = {**{'shape':str(shape), 'size':size}, **copy.deepcopy(ses.stats_d)}
-        
-        
-        #=======================================================================
-        # inundation metrics
-        #=======================================================================
-        log.info(f'computing inundation metrics on %s ({size})'%str(shape))
-        confusion_ser = ses._confusion()
-        metrics_d = ses.get_inundation_all()
-        
-        #confusion grid
-        confusion_grid_ar = ses.get_confusion_grid()
-        confusion_grid_fp = ses.write_array(confusion_grid_ar, resname = ses._get_resname(dkey='confuGrid'))
-        
-        #meta
-        meta_lib['inundation'] = {**confusion_ser.to_dict(), **metrics_d, **{'confusion_grid_fp':confusion_grid_fp}}
-        
-        
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        ofp = ses._get_ofp(dkey='meta', ext='.xls')
-        with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:       
-            for tabnm, d in meta_lib.items():
-                pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
-        
-        log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+        ses.run_vali()
+
         
     return ofp
         

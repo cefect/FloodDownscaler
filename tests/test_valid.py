@@ -14,11 +14,10 @@ from fdsc.scripts.valid import ValidateWorker, ValidateSession, run_validator
 
 from tests.conftest import (
       proj_lib, get_rlay_fp 
- 
     )
 
 #===============================================================================
-# test data
+# test data-------
 #===============================================================================
 from tests.data.toy import wse1_arV, wse1_ar3
 
