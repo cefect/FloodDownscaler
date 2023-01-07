@@ -134,7 +134,14 @@ class RioWrkr(Basic):
         
         self.ref_vals_d=pars_d
         
-        return pars_d            
+        return pars_d
+    
+    def _set_defaults(self, d):
+        for attn in ['crs', 'height', 'width', 'transform', 'nodata']:
+            assert attn in d, attn
+            setattr(self, attn, d[attn])
+            
+                   
     
 
     
@@ -448,6 +455,7 @@ class RioWrkr(Basic):
     def write_array(self,raw_ar,
                        masked=False,
                        crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,
+                       bandCount=None,
                        write_kwargs=dict(),
                        **kwargs):
         """write an array to raster using rio"""
@@ -462,6 +470,7 @@ class RioWrkr(Basic):
         if compress is None: compress=self.compress
         if dtype is None: dtype=raw_ar.dtype
         if driver is None: driver=self.driver
+        if bandCount is None: bandCount=self.bandCount
         #=======================================================================
         # precheck
         #=======================================================================
@@ -493,7 +502,7 @@ class RioWrkr(Basic):
         with rasterio.open(ofp,'w',
                 driver=driver,
                 height=raw_ar.shape[0],width=raw_ar.shape[1],
-                count=self.bandCount,
+                count=bandCount,
                 dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                 ) as dst:
             
