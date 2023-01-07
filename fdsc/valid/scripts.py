@@ -39,6 +39,7 @@ class Valid_Session(Master_Session):
 
 class ValidateRaster(RioSession):
     confusion_ser=None
+    confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
     
     """compute validation metrics for a raster by comparing to some true raster""" 
     def __init__(self,
@@ -70,6 +71,15 @@ class ValidateRaster(RioSession):
             stats_d, self.true_ar = rlay_extract(true_fp)
             self.logger.info('loaded true raster from file w/\n    %s'%stats_d)
             
+            #set the session defaults from this
+            if 'dtypes' in stats_d:
+                stats_d['dtype'] = stats_d['dtypes'][0]
+            
+            self.stats_d=stats_d        
+            self._set_defaults(stats_d)
+            
+            
+            
 
             
         if not pred_fp is None:
@@ -79,6 +89,9 @@ class ValidateRaster(RioSession):
         #=======================================================================
         # attachments
         #=======================================================================
+        self.true_fp=true_fp
+        self.pred_fp=pred_fp
+
  
  
     
@@ -87,14 +100,14 @@ class ValidateRaster(RioSession):
     #===========================================================================
     def get_hitRate(self,**kwargs):
         """proportion of wet benchmark data that was replicated by the model"""
-        #log, true_ar, pred_ar = self._func_setup('hitRate', **kwargs)
+        #log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
         
         cf_ser = self._confusion(**kwargs)
         
         return cf_ser['TP']/(cf_ser['TP']+cf_ser['FN'])
     
     def get_falseAlarms(self,**kwargs):
-        #log, true_ar, pred_ar = self._func_setup('hitRate', **kwargs)
+        #log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
         
         cf_ser = self._confusion(**kwargs)
         
@@ -126,14 +139,79 @@ class ValidateRaster(RioSession):
             'E':self.get_errorBias(**kwargs),
             }
         
-        log, _, _ = self._func_setup('inun', **kwargs)
+        log, _, _ = self._func_setup_local('inun', **kwargs)
         log.info('computed all inundation metrics:\n    %s'%d)
         return d
+    
+    def get_confusion_grid(self,
+                           confusion_codes=None,**kwargs):
+        """generate confusion grid
         
+        Parameters
+        ----------
+        confusion_codes: dict
+            integer codes for confusion labels
+        """
+        log, true_ar, pred_ar = self._func_setup_local('confuGrid', **kwargs)
         
+        if confusion_codes is None: confusion_codes=self.confusion_codes
         
+        #convert to boolean (true=wet=nonnull)
+        true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
         
+        #start with dummy
+        res_ar = np.full(true_ar.shape, np.nan)
+        
+        #true positives
+        res_ar = np.where(
+            np.logical_and(true_arB, pred_arB),
+            confusion_codes['TP'], res_ar)
+        
+        #true negatives
+        res_ar = np.where(
+            np.logical_and(np.invert(true_arB), np.invert(pred_arB)),
+            confusion_codes['TN'], res_ar)
+        
+        #false positives
+        res_ar = np.where(
+            np.logical_and(np.invert(true_arB), pred_arB),
+            confusion_codes['FP'], res_ar)
+        
+        #false negatives
+        res_ar = np.where(
+            np.logical_and(true_arB, np.invert(pred_arB)),
+            confusion_codes['FN'], res_ar)
+        
+        #=======================================================================
+        # check
+        #=======================================================================
+        if __debug__:
+            cf_ser = self._confusion(true_ar=true_ar, pred_ar=pred_ar, **kwargs)
+            
+            #build a frame with the codes
+            df1 = pd.Series(res_ar.ravel(), name='grid_counts').value_counts().to_frame().reset_index()            
+            df1['index'] = df1['index'].astype(int) 
+            df2 = df1.join(pd.Series({v:k for k,v in confusion_codes.items()}, name='codes'), on='index'
+                           ).set_index('index')
+                           
+            #join the values from sklearn calcs
+            df3 = df2.join(cf_ser.rename('sklearn_counts').reset_index().rename(columns={'index':'codes'}).set_index('codes'), 
+                     on='codes')
+            
+            compare_bx = df3['grid_counts']==df3['sklearn_counts']
+            if not compare_bx.all():
+                raise AssertionError('confusion count mismatch\n    %s'%compare_bx.to_dict())
+            
+        log.info('finished on %s'%str(res_ar.shape))
+        
+        return res_ar
+                           
+            
  
+            
+            
+        
+        
         
  
         
@@ -143,7 +221,7 @@ class ValidateRaster(RioSession):
     def _confusion(self, **kwargs):
         """retrieve or construct the wet/dry confusion series"""
         if self.confusion_ser is None:
-            log, true_ar, pred_ar = self._func_setup('hitRate', **kwargs)
+            log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
             
             #convert to boolean (true=wet=nonnull)
             true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
@@ -167,7 +245,7 @@ class ValidateRaster(RioSession):
             
         return self.confusion_ser.copy()
 
-    def _func_setup(self, dkey, 
+    def _func_setup_local(self, dkey, 
                     logger=None,  
                     true_ar=None, pred_ar=None,
                     ):

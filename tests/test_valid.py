@@ -28,8 +28,11 @@ wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
 # fixtures------------
 #===============================================================================
 @pytest.fixture(scope='function')
-def wrkr(logger):
-    with ValidateRaster(logger=logger) as ses:
+def wrkr(logger, tmp_path):
+    with ValidateRaster(logger=logger,
+                                         #oop.Basic
+
+                 ) as ses:
         yield ses
     
 #===============================================================================
@@ -106,7 +109,7 @@ def test_criticalSuccessIndex(true_ar, pred_ar, wrkr):
     
     assert csi == m1b1.sum()/(m1b1.sum()+m1b0.sum()+m0b1.sum())
 
-@pytest.mark.dev
+ 
 @pytest.mark.parametrize('true_ar, pred_ar',[
     (wse1_arV, wse1_ar3),
     ])
@@ -125,11 +128,25 @@ def test_errorBias(true_ar, pred_ar, wrkr):
     
     assert errorBias == m1b0.sum()/m0b1.sum()
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('true_ar, pred_ar',[
     (wse1_arV, wse1_ar3),
     ])
 def test_inundation_all(true_ar, pred_ar, wrkr):
     d = wrkr.get_inundation_all(true_ar=true_ar, pred_ar=pred_ar)
     
+  
+@pytest.mark.dev  
+@pytest.mark.parametrize('true_fp, pred_fp', [
+    #(proj_lib['fred01']['wse1_rlayV_fp'], proj_lib['fred01']['wse1_rlay3_fp']),
+    (wse1_rlayV_fp, wse1_rlay3_fp),
+    ]) 
+def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
+    """just the validation worker init"""
     
+    with ValidateRaster(true_fp, pred_fp, 
+                        logger=logger,out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
+                        fancy_name='test',
+                 ) as wrkr:
+        conf_ar = wrkr.get_confusion_grid()
+        wrkr.write_array(conf_ar)
