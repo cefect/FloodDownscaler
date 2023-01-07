@@ -10,7 +10,7 @@ xfail = pytest.mark.xfail
 import numpy as np
 
 
-from fdsc.valid.scripts import ValidateRaster
+from fdsc.valid.scripts import ValidateWorker, ValidateSession, run_validator
 
 from tests.conftest import (
       proj_lib, get_rlay_fp 
@@ -29,7 +29,7 @@ wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
 #===============================================================================
 @pytest.fixture(scope='function')
 def wrkr(logger, tmp_path):
-    with ValidateRaster(logger=logger,
+    with ValidateWorker(logger=logger,
                                          #oop.Basic
 
                  ) as ses:
@@ -47,7 +47,7 @@ def wrkr(logger, tmp_path):
 def test_valid_wrkr_init(true_fp, pred_fp, logger):
     """just the validation worker init"""
     
-    with ValidateRaster(true_fp, pred_fp, logger=logger) as wrkr:
+    with ValidateWorker(true_fp, pred_fp, logger=logger) as wrkr:
         pass
     
     
@@ -136,7 +136,7 @@ def test_inundation_all(true_ar, pred_ar, wrkr):
     d = wrkr.get_inundation_all(true_ar=true_ar, pred_ar=pred_ar)
     
   
-@pytest.mark.dev  
+ 
 @pytest.mark.parametrize('true_fp, pred_fp', [
     #(proj_lib['fred01']['wse1_rlayV_fp'], proj_lib['fred01']['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),
@@ -144,9 +144,20 @@ def test_inundation_all(true_ar, pred_ar, wrkr):
 def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
     """just the validation worker init"""
     
-    with ValidateRaster(true_fp, pred_fp, 
+    with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, 
                         logger=logger,out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
                         fancy_name='test',
                  ) as wrkr:
         conf_ar = wrkr.get_confusion_grid()
         wrkr.write_array(conf_ar)
+
+@pytest.mark.dev  
+@pytest.mark.parametrize('true_fp, pred_fp', [
+    #(proj_lib['fred01']['wse1_rlayV_fp'], proj_lib['fred01']['wse1_rlay3_fp']),
+    (wse1_rlayV_fp, wse1_rlay3_fp),
+    ])   
+def test_run_validator(true_fp, pred_fp):
+    run_validator(true_fp, pred_fp)
+    
+    
+    

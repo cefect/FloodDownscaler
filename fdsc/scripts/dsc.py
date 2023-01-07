@@ -26,7 +26,7 @@ from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
-from fdsc.scripts.scripts import Master_Session
+from fdsc.scripts.coms2 import Master_Session
     
 
 
@@ -399,9 +399,9 @@ def run_downscale(
         
         """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing"""
         
-    #=======================================================================
-    # wrap
-    #=======================================================================
-    log.info(f'finished on\n    {wse1_dp_fp}')
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished on\n    {wse1_dp_fp}')
         
     return wse1_dp_fp

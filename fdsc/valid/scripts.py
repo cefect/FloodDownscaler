@@ -5,18 +5,19 @@ Created on Jan. 6, 2023
 
 validating downscaling results
 '''
-import logging, os
+import logging, os, copy, datetime
 import numpy as np
 import pandas as pd
 import rasterio as rio
 from sklearn.metrics import confusion_matrix
 
 from hp.rio import (
-    RioSession, assert_rlay_simple, get_stats, assert_spatial_equal,
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal,
     )
 
 from hp.logr import get_new_console_logger
-from fdsc.scripts.scripts import Master_Session
+from fdsc.scripts.coms2 import Master_Session
+from definitions import src_name
 
 
 def rlay_extract(fp,
@@ -33,15 +34,13 @@ def rlay_extract(fp,
         
     return stats_d, ar 
 
-class Valid_Session(Master_Session):
-    pass
 
-
-class ValidateRaster(RioSession):
+class ValidateWorker(RioWrkr):
     confusion_ser=None
     confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
     
     """compute validation metrics for a raster by comparing to some true raster""" 
+
     def __init__(self,
                  true_fp=None,
                  pred_fp=None,
@@ -54,7 +53,6 @@ class ValidateRaster(RioSession):
         #=======================================================================
         if logger is None:
             logger=get_new_console_logger(level=logging.DEBUG)
-        
         
         super().__init__(logger=logger,**kwargs)
                 
@@ -78,10 +76,6 @@ class ValidateRaster(RioSession):
             self.stats_d=stats_d        
             self._set_defaults(stats_d)
             
-            
-            
-
-            
         if not pred_fp is None:
             stats_d, self.pred_ar = rlay_extract(pred_fp)
             self.logger.info('loaded pred raster from file w/\n    %s'%stats_d)
@@ -91,9 +85,6 @@ class ValidateRaster(RioSession):
         #=======================================================================
         self.true_fp=true_fp
         self.pred_fp=pred_fp
-
- 
- 
     
     #===========================================================================
     # grid inundation metrics------
@@ -120,7 +111,6 @@ class ValidateRaster(RioSession):
         
         return cf_ser['TP']/(cf_ser['TP']+cf_ser['FP']+cf_ser['FN'])
     
-    
     def get_errorBias(self, **kwargs):
         """indicates whether the model has a tendency toward overprediction or underprediction"""
         
@@ -129,18 +119,17 @@ class ValidateRaster(RioSession):
     
     def get_inundation_all(self, **kwargs):
         """convenience for getting all the inundation metrics
-        using notation from Wing (2017)
+        NOT using notation from Wing (2017)
         """
         
         d= {
-            'H':self.get_hitRate(**kwargs),
-            'F':self.get_falseAlarms(**kwargs),
-            'C':self.get_criticalSuccessIndex(**kwargs),
-            'E':self.get_errorBias(**kwargs),
+            'hitRate':self.get_hitRate(**kwargs),
+            'falseAlarms':self.get_falseAlarms(**kwargs),
+            'criticalSuccessIndex':self.get_criticalSuccessIndex(**kwargs),
+            'errorBias':self.get_errorBias(**kwargs),
             }
         
-        log, _, _ = self._func_setup_local('inun', **kwargs)
-        log.info('computed all inundation metrics:\n    %s'%d)
+        self.logger.info('computed all inundation metrics:\n    %s'%d)
         return d
     
     def get_confusion_grid(self,
@@ -205,15 +194,6 @@ class ValidateRaster(RioSession):
         log.info('finished on %s'%str(res_ar.shape))
         
         return res_ar
-                           
-            
- 
-            
-            
-        
-        
-        
- 
         
     #===========================================================================
     # private helpers
@@ -232,8 +212,6 @@ class ValidateRaster(RioSession):
             """
             true_arB.sum()
             """
- 
-     
             
             #fancy labelling
             self.confusion_ser = pd.Series(confusion_matrix(true_arB.ravel(), pred_arB.ravel(),
@@ -264,6 +242,16 @@ class ValidateRaster(RioSession):
         if pred_ar is None: pred_ar=self.pred_ar
             
         return log, true_ar, pred_ar
+
+    
+class ValidateSession(ValidateWorker, RioSession, Master_Session):
+    def __init__(self, 
+                 run_name = None,
+                 **kwargs):
+ 
+        if run_name is None:
+            run_name = 'vali_v1'
+        super().__init__(run_name=run_name, **kwargs)
     
 
 def assert_partial_wet(ar):
@@ -277,6 +265,52 @@ def assert_partial_wet(ar):
         raise AssertionError('all true')
     if np.all(np.invert(ar)):
         raise AssertionError('all false')
+
     
+def run_validator(true_fp, pred_fp,        
+        **kwargs):
+    """compute error metrics and layers on a wse layer"""
     
+    with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, **kwargs) as ses:
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log=ses.logger.getChild('m')
+        meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
+        
+        #=======================================================================
+        # grid metrics
+        #=======================================================================
+        shape, size = ses.true_ar.shape, ses.true_ar.size
+        meta_lib['grid'] = {**{'shape':str(shape), 'size':size}, **copy.deepcopy(ses.stats_d)}
+        
+        
+        #=======================================================================
+        # inundation metrics
+        #=======================================================================
+        log.info(f'computing inundation metrics on %s ({size})'%str(shape))
+        confusion_ser = ses._confusion()
+        metrics_d = ses.get_inundation_all()
+        
+        #confusion grid
+        confusion_grid_ar = ses.get_confusion_grid()
+        confusion_grid_fp = ses.write_array(confusion_grid_ar, resname = ses._get_resname(dkey='confuGrid'))
+        
+        #meta
+        meta_lib['inundation'] = {**confusion_ser.to_dict(), **metrics_d, **{'confusion_grid_fp':confusion_grid_fp}}
+        
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        ofp = ses._get_ofp(dkey='meta', ext='.xls')
+        with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:       
+            for tabnm, d in meta_lib.items():
+                pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
+        
+        log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+        
+    return ofp
+        
+        
     
