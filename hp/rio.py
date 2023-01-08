@@ -470,7 +470,8 @@ class RioWrkr(Basic):
         if driver is None: driver=self.driver
         if bandCount is None: bandCount=self.bandCount
         
-        kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, dtype=dtype, compress=compress, driver=driver, bandCount=bandCount)
+        kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, 
+                       dtype=dtype, compress=compress, driver=driver, count=bandCount)
  
         _ = write_array(raw_ar, ofp, **kwargs2)
                          
@@ -820,8 +821,8 @@ def write_array(raw_ar,ofp,
     #===========================================================================
     with rio.open(ofp,'w',driver=driver,height=shape[0],width=shape[1],
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
-                ) as dst:            
-            dst.write(data, indexes=count,masked=masked, **kwargs)
+                 **kwargs) as dst:            
+            dst.write(data, indexes=count,masked=masked)
         
     return ofp
 
