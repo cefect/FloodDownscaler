@@ -296,20 +296,31 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
  
             dryPartial_method = 'costDistanceSimple',
                 **kwargs):
+        """run a downsampling pipeline
         
+        Paramerters
+        -------------
+        wse2_rlay_fp: str
+            filepath to WSE raster layer at low-resolution (to be downscaled)
+            
+        dem1_rlay_fp: str
+            filepath to DEM raster layer at high-resolution (used to infer downscaled WSE)
+            
+        Note
+        -------
+        no AOI clipping is performed. raster layers must have the same spatial extents. 
+        see p0_clip_rasters to pre-clip the rasters
+            
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=False,  **kwargs)
+        meta_lib=dict()
         #=======================================================================
         # precheck and load rasters
-        #=======================================================================
-        #trim rasters
-        if not self.aoi_fp is None:
-            wse2_rlay1_fp, dem1_rlay1_fp = self.p0_clip_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
-        else:
-            wse2_rlay1_fp, dem1_rlay1_fp = wse2_rlay_fp, dem1_rlay_fp
-            
-        
-        
-        wse2_ar, dem1_ar, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay1_fp, dem1_rlay1_fp, logger=log)
+        #=======================================================================        
+        wse2_ar, dem1_ar, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
         
         #get default writing parmaeters
         rlay_kwargs = self._get_defaults(as_dict=True)        
@@ -343,7 +354,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', out_dir=self.tmp_dir,  **rlay_kwargs) 
             
             #grow out into dry partials
-            wse1_dp_fp = self.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay1_fp, logger=log,
+            wse1_dp_fp = self.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay_fp, logger=log,
                                                   ofp=self._get_ofp(dkey='cds_'+outName_sfx,  ext='.tif'))
             
         else:

@@ -214,6 +214,9 @@ class ValidateWorker(RioWrkr):
     #===========================================================================
     # pipeline------
     #===========================================================================
+
+
+
     def run_vali(self,
                  true_fp=None, pred_fp=None,
                  write=True,
@@ -261,12 +264,7 @@ class ValidateWorker(RioWrkr):
         # wrap
         #=======================================================================
         if write:
-            ofp = self._get_ofp(dkey='meta', ext='.xls')
-            with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:       
-                for tabnm, d in meta_lib.items():
-                    pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
-            
-            log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+            self._write_meta(meta_lib, logger=log)
         
         return confusion_ser, inun_metrics_d
         

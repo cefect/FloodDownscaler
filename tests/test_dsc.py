@@ -35,8 +35,6 @@ aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
 #===============================================================================
 # fixtures------------
 #===============================================================================
- 
-
 @pytest.fixture(scope='function')
 def wrkr(tmp_path,write,logger, test_name,
          crs= crs_default,
