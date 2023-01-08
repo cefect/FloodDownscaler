@@ -454,11 +454,9 @@ class RioWrkr(Basic):
  
     def write_array(self,raw_ar,
                        masked=False,
-                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,
-                       bandCount=None,
-                       write_kwargs=dict(),
+                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,bandCount=None, 
                        **kwargs):
-        """write an array to raster using rio"""
+        """write an array to raster using rio using session defaults"""
         
         #=======================================================================
         # defaults
@@ -471,46 +469,13 @@ class RioWrkr(Basic):
         if dtype is None: dtype=raw_ar.dtype
         if driver is None: driver=self.driver
         if bandCount is None: bandCount=self.bandCount
-        #=======================================================================
-        # precheck
-        #=======================================================================
-        assert len(raw_ar.shape)==2
- 
-        assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
-        #assert 'float' in data.dtype.name
         
-        #=======================================================================
-        # #handle nulls
-        #=======================================================================
-        """becuase we usually deal with nulls (instead of raster no data values)
-        here we convert back to raster nodata vals before writing to disk"""
-        if masked:
-            assert isinstance(raw_ar, ma.MaskedArray)
-            data = raw_ar
-            
-            assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
-        else:
-            assert not isinstance(raw_ar, ma.MaskedArray)
-            
-            if np.any(np.isnan(raw_ar)):
-                data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
-            else:
-                data = raw_ar.astype(dtype)
-        #=======================================================================
-        # write
-        #=======================================================================
-        with rasterio.open(ofp,'w',
-                driver=driver,
-                height=raw_ar.shape[0],width=raw_ar.shape[1],
-                count=bandCount,
-                dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
-                ) as dst:
-            
-            dst.write(data, indexes=1, 
-                          masked=masked, #build mask from location of nodata values
-                          **write_kwargs)
-                
-            log.info('wrote %s on crs %s (masked=%s) to \n    %s'%(str(dst.shape), crs, masked, ofp))
+        kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, dtype=dtype, compress=compress, driver=driver, bandCount=bandCount)
+ 
+        _ = write_array(raw_ar, ofp, **kwargs2)
+                         
+        
+        log.info(f'wrote {str(raw_ar.shape)} on crs {crs} (masked={masked}) to \n    {ofp}')
         
         return ofp
     
@@ -804,7 +769,7 @@ class RioSession(RioWrkr):
 #===============================================================================
 # HELPERS----------
 #===============================================================================
-def write_array(data,ofp,
+def write_array(raw_ar,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
                 nodata=-9999,
@@ -813,29 +778,50 @@ def write_array(data,ofp,
                 count=1,
                 compress=None,
                 masked=False,
-                ):
-    """skinny array to raster file writer
-    
-    better to just use the sourcecode
+                **kwargs):
+    """array to raster file writer with nodata handling and transparent defaults
     """
     
     #===========================================================================
     # build init
     #===========================================================================
  
-    shape = data.shape
+    shape = raw_ar.shape
     if dtype is None:
-        dtype=data.dtype
+        dtype=raw_ar.dtype
+    
+    #===========================================================================
+    # precheck
+    #===========================================================================
+    assert len(raw_ar.shape)==2
+    
+    assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
+    
+    #=======================================================================
+    # #handle nulls
+    #=======================================================================
+    """becuase we usually deal with nulls (instead of raster no data values)
+    here we convert back to raster nodata vals before writing to disk"""
+    if masked:
+        assert isinstance(raw_ar, ma.MaskedArray)
+        data = raw_ar
+        
+        assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
+    else:
+        assert not isinstance(raw_ar, ma.MaskedArray)
+        
+        if np.any(np.isnan(raw_ar)):
+            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        else:
+            data = raw_ar.astype(dtype)
  
     #===========================================================================
     # execute
     #===========================================================================
-    with rio.open(ofp,'w',driver=driver,
-                  height=shape[0],width=shape[1],count=count,
-                dtype=dtype,crs=crs,transform=transform,nodata=nodata,
-                compress=compress,
+    with rio.open(ofp,'w',driver=driver,height=shape[0],width=shape[1],
+                  count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                 ) as dst:            
-            dst.write(data, indexes=count,masked=masked)
+            dst.write(data, indexes=count,masked=masked, **kwargs)
         
     return ofp
 
@@ -1134,8 +1120,7 @@ def write_clip(raw_fp,
         if window is None:
             window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
  
-        else:
- 
+        else: 
             assert bbox is None
             
         #get the windowed transform
