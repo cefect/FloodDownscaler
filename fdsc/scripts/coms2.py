@@ -18,7 +18,7 @@ class Master_Session(Session):
     def _write_meta(self, meta_lib, **kwargs):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
         
- 
+        #write dict of dicts to frame
         with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:
             for tabnm, d in meta_lib.items():
                 pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)

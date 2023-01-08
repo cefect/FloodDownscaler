@@ -6,6 +6,7 @@ Created on Dec. 4, 2022
 import pytest, os, tempfile, datetime
 from collections import OrderedDict
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import rasterio as rio
 import shapely.geometry as sgeo
@@ -21,6 +22,7 @@ from definitions import src_dir
 
 
 from hp.logr import get_new_console_logger, logging
+from hp.rio import write_array
 
 crs_default = CRS.from_user_input(25832)
 bbox_default = sgeo.box(0, 0, 60, 90)
@@ -96,38 +98,28 @@ def get_xda(ar,
                        ).rio.write_nodata(-9999, inplace=True
                       ).rio.set_crs(crs, inplace=True)    
                       
-                      
  
 def get_rlay_fp(ar, layName, 
             ofp=None, 
             crs = crs_default,
             bbox=bbox_default,
+ 
             ):
     
+    #===========================================================================
+    # build out path
+    #===========================================================================
     assert isinstance(ar, np.ndarray)
     height, width  = ar.shape
     
     if ofp is None: 
         ofp = os.path.join(temp_dir,f'{layName}_{width}{height}.tif')
-    
-    
  
-    
-    
-    
-    #write
-    with rio.open(ofp,'w',driver='GTiff',nodata=-9999,compress=None,
-              height=height,width=width,count=1,dtype=ar.dtype,
-            crs=crs,
-            transform=rio.transform.from_bounds(*bbox.bounds,width, height),                
-            ) as ds:
-      
-        ds.write(ar, indexes=1,masked=False)
+ 
         
-    print(f'wrote {ar.shape} to {ofp}')
-    
-        
-    return ofp
+    return write_array(ar, ofp, crs=crs, 
+                        transform=rio.transform.from_bounds(*bbox.bounds,width, height),
+                        masked=False)
 
 
 def get_aoi_fp(bbox, crs=crs_default, ofp=None):
