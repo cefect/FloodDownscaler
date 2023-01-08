@@ -16,7 +16,7 @@ from hp.rio import (
     )
 
 from hp.logr import get_new_console_logger
-from fdsc.scripts.coms2 import Master_Session
+from fdsc.scripts.coms2 import Master_Session, assert_partial_wet
 #from definitions import src_name
 
 
@@ -327,17 +327,7 @@ class ValidateSession(ValidateWorker, RioSession, Master_Session):
         super().__init__(run_name=run_name, **kwargs)
     
 
-def assert_partial_wet(ar):
-    """assert a boolean array has some trues and some falses (but not all)"""
-    if not __debug__: # true if Python was not started with an -O option
-        return
-    
-    assert ar.dtype == np.dtype('bool')
-    
-    if np.all(ar):
-        raise AssertionError('all true')
-    if np.all(np.invert(ar)):
-        raise AssertionError('all false')
+
 
     
 def run_validator(true_fp, pred_fp,        

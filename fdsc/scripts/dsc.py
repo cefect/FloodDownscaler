@@ -11,7 +11,7 @@ import shapely.geometry as sgeo
 import rasterio as rio
 import geopandas as gpd
 import fiona
-
+import numpy.ma as ma
 
  
 def now():
@@ -26,7 +26,9 @@ from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
-from fdsc.scripts.coms2 import Master_Session
+from fdsc.scripts.coms2 import (
+    Master_Session, assert_dem_ar, assert_wse_ar
+    )
     
 
 
@@ -82,6 +84,9 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # check
         #=======================================================================
+        assert_dem_ar(dem1_ar)
+        assert_wse_ar(wse2_ar)
+        
         if crs is None:
             self.crs = dem_stats['crs']
             crs = self.crs
@@ -95,9 +100,12 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         assert s2 < s1, 'dem must have a finer resolution than the wse'
         if not s1 % s2 == 0.0:
             log.warning(f'uneven resolution relation ({s1}/{s2}={s1%s2})')
+            
+        #report
         downscale = s1 / s2
         log.info(f'downscaling from {s2} to {s1} ({downscale})')
         
+ 
         #=======================================================================
         # wrap
         #=======================================================================
@@ -110,23 +118,63 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
     #===========================================================================
     # PHASE1---------
     #===========================================================================
-    def p1_downscale_wetPartials(self, wse2_ar, dem1_ar,  downscale=None, **kwargs):
+    def p1_downscale_wetPartials(self, wse2_ar, dem1_ar,  downscale=None,**kwargs):
+        """downscale wse2 grid in wet-partial regions"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('zoom',  **kwargs)
         if downscale is None: downscale=self.downscale
+
         
-        #precheck
+        #=======================================================================
+        # #precheck
+        #=======================================================================
+        assert_dem_ar(dem1_ar)
+        assert_wse_ar(wse2_ar)
+        
         for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
             assert ds1/ds2==downscale, downscale
+            
+        #meta
+        meta_d = {'downscale':downscale, 'wse2_shape':str(wse2_ar.shape)}
         
-        #simple zoom
-        wse1_ar1 = scipy.ndimage.zoom(wse2_ar, downscale, order=0, mode='reflect',   grid_mode=True)
-        assert wse1_ar1.shape == dem1_ar.shape
+        def fmeta(ar, pfx): #meta updater
+            meta_d.update({f'{pfx}_size':ar.size, f'{pfx}_nullCnt':np.isnan(ar).sum()})
         
-        #filter dem violators
-        wse_wp_bx = wse1_ar1 <= dem1_ar
-        wse1_ar2 = np.where(np.invert(wse_wp_bx), wse1_ar1, np.nan)
-        log.info(f'built wse from downscale={downscale} on wet partials w/ {wse_wp_bx.sum()}/{wse1_ar2.size} violators')
-        return wse1_ar2
+        #=======================================================================
+        # convert to nulls
+        #=======================================================================
+ 
+        wse2_arN = np.where(~wse2_ar.mask,wse2_ar.data,  np.nan)
+        fmeta(wse2_arN, 'wse2')
+        #=======================================================================
+        # #simple zoom
+        #=======================================================================
+        wse1_ar1N = scipy.ndimage.zoom(wse2_arN,downscale, order=0, mode='reflect',   grid_mode=True)
+        
+        assert wse1_ar1N.shape == dem1_ar.shape
+        
+        fmeta(wse1_ar1N, 'wse1Z')
+        #=======================================================================
+        # #filter dem violators
+        #=======================================================================
+        wse_wp_bx = wse1_ar1N <= dem1_ar
+        wse1_ar2N = np.where(np.invert(wse_wp_bx), wse1_ar1N, np.nan)
+        
+        fmeta(wse1_ar2N, 'wse1Zf')
+        
+        #=======================================================================
+        # convert back to masked
+        #=======================================================================
+        wse1_ar2 = ma.array(wse1_ar2N, mask=np.isnan(wse1_ar2N), fill_value=wse2_ar.fill_value)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert_wse_ar(wse1_ar2)
+        log.info(f'built wse from downscale={downscale} on wet partials w/ {wse_wp_bx.sum()}/{wse1_ar2.size} violators\n    {meta_d}')
+        return wse1_ar2, meta_d
 
     def get_costGrow_wbt(self, wse_fp,**kwargs):
         """cost grow/allocation using WBT"""
@@ -316,11 +364,13 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=False,  **kwargs)
-        meta_lib=dict()
+        meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         #=======================================================================
         # precheck and load rasters
         #=======================================================================        
         wse2_ar, dem1_ar, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
+        
+        
         
         #get default writing parmaeters
         rlay_kwargs = self._get_defaults(as_dict=True)        
@@ -329,10 +379,15 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         
         outres = dem_stats['res'][0]
         outName_sfx = f'r{outres:02.0f}'
+        
+        #update meta
+        meta_lib['grid'] = rlay_kwargs
+        meta_lib['wse_raw'], meta_lib['dem_raw'] = wse_stats, dem_stats
+        
         #=======================================================================
         # wet partials
         #=======================================================================
-        wse1_ar2 = self.p1_downscale_wetPartials(wse2_ar, dem1_ar, logger=log)
+        wse1_ar2, meta_lib['p1_wp'] = self.p1_downscale_wetPartials(wse2_ar, dem1_ar, logger=log)
         
         """
         np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
@@ -381,22 +436,16 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
-    #===========================================================================
-    # def func_setup(self, *args, crs=None,bbox=None, **kwargs):
-    #     """function setup wrapper"""
-    #      
-    #     if crs is None:
-    #         crs=self.crs
-    #          
-    #     return crs, *self._func_setup(*args, **kwargs)
-    #===========================================================================
-    
+ 
  
 
 def rlay_extract(fp,
-                 window=None, masked=False,
+                 window=None, masked=True,
  
                  ):
+    
+    if not masked:
+        raise NotImplementedError(masked)
     
     """load rlay data and arrays"""
     with rio.open(fp, mode='r') as ds:
@@ -404,6 +453,8 @@ def rlay_extract(fp,
         stats_d = get_stats(ds) 
  
         ar = ds.read(1, window=window, masked=masked)
+        
+        stats_d['null_cnt'] = ar.mask.sum()
         
     return stats_d, ar 
 

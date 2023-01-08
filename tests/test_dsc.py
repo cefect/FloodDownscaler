@@ -117,8 +117,8 @@ def test_p2_filter_isolated(wse_fp, wrkr):
 
 @pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    #(dem1_rlay_fp, wse2_rlay_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    (dem1_rlay_fp, wse2_rlay_fp),
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
     'costDistanceSimple','none'
