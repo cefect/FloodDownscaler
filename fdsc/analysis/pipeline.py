@@ -140,13 +140,14 @@ def run_dsc_vali(
         wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, 
                                                ofp=ses._get_ofp('dsc'), **dsc_kwargs)
  
+        meta_lib['smry']['wse1_fp'] = wse1_fp #promoting key results to the summary page
         #=======================================================================
         # validate-------
         #=======================================================================
         metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=True, **vali_kwargs)
         
  
-        write(metric_lib, 'valiMetrics')        
+        meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')        
         #=======================================================================
         # meta
         #=======================================================================
@@ -169,7 +170,7 @@ def run_dsc_vali(
                 
         #write 
         meta_fp  = ses._write_meta(md, logger=log)
-        
+        write(meta_lib, 'meta_lib')
 
         
         #=======================================================================
