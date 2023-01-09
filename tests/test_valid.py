@@ -127,12 +127,14 @@ def test_errorBias(true_ar, pred_ar, wrkr):
     
     assert errorBias == m1b0.sum()/m0b1.sum()
     
-
+@pytest.mark.dev
 @pytest.mark.parametrize('true_ar, pred_ar',[
     (wse1_arV, wse1_ar3),
     ])
 def test_inundation_all(true_ar, pred_ar, wrkr):
-    d = wrkr.get_inundation_all(true_ar=true_ar, pred_ar=pred_ar)
+    res_d = wrkr.get_inundation_all(true_ar=true_ar, pred_ar=pred_ar)
+    
+    res_d.keys()
     
   
  
@@ -150,7 +152,7 @@ def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
         conf_ar = wrkr.get_confusion_grid()
         wrkr.write_array(conf_ar)
 
-@pytest.mark.dev  
+  
 @pytest.mark.parametrize('true_fp, pred_fp', [
     #(proj_lib['fred01']['wse1_rlayV_fp'], proj_lib['fred01']['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),

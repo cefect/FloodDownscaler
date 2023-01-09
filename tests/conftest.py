@@ -52,6 +52,12 @@ proj_lib['fred01'] = {
     
     #validation data
     'wse1_rlayV_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_arV.tif'),
+    
+    #post data
+    'valiM_fp_d':{
+        'cgs':os.path.join(src_dir, r'tests/data/fred01/post/cgs_0109_valiMetrics.pkl'), 
+        'noDP':os.path.join(src_dir, r'tests/data/fred01/post/none_0109_valiMetrics.pkl'),
+        },
     }
 
 

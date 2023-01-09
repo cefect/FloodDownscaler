@@ -49,3 +49,14 @@ def wrkr(tmp_path,write,logger, test_name,
                    ) as ses:
  
         yield ses
+        
+        
+#===============================================================================
+# tests------
+#===============================================================================
+@pytest.mark.dev
+@pytest.mark.parametrize('valiM_fp_d', [ 
+    proj_lib['fred01']['valiM_fp_d'], 
+    ]) 
+def test_load_metric_set(valiM_fp_d, wrkr):
+    wrkr.load_metric_set(valiM_fp_d)
