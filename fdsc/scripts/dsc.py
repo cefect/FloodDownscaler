@@ -519,7 +519,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
  
         if write_meta:
-            self._write_meta(meta_lib, logger=log)
+            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
             
         log.info(f'finished on\n    {wse1_dp_fp}')
         

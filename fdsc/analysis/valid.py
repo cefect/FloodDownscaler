@@ -270,7 +270,7 @@ class ValidateWorker(RioWrkr):
             return ofpi
             
         #meta_d['confuSer_fp'] = write(confusion_ser, 'confuSer')
-        meta_d['inunMetrics_fp'] = write(inun_metrics_d, 'inunMetrics')        
+        meta_d['metrics_fp'] = write(inun_metrics_d, 'inunMetrics')        
  
         meta_lib['inun'] = meta_d
         metric_lib['inun'] = inun_metrics_d
@@ -278,7 +278,7 @@ class ValidateWorker(RioWrkr):
         # wrap-----
         #=======================================================================        
         if write_meta:
-            self._write_meta(meta_lib, logger=log)
+            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
         
         log.info('finished')
         return metric_lib, meta_lib

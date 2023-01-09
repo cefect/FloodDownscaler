@@ -23,6 +23,7 @@ class Master_Session(Session):
         super().__init__(run_name=run_name, **kwargs)
         
     def _write_meta(self, meta_lib, **kwargs):
+        """write a dict of dicts to a spreadsheet"""
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
         
         #write dict of dicts to frame

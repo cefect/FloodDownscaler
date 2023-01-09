@@ -102,7 +102,7 @@ def run_dsc_vali(
     with PipeSession(**kwargs) as ses:
         start = now()
         log = ses.logger.getChild('r')
-        meta_lib=dict()
+        meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
         
         #=======================================================================
         # precheck
@@ -113,6 +113,7 @@ def run_dsc_vali(
         # clip raw rasters
         #=======================================================================
         fp_d = {'wse2':wse2_rlay_fp, 'dem1':dem1_rlay_fp, 'wse1V': wse1V_fp}
+        meta_lib['smry'].update(fp_d)
         
         if not ses.aoi_fp is None:
             assert not wse1V_fp is None, 'not implemented'             
@@ -126,12 +127,37 @@ def run_dsc_vali(
         #=======================================================================
         # downscale
         #=======================================================================
-        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=False, **dsc_kwargs)
+        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, **dsc_kwargs)
  
         #=======================================================================
         # validate
         #=======================================================================
-        _ = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=False, **vali_kwargs)
+        metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=True, **vali_kwargs)
+        
+        #=======================================================================
+        # meta
+        #=======================================================================
+        print(meta_lib.keys())
+        #collapse and promote
+        md=dict()
+        for k0, d0 in meta_lib.items():
+            
+            d0m = dict()
+            for k1, d1 in d0.items():
+               
+                #promte contents
+                if isinstance(d1, dict):
+                    md[k0+'_'+k1] = d1
+                else:
+                    d0m[k1]=d1
+                    
+            if len(d0m)>0:
+                md[k0]=d0m
+                
+        #write 
+        meta_fp  = ses._write_meta(md, logger=log)
+        
+
         
         #=======================================================================
         # wrap
