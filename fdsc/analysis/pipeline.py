@@ -14,7 +14,7 @@ from definitions import wrk_dir, src_name
 
 from hp.basic import today_str
 from hp.rio import (
-    write_clip,
+    write_clip,assert_spatial_equal,assert_extent_equal,
     )
 
 
@@ -44,7 +44,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_set',  **kwargs) 
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_set', subdir=True, **kwargs) 
      
         #=======================================================================
         # retrive clipping parameters
@@ -103,17 +103,20 @@ def run_dsc_vali(
         start = now()
         log = ses.logger.getChild('r')
         meta_lib=dict()
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert_spatial_equal(dem1_rlay_fp, wse1V_fp, msg='DEM and validation')
+        assert_extent_equal(dem1_rlay_fp, wse2_rlay_fp, msg='DEM and WSE')
         #=======================================================================
         # clip raw rasters
         #=======================================================================
-
         fp_d = {'wse2':wse2_rlay_fp, 'dem1':dem1_rlay_fp, 'wse1V': wse1V_fp}
         
         if not ses.aoi_fp is None:
-            assert not wse1V_fp is None, 'not implemented'
-             
-            clip_fp_d = ses.clip_set(fp_d)
-            
+            assert not wse1V_fp is None, 'not implemented'             
+            clip_fp_d = ses.clip_set(fp_d)            
             d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
         else:
             d = fp_d
@@ -133,5 +136,5 @@ def run_dsc_vali(
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info(f'finished in {now()-start}')
+        log.info(f'finished in {now()-start} at \n    {ses.out_dir}')
  

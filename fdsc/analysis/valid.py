@@ -212,7 +212,7 @@ class ValidateWorker(RioWrkr):
 
     def run_vali(self,
                  true_fp=None, pred_fp=None,
-                 write=True,
+                 write_meta=True,
                  ):
         #=======================================================================
         # defaults
@@ -246,19 +246,23 @@ class ValidateWorker(RioWrkr):
         
         #confusion grid
         confusion_grid_ar = self.get_confusion_grid()
-        if write:
-            confusion_grid_fp = self.write_array(confusion_grid_ar, resname = self._get_resname(dkey='confuGrid'))
+ 
+        confusion_grid_fp = self.write_array(confusion_grid_ar, resname = self._get_resname(dkey='confuGrid'))
         
         #meta
         meta_lib['inundation'] = {**confusion_ser.to_dict(), **inun_metrics_d, **{'confusion_grid_fp':confusion_grid_fp}}
         
+        #=======================================================================
+        # write
+        #=======================================================================
         
         #=======================================================================
         # wrap
         #=======================================================================
-        if write:
+        if write_meta:
             self._write_meta(meta_lib, logger=log)
         
+        log.info('finished')
         return confusion_ser, inun_metrics_d
         
     #===========================================================================
