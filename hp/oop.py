@@ -304,7 +304,7 @@ class Basic(object): #simple base class
                  fancy_name=None,
                  out_dir=None,
                  resname=None,
-                 ext=''):
+                 ext='.tif'):
         if out_dir is None:
             out_dir=self.out_dir
         
