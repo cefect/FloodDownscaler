@@ -99,7 +99,7 @@ def run_dsc_vali(
     #===========================================================================
     # defaults
     #===========================================================================
-    with PipeSession(logfile_duplicate=True, **kwargs) as ses:
+    with PipeSession(logfile_duplicate=True, dem_fp=dem1_rlay_fp, **kwargs) as ses:
         start = now()
         log = ses.logger.getChild('r')
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}

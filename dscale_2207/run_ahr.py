@@ -28,12 +28,12 @@ def aoi08_r32_1215_53(dryPartial_method='none',
         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson', #target aligned
         
         dsc_kwargs=dict(dryPartial_method=dryPartial_method),
-        run_name=run_name,
+        run_name=run_name, proj_name='ahr_aoi08', index_coln='fid',
         **kwargs)
     
     
 if __name__=='__main__':
-    aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
-    #aoi08_r32_1215_53(dryPartial_method='none')
+    #aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
+    aoi08_r32_1215_53(dryPartial_method='none')
  
     print('done')

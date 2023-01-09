@@ -241,8 +241,8 @@ def test_run_vali(true_fp, pred_fp, sample_pts_fp, dem_fp, ses):
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
     #(wse1_rlayV_fp, wse1_rlay3_fp, None),
     ]) 
-def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_dir):
-    run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, out_dir=tmp_dir)
+def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_path):
+    run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, out_dir=tmp_path)
     
     
     

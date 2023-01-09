@@ -291,11 +291,13 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
     pts_gdf=None
     sample_pts_fp=None
     dem_fp=None
+ 
     
     def __init__(self,
  
                  sample_pts_fp=None, 
                  dem_fp=None,
+                 index_coln='id',
 
                  **kwargs):
         
@@ -309,13 +311,13 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         #=======================================================================
         # load poitns
         #=======================================================================
- 
-            
-        if not sample_pts_fp is None:
-            self._load_pts(sample_pts_fp)
-        
+        self.index_coln=index_coln
         if not dem_fp is None:
             self.dem_fp=dem_fp
+        if not sample_pts_fp is None:
+            self._load_pts(sample_pts_fp, index_coln=index_coln)
+        
+
             
     def _load_stats(self, fp=None):
         """set session stats from a raster
@@ -332,9 +334,11 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
             self.stats_d = get_stats(ds) 
             
  
-    def _load_pts(self, fp, index_coln='id', bbox=None):
+    def _load_pts(self, fp, index_coln=None, bbox=None):
         """load sample points"""
+        if index_coln is None: index_coln=self.index_coln
         assert os.path.exists(fp)
+        
         
         #load raster stats
         if self.stats_d is None:
@@ -395,6 +399,11 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         
         samp_gdf = pd.concat(d.values(), axis=1).set_geometry(gser)
         
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert not samp_gdf.isna().any().any(), 'no nulls.. should be depths'
+        
         log.info(f'finished sampling w/ {str(samp_gdf.shape)}')
         
         return samp_gdf
@@ -406,7 +415,7 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         #=======================================================================
         # clean
         #=======================================================================
-        gdf = gdf_raw.drop('geometry', axis=1).dropna(how='any', subset=['true'])
+        gdf = gdf_raw.drop('geometry', axis=1) #.dropna(how='any', subset=['true'])
         
         assert gdf.notna().all().all()
         
@@ -416,6 +425,10 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         
         with ErrorCalcs(pred_ser=gdf['pred'], true_ser=gdf['true'], logger=log) as wrkr:
             err_d = wrkr.get_all(dkeys_l=['bias', 'meanError', 'meanErrorAbs', 'RMSE', 'pearson'])
+            
+            #get confusion
+            _, cm_dx = wrkr.get_confusion(wetdry=True, normed=False)            
+            err_d.update(cm_dx.droplevel([1,2])['counts'].to_dict())
             
         return err_d
             
