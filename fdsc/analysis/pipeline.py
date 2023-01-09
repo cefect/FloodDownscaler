@@ -144,7 +144,7 @@ def run_dsc_vali(
         #=======================================================================
         # validate-------
         #=======================================================================
-        metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=True, **vali_kwargs)
+        metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, dem_fp=dem1_fp, write_meta=True, **vali_kwargs)
         
  
         meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')        

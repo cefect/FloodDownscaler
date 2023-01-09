@@ -365,7 +365,7 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps',   **kwargs)
         
         if true_fp is None:
             true_fp=self.true_fp
@@ -401,7 +401,7 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
     
     def get_samp_errs(self, gdf_raw, **kwargs):
         """calc errors between pred and true"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samp_errs', subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samp_errs',  **kwargs)
         
         #=======================================================================
         # clean
@@ -440,14 +440,13 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pts', subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pts', subdir=False, ext='.gpkg', **kwargs)
         skwargs=dict(logger=log, out_dir=tmp_dir)
         
  
-        
-        #self._load_pts(sample_pts_fp)
-        
-        #sample points
+        #=======================================================================
+        # #sample points
+        #=======================================================================
         gdf = self.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, **skwargs)
         
         #write
@@ -462,6 +461,11 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         err_d = self.get_samp_errs(gdf, **skwargs)
         #meta
         meta_d.update(err_d)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info('finished')
         return err_d, meta_d
 
     def run_vali(self,
@@ -579,7 +583,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
             true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='true_dep'))
             pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
-            err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, **skwargs)
+            err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
             metric_lib['samp'] = err_d            
             meta_lib['samp'] = meta_d
         
