@@ -19,7 +19,7 @@ from hp.rio import (
 
 
 from fdsc.scripts.dsc import Dsc_Session
-from fdsc.scripts.valid import ValidateSession
+from fdsc.analysis.valid import ValidateSession
 
 
 def now():

@@ -14,8 +14,8 @@ from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default, get_aoi_fp
     )
 
-from fdsc.scripts.pipeline import run_dsc_vali
-from fdsc.scripts.pipeline import PipeSession as Session
+from fdsc.analysis.pipeline import run_dsc_vali
+from fdsc.analysis.pipeline import PipeSession as Session
 #===============================================================================
 # test data
 #===============================================================================
