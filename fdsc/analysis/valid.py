@@ -141,6 +141,16 @@ class ValidateWorker(RioWrkr):
         #add confusion codes
         d.update(self.confusion_ser.to_dict())
         
+        #=======================================================================
+        # #checks
+        #=======================================================================
+        assert set(d.keys()).symmetric_difference(
+            ['hitRate', 'falseAlarms', 'criticalSuccessIndex', 'errorBias', 'TN', 'FP', 'FN', 'TP']
+            )==set()
+            
+        assert pd.Series(d).notna().all(), d
+            
+        
         self.logger.info('computed all inundation metrics:\n    %s'%d)
         return d
     
@@ -233,11 +243,24 @@ class ValidateWorker(RioWrkr):
         if not pred_fp is None:            
             self._load_pred(pred_fp)
         
-        assert isinstance(self.pred_ar, np.ndarray)
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        true_ar, pred_ar = self.true_ar, self.pred_ar
+        assert isinstance(pred_ar, np.ndarray)
+        
+        #data difference check
+        if (true_ar==pred_ar).all():
+            raise IOError('passed identical grids')
+        if (true_ar.mask==pred_ar.mask).all():
+            log.warning('identical masks on pred and true')
+            
+        
+        
         #=======================================================================
         # grid metrics
-        #=======================================================================
-        shape, size = self.true_ar.shape, self.true_ar.size
+        #=======================================================================        
+        shape, size = true_ar.shape, true_ar.size
         meta_lib['grid'] = {**{'shape':str(shape), 'size':size}, **copy.deepcopy(self.stats_d)}
         
         
@@ -307,6 +330,8 @@ class ValidateWorker(RioWrkr):
             self.confusion_ser = pd.Series(confusion_matrix(true_arB.ravel(), pred_arB.ravel(),
                                                             labels=[False, True]).ravel(),
                       index = ['TN', 'FP', 'FN', 'TP'])
+            
+            assert self.confusion_ser.notna().all(), self.confusion_ser
             
             log.info('generated wet-dry confusion matrix on %s\n    %s'%(
                 str(true_ar.shape), self.confusion_ser.to_dict()))
