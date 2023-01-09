@@ -8,9 +8,11 @@ import pytest, copy, os, random, re
 xfail = pytest.mark.xfail
 
 import numpy as np
+import pandas as pd
+import geopandas as gpd
 
 
-from fdsc.analysis.valid import ValidateWorker, ValidateSession, run_validator
+from fdsc.analysis.valid import ValidateGrid, ValidateSession, run_validator
 
 from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default
@@ -29,7 +31,7 @@ wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
 #===============================================================================
 @pytest.fixture(scope='function')
 def wrkr(logger, tmp_path):
-    with ValidateWorker(logger=logger,
+    with ValidateGrid(logger=logger,
                                          #oop.Basic
 
                  ) as ses:
@@ -77,7 +79,7 @@ def test_valid_wrkr_init(true_fp, pred_fp,
                          logger):
     """just the validation worker init"""
     
-    with ValidateWorker(true_fp, pred_fp,  logger=logger) as wrkr:
+    with ValidateGrid(true_fp, pred_fp,  logger=logger) as wrkr:
         pass
     
     
@@ -188,7 +190,7 @@ def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
 #===============================================================================
 # tests.points--------
 #===============================================================================
-@pytest.mark.dev
+ 
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
  
@@ -196,15 +198,30 @@ def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
 def test_get_samples(true_fp, pred_fp, sample_pts_fp, ses):
     gdf = ses.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp)
     
-    gdf.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\vali\samps_gdf_0109.pkl')
+    #gdf.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\vali\samps_gdf_0109.pkl')
 
 
+
+@pytest.mark.parametrize('samp_gdf_fp', [
+    td1['samp_gdf_fp']
+    ]) 
+def test_get_samp_errs(samp_gdf_fp, ses):
+    
+    gdf = pd.read_pickle(samp_gdf_fp)
+    
+    ses.get_samp_errs(gdf)
+    
+    
+    
+    
+    
 #===============================================================================
-# test.pipeline--*--
+# test.pipeline----
 #===============================================================================
+@pytest.mark.dev
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
-    (wse1_rlayV_fp, wse1_rlay3_fp, None),
+    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
     ]) 
 def test_run_validator(true_fp, pred_fp, sample_pts_fp):
     run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp)

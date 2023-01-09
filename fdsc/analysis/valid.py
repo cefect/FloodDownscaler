@@ -19,8 +19,9 @@ from hp.rio import (
 from hp.gpd import (
     get_samples,GeoPandasWrkr,
     )
-
 from hp.logr import get_new_console_logger
+from hp.err_calc import ErrorCalcs
+
 from fdsc.scripts.coms2 import (
     Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar
     )
@@ -30,7 +31,7 @@ from fdsc.scripts.coms2 import (
  
 
 
-class ValidateWorker(RioWrkr):
+class ValidateGrid(RioWrkr):
     """compute validation metrics for a raster by comparing to some true raster""" 
     
     confusion_ser=None
@@ -283,11 +284,12 @@ class ValidateWorker(RioWrkr):
         return log, true_ar, pred_ar
     
 
-class ValidatePoints(ValidateWorker, GeoPandasWrkr):
+class ValidatePoints(ValidateGrid, GeoPandasWrkr):
     """methods for validation with points"""
     
     stats_d=None
     pts_gdf=None
+    sample_pts_fp=None
     
     def __init__(self,
  
@@ -345,6 +347,7 @@ class ValidatePoints(ValidateWorker, GeoPandasWrkr):
         
         #clean
         self.pts_gser = gdf.set_index(index_coln).geometry
+        self.sample_pts_fp=fp
         
         
     def get_samples(self,
@@ -390,6 +393,26 @@ class ValidatePoints(ValidateWorker, GeoPandasWrkr):
         log.info(f'finished sampling w/ {str(samp_gdf.shape)}')
         
         return samp_gdf
+    
+    def get_samp_errs(self, gdf_raw, **kwargs):
+        """calc errors between pred and true"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samp_errs', subdir=True,  **kwargs)
+        
+        #=======================================================================
+        # clean
+        #=======================================================================
+        gdf = gdf_raw.drop('geometry', axis=1).dropna(how='any', subset=['true'])
+        
+        assert gdf.notna().all().all()
+        
+        #=======================================================================
+        # calc
+        #=======================================================================
+        
+        with ErrorCalcs(pred_ser=gdf['pred'], true_ser=gdf['true'], logger=log) as wrkr:
+            err_d = wrkr.get_all(dkeys_l=['bias', 'meanError', 'meanErrorAbs', 'RMSE', 'pearson'])
+            
+        return err_d
             
 
     
@@ -433,6 +456,8 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
             
         if not pred_fp is None:            
             self._load_pred(pred_fp)
+            
+            
         
         #=======================================================================
         # precheck
@@ -494,9 +519,30 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # asset samples---------
         #=======================================================================
+        if sample_pts_fp is None:
+            sample_pts_fp=self.sample_pts_fp
+            
         if not sample_pts_fp is None:
+            
             self._load_pts(sample_pts_fp)
             
+            #sample points
+            gdf = self.get_samples(**skwargs)
+            
+            #write
+            meta_d = {'sample_pts_fp':sample_pts_fp, 'cnt':len(gdf)}            
+            ofpi = self._get_ofp(out_dir=out_dir, dkey='samples', ext='.geojson')
+            gdf.to_file(ofpi, crs=self.crs)
+            meta_d['samples_fp'] = ofpi
+            log.info(f'wrote {len(gdf)} to \n    {ofpi}')
+ 
+            #calc errors 
+            err_d = self.get_samp_errs(gdf, **skwargs)
+            
+            #meta
+            meta_d.update(err_d)
+            metric_lib['samp'] = err_d            
+            meta_lib['samp'] = meta_d
         
         #=======================================================================
         # wrap-----
