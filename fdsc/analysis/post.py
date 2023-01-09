@@ -24,6 +24,8 @@ class PostSession(ValidateSession):
             run_name = 'post_v1'
         super().__init__(run_name=run_name, **kwargs)
         
+    
+        
     def load_metric_set(self, fp_d,
                  **kwargs):
         """load a set of pipeline valiMetrics.pkl
@@ -71,7 +73,16 @@ class PostSession(ValidateSession):
         log.info(f'loaded {str(dx.shape)}')
         
         return dx
-            
+    
+    
+    def load_all(self,
+                 **kwargs):
+ 
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metric_set', **kwargs) 
             
         
         

@@ -59,4 +59,8 @@ def wrkr(tmp_path,write,logger, test_name,
     proj_lib['fred01']['valiM_fp_d'], 
     ]) 
 def test_load_metric_set(valiM_fp_d, wrkr):
-    wrkr.load_metric_set(valiM_fp_d)
+    dx = wrkr.load_metric_set(valiM_fp_d)
+    
+    #dx.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\post\load_metric_set_0109.pkl')
+    
+    
