@@ -454,7 +454,8 @@ class RioWrkr(Basic):
  
     def write_array(self,raw_ar,
                        masked=False,
-                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,bandCount=None, 
+                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,bandCount=None,
+                       width=None, height=None, 
                        **kwargs):
         """write an array to raster using rio using session defaults"""
         
@@ -471,7 +472,8 @@ class RioWrkr(Basic):
         if bandCount is None: bandCount=self.bandCount
         
         kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, 
-                       dtype=dtype, compress=compress, driver=driver, count=bandCount)
+                       dtype=dtype, compress=compress, driver=driver, count=bandCount,
+                       width=width, height=height)
  
         _ = write_array(raw_ar, ofp, **kwargs2)
                          
@@ -779,6 +781,8 @@ def write_array(raw_ar,ofp,
                 count=1,
                 compress=None,
                 masked=False,
+                width=None,
+                height=None,
                 **kwargs):
     """array to raster file writer with nodata handling and transparent defaults
     """
@@ -790,6 +794,11 @@ def write_array(raw_ar,ofp,
     shape = raw_ar.shape
     if dtype is None:
         dtype=raw_ar.dtype
+        
+    if width is None:
+        width=shape[1]
+    if height is None:
+        height=shape[0]
     
     #===========================================================================
     # precheck
@@ -819,7 +828,8 @@ def write_array(raw_ar,ofp,
     #===========================================================================
     # execute
     #===========================================================================
-    with rio.open(ofp,'w',driver=driver,height=shape[0],width=shape[1],
+    with rio.open(ofp,'w',driver=driver,
+                  height=height,width=width,
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                  **kwargs) as dst:            
             dst.write(data, indexes=count,masked=masked)
@@ -889,6 +899,14 @@ def rlay_apply(rlay, func, **kwargs):
         raise IOError(type(rlay))
     
     return res
+
+def rlay_ar_apply(rlay, func, masked=False, **kwargs):
+    """apply a func to an array"""
+    def ds_func(dataset, **kwargs):
+        return func(dataset.read(1, window=None, masked=masked), **kwargs)
+    
+    return rlay_apply(rlay, ds_func, **kwargs)
+        
 
 #===============================================================================
 # def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
