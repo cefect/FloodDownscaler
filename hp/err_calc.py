@@ -40,6 +40,7 @@ class ErrorCalcs(object):
         
         self.res_d = dict()
         
+        self.logger.info(f'on {len(pred_ser)}')
         
         self.data_retrieve_hndls = {
             'bias':         lambda **kwargs:self.get_bias(**kwargs),
@@ -64,8 +65,7 @@ class ErrorCalcs(object):
         log = logger.getChild('ret')
         
         drh_d = self.data_retrieve_hndls
-
-        start = datetime.datetime.now()
+ 
         
         assert dkey in drh_d, dkey
         
