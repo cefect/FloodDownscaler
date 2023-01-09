@@ -809,6 +809,9 @@ def write_array(raw_ar,ofp,
     #===========================================================================
     # precheck
     #===========================================================================
+    if os.path.exists(ofp):
+        os.remove(ofp)
+        
     assert len(raw_ar.shape)==2
     
     assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
@@ -820,12 +823,11 @@ def write_array(raw_ar,ofp,
     here we convert back to raster nodata vals before writing to disk"""
     if masked:
         assert isinstance(raw_ar, ma.MaskedArray)
-        data = raw_ar
-        
+        data = raw_ar        
         assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
-    else:
-        assert not isinstance(raw_ar, ma.MaskedArray)
         
+    else:
+        assert not isinstance(raw_ar, ma.MaskedArray)        
         if np.any(np.isnan(raw_ar)):
             data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
         else:
@@ -838,7 +840,13 @@ def write_array(raw_ar,ofp,
                   height=height,width=width,
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                  **kwargs) as dst:            
-            dst.write(data, indexes=count,masked=masked)
+            dst.write(data, indexes=count,
+                      masked=False,
+                      #we do this explicitly above
+                      #If given a Numpy MaskedArray and masked is True, the input’s data and mask will be written to the dataset’s bands and band mask. 
+                     #If masked is False, no band mask is written. Instead, the input array’s masked values are filled with the dataset’s nodata value (if defined) or the input’s own fill value.
+                      )
+            
         
     return ofp
 
@@ -893,6 +901,8 @@ def load_array(rlay_obj,
 
 def rlay_apply(rlay, func, **kwargs):
     """flexible apply a function to either a filepath or a rio ds"""
+    
+    assert not rlay is None
     
     if isinstance(rlay, str):
         with rio.open(rlay, mode='r') as ds:
@@ -1009,6 +1019,9 @@ def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
 def get_ds_attr(rlay, stat):
     return rlay_apply(rlay, lambda ds:getattr(ds, stat))
 
+def get_profile(rlay):
+    return rlay_apply(rlay, lambda ds:ds.profile)
+
 def get_write_kwargs( obj,
                       att_l = ['crs', 'transform', 'nodata'],
                       **kwargs):
@@ -1120,6 +1133,59 @@ def get_xy_coords(transform, shape):
     _, y_ar = transformer.xy(np.arange(shape[0]), np.full(shape[0], 0)) #rows, cols
     
     return x_ar, y_ar
+
+def get_depth(dem_fp, wse_fp, ofp=None):
+    """add dem and wse to get a depth grid"""
+    
+    assert_spatial_equal(dem_fp, wse_fp)
+    
+    if ofp is None:
+        fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
+        ofp = os.path.join(os.path.dirname(wse_fp),fname)
+    
+    #===========================================================================
+    # load
+    #===========================================================================
+    dem_ar = load_array(dem_fp, masked=True)
+    
+    wse_ar = load_array(wse_fp, masked=True)
+    
+    #logic checks
+    assert not dem_ar.mask.any()
+    assert wse_ar.mask.any()
+    assert not wse_ar.mask.all()
+    
+    #===========================================================================
+    # calc
+    #===========================================================================
+    #simple subtraction
+    wd1_ar = dem_ar + wse_ar
+    
+    #identify dry
+    dry_bx = np.logical_or(
+        wse_ar.mask, wse_ar.data<dem_ar.data
+        )
+    
+    assert not dry_bx.all().all()
+    
+    #rebuild
+    wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
+    
+    
+    #check we have no positive depths on the wse mask
+    assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    
+    #convert to masked
+    wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
+    
+    assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
+    
+    return write_array(wd2M_ar, ofp, masked=True, **get_profile(wse_fp))
+    
 
 
 def write_clip(raw_fp, 
