@@ -206,8 +206,15 @@ class ErrorCalcs(object):
                       dkey='confusion',
                      wetdry=False,
                      normed=None, #normalize confusion values by total count
+                     labels=[True, False],
                      logger=None):
         """get a confusion matrix with nice labels
+        
+        
+        Parmaeters
+        ------------
+        wetdry: bool
+            treat 0 as negative and >0 as positive
         
         Returns
         -------------
@@ -230,21 +237,29 @@ class ErrorCalcs(object):
         #=======================================================================
         # prep data
         #=======================================================================
+        #convert to boolean
         if wetdry:
             assert np.array([['float' in e for e in [d.name for d in df_raw.dtypes]]]).all()
             
-            df1 = pd.DataFrame('dry', index=df_raw.index, columns=df_raw.columns)
+            df1 = df_raw>0.0
             
-            df1[df_raw>0.0] = 'wet'
+            #===================================================================
+            # df1 = pd.DataFrame('dry', index=df_raw.index, columns=df_raw.columns)
+            # 
+            # df1[df_raw>0.0] = 'wet'
+            #===================================================================
             
-            labels = ['wet', 'dry']
+            #labels = ['wet', 'dry']
+ 
             
-        else:
-            raise IOError('not impelemented')
-            df1 = df_raw.copy()
-            
-            labels=['pred', 'true']
-            
+        #=======================================================================
+        # else:
+        #     raise IOError('not impelemented')
+        #     df1 = df_raw.copy()
+        #     
+        #     labels=['pred', 'true']
+        #=======================================================================
+        assert (df1.dtypes=='bool').all()
  
         #build matrix
         cm_ar = confusion_matrix(df1['true'], df1['pred'], labels=labels)
