@@ -518,7 +518,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         log.info(f'finished on\n    {wse1_dp_fp}')
         
-        return wse1_dp_fp
+        return wse1_dp_fp, meta_lib
     
     #===========================================================================
     # PRIVATES--------

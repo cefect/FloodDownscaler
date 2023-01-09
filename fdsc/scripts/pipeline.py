@@ -83,7 +83,7 @@ def run_dsc_vali(
         wse2_rlay_fp,
         dem1_rlay_fp,
         wse1V_fp=None,
-        dsc_kwargs=dict(dryPartial_method = 'costDistanceSimple'),
+        dsc_kwargs=dict(dryPartial_method = 'costGrowSimple'),
         vali_kwargs=dict(),
  
         **kwargs
@@ -102,7 +102,7 @@ def run_dsc_vali(
     with PipeSession(**kwargs) as ses:
         start = now()
         log = ses.logger.getChild('r')
-        
+        meta_lib=dict()
         #=======================================================================
         # clip raw rasters
         #=======================================================================
@@ -123,7 +123,7 @@ def run_dsc_vali(
         #=======================================================================
         # downscale
         #=======================================================================
-        wse1_fp = ses.run_dsc(wse2_fp,dem1_fp,**dsc_kwargs)
+        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,**dsc_kwargs)
  
         #=======================================================================
         # validate
