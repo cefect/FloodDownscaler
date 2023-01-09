@@ -455,6 +455,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             dem1_rlay_fp,
  
             dryPartial_method = 'costGrowSimple',
+            write_meta=True,
                 **kwargs):
         """run a downsampling pipeline
         
@@ -516,6 +517,10 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # wrap
         #=======================================================================
+ 
+        if write_meta:
+            self._write_meta(meta_lib, logger=log)
+            
         log.info(f'finished on\n    {wse1_dp_fp}')
         
         return wse1_dp_fp, meta_lib

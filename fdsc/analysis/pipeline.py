@@ -126,12 +126,12 @@ def run_dsc_vali(
         #=======================================================================
         # downscale
         #=======================================================================
-        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,**dsc_kwargs)
+        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=False, **dsc_kwargs)
  
         #=======================================================================
         # validate
         #=======================================================================
-        _ = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, **vali_kwargs)
+        _ = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=False, **vali_kwargs)
         
         #=======================================================================
         # wrap

@@ -5,7 +5,7 @@ Created on Jan. 6, 2023
 
 validating downscaling results
 '''
-import logging, os, copy, datetime
+import logging, os, copy, datetime, pickle
 import numpy as np
 import pandas as pd
 import rasterio as rio
@@ -138,6 +138,9 @@ class ValidateWorker(RioWrkr):
             'errorBias':self.get_errorBias(**kwargs),
             }
         
+        #add confusion codes
+        d.update(self.confusion_ser.to_dict())
+        
         self.logger.info('computed all inundation metrics:\n    %s'%d)
         return d
     
@@ -213,13 +216,14 @@ class ValidateWorker(RioWrkr):
     def run_vali(self,
                  true_fp=None, pred_fp=None,
                  write_meta=True,
-                 ):
+                 **kwargs):
         #=======================================================================
         # defaults
         #=======================================================================
-        log=self.logger.getChild('vali')
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('vali', subdir=False,  **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
-        
+        metric_lib=dict()
+        skwargs = dict(logger=log)
         #=======================================================================
         # load
         #=======================================================================
@@ -238,32 +242,46 @@ class ValidateWorker(RioWrkr):
         
         
         #=======================================================================
-        # inundation metrics
+        # inundation metrics-------
         #=======================================================================
         log.info(f'computing inundation metrics on %s ({size})'%str(shape))
-        confusion_ser = self._confusion()
-        inun_metrics_d = self.get_inundation_all()
+        
+        #confusion_ser = self._confusion(**skwargs)
+        inun_metrics_d = self.get_inundation_all(**skwargs)
         
         #confusion grid
-        confusion_grid_ar = self.get_confusion_grid()
+        confusion_grid_ar = self.get_confusion_grid(**skwargs)
  
-        confusion_grid_fp = self.write_array(confusion_grid_ar, resname = self._get_resname(dkey='confuGrid'))
-        
         #meta
-        meta_lib['inundation'] = {**confusion_ser.to_dict(), **inun_metrics_d, **{'confusion_grid_fp':confusion_grid_fp}}
+        meta_d = copy.deepcopy(inun_metrics_d)
+        
         
         #=======================================================================
         # write
         #=======================================================================
+        meta_d['confuGrid_fp'] = self.write_array(confusion_grid_ar, out_dir=out_dir, 
+                                                       resname = self._get_resname(dkey='confuGrid'))
         
+        def write(obj, sfx):
+            ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
+            with open(ofpi,  'wb') as f:
+                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+            log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
+            return ofpi
+            
+        #meta_d['confuSer_fp'] = write(confusion_ser, 'confuSer')
+        meta_d['inunMetrics_fp'] = write(inun_metrics_d, 'inunMetrics')        
+ 
+        meta_lib['inun'] = meta_d
+        metric_lib['inun'] = inun_metrics_d
         #=======================================================================
-        # wrap
-        #=======================================================================
+        # wrap-----
+        #=======================================================================        
         if write_meta:
             self._write_meta(meta_lib, logger=log)
         
         log.info('finished')
-        return confusion_ser, inun_metrics_d
+        return metric_lib, meta_lib
         
     #===========================================================================
     # private helpers------
