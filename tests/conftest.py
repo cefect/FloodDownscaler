@@ -51,7 +51,8 @@ proj_lib['fred01'] = {
     'dem1_rlay_fp':os.path.join(src_dir, r'tests\data\fred01\dem.tif'),
     
     #validation data
-    'wse1_rlayV_fp':os.path.join(src_dir, r'tests/data/fred01/wse1_arV.tif'),
+    'wse1_rlayV_fp':os.path.join(src_dir, r'tests/data/fred01/vali/wse1_arV.tif'),
+    'sample_pts_fp':os.path.join(src_dir, r'tests/data/fred01/vali/sample_pts_0109.geojson'),
     
     #post data
     'valiM_fp_d':{

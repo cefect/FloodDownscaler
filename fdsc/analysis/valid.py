@@ -9,10 +9,15 @@ import logging, os, copy, datetime, pickle
 import numpy as np
 import pandas as pd
 import rasterio as rio
+import geopandas as gpd
 from sklearn.metrics import confusion_matrix
 
 from hp.rio import (
     RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal,
+    )
+
+from hp.gpd import (
+    get_samples,GeoPandasWrkr,
     )
 
 from hp.logr import get_new_console_logger
@@ -37,7 +42,7 @@ class ValidateWorker(RioWrkr):
     def __init__(self,
                  true_fp=None,
                  pred_fp=None,
-                 sample_pts_fp=None, 
+ 
                  logger=None,
                  **kwargs):
         
@@ -59,6 +64,7 @@ class ValidateWorker(RioWrkr):
             
         if not pred_fp is None:            
             self._load_pred(pred_fp)
+ 
             
     def _load_true(self, true_fp):
 
@@ -217,16 +223,201 @@ class ValidateWorker(RioWrkr):
         
         return res_ar
     
+
+        
+
+        
+        
+        
+        
+        
+ 
     #===========================================================================
-    # pipeline------
+    # private helpers------
     #===========================================================================
+    def _confusion(self, **kwargs):
+        """retrieve or construct the wet/dry confusion series"""
+        if self.confusion_ser is None:
+            log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
+            
+            #convert to boolean (true=wet=nonnull)
+            true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+            
+            assert_partial_wet(true_arB)
+            assert_partial_wet(pred_arB)
+            
+            """
+            true_arB.sum()
+            """
+            
+            #fancy labelling
+            self.confusion_ser = pd.Series(confusion_matrix(true_arB.ravel(), pred_arB.ravel(),
+                                                            labels=[False, True]).ravel(),
+                      index = ['TN', 'FP', 'FN', 'TP'])
+            
+            assert self.confusion_ser.notna().all(), self.confusion_ser
+            
+            log.info('generated wet-dry confusion matrix on %s\n    %s'%(
+                str(true_ar.shape), self.confusion_ser.to_dict()))
+            
+        return self.confusion_ser.copy()
 
+    def _func_setup_local(self, dkey, 
+                    logger=None,  
+                    true_ar=None, pred_ar=None,
+                    ):
+        """common function default setup
+        
+       
+ 
+        
+        """
+ 
+        if logger is None:
+            logger = self.logger
+        log = logger.getChild(dkey)
+        
+        if true_ar is None: true_ar=self.true_ar
+        if pred_ar is None: pred_ar=self.pred_ar
+            
+        return log, true_ar, pred_ar
+    
 
+class ValidatePoints(ValidateWorker, GeoPandasWrkr):
+    """methods for validation with points"""
+    
+    stats_d=None
+    pts_gdf=None
+    
+    def __init__(self,
+ 
+                 sample_pts_fp=None, 
 
+                 **kwargs):
+        
+        #=======================================================================
+        # pre init
+        #=======================================================================
+ 
+        
+        super().__init__(**kwargs)
+                
+        #=======================================================================
+        # load poitns
+        #=======================================================================
+ 
+            
+        if not sample_pts_fp is None:
+            self._load_pts(sample_pts_fp)
+            
+    def _load_stats(self, fp=None):
+        """set session stats from a raster
+        
+        mostly used by tests where we dont load the raster during init"""
+        
+        if fp is None:
+            fp =self.true_fp
+            
+        assert not fp is None
+        
+        with rio.open(fp, mode='r') as ds:
+            assert_rlay_simple(ds)
+            self.stats_d = get_stats(ds) 
+            
+ 
+    def _load_pts(self, fp, index_coln='id', bbox=None):
+        """load sample points"""
+        assert os.path.exists(fp)
+        
+        #load raster stats
+        if self.stats_d is None:
+            self._load_stats()
+        
+        #get bounding box from rasters
+        if bbox is None:
+            bbox = self.stats_d['bounds']
+        
+        gdf = gpd.read_file(fp, bbox=bbox)
+        
+        #check
+        assert gdf.crs==self.stats_d['crs']
+        assert (gdf.geometry.geom_type=='Point').all()
+        
+        #clean
+        self.pts_gser = gdf.set_index(index_coln).geometry
+        
+        
+    def get_samples(self,
+                           true_fp=None,
+                           pred_fp=None,
+                           sample_pts_fp=None, 
+                           gser=None,
+                           **kwargs):
+        """sample raster with poitns"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', subdir=True,  **kwargs)
+        
+        if true_fp is None:
+            true_fp=self.true_fp
+        if pred_fp is None:
+            pred_fp=self.pred_fp
+            
+        if not sample_pts_fp is None:
+            assert gser is None
+            self._load_stats(true_fp)
+            self._load_pts(sample_pts_fp)
+            
+        if gser is None:
+            gser = self.pts_gser
+ 
+ 
+        #=======================================================================
+        # sample each
+        #=======================================================================
+        log.info(f'sampling {len(gser)} pts on 2 rasters')
+        d = dict()
+        for k, fp in {'true':true_fp,  'pred':pred_fp}.items():
+            log.info(f'sampling {k}')
+            with rio.open(fp, mode='r') as ds:
+                d[k] = get_samples(gser, ds, colName=k).drop('geometry', axis=1)
+                
+                
+        
+        samp_gdf = pd.concat(d.values(), axis=1).set_geometry(gser)
+        
+        log.info(f'finished sampling w/ {str(samp_gdf.shape)}')
+        
+        return samp_gdf
+            
+
+    
+class ValidateSession(ValidatePoints, RioSession, Master_Session):
+    def __init__(self, 
+                 run_name = None,
+                 **kwargs):
+ 
+        if run_name is None:
+            run_name = 'vali_v1'
+        super().__init__(run_name=run_name, **kwargs)
+        
     def run_vali(self,
                  true_fp=None, pred_fp=None,
+                 sample_pts_fp=None,
                  write_meta=True,
                  **kwargs):
+        """
+        run all validations on a downsampled grid (compared to a true grid)
+        
+        
+        Parameters
+        -----------
+        
+        sample_pts_fp: str, optional
+            filepath to points vector layer for sample-based metrics
+        
+        """
         #=======================================================================
         # defaults
         #=======================================================================
@@ -299,6 +490,14 @@ class ValidateWorker(RioWrkr):
  
         meta_lib['inun'] = meta_d
         metric_lib['inun'] = inun_metrics_d
+        
+        #=======================================================================
+        # asset samples---------
+        #=======================================================================
+        if not sample_pts_fp is None:
+            self._load_pts(sample_pts_fp)
+            
+        
         #=======================================================================
         # wrap-----
         #=======================================================================        
@@ -307,66 +506,6 @@ class ValidateWorker(RioWrkr):
         
         log.info('finished')
         return metric_lib, meta_lib
-        
-    #===========================================================================
-    # private helpers------
-    #===========================================================================
-    def _confusion(self, **kwargs):
-        """retrieve or construct the wet/dry confusion series"""
-        if self.confusion_ser is None:
-            log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
-            
-            #convert to boolean (true=wet=nonnull)
-            true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
-            
-            assert_partial_wet(true_arB)
-            assert_partial_wet(pred_arB)
-            
-            """
-            true_arB.sum()
-            """
-            
-            #fancy labelling
-            self.confusion_ser = pd.Series(confusion_matrix(true_arB.ravel(), pred_arB.ravel(),
-                                                            labels=[False, True]).ravel(),
-                      index = ['TN', 'FP', 'FN', 'TP'])
-            
-            assert self.confusion_ser.notna().all(), self.confusion_ser
-            
-            log.info('generated wet-dry confusion matrix on %s\n    %s'%(
-                str(true_ar.shape), self.confusion_ser.to_dict()))
-            
-        return self.confusion_ser.copy()
-
-    def _func_setup_local(self, dkey, 
-                    logger=None,  
-                    true_ar=None, pred_ar=None,
-                    ):
-        """common function default setup
-        
-       
- 
-        
-        """
- 
-        if logger is None:
-            logger = self.logger
-        log = logger.getChild(dkey)
-        
-        if true_ar is None: true_ar=self.true_ar
-        if pred_ar is None: pred_ar=self.pred_ar
-            
-        return log, true_ar, pred_ar
-
-    
-class ValidateSession(ValidateWorker, RioSession, Master_Session):
-    def __init__(self, 
-                 run_name = None,
-                 **kwargs):
- 
-        if run_name is None:
-            run_name = 'vali_v1'
-        super().__init__(run_name=run_name, **kwargs)
     
 
 
