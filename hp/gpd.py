@@ -59,6 +59,8 @@ class GeoPandasWrkr(object):
             
         self.crs=crs
         
+
+        
  
 
 def get_multi_intersection(poly_l):
@@ -98,7 +100,7 @@ def get_samples(gser, rlay_ds, colName=None):
     
     
     
-    return gpd.GeoDataFrame(data={colName:samp_ar}, geometry=gser)
+    return gpd.GeoDataFrame(data={colName:samp_ar}, index=gser.index, geometry=gser)
     
     
     
