@@ -13,7 +13,7 @@ import geopandas as gpd
 from sklearn.metrics import confusion_matrix
 
 from hp.rio import (
-    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal,
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal,get_depth,
     )
 
 from hp.gpd import (
@@ -290,10 +290,12 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
     stats_d=None
     pts_gdf=None
     sample_pts_fp=None
+    dem_fp=None
     
     def __init__(self,
  
                  sample_pts_fp=None, 
+                 dem_fp=None,
 
                  **kwargs):
         
@@ -311,6 +313,9 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
             
         if not sample_pts_fp is None:
             self._load_pts(sample_pts_fp)
+        
+        if not dem_fp is None:
+            self.dem_fp=dem_fp
             
     def _load_stats(self, fp=None):
         """set session stats from a raster
@@ -318,7 +323,7 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         mostly used by tests where we dont load the raster during init"""
         
         if fp is None:
-            fp =self.true_fp
+            fp =self.dem_fp
             
         assert not fp is None
         
@@ -425,9 +430,43 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
             run_name = 'vali_v1'
         super().__init__(run_name=run_name, **kwargs)
         
+
+    def run_vali_pts(self, sample_pts_fp, 
+                            true_fp=None,
+                           pred_fp=None,
+                           **kwargs):
+        """validation on poitns pipeline
+        assumes rasters are depth rasters"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pts', subdir=True,  **kwargs)
+        skwargs=dict(logger=log, out_dir=tmp_dir)
+        
+ 
+        
+        #self._load_pts(sample_pts_fp)
+        
+        #sample points
+        gdf = self.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, **skwargs)
+        
+        #write
+        meta_d = {'sample_pts_fp':sample_pts_fp, 'cnt':len(gdf)}
+        #ofpi = self._get_ofp(out_dir=out_dir, dkey='samples', ext='.geojson')
+        gdf.to_file(ofp, crs=self.crs)
+        meta_d['samples_fp'] = ofp
+        log.info(f'wrote {len(gdf)} to \n    {ofp}')
+        #=======================================================================
+        # #calc errors
+        #=======================================================================
+        err_d = self.get_samp_errs(gdf, **skwargs)
+        #meta
+        meta_d.update(err_d)
+        return err_d, meta_d
+
     def run_vali(self,
                  true_fp=None, pred_fp=None,
-                 sample_pts_fp=None,
+                 sample_pts_fp=None, dem_fp=None,
                  write_meta=True,
                  **kwargs):
         """
@@ -439,6 +478,9 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         
         sample_pts_fp: str, optional
             filepath to points vector layer for sample-based metrics
+            
+        dem_fp: str, optional
+            filepath to dem (for converting to depths)
         
         """
         #=======================================================================
@@ -453,9 +495,19 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         if not true_fp is None:
             self._load_true(true_fp) 
+        else:
+            true_fp=self.true_fp
             
         if not pred_fp is None:            
             self._load_pred(pred_fp)
+        else:
+            pred_fp=self.pred_fp
+            
+        if sample_pts_fp is None:
+            sample_pts_fp=self.sample_pts_fp
+            
+        if dem_fp is None:
+            dem_fp=self.dem_fp
             
             
         
@@ -519,28 +571,15 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # asset samples---------
         #=======================================================================
-        if sample_pts_fp is None:
-            sample_pts_fp=self.sample_pts_fp
+
             
         if not sample_pts_fp is None:
+            assert isinstance(dem_fp, str), type(dem_fp)
+            #build depth grids
+            true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='true_dep'))
+            pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
-            self._load_pts(sample_pts_fp)
-            
-            #sample points
-            gdf = self.get_samples(**skwargs)
-            
-            #write
-            meta_d = {'sample_pts_fp':sample_pts_fp, 'cnt':len(gdf)}            
-            ofpi = self._get_ofp(out_dir=out_dir, dkey='samples', ext='.geojson')
-            gdf.to_file(ofpi, crs=self.crs)
-            meta_d['samples_fp'] = ofpi
-            log.info(f'wrote {len(gdf)} to \n    {ofpi}')
- 
-            #calc errors 
-            err_d = self.get_samp_errs(gdf, **skwargs)
-            
-            #meta
-            meta_d.update(err_d)
+            err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, **skwargs)
             metric_lib['samp'] = err_d            
             meta_lib['samp'] = meta_d
         

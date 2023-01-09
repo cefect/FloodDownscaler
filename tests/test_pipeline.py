@@ -19,6 +19,8 @@ from fdsc.analysis.pipeline import PipeSession as Session
 #===============================================================================
 # test data
 #===============================================================================
+td1 = proj_lib['fred01']
+
 from tests.data.toy import dem1_ar, wse2_ar, wse1_arV
 dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1') 
 wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
@@ -70,18 +72,19 @@ def test_clip_set(raster_fp_d, aoi_fp,
 
 
 @pytest.mark.dev
-@pytest.mark.parametrize('dem1_fp, wse2_fp, wse1V_fp, aoi_fp', [
-    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['wse1_rlayV_fp'], None)
+@pytest.mark.parametrize('dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp', [
+    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp, None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
     'costGrowSimple','none'
     ])
-def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp,
+def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp,
               dryPartial_method,
               tmp_path):    
     run_dsc_vali(wse2_fp, dem1_fp, 
                  wse1V_fp = wse1V_fp, aoi_fp=aoi_fp, 
                  out_dir=tmp_path, run_name='test',
                  dsc_kwargs=dict(dryPartial_method = dryPartial_method),
+                 vali_kwargs=dict(sample_pts_fp=sample_pts_fp),
                  )

@@ -211,6 +211,14 @@ def test_get_samp_errs(samp_gdf_fp, ses):
     
     ses.get_samp_errs(gdf)
     
+
+
+@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
+    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
+    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
+    ]) 
+def test_run_vali_pts(true_fp, pred_fp, sample_pts_fp, ses):
+    ses.run_vali_pts(sample_pts_fp, true_fp=true_fp, pred_fp=pred_fp)
     
     
     
@@ -218,13 +226,23 @@ def test_get_samp_errs(samp_gdf_fp, ses):
 #===============================================================================
 # test.pipeline----
 #===============================================================================
+
 @pytest.mark.dev
-@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
+@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
+    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
     #(wse1_rlayV_fp, wse1_rlay3_fp, None),
     ]) 
-def test_run_validator(true_fp, pred_fp, sample_pts_fp):
-    run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp)
+def test_run_vali(true_fp, pred_fp, sample_pts_fp, dem_fp, ses):
+    ses.run_vali(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
+
+    
+ 
+@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
+    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
+    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
+    ]) 
+def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_dir):
+    run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, out_dir=tmp_dir)
     
     
     
