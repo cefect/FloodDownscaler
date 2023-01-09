@@ -8,7 +8,7 @@ downscaling ahr case study
 
 from fdsc.analysis.pipeline import run_dsc_vali
 
-def aoi08_r32_1215_53(dryPartial_method, 
+def aoi08_r32_1215_53(dryPartial_method='none', 
                       run_name=None,
                       **kwargs):
     
@@ -32,7 +32,7 @@ def aoi08_r32_1215_53(dryPartial_method,
     
     
 if __name__=='__main__':
-    #aoi08_r32_1215_53('costGrowSimple')
-    aoi08_r32_1215_53('none')
+    aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
+    #aoi08_r32_1215_53(dryPartial_method='none')
  
     print('done')
