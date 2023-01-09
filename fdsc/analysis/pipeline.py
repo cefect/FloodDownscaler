@@ -6,7 +6,7 @@ Created on Jan. 7, 2023
 integrated downscaling and validation
 '''
 
-import os, datetime
+import os, datetime, pickle
 import shapely.geometry as sgeo
 
 from definitions import wrk_dir, src_name
@@ -109,6 +109,16 @@ def run_dsc_vali(
         #=======================================================================
         assert_spatial_equal(dem1_rlay_fp, wse1V_fp, msg='DEM and validation')
         assert_extent_equal(dem1_rlay_fp, wse2_rlay_fp, msg='DEM and WSE')
+        
+        #=======================================================================
+        # helpers
+        #=======================================================================
+        def write(obj, sfx):
+            ofpi = ses._get_ofp(out_dir=ses.out_dir, dkey=sfx, ext='.pkl')
+            with open(ofpi,  'wb') as f:
+                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+            log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
+            return ofpi
         #=======================================================================
         # clip raw rasters
         #=======================================================================
@@ -125,16 +135,18 @@ def run_dsc_vali(
         wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
             
         #=======================================================================
-        # downscale
+        # downscale------
         #=======================================================================
         wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, 
                                                ofp=ses._get_ofp('dsc'), **dsc_kwargs)
  
         #=======================================================================
-        # validate
+        # validate-------
         #=======================================================================
         metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, write_meta=True, **vali_kwargs)
         
+ 
+        write(metric_lib, 'valiMetrics')        
         #=======================================================================
         # meta
         #=======================================================================

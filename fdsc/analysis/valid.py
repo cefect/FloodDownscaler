@@ -262,15 +262,17 @@ class ValidateWorker(RioWrkr):
         meta_d['confuGrid_fp'] = self.write_array(confusion_grid_ar, out_dir=out_dir, 
                                                        resname = self._get_resname(dkey='confuGrid'))
         
-        def write(obj, sfx):
-            ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
-            with open(ofpi,  'wb') as f:
-                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-            log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
-            return ofpi
+        #=======================================================================
+        # def write(obj, sfx):
+        #     ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
+        #     with open(ofpi,  'wb') as f:
+        #         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        #     log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
+        #     return ofpi
+        #=======================================================================
             
         #meta_d['confuSer_fp'] = write(confusion_ser, 'confuSer')
-        meta_d['metrics_fp'] = write(inun_metrics_d, 'inunMetrics')        
+        #meta_d['metrics_fp'] = write(inun_metrics_d, 'inunMetrics')        
  
         meta_lib['inun'] = meta_d
         metric_lib['inun'] = inun_metrics_d
