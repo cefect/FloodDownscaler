@@ -61,7 +61,7 @@ def test_hitRate(true_ar, pred_ar, wrkr):
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
     
     m1b1 = np.logical_and(pred_arB, true_arB)
     m0b1 = np.logical_and(np.invert(pred_arB), true_arB)
@@ -80,7 +80,7 @@ def test_falseAlarm(true_ar, pred_ar, wrkr):
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m1b1 = np.logical_and(pred_arB, true_arB)
@@ -99,7 +99,7 @@ def test_criticalSuccessIndex(true_ar, pred_ar, wrkr):
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m0b1 = np.logical_and(np.invert(pred_arB), true_arB)
@@ -119,7 +119,7 @@ def test_errorBias(true_ar, pred_ar, wrkr):
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m0b1 = np.logical_and(np.invert(pred_arB), true_arB)

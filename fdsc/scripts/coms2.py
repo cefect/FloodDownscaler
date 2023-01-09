@@ -8,8 +8,12 @@ shared by all sessions
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
+import rasterio as rio
 
 from hp.oop import Session
+from hp.rio import (
+    assert_rlay_simple, get_stats
+    )
 
 class Master_Session(Session):
     def __init__(self, 
@@ -29,6 +33,26 @@ class Master_Session(Session):
         log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
         
         return ofp
+    
+
+def rlay_extract(fp,
+                 window=None, masked=True,
+ 
+                 ):
+    
+    if not masked:
+        raise NotImplementedError(masked)
+    
+    """load rlay data and arrays"""
+    with rio.open(fp, mode='r') as ds:
+        assert_rlay_simple(ds)
+        stats_d = get_stats(ds) 
+ 
+        ar = ds.read(1, window=window, masked=masked)
+        
+        stats_d['null_cnt'] = ar.mask.sum()
+        
+    return stats_d, ar
     
 def assert_masked_ar(ar, msg=''):
     """check the array satisfies expectations for a masked array"""

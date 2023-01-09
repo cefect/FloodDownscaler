@@ -16,23 +16,13 @@ from hp.rio import (
     )
 
 from hp.logr import get_new_console_logger
-from fdsc.scripts.coms2 import Master_Session, assert_partial_wet
+from fdsc.scripts.coms2 import (
+    Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar
+    )
 #from definitions import src_name
 
 
-def rlay_extract(fp,
-                 window=None, masked=False,
  
-                 ):
-    
-    """load rlay data and arrays"""
-    with rio.open(fp, mode='r') as ds:
-        assert_rlay_simple(ds)
-        stats_d = get_stats(ds) 
- 
-        ar = ds.read(1, window=window, masked=masked)
-        
-    return stats_d, ar 
 
 
 class ValidateWorker(RioWrkr):
@@ -73,6 +63,7 @@ class ValidateWorker(RioWrkr):
     def _load_true(self, true_fp):
 
         stats_d, self.true_ar = rlay_extract(true_fp)
+        assert_wse_ar(self.true_ar, msg='true array')
         self.logger.info('loaded true raster from file w/\n    %s' % stats_d)
         #set the session defaults from this
         if 'dtypes' in stats_d:
@@ -90,6 +81,8 @@ class ValidateWorker(RioWrkr):
 
     def _load_pred(self, pred_fp):
         stats_d, self.pred_ar = rlay_extract(pred_fp)
+        assert_wse_ar(self.pred_ar, msg='pred array')
+        
         self.pred_fp=pred_fp
         
         if not self.true_fp is None:
@@ -162,7 +155,7 @@ class ValidateWorker(RioWrkr):
         if confusion_codes is None: confusion_codes=self.confusion_codes
         
         #convert to boolean (true=wet=nonnull)
-        true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+        true_arB, pred_arB =  np.invert(true_ar.mask), np.invert(pred_ar.mask)
         
         #start with dummy
         res_ar = np.full(true_ar.shape, np.nan)
@@ -277,7 +270,7 @@ class ValidateWorker(RioWrkr):
             log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
             
             #convert to boolean (true=wet=nonnull)
-            true_arB, pred_arB = np.invert(np.isnan(true_ar)), np.invert(np.isnan(pred_ar))
+            true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
             
             assert_partial_wet(true_arB)
             assert_partial_wet(pred_arB)
@@ -335,10 +328,10 @@ def run_validator(true_fp, pred_fp,
     """compute error metrics and layers on a wse layer"""
     
     with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, **kwargs) as ses:
-        ses.run_vali()
+        res = ses.run_vali()
 
         
-    return ofp
+    return res
         
         
     

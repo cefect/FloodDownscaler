@@ -30,7 +30,7 @@ from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
 from fdsc.scripts.coms2 import (
-    Master_Session, assert_dem_ar, assert_wse_ar
+    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract
     )
     
 
@@ -528,24 +528,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
  
  
 
-def rlay_extract(fp,
-                 window=None, masked=True,
  
-                 ):
-    
-    if not masked:
-        raise NotImplementedError(masked)
-    
-    """load rlay data and arrays"""
-    with rio.open(fp, mode='r') as ds:
-        assert_rlay_simple(ds)
-        stats_d = get_stats(ds) 
- 
-        ar = ds.read(1, window=window, masked=masked)
-        
-        stats_d['null_cnt'] = ar.mask.sum()
-        
-    return stats_d, ar 
 
 
 def run_downscale(
