@@ -109,17 +109,16 @@ def get_rlay_fp(ar, layName,
     #===========================================================================
     # build out path
     #===========================================================================
-    assert isinstance(ar, np.ndarray)
+    #assert isinstance(ar, np.ndarray)
+    assert isinstance(ar, ma.MaskedArray)
     height, width  = ar.shape
     
     if ofp is None: 
-        ofp = os.path.join(temp_dir,f'{layName}_{width}{height}.tif')
- 
- 
+        ofp = os.path.join(temp_dir,f'{layName}_{width}x{height}.tif')
         
     return write_array(ar, ofp, crs=crs, 
                         transform=rio.transform.from_bounds(*bbox.bounds,width, height),
-                        masked=False)
+                        masked=True)
 
 
 def get_aoi_fp(bbox, crs=crs_default, ofp=None):

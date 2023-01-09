@@ -3,12 +3,13 @@ Created on Dec. 4, 2022
 
 @author: cefect
 '''
-import os, datetime
+import os, datetime, shutil
 import numpy as np
 import scipy
 from pyproj.crs import CRS
 import shapely.geometry as sgeo
 import rasterio as rio
+from rasterio import shutil as rshutil
 import geopandas as gpd
 import fiona
 import numpy.ma as ma
@@ -21,7 +22,9 @@ def now():
 
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
-    write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip)
+    write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
+    rlay_apply,rlay_ar_apply,
+    )
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
@@ -118,12 +121,12 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
     #===========================================================================
     # PHASE1---------
     #===========================================================================
-    def p1_downscale_wetPartials(self, wse2_ar, dem1_ar,  downscale=None,**kwargs):
+    def p1_wetPartials(self, wse2_ar, dem1_ar,  downscale=None,**kwargs):
         """downscale wse2 grid in wet-partial regions"""
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('zoom',  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP',subdir=True,  **kwargs)
         if downscale is None: downscale=self.downscale
 
         
@@ -176,7 +179,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         log.info(f'built wse from downscale={downscale} on wet partials w/ {wse_wp_bx.sum()}/{wse1_ar2.size} violators\n    {meta_d}')
         return wse1_ar2, meta_d
 
-    def get_costGrow_wbt(self, wse_fp,**kwargs):
+    def get_costDistanceGrow_wbt(self, wse_fp,**kwargs):
         """cost grow/allocation using WBT"""
         start = now()
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('costGrow_wbt', subdir=False,  **kwargs)
@@ -203,23 +206,83 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         costAlloc_fp = os.path.join(out_dir, 'costAllocation.tif')
         assert self.cost_allocation(wse_fp1, backlink_fp, costAlloc_fp) == 0
         log.info(f'finished in {now()-start}\n    {costAlloc_fp}')
+        
+        assert_spatial_equal(costAlloc_fp, wse_fp)
         return costAlloc_fp
 
     #===========================================================================
     # PHASE2-----------------
     #===========================================================================
+    def p2_dryPartials(self, wse1_fp, dem1_fp, 
+                       dryPartial_method='none',
+                       **kwargs):
+        """downscale in drypartial zones        
+        should develop a few options here
+        
+        Parameters
+        ----------
+        dryPartial_method: str
+            method to apply
+        
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP',subdir=True,  **kwargs)
+        skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
+        start = now()
+        assert_spatial_equal(wse1_fp, dem1_fp)
+        meta_lib={'gen':{'dryPartial_method':dryPartial_method}}
+        
+ 
+            
+        #=======================================================================
+        # by method
+        #=======================================================================
+        if dryPartial_method == 'none':
+            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
+            wse1_dp_fp=ofp
+            
+            """
+            load_array(wse1_dp_fp, masked=True)
+            load_array(wse1_fp, masked=True)
+            """
+ 
+ 
+        elif dryPartial_method == 'costGrowSimple': 
+            wse1_dp_fp, d = self.p2_dp_costGrowSimple(wse1_fp, dem1_fp,**skwargs)
+            
+            meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
+ 
+            
+        else:
+            raise KeyError(dryPartial_method)
+        """option 0.... Schuman 2014"""
+        #buffer fixed number of pixels?
+        """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
+        #for 1 cell
+            #grow/buffer 1
+            #filter dem violators
+        """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing""" 
+        
+        #=======================================================================
+        # check
+        #=======================================================================
+        if __debug__:
+            assert_spatial_equal(wse1_fp, wse1_dp_fp)
+            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        tdelta = (now()-start).total_seconds()
+        meta_lib['gen']['tdelta'] = tdelta
+        log.info(f'finished in {tdelta:.2f} secs')
+ 
+        return wse1_dp_fp, meta_lib
 
-    def _filter_dem_violators(self, dem_fp, costAlloc_fp):
-        with rio.open( #load arrays
-            costAlloc_fp, mode='r') as ds:
-            costAlloc_ar = ds.read(1)
-            assert not np.isnan(costAlloc_ar).any(), 'shouldnt have any  nulls (we filled it!)'
-        with rio.open(dem_fp, mode='r') as ds:
-            dem1_ar = ds.read(1)
-    #array math
-        bx_ar = costAlloc_ar <= dem1_ar
-        wse1_ar1 = np.where(np.invert(bx_ar), costAlloc_ar, np.nan)
-        return bx_ar, wse1_ar1
+
 
     def p2_dp_costGrowSimple(self,
                               wse2_fp, dem_fp, 
@@ -231,57 +294,100 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #remove islands (wbt Clump?)
         #smooth
         """
-        start = now()
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dpCGS', subdir=True,  **kwargs)
-        skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse2_fp)
         
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('cgs', subdir=False,  **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+        assert_spatial_equal(dem_fp, wse2_fp)
+        meta_lib = {'gen':{'wse2_fp':os.path.basename(wse2_fp)}}
+        start = now()
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
-        costAlloc_fp = self.get_costGrow_wbt(wse2_fp, **skwargs)
+        costAlloc_fp = self.get_costDistanceGrow_wbt(wse2_fp, **skwargs)
         
         #=======================================================================
         # stamp out DEM violators
         #=======================================================================
-        bx_ar, wse1_ar1 = self._filter_dem_violators(dem_fp, costAlloc_fp)
+        wse1_ar1_fp, meta_lib['filter_dem'] = self._filter_dem_violators(dem_fp, costAlloc_fp, **skwargs)
         
         #report
         if __debug__:
+
             og_noDataCount = getNoDataCount(wse2_fp)
-            assert og_noDataCount>0
+            new_noDataCount = meta_lib['filter_dem']['violation_count']
+            assert og_noDataCount>0            
             
-            new_noDataCount = bx_ar.astype(int).sum()
-            
-            assert new_noDataCount< og_noDataCount
+            assert   new_noDataCount<og_noDataCount
             
             log.info(f'dryPartial growth from {og_noDataCount} to {new_noDataCount} nulls '+\
-                     f'({new_noDataCount/og_noDataCount})')
-        else:
-            log.info(f'finished dryPartial growth on {wse1_ar1.shape}')        
+                     f'({new_noDataCount/og_noDataCount:.2f})')
+       
         
         #=======================================================================
         # remove isolated 
-        #=======================================================================
-        #dump to raster
-        rlay_kwargs = get_write_kwargs(dem_fp, driver='GTiff', masked=False)
-        wse1_ar1_fp = self.write_array(wse1_ar1, resname='wse1_ar3', out_dir=tmp_dir,  logger=log, **rlay_kwargs) 
-        
-        #filter
-        wse1_ar2_fp = self.filter_isolated(wse1_ar1_fp, ofp=ofp, **skwargs)
+        #======================================================================= 
+        wse1_ar2_fp, meta_lib['filter_iso'] = self._filter_isolated(wse1_ar1_fp, ofp=ofp, **skwargs)
         
         #=======================================================================
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
+        meta_lib['gen']['tdelta'] = tdelta
         log.info(f'finished in {tdelta:.2f} secs')
-        
-        return wse1_ar2_fp
 
-    def filter_isolated(self, wse_fp, **kwargs):
+        
+        return wse1_ar2_fp, meta_lib
+    
+    def _filter_dem_violators(self, dem_fp, wse_fp, **kwargs):
+        """replace WSe values with nodata where they dont exceed the DEM"""
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('filter', subdir=False,  **kwargs)
+        assert_spatial_equal(dem_fp, wse_fp)
+        
+        #=======================================================================
+        # load arrays
+        #=======================================================================
+        with rio.open( #load arrays
+            wse_fp, mode='r') as ds:
+            wse_ar = ds.read(1)
+            assert not np.isnan(wse_ar).any(), 'shouldnt have any  nulls (we filled it!)'
+            
+        with rio.open(dem_fp, mode='r') as ds:
+            dem1_ar = ds.read(1)
+            
+        #=======================================================================
+        # #array math
+        #=======================================================================
+        bx_ar = wse_ar <= dem1_ar
+        wse1_ar1 = np.where(np.invert(bx_ar), wse_ar, np.nan)
+        
+        log.info(f'filtered {bx_ar.sum()}/{bx_ar.size} wse values which dont exceed the DEM')
+        #=======================================================================
+        # #dump to raster
+        #=======================================================================
+        rlay_kwargs = get_write_kwargs(dem_fp, driver='GTiff', masked=False)
+        wse1_ar1_fp = self.write_array(wse1_ar1, resname='wse1_ar3', 
+                                       out_dir=out_dir,  logger=log, ofp=ofp,
+                                       **rlay_kwargs) 
+        
+        
+        #=======================================================================
+        # meta
+        #=======================================================================
+        meta_d={'size':wse_ar.size}
+        if __debug__:
+            meta_d['violation_count'] = bx_ar.astype(int).sum()
+        
+        
+        return wse1_ar1_fp, meta_d
+
+    def _filter_isolated(self, wse_fp, **kwargs):
         """remove isolated cells from grid using WBT"""
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('filter_iso', subdir=False,  **kwargs)
         start = now()
+        meta_d=dict()
         #=======================================================================
         # #convert to mask
         #=======================================================================
@@ -316,6 +422,8 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             log.info(f'found main clump of {bx.sum()}/{bx.size} '+\
                      '(%.2f)'%(bx.sum()/bx.size))
             
+            meta_d.update({'clump_cnt':len(counts_ar), 'clump_max_size':bx.sum()})
+            
         #=======================================================================
         # filter wse to main clump
         #=======================================================================
@@ -327,22 +435,26 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # #write
         #=======================================================================
-        with rio.open(ofp, mode='w', **profile) as dest:
-            dest.write(filtered_ar, 1)
+        write_array(filtered_ar, ofp=ofp, masked=False, **profile)
+ 
             
         tdelta = (now()-start).total_seconds()
+        meta_d['tdelta'] = tdelta
         log.info(f'wrote {filtered_ar.shape} in {tdelta:.2f} secs to \n    {ofp}')
         
-        return ofp
+        return ofp, meta_d
     
     #===========================================================================
     # PIPELINE
     #===========================================================================
+
+
+
     def run_dsc(self,
             wse2_rlay_fp,
             dem1_rlay_fp,
  
-            dryPartial_method = 'costDistanceSimple',
+            dryPartial_method = 'costGrowSimple',
                 **kwargs):
         """run a downsampling pipeline
         
@@ -387,44 +499,19 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # wet partials
         #=======================================================================
-        wse1_ar2, meta_lib['p1_wp'] = self.p1_downscale_wetPartials(wse2_ar, dem1_ar, logger=log)
+        wse1_ar2, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_ar, dem1_ar, logger=log)
         
         """
         np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
         """
         
+        #convert back to raster
+        wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', out_dir=tmp_dir, masked=True, **rlay_kwargs)
         #=======================================================================
         # dry partials
         #=======================================================================
-        """should develop a few options here"""
-        
-        if dryPartial_method=='none':
-            wse1_dp_fp = self.write_array(wse1_ar2, ofp=self._get_ofp(dkey='dpNone_'+outName_sfx,  ext='.tif') ,  
-                                         **rlay_kwargs)
-            
-
-        elif dryPartial_method=='costDistanceSimple':
- 
-            #convert back to rasters
-            wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', out_dir=self.tmp_dir,  **rlay_kwargs) 
-            
-            #grow out into dry partials
-            wse1_dp_fp = self.p2_dp_costGrowSimple(wse1_wp_fp, dem1_rlay_fp, logger=log,
-                                                  ofp=self._get_ofp(dkey='cds_'+outName_sfx,  ext='.tif'))
-            
-        else:
-            raise KeyError(dryPartial_method)
-        
-        """option 0.... Schuman 2014"""
-        #buffer fixed number of pixels?
-        
-        
-        """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
-        #for 1 cell
-            #grow/buffer 1
-            #filter dem violators
-        
-        """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing"""
+        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_rlay_fp, dryPartial_method=dryPartial_method, 
+                                         logger=log)
         
         #=======================================================================
         # wrap
@@ -436,6 +523,8 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
+    
+
  
  
 
@@ -463,7 +552,7 @@ def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
         aoi_fp=None, 
-        dryPartial_method = 'costDistanceSimple',
+        dryPartial_method = 'costGrowSimple',
         **kwargs):
     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
     

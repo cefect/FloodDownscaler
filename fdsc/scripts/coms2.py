@@ -36,7 +36,7 @@ def assert_masked_ar(ar, msg=''):
         return
     
     if not isinstance(ar, ma.MaskedArray):
-        raise AssertionError(msg+' bad type ' + type(ar))
+        raise AssertionError(msg+' bad type ' + str(type(ar)))
     if not 'float' in ar.dtype.name:
         raise AssertionError(msg+' bad dtype ' + ar.dtype.name)
     

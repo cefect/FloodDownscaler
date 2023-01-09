@@ -17,7 +17,7 @@ from fdsc.scripts.dsc import run_downscale
 from fdsc.scripts.dsc import Dsc_Session as Session
 
 from tests.conftest import (
-    get_xda, get_rlay_fp, crs_default, proj_lib,get_aoi_fp,
+    get_rlay_fp, crs_default, proj_lib,get_aoi_fp,
  
     )
  
@@ -94,9 +94,24 @@ def test_p0(dem_fp, wse_fp, crs, tmp_path, wrkr):
     (wse2_ar, dem1_ar, 3.0),
     ]) 
 def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):    
-    wrkr.p1_downscale_wetPartials(wse_ar, dem_ar,  downscale=downscale, out_dir=tmp_path)
+    wrkr.p1_wetPartials(wse_ar, dem_ar,  downscale=downscale, out_dir=tmp_path)
 
 
+
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    (dem1_rlay_fp, wse1_rlay2_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
+ 
+    ])
+@pytest.mark.parametrize('dryPartial_method', [
+    #'costGrowSimple',
+    'none'
+    ])
+def test_p2(dem_fp, wse_fp, 
+            dryPartial_method,
+            wrkr):
+    wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=dryPartial_method)
+    
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
@@ -112,7 +127,7 @@ def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
  
     ])
 def test_p2_filter_isolated(wse_fp, wrkr):
-    wrkr.filter_isolated(wse_fp)
+    wrkr._filter_isolated(wse_fp)
     
 
 @pytest.mark.dev
@@ -121,7 +136,7 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
-    'costDistanceSimple','none'
+    'costGrowSimple','none'
     ])
 def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):    
     run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',

@@ -7,6 +7,7 @@ toy test data
 '''
 import numpy as np
 import pandas as pd
+import numpy.ma as ma
 from io import StringIO
 #from tests.conftest import get_rlay_fp
 nan, array = np.nan, np.array
@@ -18,6 +19,9 @@ more seamless with using real data in tests"""
 #===============================================================================
 # helpers
 #===============================================================================
+def get_mar(ar_raw):
+    return ma.array(ar_raw, mask=np.isnan(ar_raw), fill_value=-9999)
+
 def get_ar_from_str(ar_str, dtype=float):
     return pd.read_csv(StringIO(ar_str), sep='\s+', header=None).astype(dtype).values
 
@@ -33,7 +37,8 @@ def get_wse_ar(ar_str, **kwargs):
 #===============================================================================
 # raw data
 #===============================================================================
-dem1_ar = get_ar_from_str("""
+dem1_ar = get_mar(
+    get_ar_from_str("""
     1    1    1    9    9    9
     1    1    1    9    9    9
     1    1    1    2    2    9
@@ -43,16 +48,18 @@ dem1_ar = get_ar_from_str("""
     4    4    4    2    2    9
     4    4    4    9    9    9
     4    4    4    9    9    1
-    """)
-wse2_ar = get_wse_ar("""
+    """))
+wse2_ar = get_mar(
+    get_wse_ar("""
     3    -9999
     4    -9999
     5    -9999    
-    """)
+    """))
 
 """dummy validation against wse1_ar3
 1FP, 1FN"""
-wse1_arV = array([
+wse1_arV = get_mar(
+    array([
         [ 3.,  3.,  3., nan, nan, nan],
        [ 3.,  3.,  3., nan, nan, nan],
        [ 3.,  3.,  3.,  3.,  3., nan],
@@ -62,6 +69,7 @@ wse1_arV = array([
        [ 5.,  5.,  5.,  5.,  5., nan],
        [ 5.,  5.,  5., nan, nan, 5.],
        [ 5.,  5.,  5., nan, nan, nan]])
+    )
 
 
 
@@ -69,7 +77,8 @@ wse1_arV = array([
 # intermittent data
 #===============================================================================
 """p1_downscale_wetPartials"""
-wse1_ar2 =np.array([
+wse1_ar2 =get_mar(
+    np.array([
         [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
        [ 3.,  3.,  3., np.nan, np.nan, np.nan],
@@ -79,9 +88,11 @@ wse1_ar2 =np.array([
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan],
        [ 5.,  5.,  5., np.nan, np.nan, np.nan]])
+    )
 
 """phase2: _null_dem_violators"""
-wse1_ar3 = array([
+wse1_ar3 = get_mar(
+    array([
         [ 3.,  3.,  3., nan, nan, nan],
        [ 3.,  3.,  3., nan, nan, nan],
        [ 3.,  3.,  3.,  3.,  3., nan],
@@ -91,3 +102,9 @@ wse1_ar3 = array([
        [ 5.,  5.,  5.,  5.,  5., nan],
        [ 5.,  5.,  5., nan, nan, nan],
        [ 5.,  5.,  5., nan, nan,  5.]])
+    )
+
+
+
+
+
