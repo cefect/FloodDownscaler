@@ -230,7 +230,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP',subdir=True,  **kwargs)
-        skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         start = now()
         assert_spatial_equal(wse1_fp, dem1_fp)
         meta_lib={'gen':{'dryPartial_method':dryPartial_method}}
@@ -251,7 +251,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
  
  
         elif dryPartial_method == 'costGrowSimple': 
-            wse1_dp_fp, d = self.p2_dp_costGrowSimple(wse1_fp, dem1_fp,**skwargs)
+            wse1_dp_fp, d = self.p2_dp_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)
             
             meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
  
@@ -476,8 +476,9 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=False,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True,  **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
+        skwargs = dict(logger=log, out_dir=tmp_dir)
         #=======================================================================
         # precheck and load rasters
         #=======================================================================        
@@ -500,19 +501,20 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # wet partials
         #=======================================================================
-        wse1_ar2, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_ar, dem1_ar, logger=log)
+        wse1_ar2, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_ar, dem1_ar, **skwargs)
         
         """
         np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
         """
         
         #convert back to raster
-        wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', out_dir=tmp_dir, masked=True, **rlay_kwargs)
+        wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', masked=True, **rlay_kwargs, **skwargs)
         #=======================================================================
         # dry partials
         #=======================================================================
-        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_rlay_fp, dryPartial_method=dryPartial_method, 
-                                         logger=log)
+        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_rlay_fp, 
+                                                dryPartial_method=dryPartial_method, 
+                                                ofp=ofp, logger=log, out_dir=out_dir)
         
         #=======================================================================
         # wrap

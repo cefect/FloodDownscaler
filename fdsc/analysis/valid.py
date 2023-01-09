@@ -220,7 +220,7 @@ class ValidateWorker(RioWrkr):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('vali', subdir=False,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('vali', subdir=True,  **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         metric_lib=dict()
         skwargs = dict(logger=log)

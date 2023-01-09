@@ -99,7 +99,7 @@ def run_dsc_vali(
     #===========================================================================
     # defaults
     #===========================================================================
-    with PipeSession(**kwargs) as ses:
+    with PipeSession(logfile_duplicate=True, **kwargs) as ses:
         start = now()
         log = ses.logger.getChild('r')
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
@@ -127,7 +127,8 @@ def run_dsc_vali(
         #=======================================================================
         # downscale
         #=======================================================================
-        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, **dsc_kwargs)
+        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, 
+                                               ofp=ses._get_ofp('dsc'), **dsc_kwargs)
  
         #=======================================================================
         # validate
