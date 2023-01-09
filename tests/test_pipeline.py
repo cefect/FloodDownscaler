@@ -75,7 +75,7 @@ def test_clip_set(raster_fp_d, aoi_fp,
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['wse1_rlayV_fp'], None)
     ])
 @pytest.mark.parametrize('dryPartial_method', [
-    'costDistanceSimple','none'
+    'costGrowSimple','none'
     ])
 def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp,
               dryPartial_method,

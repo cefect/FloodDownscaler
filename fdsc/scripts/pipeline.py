@@ -104,11 +104,10 @@ def run_dsc_vali(
         log = ses.logger.getChild('r')
         
         #=======================================================================
-        # clip rasters
+        # clip raw rasters
         #=======================================================================
 
         fp_d = {'wse2':wse2_rlay_fp, 'dem1':dem1_rlay_fp, 'wse1V': wse1V_fp}
-        
         
         if not ses.aoi_fp is None:
             assert not wse1V_fp is None, 'not implemented'
