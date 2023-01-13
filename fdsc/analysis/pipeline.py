@@ -8,13 +8,15 @@ integrated downscaling and validation
 
 import os, datetime, pickle
 import shapely.geometry as sgeo
+import rasterio as rio
+from rasterio.enums import Resampling, Compression
 
 from definitions import wrk_dir, src_name
 
 
 from hp.basic import today_str
 from hp.rio import (
-    write_clip,assert_spatial_equal,assert_extent_equal,
+    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,
     )
 
 
@@ -140,14 +142,26 @@ def run_dsc_vali(
         wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True, 
                                                ofp=ses._get_ofp('dsc'), **dsc_kwargs)
  
-        meta_lib['smry']['wse1_fp'] = wse1_fp #promoting key results to the summary page
+        meta_lib['smry']['wse1'] = wse1_fp #promoting key results to the summary page
         #=======================================================================
         # validate-------
         #=======================================================================
         metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, dem_fp=dem1_fp, write_meta=True, **vali_kwargs)
         
  
-        meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')        
+        meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')
+        
+        #=======================================================================
+        # get depths-------
+        #=======================================================================
+        """nice for some plots"""
+        #upscale DEM        
+        dem2_fp = write_resample(dem1_rlay_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
+  
+        
+        meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_rlay_fp, 
+                                         ofp=ses._get_ofp(out_dir=ses.out_dir, resname='dep2'))
+        
         #=======================================================================
         # meta
         #=======================================================================

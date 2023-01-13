@@ -546,7 +546,8 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         # grid metrics
         #=======================================================================        
         shape, size = true_ar.shape, true_ar.size
-        meta_lib['grid'] = {**{'shape':str(shape), 'size':size}, **copy.deepcopy(self.stats_d)}
+        meta_lib['grid'] = {**{'shape':str(shape), 'size':size, 'true_fp':true_fp, 'pred_fp':pred_fp}, 
+                            **copy.deepcopy(self.stats_d)}
         
         
         #=======================================================================
@@ -593,12 +594,15 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         if not sample_pts_fp is None:
             assert isinstance(dem_fp, str), type(dem_fp)
             #build depth grids
-            true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='true_dep'))
+            true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
             pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
             err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
             metric_lib['samp'] = err_d            
             meta_lib['samp'] = meta_d
+            
+            meta_lib['grid']['true_dep_fp']=true_dep_fp
+            meta_lib['grid']['pred_dep_fp']=pred_dep_fp
         
         #=======================================================================
         # wrap-----
