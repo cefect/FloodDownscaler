@@ -150,12 +150,12 @@ class RioWrkr(Basic):
     #===========================================================================
     
     def resample(self,
- 
+                 dataset,
                  resampling=Resampling.nearest,
                  scale=1.0,
                  #write=True,
                  #update_ref=False, 
-                 prec=None,
+ 
                  name=None,
                  **kwargs):
         """"resample a rio.dataset handling nulls
@@ -186,8 +186,9 @@ class RioWrkr(Basic):
         # defaults
         #=======================================================================
         if name is None: 'resamp_r%i'%scale
-        _, log, dataset, _, _ = self._func_kwargs(name = name, **kwargs)        
-        if prec is None: prec=self.prec        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('resample',  **kwargs)
+     
+         
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
         """
         dataset.read(1)
@@ -791,6 +792,11 @@ def write_array(raw_ar,ofp,
                 height=None,
                 **kwargs):
     """array to raster file writer with nodata handling and transparent defaults
+    
+    Parameters
+    ----------
+    masked: bool default False
+        if True, the result usually has 2 bands
     """
     
     #===========================================================================
@@ -821,17 +827,19 @@ def write_array(raw_ar,ofp,
     #=======================================================================
     """becuase we usually deal with nulls (instead of raster no data values)
     here we convert back to raster nodata vals before writing to disk"""
-    if masked:
-        assert isinstance(raw_ar, ma.MaskedArray)
+ 
+    if isinstance(raw_ar, ma.MaskedArray):
         data = raw_ar        
         assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
         
-    else:
-        assert not isinstance(raw_ar, ma.MaskedArray)        
+    elif isinstance(raw_ar, np.ndarray):
         if np.any(np.isnan(raw_ar)):
             data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
         else:
             data = raw_ar.astype(dtype)
+    
+    else:
+        raise TypeError(type(raw_ar))
  
     #===========================================================================
     # execute
@@ -841,7 +849,7 @@ def write_array(raw_ar,ofp,
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
                  **kwargs) as dst:            
             dst.write(data, indexes=count,
-                      masked=False,
+                      masked=masked,
                       #we do this explicitly above
                       #If given a Numpy MaskedArray and masked is True, the input’s data and mask will be written to the dataset’s bands and band mask. 
                      #If masked is False, no band mask is written. Instead, the input array’s masked values are filled with the dataset’s nodata value (if defined) or the input’s own fill value.
@@ -1045,6 +1053,9 @@ def get_write_kwargs( obj,
     
     return rlay_kwargs
 
+
+    
+
 def rlay_calc1(rlay_fp, ofp, statement):
     """evaluate a statement with numpy math on a single raster"""
     
@@ -1184,8 +1195,139 @@ def get_depth(dem_fp, wse_fp, ofp=None):
     
     assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
     
-    return write_array(wd2M_ar, ofp, masked=True, **get_profile(wse_fp))
+    return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
     
+#===============================================================================
+# Building New Rasters--------
+#===============================================================================
+def write_resample(rlay_fp,
+                 resampling=Resampling.nearest,
+                 scale=1.0,
+                 #write=True,
+                 #update_ref=False, 
+ 
+                 ofp=None,out_dir=None,
+                 #**kwargs,
+                 ):
+        """"resample a rio.dataset handling nulls
+        
+        
+        Parameters
+        ---------
+        
+        scale: float, default 1.0
+            value with which to scale the datasource shape
+            
+        Notes
+        ---------
+        for cases w/ all real... this is pretty simple
+        w/ nulls
+            there is some bleeding for 'average' methods
+            so we need to build a new mask and re-apply w/ numpy
+                for this, we use a mask which is null ONLY when all child cells are null
+            
+                alternatively, we could set null when ANY child cell is null
+                
+            WARNING: for upsample/aggregate... we don't know how null values are treated
+                (i.e., included in the denom or not)
+                better to use numpy funcs
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+
+                               
+        #===========================================================================
+        # # resample data to target shape
+        #===========================================================================
+        with rasterio.open(rlay_fp, mode='r') as dataset:
+         
+            out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+ 
+            
+            data_rsmp = dataset.read(1,
+                out_shape=out_shape,
+                resampling=resampling
+                                    )
+        
+            # scale image transform
+            transform = dataset.transform * dataset.transform.scale(
+                (dataset.width / data_rsmp.shape[-1]),
+                (dataset.height / data_rsmp.shape[-2])
+            )
+        
+ 
+            outres = dataset.res[0]/scale
+            #===========================================================================
+            # resample nulls
+            #===========================================================================
+            """opaque handling of nulls
+            msk_rsmp = dataset.read_masks(1, 
+                    out_shape=out_shape,
+                    resampling=Resampling.nearest, #doesnt bleed
+                )""" 
+            mar_raw = dataset.read_masks(1)
+            #downsample.disag. (zoom in)
+            if scale>1.0:
+                #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
+                msk_rsmp = scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
+     
+     
+            #upsample. aggregate (those with ALL nulls)
+            else:
+                """see also  hp.np.apply_block_reduce"""
+                mar_raw.shape
+                #stack windows into axis 1 and 3
+ 
+                downscale = int(1/scale)
+                mar1 = mar_raw.reshape(mar_raw.shape[0]//downscale, 
+                                       downscale, 
+                                       mar_raw.shape[1]//downscale, 
+                                       downscale)
+                
+     
+                #those where the max of the children equals exactly the null value
+                msk_rsmp = np.where(np.max(mar1, axis=(1,3))==0, 0,255)
+        
+            #===============================================================================
+            # coerce transformed nulls
+            #===============================================================================
+            """needed as some resampling methods bleed out
+            theres a few ways to handle this... 
+                here we manipulate the data values directly.. which seems the cleanest
+            2022-09-08: switched to masked arrays
+                
+                """
+            
+            #=======================================================================
+            # assert data_rsmp.shape==msk_rsmp.shape
+            # data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+            #=======================================================================
+            
+            #numpy  mask
+            res_mar = ma.array(data_rsmp, mask=np.where(msk_rsmp==0, True, False), fill_value=dataset.nodata)
+            
+            #===================================================================
+            # write
+            #===================================================================
+            if out_dir is None:
+                out_dir = os.path.dirname(rlay_fp)
+            assert os.path.exists(out_dir)
+            if ofp is None:
+                fname, ext = os.path.splitext(os.path.basename(rlay_fp))                
+                ofp = os.path.join(out_dir,f'{fname}_r{outres}{ext}')
+            
+            #build new profile
+            prof_rsmp = {**dataset.profile, 
+                      **dict(
+                          width=data_rsmp.shape[-1], 
+                          height=data_rsmp.shape[-2],
+                          transform=transform,
+                          )}
+            
+            return write_array(res_mar,ofp, **prof_rsmp)
+            
 
 
 def write_clip(raw_fp, 
