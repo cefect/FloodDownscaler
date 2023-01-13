@@ -602,7 +602,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
             meta_lib['samp'] = meta_d
             
             meta_lib['grid']['true_dep_fp']=true_dep_fp
-            meta_lib['grid']['pred_dep_fp']=pred_dep_fp
+            meta_lib['grid']['dep1']=pred_dep_fp
         
         #=======================================================================
         # wrap-----

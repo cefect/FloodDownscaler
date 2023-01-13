@@ -156,10 +156,12 @@ def run_dsc_vali(
         #=======================================================================
         """nice for some plots"""
         #upscale DEM        
+        log.info('building depths grid')
         dem2_fp = write_resample(dem1_rlay_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
   
+        #write depths
         meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_rlay_fp, 
-                                         ofp=ses._get_ofp(out_dir=ses.out_dir, resname='dep2'))
+                                         ofp=ses._get_ofp(out_dir=ses.out_dir, dkey='dep2'))
         
         #=======================================================================
         # meta

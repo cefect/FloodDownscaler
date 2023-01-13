@@ -15,7 +15,7 @@ from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default, get_aoi_fp
     )
 
-from fdsc.analysis.post import PostSession, run_post
+from fdsc.analysis.post import PostSession
 
 
 

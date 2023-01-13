@@ -196,6 +196,7 @@ def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
  
     ]) 
 def test_get_samples(true_fp, pred_fp, sample_pts_fp, ses):
+    """TODO: use depth inputs"""
     gdf = ses.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp)
     
     #gdf.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\vali\samps_gdf_0109.pkl')
