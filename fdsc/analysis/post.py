@@ -89,6 +89,7 @@ class Plot_rlays_wrkr(object):
         
         log.info(f'on {list(fp_lib.keys())}')
         
+        cc_d = self.confusion_codes.copy()
         #=======================================================================
         # setup figure
         #=======================================================================
@@ -105,26 +106,30 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # colormap
         #=======================================================================
-        raise NotImplementedError('stopped herer')
-        #build a custom color map        
-        cmap = matplotlib.colors.ListedColormap(cvals)
+        cval_d = {
+            cc_d['FN']:'#c700fe', cc_d['FP']:'#ff5101', cc_d['TP']:'#00fe19'
+            }
         
-        #discrete normalization
-        norm = matplotlib.colors.BoundaryNorm(
-                                            np.array([0]+ckeys)+1, #bounds that capture the data 
-                                              ncolors=len(ckeys),
+        cval_d = {k:cval_d[k] for k in sorted(cval_d)} #sort it
+ 
+        #build a custom color map        
+        confuGrid_cmap = matplotlib.colors.ListedColormap(cval_d.values())        
+        confuGrid_norm = matplotlib.colors.BoundaryNorm(
+                                            np.array([0]+list(cval_d.keys()))+1, #bounds tt capture the data 
+                                              ncolors=len(cval_d),
                                               #cmap.N, 
                                               extend='neither',
                                               clip=True,
                                               )
         
+        
+        
         #=======================================================================
         # plot loop
         #=======================================================================
+        axImg_d = dict() #container for objects for colorbar
         for rowk, d0 in ax_d.items():
-            for colk, ax in d0.items():
-                
-                
+            for colk, ax in d0.items():                
                 if not colk in fp_lib[rowk]:
                     continue 
                 
@@ -133,17 +138,44 @@ class Plot_rlays_wrkr(object):
                 with rio.open(fp, mode='r') as ds:
                     ar_raw = ds.read(1, window=None, masked=True)
                     
-                    #mask zeros in depths
+                    #===========================================================
+                    # #apply masks
+                    #===========================================================
                     if 'dep' in colk:
                         ar = np.where(ar_raw==0, np.nan, ar_raw)
+                    elif 'confuGrid' in colk:
+                        #mask out true negatives
+                        ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
                     else:
                         ar = ar_raw.data
+                        
+                    #===========================================================
+                    # #get styles by key
+                    #===========================================================
+                    if 'confuGrid_fp' ==colk:
+                        cmap=confuGrid_cmap
+                        norm=confuGrid_norm
+                    else:
+                        cmap='viridis'
+                        norm=None
                      
-                    #raster plot
-                    ax_img = show(ar, 
-                                  transform=ds.transform, 
-                                  ax=ax,contour=False, cmap='viridis', interpolation='nearest')
+                    #===========================================================
+                    # #raster plot
+                    #===========================================================
+                    #===========================================================
+                    # _ = show(ar, 
+                    #               transform=ds.transform, 
+                    #               ax=ax,contour=False, cmap=cmap, interpolation='nearest', norm=norm)
+                    #===========================================================
                     
+                    ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm)
+                    
+                    """
+                    help(show)
+                    """
+                    #===========================================================
+                    # post format
+                    #===========================================================
                     #hide labels
                     ax.get_xaxis().set_ticks([])
                     ax.get_yaxis().set_ticks([])
@@ -151,21 +183,48 @@ class Plot_rlays_wrkr(object):
                     #add text
                     if colk=='confuGrid_fp' and isinstance(metric_lib, dict):
                         ax.text(0.1, 0.9, get_dict_str(metric_lib[rowk]), 
-                                transform=ax.transAxes, va='top', fontsize=8, color='black')
+                                transform=ax.transAxes, va='top', fontsize=6, color='black')
                         
+                    #colorbar
+                    if rowk==row_keys[-1]:
+                        axImg_d[colk]=ax_img  
+                         
+                        
+                        
+                        
+        #=======================================================================
+        # post format
+        #=======================================================================
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                #turn off useless axis
+                if rowk =='vali':
+                    if not colk=='dep1':
+                        #ax.set_axis_off()
+                        
+                        #colorbar
+                        cbar = fig.colorbar(axImg_d[colk],
+                                            cax=ax, orientation='horizontal',
+                                     #ax=ax, location='bottom', # steal space from here
+                                     extend='both', #pointed ends
+                                     format = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x),
+                                     #label='$WSE_{s2}-WSE_{s1}$',
+                                     
+                                     )
+                        
+                
+                #first col
+                if colk==col_keys[0]:
+                    ax.set_ylabel(rowk)
                     
-        #=======================================================================
-        # turn off useless axis
-        #=======================================================================
-        for ax in (ax_d['vali']['dep2'], ax_d['vali']['confuGrid_fp']):
-            #===================================================================
-            # ax.cla()
-            # ax.spines['top'].set_visible(False)
-            # ax.spines['right'].set_visible(False)
-            # ax.spines['left'].set_visible(False)
-            #===================================================================
-            ax.set_axis_off()
-        
+                #last row
+                if rowk==row_keys[0]:
+                    ax.set_title({
+                        'dep1':'WSH (r02)',
+                        'dep2':'WSH (r32)',
+                        'confuGrid_fp':'confusion'
+                        }[colk])
+ 
                     
         #=======================================================================
         # wrap

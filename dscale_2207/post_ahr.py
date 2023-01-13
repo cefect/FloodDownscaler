@@ -64,6 +64,9 @@ def aoi08_r32_1215_53(meta_fp_d,
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
         
+        #=======================================================================
+        # RASTER PLOTS
+        #=======================================================================
         #get rlays
         rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
         
