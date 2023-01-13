@@ -135,7 +135,7 @@ def run_dsc_vali(
             d = fp_d
         
         wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
-        meta_lib['smry'].update(fp_d)  
+        meta_lib['smry'].update(d)  #add cropped layers to summary
         #=======================================================================
         # downscale------
         #=======================================================================
@@ -157,10 +157,10 @@ def run_dsc_vali(
         """nice for some plots"""
         #upscale DEM        
         log.info('building depths grid')
-        dem2_fp = write_resample(dem1_rlay_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
+        dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
   
         #write depths
-        meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_rlay_fp, 
+        meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_fp, 
                                          ofp=ses._get_ofp(out_dir=ses.out_dir, dkey='dep2'))
         
         #=======================================================================

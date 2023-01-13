@@ -11,6 +11,8 @@ import logging, os, copy, datetime, pickle, pprint
 import numpy as np
 import pandas as pd
 import rasterio as rio
+import geopandas as gpd
+import scipy
 
 from rasterio.plot import show
 
@@ -18,6 +20,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 from hp.plot import Plotr, get_dict_str
+from hp.pd import view
+
 
 
 from fdsc.analysis.valid import ValidateSession
@@ -29,7 +33,7 @@ class Plot_rlays_wrkr(object):
     
     def collect_rlay_fps(self, run_lib, **kwargs):
         """collect the filepaths from the run_lib"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metas', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_rlay_fps', **kwargs)
         
         fp_lib={k:dict() for k in run_lib.keys()}
         metric_lib = {k:dict() for k in run_lib.keys()}
@@ -85,7 +89,7 @@ class Plot_rlays_wrkr(object):
         columns
             depthRaster r2, depthRaster r1, confusionRaster
         """
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metas',ext='.png', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayMat',ext='.png', **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
         
@@ -121,8 +125,6 @@ class Plot_rlays_wrkr(object):
                                               extend='neither',
                                               clip=True,
                                               )
-        
-        
         
         #=======================================================================
         # plot loop
@@ -191,10 +193,11 @@ class Plot_rlays_wrkr(object):
                          
                         
                         
-                        
+        #help(fig.colorbar)
         #=======================================================================
         # post format
         #=======================================================================
+ 
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
                 #turn off useless axis
@@ -203,13 +206,23 @@ class Plot_rlays_wrkr(object):
                         #ax.set_axis_off()
                         
                         #colorbar
+                        if 'dep' in colk:
+                            spacing='proportional'
+                            label='WSH (m)'
+                            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+                        else:
+                            """not sure colorbar is best option here"""
+                            spacing='uniform'
+                            label=None
+                            fmt=None
+                            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
+                        
                         cbar = fig.colorbar(axImg_d[colk],
                                             cax=ax, orientation='horizontal',
                                      #ax=ax, location='bottom', # steal space from here
                                      extend='both', #pointed ends
-                                     format = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x),
-                                     #label='$WSE_{s2}-WSE_{s1}$',
-                                     
+                                     format=fmt, label=label,spacing=spacing,
+                                     shrink=0.8,
                                      )
                         
                 
@@ -243,17 +256,264 @@ class Plot_rlays_wrkr(object):
         
         
 class Plot_samples_wrkr(object):
-    def plot_sample_mat(self, 
+    
+    def collect_samples_data(self, run_lib, 
+                             sample_dx_fp=None,
+                             **kwargs):
+        """collect the filepaths from the run_lib
+        
+        Parameters
+        ----------
+        sample_dx_fp: str
+            optional filepath to pickel of all simulations (so you dont have to read gpd each time)
+        
+        """
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_samples_data',ext='.pkl', **kwargs)
+        
+        fp_lib={k:dict() for k in run_lib.keys()}
+        metric_lib = {k:dict() for k in run_lib.keys()}
+        log.info(f'on {len(run_lib)}')
+        #=======================================================================
+        # pull for each
+        #=======================================================================
+        for k0, d0 in run_lib.items(): #simulation name
+            #print(dstr(d0))
+            for k1, d1 in d0.items(): #cat0
+                for k2, d2 in d1.items():
+                    if k1=='vali':
+                        if k2=='samp':
+                            for k3, v3 in d2.items():
+                                if k3=='samples_fp':
+                                    fp_lib[k0][k3]=v3
+                                else:
+                                    metric_lib[k0][k3]=v3
+                                    
+        #=======================================================================
+        # load frames
+        #=======================================================================
+        if sample_dx_fp is None:
+            d=dict()
+            true_serj = None
+            for k0, d0 in fp_lib.items():
+                for k1, fp in d0.items():
+                    df = gpd.read_file(fp).drop('geometry', axis=1)
+                    
+                    true_ser = df['true']
+                    d[k0]=df['pred']
+                    
+                    if not true_serj is None:
+                        assert (true_ser==true_serj).all(), f'trues dont match {k0}{k1}'
+                        
+                    true_serj=true_ser
+                    
+            d['true'] = true_ser
+            dx = pd.concat(d, axis=1)
+            
+            #write compiled
+            dx.to_pickle(ofp)
+            log.info(f'wrote {str(dx.shape)} samples to \n    {ofp}')
+            
+        else:
+            dx = pd.read_pickle(sample_dx_fp) 
+                
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        #log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
+        log.info(f'finished on {str(dx.shape)}')
+ 
+        return dx, metric_lib
+        
+                        
+                        
+    def plot_samples_mat(self, 
+                         df, metric_lib,
+                         figsize=None,
+                         color_d=None,
                         **kwargs):
         """matrix plot comparing methods for downscaling: sampled values
         
-        rows: methods
+        rows: 
+            vali, methods
         columns:
             depth histogram, difference histogram, correlation plot
             
         same as Figure 5 on RICorDE paper"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt',ext='.svg', **kwargs)
+        
+        log.info(f'on {df.columns}')
+        
+        if color_d is None: color_d = self.sim_color_d.copy()
+        
+ 
+        #=======================================================================
+        # setup figure
+        #=======================================================================
+        row_keys = ['true', 'nodp', 'cgs']#list(df.columns)
+        col_keys = ['raw_hist', 'diff_hist', 'corr_scatter']
+        
+        
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
+                                        set_ax_title=False, figsize=figsize,
+                                        constrained_layout=True,
+                                        sharex=True, add_subfigLabel=True,
+                                        )
+        
+ 
+        #=======================================================================
+        # plot loop
+        #=======================================================================
+ 
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                log.info(f'plotting {rowk} x {colk}')
+                ser = df[rowk]
+                c=color_d[rowk]
+                txt_d={rowk:''}
+                
+                
+                hist_kwargs = dict(color=c, bins=30)
+                """:
+                plt.show()
+                """
+                #===============================================================
+                # raw histograms
+                #===============================================================
+                if colk=='raw_hist':
+ 
+                    n, bins, patches = ax.hist(ser, **hist_kwargs)
+                    
+                    stats_d = {k:getattr(ser,k)() for k in ['min', 'max', 'mean', 'count']}
+                    txt_d.update(stats_d)
+                    txt_d['bins']=len(bins)
+ 
+                elif rowk=='true':
+                    continue
+                    
+                #===============================================================
+                # difference histograms
+                #===============================================================
+                elif colk=='diff_hist':
+                    si = ser-df['true']
+                    n, bins, patches = ax.hist(si, **hist_kwargs)
+                    
+                    stats_d = {k:getattr(si,k)() for k in ['min', 'max', 'mean', 'count']}
+                    txt_d.update(stats_d)
+                    txt_d['bins']=len(bins)
+                    
+                #===============================================================
+                # scatter
+                #===============================================================
+                elif colk=='corr_scatter':
+                    xar, yar = df['true'].values, ser.values
+                    xmin, xmax = xar.min(), xar.max()
+                    
+                    #scatters
+                    ax.plot(xar, yar, color=c, linestyle='none', marker='.',
+                            markersize=2, alpha=0.8)
+                    
+                    #1:1
+                    ax.plot([xmin, xmax], [xmin, xmax],
+                            color='black', linewidth=1.0)
+                    
+                    #correlation
+                    f, fit_d = self.scipy_lineregres(df.loc[:, [rowk, 'true']],xcoln='true', ycoln=rowk)
+                    
+                    xar =  np.linspace(xmin, xmax, num=10)
+                    ax.plot(xar, f(xar), color='red', linewidth=1.0)
+ 
+                    #post format
+                    ax.grid()
+                    
+                    txt_d.update(fit_d)
+                    
+                #===============================================================
+                # text
+                #===============================================================
+                ax.text(0.1, 0.9, get_dict_str(txt_d), 
+                                transform=ax.transAxes, va='top', fontsize=8, color='black')
+                 
+        #=======================================================================
+        # post format
+        #=======================================================================
+ 
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+ 
+                        
+                
+                #first col
+                if colk==col_keys[0]:
+                    ax.set_ylabel('count')
+                    
+                    
+                #last col
+                if colk==col_keys[-1]:
+                    ax.set_ylabel('pred depth (m)')
+                    
+                #first row
+                if rowk==row_keys[0]:
+                    
+                    ax.set_title({
+                        'raw_hist':'depths',
+                        'diff_hist':'differences',
+                        'corr_scatter':'correlation'
+                        }[colk])
+                    
+                    if not colk=='raw_hist':
+                        ax.axis('off')
+                    
+                #last row
+                if rowk==row_keys[-1]:
+                    ax.set_xlabel({
+                        'raw_hist':'depths (m)',
+                        'diff_hist':'pred. - true (m)',
+                        'corr_scatter':'true depths (m)'
+                        }[colk])
+ 
+                    
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info('finished')
+        return self.output_fig(fig, ofp=ofp, logger=log)
+    
+    def scipy_lineregres(self,
+               df_raw,
+ 
+                       xcoln='area',
+                       ycoln='gvimp_gf',
+ 
+ 
+ 
+               ):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+ 
+        log = self.logger.getChild('scipy_lineregres')
+        
+        #=======================================================================
+        # setup data
+        #=======================================================================
+        df1 = df_raw.loc[:, [xcoln, ycoln]].dropna(how='any', axis=0)
+        xtrain, ytrain=df1[xcoln].values, df1[ycoln].values
+        #=======================================================================
+        # scipy linregress--------
+        #=======================================================================
+        lm = scipy.stats.linregress(xtrain, ytrain)
+        
+        predict = lambda x:np.array([lm.slope*xi + lm.intercept for xi in x])
+        
+        
+        return predict, {'rvalue':lm.rvalue, 'slope':lm.slope, 'intercept':lm.intercept}
+        
 
-class PostSession(Plot_rlays_wrkr, Plotr, ValidateSession):
+class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
+                  Plotr, ValidateSession):
+    sim_color_d = {'true':'black', 'nodp':'orange', 'cgs':'teal'}
     "Session for analysis on multiple downscale results and their validation metrics"
     def __init__(self, 
                  run_name = None,
