@@ -7,14 +7,89 @@ data analysis on multiple downscale results
 '''
 
 
-import logging, os, copy, datetime, pickle
+import logging, os, copy, datetime, pickle, pprint
 import numpy as np
 import pandas as pd
 import rasterio as rio
 
 from fdsc.analysis.valid import ValidateSession
 
-class PostSession(ValidateSession):
+def dstr(d):
+    return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
+
+class Plot_rlays_wrkr(object):
+    
+    def collect_rlay_fps(self, run_lib, **kwargs):
+        """collect the filepaths from the run_lib"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metas', **kwargs)
+        
+        fp_lib={k:dict() for k in run_lib.keys()}
+        metric_lib = {k:dict() for k in run_lib.keys()}
+        
+        for k0, d0 in run_lib.items(): #simulation name
+            for k1, d1 in d0.items(): #cat0
+                for k2, d2 in d1.items():
+                    if k1=='smry':
+                        if k2 in ['wse1_fp', 'wse2']:
+                            fp_lib[k0][k2]=d2                    
+                        
+                    elif k1=='vali':
+                        if k2=='inun':
+                            for k3, v3 in d2.items():
+                                if k3=='confuGrid_fp':
+                                    fp_lib[k0][k3]=v3
+                                else:
+                                    metric_lib[k0][k3]=v3
+                    else:
+                        pass
+             
+        
+        #=======================================================================
+        # #pull from sumamary
+        # smry_d = {k:v['smry'] for k,v in run_lib.items()}
+        # d = {k0:{k1:v1  for k1, v1 in v0.items() } for k0,v0 in smry_d.items()}
+        # 
+        # #pull validation data
+        # vali_d = {k:v['vali'] for k,v in run_lib.items()}
+        # inun_d = {k:v['inun'] for k,v in vali_d.items()}
+        # 
+        # #add rasters
+        # metric_d = dict()
+        # for k0,v0 in inun_d.items():
+        #     for k1, v1 in v0.items():
+        #         if k1=='confuGrid_fp':
+        #             d[k1]=v1
+        #         else:
+        #             metric_d[k0]=v1
+        #=======================================================================
+        log.info('got fp_lib::\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
+ 
+        
+        return fp_lib, metric_lib
+        
+    
+    def plot_rlay_mat(self, 
+            **kwargs):
+        """matrix plot comparing methods for downscaling: rasters
+        
+        rows: 
+            valid, methods
+        columns
+            depthRaster r2, depthRaster r1, confusionRaster
+        """
+        
+class Plot_samples_wrkr(object):
+    def plot_sample_mat(self, 
+                        **kwargs):
+        """matrix plot comparing methods for downscaling: sampled values
+        
+        rows: methods
+        columns:
+            depth histogram, difference histogram, correlation plot
+            
+        same as Figure 5 on RICorDE paper"""
+
+class PostSession(Plot_rlays_wrkr, ValidateSession):
     "Session for analysis on multiple downscale results and their validation metrics"
     def __init__(self, 
                  run_name = None,
@@ -30,15 +105,18 @@ class PostSession(ValidateSession):
         """load metadata from a collection of downscale runs"""
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metas', **kwargs) 
         
-        res_d = self._load_pick_lib(fp_d, log)
+        run_lib = self._load_pick_lib(fp_d, log)
         
-        log.info(f'loaded for {len(res_d)} runs\n    {res_d.keys()}')
+        log.info(f'loaded for {len(run_lib)} runs\n    {run_lib.keys()}')
         
-        self.run_lib = copy.deepcopy(res_d)
-        return res_d
-            
+        print(pprint.pformat(run_lib['nodp'], width=30, indent=0.3, compact=True, sort_dicts =False))
         
+        self.run_lib = copy.deepcopy(run_lib)
         
+        #get teh summary d
+        
+        smry_d = {k:v['smry'] for k,v in run_lib.items()}
+        return run_lib, smry_d    
         
         
 
@@ -92,15 +170,20 @@ class PostSession(ValidateSession):
         
         return dx
     
-    
-    def load_all(self,
-                 **kwargs):
- 
+    #===========================================================================
+    # def get_rlay_fps(self, run_lib=None, **kwargs):
+    #     """get the results rasters from the run_lib"""
+    #     log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_rlay_fps', **kwargs) 
+    #     if run_lib is None: run_lib=self.run_lib
+    #     
+    #     log.info(f'on {run_lib.keys()}')
+    # 
+    #     run_lib['nodp']['smry'].keys()
+    #     
+    #===========================================================================
         
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_metric_set', **kwargs) 
+    
+
             
         
         

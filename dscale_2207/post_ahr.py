@@ -7,35 +7,28 @@ data analysis
 '''
 from fdsc.analysis.post import PostSession
 
-def plot_rlay_mat(
-        meta_fp_d,
-        run_name='v1',
-        **kwargs):
-    """matrix plot comparing methods for downscaling: rasters
+ 
+
     
-    rows: methods
-    columns
-        depthRaster, confusionRaster
-    """
+ 
+
+
+
+def aoi08_r32_1215_53(meta_fp_d,
+                      run_name='v1',
+                      **kwargs):
     
     
     with PostSession(run_name=run_name, **kwargs) as ses:
         
         #load the metadata from teh run
-        run_lib = ses.load_metas(meta_fp_d)
-    
- 
-def plot_sample_mat():
-    """matrix plot comparing methods for downscaling: sampled values
-    
-    rows: methods
-    columns:
-        depth histogram, difference histogram, correlation plot
+        run_lib, smry_d = ses.load_metas(meta_fp_d)
         
-    same as Figure 5 on RICorDE paper"""
-
-
-
+        #get rlays
+        rlay_fp_lib = ses.collect_rlay_fps(run_lib)
+        
+        ses.plot_rlay_mat(rlay_fp_lib)
+    
 
 
 if __name__=='__main__':
