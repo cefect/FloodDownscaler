@@ -1170,7 +1170,7 @@ def get_depth(dem_fp, wse_fp, ofp=None):
     # calc
     #===========================================================================
     #simple subtraction
-    wd1_ar = dem_ar + wse_ar
+    wd1_ar = wse_ar - dem_ar
     
     #identify dry
     dry_bx = np.logical_or(
