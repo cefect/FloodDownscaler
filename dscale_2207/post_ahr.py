@@ -76,8 +76,8 @@ def aoi08_r32_1215_53(meta_fp_d,
 
 if __name__=='__main__':
     aoi08_r32_1215_53({
-        'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230112\ahr_aoi08_121553_nodp_0112_meta_lib.pkl',
-        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230112\ahr_aoi08_121553_cgs_0112_meta_lib.pkl'
+        'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230113\ahr_aoi08_121553_nodp_0113_meta_lib.pkl',
+        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl'
     })
     #aoi08_r32_1215_53(dryPartial_method='none')
  

@@ -125,7 +125,7 @@ def run_dsc_vali(
         # clip raw rasters
         #=======================================================================
         fp_d = {'wse2':wse2_rlay_fp, 'dem1':dem1_rlay_fp, 'wse1V': wse1V_fp}
-        meta_lib['smry'].update(fp_d)
+        
         
         if not ses.aoi_fp is None:
             assert not wse1V_fp is None, 'not implemented'             
@@ -135,7 +135,7 @@ def run_dsc_vali(
             d = fp_d
         
         wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
-            
+        meta_lib['smry'].update(fp_d)  
         #=======================================================================
         # downscale------
         #=======================================================================
