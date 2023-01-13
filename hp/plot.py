@@ -119,16 +119,7 @@ def plot_rast(ar_raw,
     return ax
 
 class Plotr(object):
-    
-    def __init__(self, output_format='svg', add_stamp=True, **kwargs):
-        self.output_format=output_format
-        self.add_stamp=add_stamp
-        
-        super().__init__(**kwargs)
-        
-    
-
-    
+ 
     #===========================================================================
     # controls
     #===========================================================================
@@ -628,7 +619,7 @@ class Plotr(object):
         
         #if overwrite is None: overwrite = self.overwrite
         if logger is None: logger=self.logger
-        if fmt is None: fmt = self.output_format
+        #if fmt is None: fmt = self.output_format
         if add_stamp is None: add_stamp=self.add_stamp
         log = logger.getChild('output_fig')
         
@@ -660,7 +651,7 @@ class Plotr(object):
                 
             ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
         else:
-            assert fmt is None
+            assert fmt is None, 'can not specify \'fmt\' and \'ofp\''
             fmt = os.path.splitext(ofp)[1].replace('.', '')
             assert not fmt=='', 'forget the period?'
             
