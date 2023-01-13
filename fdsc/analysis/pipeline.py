@@ -158,7 +158,6 @@ def run_dsc_vali(
         #upscale DEM        
         dem2_fp = write_resample(dem1_rlay_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
   
-        
         meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_rlay_fp, 
                                          ofp=ses._get_ofp(out_dir=ses.out_dir, resname='dep2'))
         
