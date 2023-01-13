@@ -446,6 +446,9 @@ class Plotr(object):
         figsize_scaler: int
             multipler for computing figsize from the number of col and row keys
             
+        add_subfigLabel: bool
+            add label to each axis (e.g., A1)
+            
         Returns
         --------
         dict

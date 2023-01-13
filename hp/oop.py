@@ -292,9 +292,11 @@ class Basic(object): #simple base class
         if ofp is None:
             ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
             
-        if os.path.exists(ofp):
-            log.warning('ofp exists... overwriting')
-            os.remove(ofp)
+        #=======================================================================
+        # if os.path.exists(ofp):
+        #     log.warning('ofp exists... overwriting')
+        #     os.remove(ofp)
+        #=======================================================================
  
             
         return log, tmp_dir, out_dir, ofp, resname 
