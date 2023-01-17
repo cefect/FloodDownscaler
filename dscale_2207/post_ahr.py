@@ -70,15 +70,15 @@ def aoi08_r32_1215_53(meta_fp_d,
         # RASTER PLOTS
         #=======================================================================
         #get rlays
-        #rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
         
         #plot them
-        #ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
-        
+        ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
+        return
         #=======================================================================
         # sample metrics
         #=======================================================================
-        
+        plt.close()
         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
         
         #clear any samples w/ zeros

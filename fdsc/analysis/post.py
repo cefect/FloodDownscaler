@@ -18,6 +18,7 @@ from rasterio.plot import show
 
 import matplotlib.pyplot as plt
 import matplotlib
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 from hp.plot import Plotr, get_dict_str
 from hp.pd import view
@@ -203,7 +204,13 @@ class Plot_rlays_wrkr(object):
                 #turn off useless axis
                 if rowk =='vali':
                     if not colk=='dep1':
+                        #ad dummy plot
+                        #ax.plot([0,1],[1,0])
+                        #ax.imshow(ar)
+                        #ax.cla()
                         #ax.set_axis_off()
+
+                        #continue
                         
                         #colorbar
                         if 'dep' in colk:
@@ -212,18 +219,32 @@ class Plot_rlays_wrkr(object):
                             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
                         else:
                             """not sure colorbar is best option here"""
+                            #spacing='proportional'
                             spacing='uniform'
-                            label=None
+                            label=''
                             fmt=None
                             #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
                         
+                        
+                        # Add an Axes to the right of the main Axes.
+                        #ax1_divider = make_axes_locatable(ax)
+                        #cax1 = ax1_divider.append_axes("bottom", size="50%", pad="10%")
+                        cax1=ax
+ 
+                        
                         cbar = fig.colorbar(axImg_d[colk],
-                                            cax=ax, orientation='horizontal',
+                                            cax=cax1, 
+                                            #ax=ax,
+                                            orientation='horizontal',
                                      #ax=ax, location='bottom', # steal space from here
                                      extend='both', #pointed ends
                                      format=fmt, label=label,spacing=spacing,
-                                     shrink=0.8,
+                                     #shrink=0.8,
                                      )
+                        
+
+                        
+
                         
                 
                 #first col
