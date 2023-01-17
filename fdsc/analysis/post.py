@@ -49,7 +49,9 @@ class Plot_rlays_wrkr(object):
                         if k2 in [
                             #'wse1', 'wse2', 
                             'dep2']:
-                            fp_lib[k0][k2]=d2                    
+                            fp_lib[k0][k2]=d2
+                        elif k2 in ['dem1']:
+                            dem_fp = d2                    
                         
                     elif k1=='vali':
                         if k2=='inun':
@@ -70,7 +72,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # get validation
         #=======================================================================
-        fp_lib = {**{'vali':{'dep1':dep1V}}, **fp_lib} #order matters
+        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp}}, **fp_lib} #order matters
  
  
         log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
@@ -85,8 +87,9 @@ class Plot_rlays_wrkr(object):
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
         
-        rows: 
-            valid, methods
+        rows: cols
+            valid: 
+            methods
         columns
             depthRaster r2, depthRaster r1, confusionRaster
         """
@@ -95,16 +98,35 @@ class Plot_rlays_wrkr(object):
         log.info(f'on {list(fp_lib.keys())}')
         
         cc_d = self.confusion_codes.copy()
+
+        
         #=======================================================================
         # setup figure
         #=======================================================================
         row_keys = list(fp_lib.keys())
-        col_keys = list(fp_lib[list(fp_lib.keys())[-1]].keys())
+        col_keys = ['c1', 'c2', 'c3']
         
+        #grid_lib={k:dict() for k in row_keys}
+        grid_lib=dict()
+        
+        for rowk in row_keys:
+            if rowk=='vali':
+                col_d = {'c1':'dem1', 'c2':'dep1', 'c3':None}
+            else:
+                col_d = {'c1':None, 'c2':'dep1', 'c3':'confuGrid_fp'}
+            
+            #add input to second row
+            if rowk==row_keys[1]:
+                col_d['c1'] = 'dep2'
+                
+            grid_lib[rowk] = col_d             
+                
+        log.info('on %s'%dstr(grid_lib))
  
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
                                         set_ax_title=False, figsize=figsize,
                                         constrained_layout=True,
+                                        add_subfigLabel=True,
                                         )
         
         
@@ -112,7 +134,7 @@ class Plot_rlays_wrkr(object):
         # colormap
         #=======================================================================
         cval_d = {
-            cc_d['FN']:'#c700fe', cc_d['FP']:'#ff5101', cc_d['TP']:'#00fe19'
+            cc_d['FN']:'#c700fe', cc_d['FP']:'#ff5101', cc_d['TP']:'#00fe19', cc_d['TN']:'white'
             }
         
         cval_d = {k:cval_d[k] for k in sorted(cval_d)} #sort it
@@ -131,36 +153,62 @@ class Plot_rlays_wrkr(object):
         # plot loop
         #=======================================================================
         axImg_d = dict() #container for objects for colorbar
+        #dep1_yet=False
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
-                if not colk in fp_lib[rowk]:
-                    continue 
+                gridk = grid_lib[rowk][colk]
                 
-                fp=fp_lib[rowk][colk]
-                log.info(f'plotting {rowk}x{colk}: {os.path.basename(fp)}')
+                if gridk is None:
+                    ax.set_axis_off()
+                    continue
+                else:
+                    fp = fp_lib[rowk][gridk]
+                
+                #===============================================================
+                # if rowk=='vali' and colk=='dep2':
+                #     colk='dem1'
+                #                 
+                # if not colk in fp_lib[rowk]:                    
+                #     print(colk, rowk)
+                #     continue 
+                # 
+                # if colk=='dep2':
+                #     
+                # 
+                # fp=fp_lib[rowk][colk]
+                #===============================================================
+                log.info(f'plotting {rowk} x {colk} ({gridk}): {os.path.basename(fp)}')
                 with rio.open(fp, mode='r') as ds:
                     ar_raw = ds.read(1, window=None, masked=True)
                     
                     #===========================================================
                     # #apply masks
                     #===========================================================
-                    if 'dep' in colk:
+                    if 'dep' in gridk:
                         ar = np.where(ar_raw==0, np.nan, ar_raw)
-                    elif 'confuGrid' in colk:
+                    elif 'confuGrid' in gridk:
                         #mask out true negatives
                         ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
+                    elif 'dem1' ==gridk:
+                        ar = np.where(ar_raw<130, ar_raw, np.nan)
+                        print(ar_raw.max())
                     else:
-                        ar = ar_raw.data
+                        raise KeyError(gridk)
                         
                     #===========================================================
                     # #get styles by key
                     #===========================================================
-                    if 'confuGrid_fp' ==colk:
+                    if 'confuGrid_fp' ==gridk:
                         cmap=confuGrid_cmap
                         norm=confuGrid_norm
-                    else:
+                    elif gridk=='dem1':
+                        cmap='plasma'
+                        norm=None
+                    elif 'dep' in gridk:
                         cmap='viridis'
                         norm=None
+                    else:
+                        raise KeyError(gridk)
                      
                     #===========================================================
                     # #raster plot
@@ -171,10 +219,12 @@ class Plot_rlays_wrkr(object):
                     #               ax=ax,contour=False, cmap=cmap, interpolation='nearest', norm=norm)
                     #===========================================================
                     
-                    ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm)
+                    ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
                     
                     """
+                    help(ax.imshow)
                     help(show)
+                    plt.show()
                     """
                     #===========================================================
                     # post format
@@ -184,17 +234,80 @@ class Plot_rlays_wrkr(object):
                     ax.get_yaxis().set_ticks([])
                     
                     #add text
-                    if colk=='confuGrid_fp' and isinstance(metric_lib, dict):
-                        ax.text(0.1, 0.9, get_dict_str(metric_lib[rowk]), 
-                                transform=ax.transAxes, va='top', fontsize=6, color='black')
+                    if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
+                        d = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
+                        ax.text(0.9, 0.1, get_dict_str(d), 
+                                transform=ax.transAxes, va='bottom', ha='right', fontsize=6, 
+                                color='black')
                         
                     #colorbar
-                    if rowk==row_keys[-1]:
-                        axImg_d[colk]=ax_img  
+                    if not gridk in axImg_d:
+                        axImg_d[gridk]=ax_img  
                          
                         
                         
         #help(fig.colorbar)
+        #=======================================================================
+        # colorbar
+        #=======================================================================
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                #only last row 
+                if not rowk==row_keys[-1]:
+                    continue
+                               
+                gridk = grid_lib[rowk][colk]
+                
+                if gridk is None:
+                    gridk='dem1'
+                
+                            
+                if 'dep' in gridk:
+                    spacing='proportional'
+                    label='WSH (m)'
+                    fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+                    location='bottom'
+                    #cax = cax_top
+                elif 'confuGrid' in gridk:
+ 
+                    #spacing='proportional'
+                    spacing='uniform'
+                    label='Confusion'
+                    fmt=None
+                    #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
+                    #cax=cax_bot
+                    location='bottom'
+                    
+                elif 'dem1'==gridk:
+                    spacing='proportional'
+                    label='DEM (masl)'
+                    fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
+                    location='bottom'
+                    
+                else:
+                    raise KeyError(gridk)
+                
+                cbar = fig.colorbar(axImg_d[gridk],
+                                #cax=cax, 
+ 
+                                orientation='horizontal',
+                         ax=ax, location=location, # steal space from here
+                         extend='both', #pointed ends
+                         format=fmt, label=label,spacing=spacing,
+                         shrink=0.8,
+                         )
+                
+                #relabel
+                if 'confuGrid' in gridk:
+                    #help(cbar)
+                    #print(cbar.get_ticks()) #[101, 102, 111, 112]
+                    #print(cc_d)
+                    cbar.set_ticks([(101-1)/2+1, 101.5, (111-102)/2+102, 111.5], labels=list(cval_d.keys()))
+                    #cbar.set_ticklabels(list(cc_d.keys()))
+                     
+                
+ 
+            
         #=======================================================================
         # post format
         #=======================================================================
@@ -202,62 +315,22 @@ class Plot_rlays_wrkr(object):
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
                 #turn off useless axis
-                if rowk =='vali':
-                    if not colk=='dep1':
-                        #ad dummy plot
-                        #ax.plot([0,1],[1,0])
-                        #ax.imshow(ar)
-                        #ax.cla()
-                        #ax.set_axis_off()
-
-                        #continue
-                        
-                        #colorbar
-                        if 'dep' in colk:
-                            spacing='proportional'
-                            label='WSH (m)'
-                            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
-                        else:
-                            """not sure colorbar is best option here"""
-                            #spacing='proportional'
-                            spacing='uniform'
-                            label=''
-                            fmt=None
-                            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
-                        
-                        
-                        # Add an Axes to the right of the main Axes.
-                        #ax1_divider = make_axes_locatable(ax)
-                        #cax1 = ax1_divider.append_axes("bottom", size="50%", pad="10%")
-                        cax1=ax
- 
-                        
-                        cbar = fig.colorbar(axImg_d[colk],
-                                            cax=cax1, 
-                                            #ax=ax,
-                                            orientation='horizontal',
-                                     #ax=ax, location='bottom', # steal space from here
-                                     extend='both', #pointed ends
-                                     format=fmt, label=label,spacing=spacing,
-                                     #shrink=0.8,
-                                     )
-                        
-
-                        
-
-                        
                 
                 #first col
                 if colk==col_keys[0]:
-                    ax.set_ylabel(rowk)
+                    pass
+                    #ax.set_ylabel(rowk)
                     
                 #last row
                 if rowk==row_keys[0]:
-                    ax.set_title({
-                        'dep1':'WSH (r02)',
-                        'dep2':'WSH (r32)',
-                        'confuGrid_fp':'confusion'
-                        }[colk])
+                    pass
+                    #===========================================================
+                    # ax.set_title({
+                    #     'dep1':'WSH (r02)',
+                    #     'dep2':'WSH (r32)',
+                    #     'confuGrid_fp':'confusion'
+                    #     }[colk])
+                    #===========================================================
  
                     
         #=======================================================================
