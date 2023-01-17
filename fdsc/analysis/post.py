@@ -235,8 +235,8 @@ class Plot_rlays_wrkr(object):
                     
                     #add text
                     if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
-                        d = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
-                        ax.text(0.9, 0.1, get_dict_str(d), 
+                        md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
+                        ax.text(0.9, 0.1, get_dict_str(md), 
                                 transform=ax.transAxes, va='bottom', ha='right', fontsize=6, 
                                 color='black')
                         
@@ -302,7 +302,10 @@ class Plot_rlays_wrkr(object):
                     #help(cbar)
                     #print(cbar.get_ticks()) #[101, 102, 111, 112]
                     #print(cc_d)
-                    cbar.set_ticks([(101-1)/2+1, 101.5, (111-102)/2+102, 111.5], labels=list(cval_d.keys()))
+                    cbar.set_ticks([(101-1)/2+1, 101.5, (111-102)/2+102, 111.5], 
+                                   labels = [{v:k for k,v in cc_d.items()}[k0] for k0 in cval_d.keys()]
+                                   #labels=list(cval_d.keys())
+                                   )
                     #cbar.set_ticklabels(list(cc_d.keys()))
                      
                 
