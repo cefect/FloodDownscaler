@@ -89,12 +89,13 @@ def test_p0_clip(dem_fp, wse_fp, aoi_fp, tmp_path, wrkr):
 def test_p0(dem_fp, wse_fp, crs, tmp_path, wrkr):    
     wrkr.p0_load_rasters(wse_fp, dem_fp, crs=crs, out_dir=tmp_path)
     
-
-@pytest.mark.parametrize('wse_ar, dem_ar, downscale', [
-    (wse2_ar, dem1_ar, 3.0),
+@pytest.mark.dev
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    (dem1_rlay_fp, wse2_rlay_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ]) 
-def test_p1(wse_ar, dem_ar, downscale, tmp_path, wrkr):    
-    wrkr.p1_wetPartials(wse_ar, dem_ar,  downscale=downscale, out_dir=tmp_path)
+def test_p1(dem_fp, wse_fp, wrkr):    
+    wrkr.p1_wetPartials(wse_fp, dem_fp)
 
 
 
@@ -130,7 +131,7 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     wrkr._filter_isolated(wse_fp)
     
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])

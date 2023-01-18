@@ -23,7 +23,7 @@ def now():
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
-    rlay_apply,rlay_ar_apply,
+    rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr
     )
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
@@ -116,68 +116,122 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)        
       
         self.s2, self.s1, self.downscale = s2, s1, downscale 
-        return wse2_ar, dem1_ar, wse_stats, dem_stats 
+        return wse2_ar, dem1_ar, wse_stats, dem_stats
+    
+    def get_scale(self, fp1, fp2, **kwargs):
+        """compute the scale difference between two layers"""
+        
+        s1 = get_ds_attr(fp1, 'res')[0]
+        s2 = get_ds_attr(fp2, 'res')[0]
+        
+        return s1/s2
+        
 
     #===========================================================================
     # PHASE1---------
     #===========================================================================
-    def p1_wetPartials(self, wse2_ar, dem1_ar,  downscale=None,**kwargs):
-        """downscale wse2 grid in wet-partial regions"""
+    def p1_wetPartials(self, wse2_fp, dem_fp,  downscale=None,
+                       resampling=Resampling.bilinear,
+                        **kwargs):
+        """downscale wse2 grid in wet-partial regions
+        
+        Parameters
+        ------------
+        """
         #=======================================================================
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP',subdir=True,  **kwargs)
-        if downscale is None: downscale=self.downscale
+        if downscale is None: 
+            downscale=self.get_scale(wse2_fp, dem_fp)
 
-        
+        log.info(f'downscale={downscale} on {os.path.basename(wse2_fp)} w/ {resampling}')
         #=======================================================================
         # #precheck
         #=======================================================================
-        assert_dem_ar(dem1_ar)
-        assert_wse_ar(wse2_ar)
-        
-        for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
-            assert ds1/ds2==downscale, downscale
+        assert_extent_equal(wse2_fp, dem_fp, msg='phase1')
+        #=======================================================================
+        # assert_dem_ar(dem1_ar)
+        # assert_wse_ar(wse2_ar)
+        # 
+        # for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
+        #     assert ds1/ds2==downscale, downscale
+        #=======================================================================
             
         #meta
-        meta_d = {'downscale':downscale, 'wse2_shape':str(wse2_ar.shape)}
-        
-        def fmeta(ar, pfx): #meta updater
-            meta_d.update({f'{pfx}_size':ar.size, f'{pfx}_nullCnt':np.isnan(ar).sum()})
+        meta_d = {'wse2_fp':wse2_fp, 'dem_fp':dem_fp, 'resampling':resampling, 'downscale':downscale}
         
         #=======================================================================
-        # convert to nulls
+        # def fmeta(ar, pfx): #meta updater
+        #     meta_d.update({f'{pfx}_size':ar.size, f'{pfx}_nullCnt':np.isnan(ar).sum()})
+        #     
+        #=======================================================================
+        #=======================================================================
+        # resample
         #=======================================================================
  
-        wse2_arN = np.where(~wse2_ar.mask,wse2_ar.data,  np.nan)
-        fmeta(wse2_arN, 'wse2')
-        #=======================================================================
-        # #simple zoom
-        #=======================================================================
-        wse1_ar1N = scipy.ndimage.zoom(wse2_arN,downscale, order=0, mode='reflect',   grid_mode=True)
+        wse1_rsmp_fp = write_resample(wse2_fp, resampling=resampling,
+                       scale=downscale, 
+                       ofp= self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
+                       )
         
-        assert wse1_ar1N.shape == dem1_ar.shape
+        meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
         
-        fmeta(wse1_ar1N, 'wse1Z')
+ #==============================================================================
+ #        #=======================================================================
+ #        # convert to nulls
+ #        #=======================================================================
+ # 
+ #        wse2_arN = np.where(~wse2_ar.mask,wse2_ar.data,  np.nan)
+ #        fmeta(wse2_arN, 'wse2')
+ #        #=======================================================================
+ #        # #simple zoom
+ #        #=======================================================================
+ #        wse1_ar1N = scipy.ndimage.zoom(wse2_arN,downscale, order=0, mode='reflect',   
+ #                                       grid_mode=True)
+ #        
+ #        assert wse1_ar1N.shape == dem1_ar.shape
+ #        
+ #        fmeta(wse1_ar1N, 'wse1Z')
+ #==============================================================================
         #=======================================================================
         # #filter dem violators
         #=======================================================================
-        wse_wp_bx = wse1_ar1N <= dem1_ar
-        wse1_ar2N = np.where(np.invert(wse_wp_bx), wse1_ar1N, np.nan)
-        
-        fmeta(wse1_ar2N, 'wse1Zf')
-        
-        #=======================================================================
-        # convert back to masked
-        #=======================================================================
-        wse1_ar2 = ma.array(wse1_ar2N, mask=np.isnan(wse1_ar2N), fill_value=wse2_ar.fill_value)
-        
+        with rio.open(dem_fp, mode='r') as dem_ds:
+            dem1_ar = dem_ds.read(1, window=None, masked=True)
+            assert_dem_ar(dem1_ar)
+            meta_d['s1_size'] = dem1_ar.size
+            
+            with rio.open(wse1_rsmp_fp, mode='r') as wse1_ds:
+                wse1_ar = wse1_ds.read(1, window=None, masked=True)
+                assert_wse_ar(wse1_ar)
+                meta_d['pre_dem_filter_mask_cnt'] = wse1_ar.mask.sum().sum()
+                
+                #extend mask to include violators mask
+                wse_wp_bx = np.logical_or(
+                    wse1_ar.mask,
+                    wse1_ar.data <= dem1_ar.data)
+                
+                #build new array
+                wse1_ar2 = ma.array(wse1_ar.data, mask=wse_wp_bx)
+                assert_wse_ar(wse1_ar2)
+                meta_d['post_dem_filter_mask_cnt'] = wse1_ar2.mask.sum().sum()
+                
+                delta_cnt = meta_d['post_dem_filter_mask_cnt'] - meta_d['pre_dem_filter_mask_cnt']
+                log.info(f'filtered {delta_cnt} of {dem1_ar.size} additional cells w/ DEM')
+                assert delta_cnt>=0, 'dem filter should extend the mask'
+                
+                prof = wse1_ds.profile
+                
+        #write
+        with rio.open(ofp, mode='w', **prof) as ds:
+            ds.write(wse1_ar2, indexes=1, masked=False)
+ 
         #=======================================================================
         # wrap
         #=======================================================================
-        assert_wse_ar(wse1_ar2)
-        log.info(f'built wse from downscale={downscale} on wet partials w/ {wse_wp_bx.sum()}/{wse1_ar2.size} violators\n    {meta_d}')
-        return wse1_ar2, meta_d
+        log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}')
+        return ofp, meta_d
 
     def get_costDistanceGrow_wbt(self, wse_fp,**kwargs):
         """cost grow/allocation using WBT"""
@@ -481,10 +535,11 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         skwargs = dict(logger=log, out_dir=tmp_dir)
         #=======================================================================
         # precheck and load rasters
-        #=======================================================================        
-        wse2_ar, dem1_ar, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
+        #=======================================================================
         
-        
+
+              
+        _, _, wse_stats, dem_stats  = self.p0_load_rasters(wse2_rlay_fp, dem1_rlay_fp, logger=log)
         
         #get default writing parmaeters
         rlay_kwargs = self._get_defaults(as_dict=True)        
@@ -492,7 +547,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         del rlay_kwargs['bbox']
         
         outres = dem_stats['res'][0]
-        outName_sfx = f'r{outres:02.0f}'
+        #outName_sfx = f'r{outres:02.0f}'
         
         #update meta
         meta_lib['grid'] = rlay_kwargs
@@ -501,7 +556,12 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # wet partials
         #=======================================================================
-        wse1_ar2, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_ar, dem1_ar, **skwargs)
+
+                
+        wse1_ar2, meta_lib['p1_wp'] = self.p1_wetPartials(#wse2_ar, dem1_ar, 
+                                                          wse2_rlay_fp, dem1_rlay_fp,
+                                                          
+                                                          **skwargs)
         
         """
         np.save(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\wse1_ar2', wse1_ar2, fix_imports=False)
@@ -509,6 +569,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         
         #convert back to raster
         wse1_wp_fp = self.write_array(wse1_ar2, resname='wse1_wp', masked=True, **rlay_kwargs, **skwargs)
+        meta_lib['p1_wp']['wse1_wp_fp'] = wse1_wp_fp
         #=======================================================================
         # dry partials
         #=======================================================================

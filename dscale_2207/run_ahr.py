@@ -34,6 +34,6 @@ def aoi08_r32_1215_53(dryPartial_method='none',
     
 if __name__=='__main__':
     aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
-    aoi08_r32_1215_53(dryPartial_method='none')
+    #aoi08_r32_1215_53(dryPartial_method='none')
  
     print('done')
