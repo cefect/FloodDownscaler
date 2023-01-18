@@ -1379,7 +1379,7 @@ def write_clip(raw_fp,
         write_kwargs = get_write_kwargs(ds)
         write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
         
-        ofp = write_array(ar, ofp,  masked=masked,   **write_kwargs1)
+        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
         
     return ofp, stats_d
     
