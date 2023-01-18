@@ -118,11 +118,13 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         self.s2, self.s1, self.downscale = s2, s1, downscale 
         return wse2_ar, dem1_ar, wse_stats, dem_stats
     
-    def get_scale(self, fp1, fp2, **kwargs):
+    def get_downscale(self, fp1, fp2, **kwargs):
         """compute the scale difference between two layers"""
         
         s1 = get_ds_attr(fp1, 'res')[0]
         s2 = get_ds_attr(fp2, 'res')[0]
+        
+        assert s1>s2
         
         return s1/s2
         
@@ -143,7 +145,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP',subdir=True,  **kwargs)
         if downscale is None: 
-            downscale=self.get_scale(wse2_fp, dem_fp)
+            downscale=self.get_downscale(wse2_fp, dem_fp)
 
         log.info(f'downscale={downscale} on {os.path.basename(wse2_fp)} w/ {resampling}')
         #=======================================================================
@@ -510,6 +512,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             dem1_fp,
  
             dryPartial_method = 'costGrowSimple',
+            downscale=None,
             write_meta=True,
                 **kwargs):
         """run a downsampling pipeline
@@ -544,7 +547,8 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # wet partials
         #=======================================================================                
-        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp,**skwargs)
+        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp,downscale=downscale,
+                                                            **skwargs)
  
         #=======================================================================
         # dry partials

@@ -82,8 +82,8 @@ class PipeSession(Dsc_Session, ValidateSession):
         
 
 def run_dsc_vali(
-        wse2_rlay_fp,
-        dem1_rlay_fp,
+        wse2_fp,
+        dem1_fp,
         wse1V_fp=None,
         dsc_kwargs=dict(dryPartial_method = 'costGrowSimple'),
         vali_kwargs=dict(),
@@ -101,7 +101,7 @@ def run_dsc_vali(
     #===========================================================================
     # defaults
     #===========================================================================
-    with PipeSession(logfile_duplicate=True, dem_fp=dem1_rlay_fp, **kwargs) as ses:
+    with PipeSession(logfile_duplicate=True, dem_fp=dem1_fp, **kwargs) as ses:
         start = now()
         log = ses.logger.getChild('r')
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
@@ -109,8 +109,8 @@ def run_dsc_vali(
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_spatial_equal(dem1_rlay_fp, wse1V_fp, msg='DEM and validation')
-        assert_extent_equal(dem1_rlay_fp, wse2_rlay_fp, msg='DEM and WSE')
+        assert_spatial_equal(dem1_fp, wse1V_fp, msg='DEM and validation')
+        assert_extent_equal(dem1_fp, wse2_fp, msg='DEM and WSE')
         
         #=======================================================================
         # helpers
@@ -121,12 +121,18 @@ def run_dsc_vali(
                 pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
             log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
             return ofpi
+        
+        #=======================================================================
+        # prelims
+        #=======================================================================
+        downscale = ses.get_downscale(wse2_fp, dem1_fp)
+        meta_lib['smry']['downscale'] = downscale
+        dsc_kwargs['downscale'] = downscale
+        log.info(f'downscale={downscale}')
         #=======================================================================
         # clip raw rasters
         #=======================================================================
-        fp_d = {'wse2':wse2_rlay_fp, 'dem1':dem1_rlay_fp, 'wse1V': wse1V_fp}
-        
-        
+        fp_d = {'wse2':wse2_fp, 'dem1':dem1_fp, 'wse1V': wse1V_fp}        
         if not ses.aoi_fp is None:
             assert not wse1V_fp is None, 'not implemented'             
             clip_fp_d = ses.clip_set(fp_d)            
@@ -157,7 +163,8 @@ def run_dsc_vali(
         """nice for some plots"""
         #upscale DEM        
         log.info('building depths grid')
-        dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, scale=1/ses.downscale,out_dir=ses.tmp_dir)
+        dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, 
+                                 scale=1/downscale,out_dir=ses.tmp_dir)
   
         #write depths
         meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_fp, 
