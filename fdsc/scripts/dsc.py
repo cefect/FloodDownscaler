@@ -272,6 +272,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
     #===========================================================================
     def p2_dryPartials(self, wse1_fp, dem1_fp, 
                        dryPartial_method='none',
+                       write_meta=True,
                        **kwargs):
         """downscale in drypartial zones        
         should develop a few options here
@@ -290,7 +291,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         start = now()
         assert_spatial_equal(wse1_fp, dem1_fp)
-        meta_lib={'gen':{'dryPartial_method':dryPartial_method}}
+        meta_lib={'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
         
  
             
@@ -308,8 +309,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
  
  
         elif dryPartial_method == 'costGrowSimple': 
-            wse1_dp_fp, d = self.p2_dp_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)
-            
+            wse1_dp_fp, d = self.p2_dp_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
             meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
  
             
@@ -334,12 +334,14 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        meta_lib['gen']['tdelta'] = tdelta
+        meta_lib['smry']['tdelta'] = tdelta
+        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
         log.info(f'finished in {tdelta:.2f} secs')
+        
+        if write_meta:
+            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
  
         return wse1_dp_fp, meta_lib
-
-
 
     def p2_dp_costGrowSimple(self,
                               wse2_fp, dem_fp, 
@@ -355,13 +357,13 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('cgs', subdir=False,  **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         assert_spatial_equal(dem_fp, wse2_fp)
-        meta_lib = {'gen':{'wse2_fp':os.path.basename(wse2_fp)}}
+        meta_lib = {'smry':{'wse2_fp':os.path.basename(wse2_fp)}}
         start = now()
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
         costAlloc_fp = self.get_costDistanceGrow_wbt(wse2_fp, **skwargs)
-        
+        meta_lib['smry']['costAlloc_fp'] = costAlloc_fp
         #=======================================================================
         # stamp out DEM violators
         #=======================================================================
@@ -378,7 +380,6 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             
             log.info(f'dryPartial growth from {og_noDataCount} to {new_noDataCount} nulls '+\
                      f'({new_noDataCount/og_noDataCount:.2f})')
-       
         
         #=======================================================================
         # remove isolated 
@@ -389,9 +390,8 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        meta_lib['gen']['tdelta'] = tdelta
+        meta_lib['smry']['tdelta'] = tdelta
         log.info(f'finished in {tdelta:.2f} secs')
-
         
         return wse1_ar2_fp, meta_lib
     
@@ -433,7 +433,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         # meta
         #=======================================================================
-        meta_d={'size':wse_ar.size}
+        meta_d={'size':wse_ar.size, 'wse1_ar1_fp':wse1_ar1_fp}
         if __debug__:
             meta_d['violation_count'] = bx_ar.astype(int).sum()
         
@@ -459,7 +459,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         clump_fp = os.path.join(tmp_dir, 'clump.tif')
         assert self.clump(mask_fp, clump_fp, diag=False, zero_back=True)==0
-        
+        meta_d['clump_fp'] = clump_fp
         #=======================================================================
         # find main clump
         #=======================================================================
@@ -497,6 +497,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
             
         tdelta = (now()-start).total_seconds()
         meta_d['tdelta'] = tdelta
+        meta_d['ofp'] = ofp
         log.info(f'wrote {filtered_ar.shape} in {tdelta:.2f} secs to \n    {ofp}')
         
         return ofp, meta_d
@@ -536,7 +537,7 @@ class Dsc_Session(RioSession,  Master_Session, WBT_worker):
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True,  **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
-        skwargs = dict(logger=log, out_dir=tmp_dir)
+        skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
