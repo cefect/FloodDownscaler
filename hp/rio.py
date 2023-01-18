@@ -1024,6 +1024,9 @@ def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
         d[attn] = getattr(ds, attn)
     return d
 
+def get_stats2(rlay, **kwargs):
+    return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
+
 def get_ds_attr(rlay, stat):
     return rlay_apply(rlay, lambda ds:getattr(ds, stat))
 
