@@ -173,6 +173,8 @@ def run_dsc_vali(
         meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_fp, 
                                          ofp=ses._get_ofp(out_dir=ses.out_dir, dkey='dep2'))
         
+        tdelta = (now()-start).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
         #=======================================================================
         # meta
         #=======================================================================

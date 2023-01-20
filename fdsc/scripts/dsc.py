@@ -438,6 +438,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP',subdir=True,  **kwargs)
+        start=now()
         if downscale is None: 
             downscale=self.get_downscale(wse2_fp, dem_fp)
 
@@ -472,24 +473,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
                        )
         
         meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
-        
- #==============================================================================
- #        #=======================================================================
- #        # convert to nulls
- #        #=======================================================================
- # 
- #        wse2_arN = np.where(~wse2_ar.mask,wse2_ar.data,  np.nan)
- #        fmeta(wse2_arN, 'wse2')
- #        #=======================================================================
- #        # #simple zoom
- #        #=======================================================================
- #        wse1_ar1N = scipy.ndimage.zoom(wse2_arN,downscale, order=0, mode='reflect',   
- #                                       grid_mode=True)
- #        
- #        assert wse1_ar1N.shape == dem1_ar.shape
- #        
- #        fmeta(wse1_ar1N, 'wse1Z')
- #==============================================================================
+ 
         #=======================================================================
         # #filter dem violators
         #=======================================================================
@@ -526,6 +510,9 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         #=======================================================================
         # wrap
         #=======================================================================
+        tdelta = (now()-start).total_seconds()
+        meta_d['tdelta'] = tdelta
+        
         log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}')
         meta_d['wse1_wp_fp'] = ofp
         return ofp, meta_d
@@ -639,6 +626,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True,  **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
+        start=now()
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
@@ -664,6 +652,9 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         #=======================================================================
         #copy tover to the main result
         rshutil.copy(wse1_dp_fp, ofp)
+        
+        tdelta = (now()-start).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
  
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)

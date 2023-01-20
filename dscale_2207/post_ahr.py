@@ -94,9 +94,10 @@ def aoi08_r32_1215_53(meta_fp_d,
 if __name__=='__main__':
     aoi08_r32_1215_53({
         'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230113\ahr_aoi08_121553_nodp_0113_meta_lib.pkl',
-        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl'
+        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl',
+        'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_bgl\20230119\ahr_aoi08_121553_bgl_0119_meta_lib.pkl',
         },
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\FloodDownscaler\v1\20230113\FloodDownscaler_v1_0113_collect_samples_data.pkl',
+        sample_dx_fp=r'L:\10_IO\fdsc\outs\FloodDownscaler\v1\20230119\FloodDownscaler_v1_0119_collect_samples_data.pkl',
     )
     #aoi08_r32_1215_53(dryPartial_method='none')
  
