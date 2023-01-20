@@ -34,18 +34,20 @@ from fdsc.scripts.coms2 import (
     )
 
 class Dsc_basic(object):
-    def _func_setup_dsc(self, dkey, wse2_fp, dem_fp,  **kwargs):
+    def _func_setup_dsc(self, dkey, wse1_fp, dem_fp,  **kwargs):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse2_fp)
-        meta_lib = {'smry':{'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem_fp}}
+        assert_spatial_equal(dem_fp, wse1_fp)
+        meta_lib = {'smry':{
+            'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
         start = now()
         return skwargs, meta_lib, log, ofp, start
     
 
-class BufferGrow(Dsc_basic):
-    def run_bufferGrow(self,wse2_fp, dem_fp,
+class BufferGrowLoop(Dsc_basic):
+    def run_bufferGrowLoop(self,wse1_fp, dem_fp,
                        loop_range=range(30), 
+                       min_growth_ratio=1.00001,
                               **kwargs):
         """loop of buffer + filter
         
@@ -53,20 +55,94 @@ class BufferGrow(Dsc_basic):
         -------------
         loop_range: iterator, default range(30)
             buffer cell distance loop iterator. 
+            
+        min_growth_ratio: float, default 1.005
+            minimum ratio of inundation count growth for buffer loop
+            must be greater than 1.0
+            values closer to 1.0 will allow the loop to continue
         """
-        
+        #=======================================================================
+        # defaults
+        #=======================================================================
         assert loop_range.__class__.__name__ == 'range'
- 
+        assert min_growth_ratio>=1.0
         
-        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('bufg', wse2_fp, dem_fp, **kwargs)
+        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('bufg', wse1_fp, dem_fp, **kwargs)
         
+        #=======================================================================
+        # preload
+        #=======================================================================
+        dem_stats_d, dem_ar = rlay_extract(dem_fp)        
+        assert_dem_ar(dem_ar)
+        
+        with rio.open(wse1_fp, mode='r') as ds:
+            assert_rlay_simple(ds)
+            wse1_ar = ds.read(1,  masked=True)
+            prof = ds.profile
+       
+        assert_wse_ar(wse1_ar)
+        
+        assert not np.any(wse1_ar<dem_ar)
+            
+        
+        #=======================================================================
+        # buffer loop
+        #=======================================================================
         log.info(f'on {loop_range}')
+        wse1j_ar = np.where(wse1_ar.mask, np.nan, wse1_ar.data) #drop mask
         for i in loop_range:
-            print(i)
+            if i>min(wse1_ar.shape):
+                log.warning(f'loop {i} exceeds minimum dimension of array.. breaking')
+                break
+            
+            meta_d = {'pre_null_cnt':np.isnan(wse1j_ar).sum()}
+            
+            log.info(f'{i} w/ {meta_d}')
+            #buffer
+            wse1jb_ar = ar_buffer(wse1j_ar)
+ 
+            
+            #filter
+            wse1j_ar = np.where(wse1jb_ar<=dem_ar.data, np.nan, wse1jb_ar)
+            
+            #wrap
+            
+            meta_d.update({'post_buff_null_cnt':np.isnan(wse1jb_ar).sum(),
+                                      'post_filter_null_cnt':np.isnan(wse1j_ar).sum()})
+            meta_d['growth_rate'] = meta_d['pre_null_cnt']/meta_d['post_filter_null_cnt']
+            assert meta_d['growth_rate']>=1.0, 'lost inundation somehow...'
+            
+            if meta_d['growth_rate']<min_growth_ratio:
+                log.warning(f'at i={i} growth_rate=%.2f failed to achieve minimum growth.. breaking'%(
+                    meta_d['growth_rate']))
+                break
+            
+            
+            meta_lib[i] = meta_d
+            
+            
+        #=======================================================================
+        # to raster
+        #=======================================================================
+        with rio.open(ofp, 'w', **prof) as ds:
+            ds.write(wse1j_ar, indexes=1, masked=False)
+        
+        log.info(f'wrote {wse1j_ar.shape} to \n    {ofp}')
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        tdelta = (now()-start).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
+        log.info(f'finished in {tdelta:.2f} secs')
+        
+        return ofp, meta_lib
+        
+        
                        
 
 class CostGrowSimple(Dsc_basic):
-    def run_costGrowSimple(self,wse2_fp, dem_fp, 
+    def run_costGrowSimple(self,wse1_fp, dem_fp, 
                               **kwargs):
         """dry partial algo with simple cost distancing
         
@@ -76,11 +152,11 @@ class CostGrowSimple(Dsc_basic):
         #smooth
         """
         
-        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('cgs', wse2_fp, dem_fp, kwargs)
+        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('cgs', wse1_fp, dem_fp, kwargs)
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
-        costAlloc_fp = self.get_costDistanceGrow_wbt(wse2_fp, **skwargs)
+        costAlloc_fp = self.get_costDistanceGrow_wbt(wse1_fp, **skwargs)
         meta_lib['smry']['costAlloc_fp'] = costAlloc_fp
         #=======================================================================
         # stamp out DEM violators
@@ -90,7 +166,7 @@ class CostGrowSimple(Dsc_basic):
         #report
         if __debug__:
 
-            og_noDataCount = getNoDataCount(wse2_fp)
+            og_noDataCount = getNoDataCount(wse1_fp)
             new_noDataCount = meta_lib['filter_dem']['violation_count']
             assert og_noDataCount>0            
             
@@ -252,7 +328,7 @@ class CostGrowSimple(Dsc_basic):
         return costAlloc_fp
     
  
-class Dsc_Session(CostGrowSimple,BufferGrow,
+class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         RioSession,  Master_Session, WBT_worker):
     
 
@@ -498,6 +574,11 @@ class Dsc_Session(CostGrowSimple,BufferGrow,
             wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
             meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
             
+        elif dryPartial_method=='bufferLoop':
+            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
+            meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
+            
+            
         else:
             raise KeyError(dryPartial_method)
         """option 0.... Schuman 2014"""
@@ -680,7 +761,7 @@ def ar_buffer(wse_ar):
                     
                 #wet neighbours
                 else:
-                    res[...] = np.ravel(nei_ar[~np.isnan(nei_ar)]).max()
+                    res[...] = np.ravel(nei_ar[~np.isnan(nei_ar)]).mean()
                     #===========================================================
                     # #collapse to wet cells
                     # nei_ar2 = np.ravel(nei_ar[~np.isnan(nei_ar)])

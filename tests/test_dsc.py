@@ -132,16 +132,16 @@ def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
 def test_p2_filter_isolated(wse_fp, wrkr):
     wrkr._filter_isolated(wse_fp)
     
- 
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
  
     ])
 def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
-    wrkr.run_bufferGrow(wse_fp, dem_fp)
+    wrkr.run_bufferGrow(wse_fp, dem_fp, loop_range=range(5))
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('wse_ar',[
     (wse1_ar2),
     ]) 
@@ -149,9 +149,11 @@ def test_ar_buffer(wse_ar):
     ar_buffer(wse_ar)
     
 
+    
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
-    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize('dryPartial_method', [
     'costGrowSimple','none'
