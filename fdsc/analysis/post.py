@@ -87,6 +87,8 @@ class Plot_rlays_wrkr(object):
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
         
+        TODO: add point samples (color coded by confusion)
+        
         rows: cols
             valid: 
             methods
@@ -447,14 +449,16 @@ class Plot_samples_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['true', 'nodp', 'cgs']#list(df.columns)
+        row_keys = ['true', 'nodp', 'cgs', 'bgl']#list(df.columns)
         col_keys = ['raw_hist', 'diff_hist', 'corr_scatter']
         
         
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
                                         set_ax_title=False, figsize=figsize,
                                         constrained_layout=True,
-                                        sharex=True, add_subfigLabel=True,
+                                        sharex='col', 
+                                        sharey='col',
+                                        add_subfigLabel=True,
                                         )
         
  
@@ -547,7 +551,7 @@ class Plot_samples_wrkr(object):
                     
                 #last col
                 if colk==col_keys[-1]:
-                    ax.set_ylabel('pred depth (m)')
+                    ax.set_ylabel('pred. depth (m)')
                     
                 #first row
                 if rowk==row_keys[0]:
@@ -610,7 +614,7 @@ class Plot_samples_wrkr(object):
 
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
                   Plotr, ValidateSession):
-    sim_color_d = {'true':'black', 'nodp':'orange', 'cgs':'teal'}
+    sim_color_d = {'true':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet'}
     "Session for analysis on multiple downscale results and their validation metrics"
     def __init__(self, 
                  run_name = None,
