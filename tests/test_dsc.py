@@ -121,7 +121,7 @@ def test_p2(dem_fp, wse_fp,
  
     ])
 def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
-    wrkr.p2_dp_costGrowSimple(wse_fp, dem_fp)
+    wrkr.run_costGrowSimple(wse_fp, dem_fp)
 
 
 @pytest.mark.parametrize('wse_fp', [
@@ -133,6 +133,14 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     wrkr._filter_isolated(wse_fp)
     
 
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    (dem1_rlay_fp, wse1_rlay2_fp),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
+ 
+    ])
+def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
+    wrkr.run_bufferGrow(wse_fp, dem_fp)
+    
 @pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
