@@ -46,7 +46,7 @@ class Dsc_basic(object):
 
 class BufferGrowLoop(Dsc_basic):
     def run_bufferGrowLoop(self,wse1_fp, dem_fp,
-                       loop_range=range(30), 
+                       loop_range=range(5), 
                        min_growth_ratio=1.00001,
                               **kwargs):
         """loop of buffer + filter
@@ -118,14 +118,14 @@ class BufferGrowLoop(Dsc_basic):
                 break
             
             
-            meta_lib[i] = meta_d
+            meta_lib[str(i)] = meta_d
             
-            
+        
+ 
         #=======================================================================
         # to raster
         #=======================================================================
-        with rio.open(ofp, 'w', **prof) as ds:
-            ds.write(wse1j_ar, indexes=1, masked=False)
+        write_array(wse1j_ar, ofp, **prof) 
         
         log.info(f'wrote {wse1j_ar.shape} to \n    {ofp}')
  
@@ -152,7 +152,7 @@ class CostGrowSimple(Dsc_basic):
         #smooth
         """
         
-        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('cgs', wse1_fp, dem_fp, kwargs)
+        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('cgs', wse1_fp, dem_fp, **kwargs)
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
@@ -330,8 +330,6 @@ class CostGrowSimple(Dsc_basic):
  
 class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         RioSession,  Master_Session, WBT_worker):
-    
-
       
     #===========================================================================
     # phase0-------  
@@ -564,19 +562,14 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         if dryPartial_method == 'none':
             rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
             wse1_dp_fp=ofp
-            
-            """
-            load_array(wse1_dp_fp, masked=True)
-            load_array(wse1_fp, masked=True)
-            """
  
         elif dryPartial_method == 'costGrowSimple': 
             wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
             meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
             
-        elif dryPartial_method=='bufferLoop':
-            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
-            meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
+        elif dryPartial_method=='bufferGrowLoop':
+            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
+            meta_lib.update({'bgl_'+k:v for k,v in d.items()}) #append
             
             
         else:
