@@ -20,7 +20,7 @@ from hp.rio import (
     )
 
 
-from fdsc.scripts.dsc import Dsc_Session
+from fdsc.scripts.dsc import Dsc_Session, nicknames_d
 from fdsc.analysis.valid import ValidateSession
 
 

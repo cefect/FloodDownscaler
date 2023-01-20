@@ -6,7 +6,7 @@ Created on Dec. 15, 2022
 downscaling ahr case study
 '''
 
-from fdsc.analysis.pipeline import run_dsc_vali
+from fdsc.analysis.pipeline import run_dsc_vali, nicknames_d
 
 def aoi08_r32_1215_53(dryPartial_method='none', 
                       run_name=None,
@@ -18,7 +18,7 @@ def aoi08_r32_1215_53(dryPartial_method='none',
     """
     
     if run_name is None:
-        run_name='121553_%s'%{'costGrowSimple':'cgs', 'none':'nodp'}[dryPartial_method]
+        run_name='121553_%s'%nicknames_d[dryPartial_method]
     
     return run_dsc_vali(
         r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_1215-0053_wse.tif',
@@ -33,7 +33,8 @@ def aoi08_r32_1215_53(dryPartial_method='none',
     
     
 if __name__=='__main__':
-    aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
-    aoi08_r32_1215_53(dryPartial_method='none')
+    aoi08_r32_1215_53(dryPartial_method='bufferGrowLoop')
+    #aoi08_r32_1215_53(dryPartial_method='costGrowSimple')
+    #aoi08_r32_1215_53(dryPartial_method='none')
  
     print('done')

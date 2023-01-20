@@ -33,6 +33,8 @@ from fdsc.scripts.coms2 import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract
     )
 
+nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
+
 class Dsc_basic(object):
     def _func_setup_dsc(self, dkey, wse1_fp, dem_fp,  **kwargs):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
@@ -46,7 +48,7 @@ class Dsc_basic(object):
 
 class BufferGrowLoop(Dsc_basic):
     def run_bufferGrowLoop(self,wse1_fp, dem_fp,
-                       loop_range=range(5), 
+                       loop_range=range(30), 
                        min_growth_ratio=1.00001,
                               **kwargs):
         """loop of buffer + filter
@@ -556,20 +558,22 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
         assert_spatial_equal(wse1_fp, dem1_fp)
         meta_lib={'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
             
+        sn = nicknames_d[dryPartial_method] #short name
         #=======================================================================
         # by method
         #=======================================================================
         if dryPartial_method == 'none':
             rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
             wse1_dp_fp=ofp
+            d = {'none':'none'} #dummy placeholder
  
         elif dryPartial_method == 'costGrowSimple': 
             wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
-            meta_lib.update({'cgs_'+k:v for k,v in d.items()}) #append
+ 
             
         elif dryPartial_method=='bufferGrowLoop':
             wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
-            meta_lib.update({'bgl_'+k:v for k,v in d.items()}) #append
+ 
             
             
         else:
@@ -582,6 +586,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,
             #filter dem violators
         """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing""" 
         
+        meta_lib.update({sn+'_'+k:v for k,v in d.items()}) 
         #=======================================================================
         # check
         #=======================================================================
