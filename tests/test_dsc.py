@@ -13,7 +13,7 @@ import shapely.geometry as sgeo
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
-from fdsc.scripts.dsc import run_downscale
+from fdsc.scripts.dsc import run_downscale, ar_buffer
 from fdsc.scripts.dsc import Dsc_Session as Session
 
 from tests.conftest import (
@@ -132,7 +132,7 @@ def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
 def test_p2_filter_isolated(wse_fp, wrkr):
     wrkr._filter_isolated(wse_fp)
     
-
+ 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
@@ -142,6 +142,13 @@ def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
     wrkr.run_bufferGrow(wse_fp, dem_fp)
     
 @pytest.mark.dev
+@pytest.mark.parametrize('wse_ar',[
+    (wse1_ar2),
+    ]) 
+def test_ar_buffer(wse_ar):
+    ar_buffer(wse_ar)
+    
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])

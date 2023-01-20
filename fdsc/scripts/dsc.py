@@ -33,13 +33,39 @@ from fdsc.scripts.coms2 import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract
     )
 
-class BufferGrow(object):
-    def run_bufferGrow(self,wse2_fp, dem_fp, 
+class Dsc_basic(object):
+    def _func_setup_dsc(self, dkey, wse2_fp, dem_fp,  **kwargs):
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+        assert_spatial_equal(dem_fp, wse2_fp)
+        meta_lib = {'smry':{'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem_fp}}
+        start = now()
+        return skwargs, meta_lib, log, ofp, start
+    
+
+class BufferGrow(Dsc_basic):
+    def run_bufferGrow(self,wse2_fp, dem_fp,
+                       loop_range=range(30), 
                               **kwargs):
-        """loop of buffer + filter"""
+        """loop of buffer + filter
+        
+        Parameters
+        -------------
+        loop_range: iterator, default range(30)
+            buffer cell distance loop iterator. 
+        """
+        
+        assert loop_range.__class__.__name__ == 'range'
+ 
+        
+        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('bufg', wse2_fp, dem_fp, **kwargs)
+        
+        log.info(f'on {loop_range}')
+        for i in loop_range:
+            print(i)
                        
 
-class CostGrowSimple(object):
+class CostGrowSimple(Dsc_basic):
     def run_costGrowSimple(self,wse2_fp, dem_fp, 
                               **kwargs):
         """dry partial algo with simple cost distancing
@@ -50,11 +76,7 @@ class CostGrowSimple(object):
         #smooth
         """
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('cgs', subdir=False,  **kwargs)
-        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse2_fp)
-        meta_lib = {'smry':{'wse2_fp':os.path.basename(wse2_fp)}}
-        start = now()
+        skwargs, meta_lib, log, ofp, start = self._func_setup_dsc('cgs', wse2_fp, dem_fp, kwargs)
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
@@ -574,8 +596,115 @@ class Dsc_Session(CostGrowSimple,BufferGrow,
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
-    
 
+def get_neighbours_D4(ar, mindex):
+    """get values of d4 neighbours"""
+    
+    res_ar = np.full((3,3), np.nan)
+    val_d, loc_d = dict(), dict()
+    for i, shift in enumerate([
+        (0, 1), (0, -1),
+        (1, 0), (-1, 0)]):
+ 
+        
+        #get shifted location
+        jx = mindex[0]+shift[0]
+        jy = mindex[1]+shift[1]
+        
+        if jx<0 or jx>=ar.shape[0]:
+            res = ma.masked
+        elif jy<0 or jy>=ar.shape[1]:
+            res=ma.masked
+        else:
+            try:
+                res = ar[jx, jy]
+            except Exception as e:
+                raise IndexError(
+                    f'failed to retrieve value jy={jy} jx={jx} shape={ar.shape} w/ \n    {e}')
+
+            
+        res_ar[shift] = res
+        
+    #===========================================================================
+    #     loc_d[i] = (jx, jy) 
+    #     val_d[i]= res
+    #     
+    #     
+    # print(mindex)
+    # print(loc_d)
+    # print(val_d)
+    #===========================================================================
+    
+    return res_ar
+        
+        
+ 
+
+def ar_buffer(wse_ar):
+    """disaggregate/downscale the array to the specified scale
+    
+    results in an array with scale = ar.shape*downscale
+    """
+     
+    res_ar = np.full(wse_ar.shape, np.nan)
+    
+    
+    it = np.nditer([wse_ar, res_ar],
+            flags = [
+                'multi_index'
+                #'external_loop', 
+                #'buffered'
+                ],
+            op_flags = [['readonly'], 
+                        ['writeonly', 
+                         #'allocate', #populate None 
+                         #'no_broadcast', #no aggregation?
+                         ]],
+            #op_axes=[None, new_shape],
+            )
+                         
+    #===========================================================================
+    # execute iteration
+    #===========================================================================
+    with it: 
+        for wse,   res in it:
+            
+            #dry
+            if np.isnan(wse):
+                #retrieve neighbours
+                nei_ar = get_neighbours_D4(wse_ar, it.multi_index)
+                
+                #all dry
+                if np.isnan(nei_ar).all():
+                    res[...] = np.nan
+                    
+                #wet neighbours
+                else:
+                    res[...] = np.ravel(nei_ar[~np.isnan(nei_ar)]).max()
+                    #===========================================================
+                    # #collapse to wet cells
+                    # nei_ar2 = np.ravel(nei_ar[~np.isnan(nei_ar)])
+                    # print(f'nei_ar2={nei_ar2}')
+                    # 
+                    # #higher than dem
+                    # if nei_ar2.max()>dem:                    
+                    #     res[...] = nei_ar2.max()
+                    # else:
+                    #     res[...] = np.nan
+                    #===========================================================
+ 
+ 
+            #wet
+            else:
+                res[...] = wse
+                
+            
+            #print(f'{it.multi_index}: wse={wse} dem={dem}, res={res}')
+                
+                
+        result= it.operands[-1]
+        
+    return result
  
  
 
