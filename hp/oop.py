@@ -210,7 +210,8 @@ class Basic(object): #simple base class
             
         #self._install_info()
         self.init_pars=init_pars
-        self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
+        if not logger is None:
+            self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
         
     def _get_init_pars(self):
         """only for simple atts... no containers"""
@@ -247,6 +248,10 @@ class Basic(object): #simple base class
         ----------
         setup so we can inherit additional parameters from parent classes
         
+        see example in RioSession._get_defaults
+        
+ 
+        
         """
         #=======================================================================
         # #logger
@@ -282,17 +287,42 @@ class Basic(object): #simple base class
  
         
         if resname is None:
-            resname = '%s_%s'%(self.fancy_name, dkey)
+            resname = self._get_resname(dkey=dkey)
          
         if ofp is None:
-            ofp = os.path.join(out_dir, resname+ext)  
+            ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
             
-        if os.path.exists(ofp):
-            log.warning('ofp exists... overwriting')
-            os.remove(ofp)
+        #=======================================================================
+        # if os.path.exists(ofp):
+        #     log.warning('ofp exists... overwriting')
+        #     os.remove(ofp)
+        #=======================================================================
  
             
         return log, tmp_dir, out_dir, ofp, resname 
+    
+    def _get_ofp(self,
+                  dkey='',
+                 fancy_name=None,
+                 out_dir=None,
+                 resname=None,
+                 ext='.tif'):
+        if out_dir is None:
+            out_dir=self.out_dir
+        
+        if resname is None:
+            resname=self._get_resname(dkey, fancy_name)
+            
+        return os.path.join(out_dir, resname+ext)
+    
+    def _get_resname(self,
+                     dkey='',
+                     fancy_name=None,
+                     ):
+        if fancy_name is None:
+            fancy_name=self.fancy_name
+            
+        return '%s_%s'%(fancy_name, dkey)
         
     def __enter__(self):
         return self

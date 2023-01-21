@@ -9,15 +9,19 @@ import numpy as np
 import numpy.ma as ma
 import rasterio as rio
 import shapely.geometry as sgeo
+from shapely.geometry.polygon import Polygon
  
 #print('rasterio.__version__:%s'%rio.__version__)
- 
+
 assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s'%os.getenv('PROJ_LIB')
  
 import rasterio.merge
 import rasterio.io
 from rasterio.plot import show
-from rasterio.enums import Resampling
+from rasterio.enums import Resampling, Compression
+
+import fiona #not a rasterio dependency? needed for aoi work
+from pyproj.crs import CRS
 
 import scipy.ndimage
 #import skimage
@@ -50,35 +54,31 @@ class RioWrkr(Basic):
                  rlay_ref_fp = None,  
                  
                  #default behaviors
-                 compress=None,
+                compress=Compression('NONE'),nodata=-9999, 
                  
                  #reference inheritance
-                 crs=None,height=None,width=None,transform=None,nodata=None,
+                 #crs=None,height=None,width=None,transform=None,nodata=None,
                  
-                 #subsetting
-                 bbox=None,
+ 
                  
                  **kwargs):
-        """"
-        
-        Parameters
-        -----------
-        
-        bbox: shapely.polygon
-            bounds assumed to be on the same crs as the data
-        """
+
  
         super().__init__(**kwargs)
         
-        self.dataset_d = dict() #all loaded datasets
-        self.memoryfile_d=dict()
+ 
         
         #=======================================================================
         # simple attachments
         #=======================================================================
         self.compress=compress
-        self.bbox=bbox
+        
+        assert isinstance(compress, Compression)
+        self.nodata=nodata
  
+ 
+        self.dataset_d = dict() #all loaded datasets
+        self.memoryfile_d=dict()
         #=======================================================================
         # set reference
         #=======================================================================        
@@ -88,7 +88,7 @@ class RioWrkr(Basic):
         #=======================================================================
         # inherit properties from reference 
         #=======================================================================
-        pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
+        #pars_d=self._base_inherit(crs=crs, height=height, width=width, transform=transform, nodata=nodata)
         
         #self.logger.debug('init w/ %s'%pars_d)
         
@@ -134,7 +134,14 @@ class RioWrkr(Basic):
         
         self.ref_vals_d=pars_d
         
-        return pars_d            
+        return pars_d
+    
+    def _set_defaults(self, d):
+        for attn in ['crs', 'height', 'width', 'transform', 'nodata']:
+            assert attn in d, attn
+            setattr(self, attn, d[attn])
+            
+                   
     
 
     
@@ -143,12 +150,12 @@ class RioWrkr(Basic):
     #===========================================================================
     
     def resample(self,
- 
+                 dataset,
                  resampling=Resampling.nearest,
                  scale=1.0,
                  #write=True,
                  #update_ref=False, 
-                 prec=None,
+ 
                  name=None,
                  **kwargs):
         """"resample a rio.dataset handling nulls
@@ -179,8 +186,9 @@ class RioWrkr(Basic):
         # defaults
         #=======================================================================
         if name is None: 'resamp_r%i'%scale
-        _, log, dataset, _, _ = self._func_kwargs(name = name, **kwargs)        
-        if prec is None: prec=self.prec        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('resample',  **kwargs)
+     
+         
         log.info('on %s w/ %s'%(dataset.name, dict(resampling=resampling, scale=scale)))
         """
         dataset.read(1)
@@ -444,72 +452,36 @@ class RioWrkr(Basic):
         self.dataset_d[dataset.name] = dataset
         
         return dataset
-    
-    
-
  
     def write_array(self,raw_ar,
                        masked=False,
-                       crs=None,nodata=None,transform=None,dtype=None,compress=None,
-                       write_kwargs=dict(),
+                       crs=None,nodata=None,transform=None,dtype=None,compress=None,driver=None,bandCount=None,
+                       width=None, height=None, 
                        **kwargs):
-        """write an array to raster using rio"""
+        """write an array to raster using rio using session defaults"""
         
         #=======================================================================
         # defaults
         #=======================================================================
-        _, log, _, _, ofp = self._func_kwargs(name = 'write', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('write_array',ext='.tif', **kwargs)
         
         crs, _, _, transform, nodata = self._get_refs(crs=crs, nodata=nodata, transform=transform)
         
         if compress is None: compress=self.compress
         if dtype is None: dtype=raw_ar.dtype
-        #=======================================================================
-        # precheck
-        #=======================================================================
-        assert len(raw_ar.shape)==2
+        if driver is None: driver=self.driver
+        if bandCount is None: bandCount=self.bandCount
+        
+        kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, 
+                       dtype=dtype, compress=compress, driver=driver, count=bandCount,
+                       width=width, height=height)
  
-        assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
-        #assert 'float' in data.dtype.name
+        _ = write_array(raw_ar, ofp, **kwargs2)
+                         
         
-        
-        #=======================================================================
-        # #handle nulls
-        #=======================================================================
-        """becuase we usually deal with nulls (instead of raster no data values)
-        here we convert back to raster nodata vals before writing to disk"""
-        if masked:
-            assert isinstance(raw_ar, ma.MaskedArray)
-            data = raw_ar
-            
-            assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
-        else:
-            assert not isinstance(raw_ar, ma.MaskedArray)
-            
-            if np.any(np.isnan(raw_ar)):
-                data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
-            else:
-                data = raw_ar.astype(dtype)
-        #=======================================================================
-        # write
-        #=======================================================================
-        with rasterio.open(ofp,'w',
-                driver=self.driver,
-                height=raw_ar.shape[0],width=raw_ar.shape[1],
-                count=self.bandCount,
-                dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
-                ) as dst:
-            
-
-            
-            dst.write(data, indexes=1, 
-                          masked=masked, #build mask from location of nodata values
-                          **write_kwargs)
-                
-            log.info('wrote %s on crs %s (masked=%s) to \n    %s'%(str(dst.shape), crs, masked, ofp))
+        log.info(f'wrote {str(raw_ar.shape)} on crs {crs} (masked={masked}) to \n    {ofp}')
         
         return ofp
- 
     
     def load_memDataset(self,raw_ar,
                        name='memfile',
@@ -605,6 +577,12 @@ class RioWrkr(Basic):
         return ofp
         
         
+    #===========================================================================
+    # VECTORS------
+    #===========================================================================
+    """ see hp.gpd"""
+
+        
 
     #===========================================================================
     # HELPERS----------
@@ -623,6 +601,10 @@ class RioWrkr(Basic):
     #===========================================================================
     # PRIVATES---------
     #===========================================================================
+
+        
+        #return rlay_kwargs
+        
     def _get_dsn(self, input):
         if not isinstance(input, list):
             input = [input]
@@ -633,35 +615,37 @@ class RioWrkr(Basic):
             
         return res_l
     
-    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None, 
-                     tmp_dir=None, write=None):
-        """typical default for class functions"""
- 
-        if logger is None:
-            logger=self.logger
- 
-        
-        if not name is None:
-            log = logger.getChild(name)
-        else:
-            log = logger
- 
-        
-        if dataset is None:
-            dataset = self._base()
-        
- 
-        if out_dir is None:
-            out_dir=self.out_dir
-            
-        if ofp is None:
-            if name is None:
-                ofp = os.path.join(out_dir, self.fancy_name + '.tif')
-            else:
-                ofp = os.path.join(out_dir, self.fancy_name + '_%s.tif'%name)
-            
-            
-        return logger, log, dataset, out_dir, ofp
+ #==============================================================================
+ #    def _func_kwargs(self, logger=None, dataset=None, out_dir=None, ofp=None,name=None, 
+ #                     tmp_dir=None, write=None):
+ #        """typical default for class functions"""
+ # 
+ #        if logger is None:
+ #            logger=self.logger
+ # 
+ #        
+ #        if not name is None:
+ #            log = logger.getChild(name)
+ #        else:
+ #            log = logger
+ # 
+ #        
+ #        if dataset is None:
+ #            dataset = self._base()
+ #        
+ # 
+ #        if out_dir is None:
+ #            out_dir=self.out_dir
+ #            
+ #        if ofp is None:
+ #            if name is None:
+ #                ofp = os.path.join(out_dir, self.fancy_name + '.tif')
+ #            else:
+ #                ofp = os.path.join(out_dir, self.fancy_name + '_%s.tif'%name)
+ #            
+ #            
+ #        return logger, log, dataset, out_dir, ofp
+ #==============================================================================
     
     def _get_refs(self, **kwargs):
         
@@ -706,13 +690,96 @@ class RioWrkr(Basic):
     def __exit__(self,  *args,**kwargs):
         #print('RioWrkr.__exit__')
         self._clear()
+        
+class RioSession(RioWrkr):
+    aoi_fp=None
+    
+    def __init__(self, 
+                 #==============================================================
+                 # crs=CRS.from_user_input(25832),
+                 # bbox=
+                 #==============================================================
+                 crs=None, bbox=None, aoi_fp=None,
+                 
+                 #defaults
+                 
+                 
+                 **kwargs):
+        
+        """"
+        
+        Parameters
+        -----------
+        
+        bbox: shapely.polygon
+            bounds assumed to be on the same crs as the data
+            sgeo.box(0, 0, 100, 100),
+            
+        crs: <class 'pyproj.crs.crs.CRS'>
+            coordinate reference system
+        """
+        super().__init__(**kwargs)
+        
+        #=======================================================================
+        # set aoi
+        #=======================================================================
+        if not aoi_fp is None:            
+            assert crs is None
+            assert bbox is None
+            self._set_aoi(aoi_fp)
+            
+        else:
+            self.crs=crs
+            self.bbox = bbox
+            
+        #check
+        if not self.crs is None:
+            assert isinstance(self.crs, CRS)
+            
+        if not self.bbox is None:
+            assert isinstance(self.bbox, Polygon)
  
+        
+        
+    def _set_aoi(self, aoi_fp):
+        assert os.path.exists(aoi_fp)
+        
+        #open file and get bounds and crs using fiona
+        with fiona.open(aoi_fp, "r") as source:
+            bbox = sgeo.box(*source.bounds) 
+            crs = CRS(source.crs['init'])
+            
+        self.crs=crs
+        self.bbox = bbox
+        
+        self.logger.info('set crs: %s'%crs.to_epsg())
+        self.aoi_fp=aoi_fp
+        
+        return self.crs, self.bbox
+    
+    def _get_defaults(self, crs=None, bbox=None, nodata=None, compress=None,
+                      as_dict=False):
+        """return session defaults for this worker
+        
+        EXAMPLE
+        ----------
+        crs, bbox, compress, nodata =RioSession._get_defaults(self)
+        """
+        if crs is None: crs=self.crs
+        if bbox is  None: bbox=self.bbox
+        if compress is None: compress=self.compress
+        if nodata is None: nodata=self.nodata
+        
+        if not as_dict:
+            return crs, bbox, compress, nodata
+        else:
+            return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
 
             
 #===============================================================================
 # HELPERS----------
 #===============================================================================
-def write_array(data,ofp,
+def write_array(raw_ar,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
                 nodata=-9999,
@@ -721,29 +788,73 @@ def write_array(data,ofp,
                 count=1,
                 compress=None,
                 masked=False,
-                ):
-    """skinny array to raster file writer
+                width=None,
+                height=None,
+                **kwargs):
+    """array to raster file writer with nodata handling and transparent defaults
     
-    better to just use the sourcecode
+    Parameters
+    ----------
+    masked: bool default False
+        if True, the result usually has 2 bands
     """
     
     #===========================================================================
     # build init
     #===========================================================================
  
-    shape = data.shape
+    shape = raw_ar.shape
     if dtype is None:
-        dtype=data.dtype
+        dtype=raw_ar.dtype
+        
+    if width is None:
+        width=shape[1]
+    if height is None:
+        height=shape[0]
+    
+    #===========================================================================
+    # precheck
+    #===========================================================================
+    if os.path.exists(ofp):
+        os.remove(ofp)
+        
+    assert len(raw_ar.shape)==2
+    
+    assert np.issubdtype(dtype, np.number), 'bad dtype: %s'%dtype.name
+    
+    #=======================================================================
+    # #handle nulls
+    #=======================================================================
+    """becuase we usually deal with nulls (instead of raster no data values)
+    here we convert back to raster nodata vals before writing to disk"""
+ 
+    if isinstance(raw_ar, ma.MaskedArray):
+        data = raw_ar        
+        assert raw_ar.mask.shape==raw_ar.shape, os.path.basename(ofp)
+        
+    elif isinstance(raw_ar, np.ndarray):
+        if np.any(np.isnan(raw_ar)):
+            data = np.where(np.isnan(raw_ar), nodata, raw_ar).astype(dtype)
+        else:
+            data = raw_ar.astype(dtype)
+    
+    else:
+        raise TypeError(type(raw_ar))
  
     #===========================================================================
     # execute
     #===========================================================================
-    with rio.open(ofp,'w',driver='GTiff',
-                  height=shape[0],width=shape[1],count=count,
-                dtype=dtype,crs=crs,transform=transform,nodata=nodata,
-                compress=compress,
-                ) as dst:            
-            dst.write(data, indexes=count,masked=masked)
+    with rio.open(ofp,'w',driver=driver,
+                  height=height,width=width,
+                  count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
+                 **kwargs) as dst:            
+            dst.write(data, indexes=count,
+                      masked=masked,
+                      #we do this explicitly above
+                      #If given a Numpy MaskedArray and masked is True, the input’s data and mask will be written to the dataset’s bands and band mask. 
+                     #If masked is False, no band mask is written. Instead, the input array’s masked values are filled with the dataset’s nodata value (if defined) or the input’s own fill value.
+                      )
+            
         
     return ofp
 
@@ -776,10 +887,17 @@ def load_array(rlay_obj,
             assert not np.all(ar.mask)
             assert ar.mask.shape==raw_ar.shape
         else:
+            
             #switch to np.nan
             mask = dataset.read_masks(indexes, window=window1)
             
-            ar = np.where(mask==0, np.nan, raw_ar).astype(dataset.dtypes[0])
+            bx = mask==0
+            if bx.any():
+                assert 'float' in dataset.dtypes[0], 'unmaked arrays not supported for non-float dtypes'
+            
+                ar = np.where(bx, np.nan, raw_ar).astype(dataset.dtypes[0])
+            else:
+                ar=raw_ar.astype(dataset.dtypes[0])
             
             #check against nodatavalue
             assert not np.any(ar==dataset.nodata), 'mismatch between nodata values and the nodata mask'
@@ -789,20 +907,30 @@ def load_array(rlay_obj,
 
     return rlay_apply(rlay_obj, get_ar)
 
-def rlay_apply(rlay, func):
+def rlay_apply(rlay, func, **kwargs):
     """flexible apply a function to either a filepath or a rio ds"""
+    
+    assert not rlay is None
     
     if isinstance(rlay, str):
         with rio.open(rlay, mode='r') as ds:
-            res = func(ds)
+            res = func(ds, **kwargs)
             
     elif isinstance(rlay, rio.io.DatasetReader) or isinstance(rlay, rio.io.DatasetWriter):
-        res = func(rlay)
+        res = func(rlay, **kwargs)
         
     else:
         raise IOError(type(rlay))
     
     return res
+
+def rlay_ar_apply(rlay, func, masked=False, **kwargs):
+    """apply a func to an array"""
+    def ds_func(dataset, **kwargs):
+        return func(dataset.read(1, window=None, masked=masked), **kwargs)
+    
+    return rlay_apply(rlay, ds_func, **kwargs)
+        
 
 #===============================================================================
 # def resample(rlay, ofp, scale=1, resampling=Resampling.nearest):
@@ -863,13 +991,24 @@ def is_divisible(rlay, divisor):
 
     return True
 
-def get_window(ds, bbox):
+def get_window(ds, bbox,
+                round_offsets=False,
+                 round_lengths=False,
+                 ):
     """get a well rounded window from a bbox"""
     #buffer 1 pixel  
     bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
     
     #build a window and round                   
-    window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform).round_lengths().round_offsets()
+    window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform)
+    
+    if round_offsets:
+        window = window.round_offsets()
+        
+    if round_lengths:
+        window = window.round_lengths()
+    
+ 
     
     #check the bounds
     wbnds = sgeo.box(*rasterio.windows.bounds(window, ds.transform))
@@ -879,14 +1018,70 @@ def get_window(ds, bbox):
     return window, ds.window_transform(window)
     
 
-def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds']):
+def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
     d = dict()
-    for attn in att_l:
+    for attn in att_l:        
         d[attn] = getattr(ds, attn)
     return d
 
+def get_stats2(rlay, **kwargs):
+    return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
+
 def get_ds_attr(rlay, stat):
     return rlay_apply(rlay, lambda ds:getattr(ds, stat))
+
+def get_profile(rlay):
+    return rlay_apply(rlay, lambda ds:ds.profile)
+
+def get_write_kwargs( obj,
+                      att_l = ['crs', 'transform', 'nodata'],
+                      **kwargs):
+    """convenience for getting write kwargsfrom datasource stats"""
+    #=======================================================================
+    # load from filepath
+    #=======================================================================
+    if isinstance(obj, str) or isinstance(obj,rasterio.io.DatasetReader):
+        stats_d  = rlay_apply(obj, get_stats, att_l=att_l+['dtypes'])
+    elif isinstance(obj, dict):
+        stats_d = obj
+
+    else:
+        raise TypeError(type(obj))
+                        
+    rlay_kwargs = {**kwargs,
+        **{k:stats_d[k] for k in att_l}}  
+          
+    #handle tuple
+    rlay_kwargs['dtype'] = stats_d['dtypes'][0]
+    
+    return rlay_kwargs
+
+
+    
+
+def rlay_calc1(rlay_fp, ofp, statement):
+    """evaluate a statement with numpy math on a single raster"""
+    
+    with rio.open(rlay_fp, mode='r') as ds:
+        ar = load_array(ds)
+        
+        result = statement(ar)
+        
+        assert isinstance(result, np.ndarray)
+        
+        profile = ds.profile
+        
+    #write
+    with rio.open(ofp, mode='w', **profile) as dest:
+        dest.write(
+            np.where(np.isnan(result), profile['nodata'],result),
+             1)
+    
+    return ofp
+        
+    
+        
+    
 
 def plot_rast(ar_raw,
               ax=None,
@@ -953,8 +1148,240 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-
+def get_depth(dem_fp, wse_fp, ofp=None):
+    """add dem and wse to get a depth grid"""
     
+    assert_spatial_equal(dem_fp, wse_fp)
+    
+    if ofp is None:
+        fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
+        ofp = os.path.join(os.path.dirname(wse_fp),fname)
+    
+    #===========================================================================
+    # load
+    #===========================================================================
+    dem_ar = load_array(dem_fp, masked=True)
+    
+    wse_ar = load_array(wse_fp, masked=True)
+    
+    #logic checks
+    assert not dem_ar.mask.any()
+    assert wse_ar.mask.any()
+    assert not wse_ar.mask.all()
+    
+    #===========================================================================
+    # calc
+    #===========================================================================
+    #simple subtraction
+    wd1_ar = wse_ar - dem_ar
+    
+    #identify dry
+    dry_bx = np.logical_or(
+        wse_ar.mask, wse_ar.data<dem_ar.data
+        )
+    
+    assert not dry_bx.all().all()
+    
+    #rebuild
+    wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
+    
+    
+    #check we have no positive depths on the wse mask
+    assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    
+    #convert to masked
+    wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
+    
+    assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
+    
+    return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
+    
+#===============================================================================
+# Building New Rasters--------
+#===============================================================================
+def write_resample(rlay_fp,
+                 resampling=Resampling.nearest,
+                 scale=1.0,
+                 #write=True,
+                 #update_ref=False, 
+ 
+                 ofp=None,out_dir=None,
+                 #**kwargs,
+                 ):
+        """"resample a rio.dataset handling nulls
+        
+        
+        Parameters
+        ---------
+        
+        scale: float, default 1.0
+            value with which to scale the datasource shape
+            
+        Notes
+        ---------
+        for cases w/ all real... this is pretty simple
+        w/ nulls
+            there is some bleeding for 'average' methods
+            so we need to build a new mask and re-apply w/ numpy
+                for this, we use a mask which is null ONLY when all child cells are null
+            
+                alternatively, we could set null when ANY child cell is null
+                
+            WARNING: for upsample/aggregate... we don't know how null values are treated
+                (i.e., included in the denom or not)
+                better to use numpy funcs
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+
+                               
+        #===========================================================================
+        # # resample data to target shape
+        #===========================================================================
+        with rasterio.open(rlay_fp, mode='r') as dataset:
+         
+            out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+ 
+            
+            data_rsmp = dataset.read(1,
+                out_shape=out_shape,
+                resampling=resampling
+                                    )
+        
+            # scale image transform
+            transform = dataset.transform * dataset.transform.scale(
+                (dataset.width / data_rsmp.shape[-1]),
+                (dataset.height / data_rsmp.shape[-2])
+            )
+        
+ 
+            outres = dataset.res[0]/scale
+            #===========================================================================
+            # resample nulls
+            #===========================================================================
+            """opaque handling of nulls
+            msk_rsmp = dataset.read_masks(1, 
+                    out_shape=out_shape,
+                    resampling=Resampling.nearest, #doesnt bleed
+                )""" 
+            mar_raw = dataset.read_masks(1)
+            #downsample.disag. (zoom in)
+            if scale>1.0:
+                #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
+                msk_rsmp = scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
+     
+     
+            #upsample. aggregate (those with ALL nulls)
+            else:
+                """see also  hp.np.apply_block_reduce"""
+                mar_raw.shape
+                #stack windows into axis 1 and 3
+ 
+                downscale = int(1/scale)
+                mar1 = mar_raw.reshape(mar_raw.shape[0]//downscale, 
+                                       downscale, 
+                                       mar_raw.shape[1]//downscale, 
+                                       downscale)
+                
+     
+                #those where the max of the children equals exactly the null value
+                msk_rsmp = np.where(np.max(mar1, axis=(1,3))==0, 0,255)
+        
+            #===============================================================================
+            # coerce transformed nulls
+            #===============================================================================
+            """needed as some resampling methods bleed out
+            theres a few ways to handle this... 
+                here we manipulate the data values directly.. which seems the cleanest
+            2022-09-08: switched to masked arrays
+                
+                """
+            
+            #=======================================================================
+            # assert data_rsmp.shape==msk_rsmp.shape
+            # data_rsmp_f1 = np.where(msk_rsmp==0,  dataset.nodata, data_rsmp).astype(dataset.dtypes[0])
+            #=======================================================================
+            
+            #numpy  mask
+            res_mar = ma.array(data_rsmp, mask=np.where(msk_rsmp==0, True, False), fill_value=dataset.nodata)
+            
+            #===================================================================
+            # write
+            #===================================================================
+            if out_dir is None:
+                out_dir = os.path.dirname(rlay_fp)
+            assert os.path.exists(out_dir)
+            if ofp is None:
+                fname, ext = os.path.splitext(os.path.basename(rlay_fp))                
+                ofp = os.path.join(out_dir,f'{fname}_r{outres}{ext}')
+            
+            #build new profile
+            prof_rsmp = {**dataset.profile, 
+                      **dict(
+                          width=data_rsmp.shape[-1], 
+                          height=data_rsmp.shape[-2],
+                          transform=transform,
+                          )}
+            
+            return write_array(res_mar,ofp, **prof_rsmp)
+            
+
+
+def write_clip(raw_fp, 
+                window=None,
+                bbox=None,
+                 
+                masked=True,
+                 crs=None, 
+ 
+                 ofp=None,
+                 **kwargs):
+    """write a new raster from a window"""
+    
+    with rio.open(raw_fp, mode='r') as ds:
+        
+        #crs check/load
+        if not crs is None:
+            assert crs==ds.crs
+        else:
+            crs = ds.crs
+        
+        #window default
+        if window is None:
+            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+ 
+        else: 
+            assert bbox is None
+            
+        #get the windowed transform
+        transform = rasterio.windows.transform(window, ds.transform)
+        
+        #get stats
+        stats_d = get_stats(ds)
+        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+            
+        #load the windowed data
+        ar = ds.read(1, window=window, masked=masked)
+        
+        #=======================================================================
+        # #write clipped data
+        #=======================================================================
+        if ofp is None:
+            fname = os.path.splitext( os.path.basename(raw_fp))[0] + '_clip.tif'
+            ofp = os.path.join(os.path.dirname(raw_fp),fname)
+        
+        write_kwargs = get_write_kwargs(ds)
+        write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
+        
+        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
+        
+    return ofp, stats_d
     
     
 #===============================================================================
@@ -991,18 +1418,17 @@ def assert_rlay_simple(rlay, msg='',):
     if not round(x, 10)==int(x):
         raise AssertionError('non-integer pixel size\n' + msg)
     
-def assert_extent_equal(left, right, msg='',): 
+def assert_extent_equal(left, right,  msg='',): 
     """ extents check"""
     if not __debug__: # true if Python was not started with an -O option
         return
  
     __tracebackhide__ = True
     
-    def get_stats(ds):
-        return {'bounds':ds.bounds, 'crs':ds.crs}
+    f= lambda ds, att_l=['crs',  'bounds']:get_stats(ds, att_l=att_l) 
     
-    ld = rlay_apply(left, get_stats)
-    rd = rlay_apply(right, get_stats)
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
     #===========================================================================
     # crs
     #===========================================================================
@@ -1015,6 +1441,32 @@ def assert_extent_equal(left, right, msg='',):
     if not le==re:
         raise AssertionError('extent mismatch \n    %s != %s\n    '%(
                 le, re) +msg) 
+
+def assert_spatial_equal(left, right,  msg='',): 
+    """check all spatial attributes match"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+ 
+    __tracebackhide__ = True
+    
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l) 
+    
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
+    
+    #===========================================================================
+    # check
+    #===========================================================================
+    for k, lval in ld.items():
+        rval = rd[k]
+        
+        if not lval==rval:
+            raise AssertionError(f'{k} mismatch\n    right={rval}\n    left={lval}\n'+msg)
+ 
+        
+        
+        
+     
 
 def assert_ds_attribute_match(rlay,
                           crs=None, height=None, width=None, transform=None, nodata=None,bounds=None,
