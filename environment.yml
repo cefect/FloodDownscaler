@@ -15,9 +15,9 @@ dependencies:
   - cudatoolkit
   - colorama
   - pyyaml
-  - xarray=2022.12.*
-  - dask
+  #- xarray=2022.12.*
+  #- dask
   - numbagg
-  - rioxarray=0.13.*
+  #- rioxarray=0.13.*
   - xlsxwriter=3.0.*
   
