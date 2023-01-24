@@ -650,7 +650,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
         data_j = None
         for k, fp in fp_d.items():
             log.debug(f'for {k} loading {fp}')
-            assert os.path.exists(fp)
+            assert os.path.exists(fp), f'bad filepath for \'{k}\':\n    {fp}'
             with open(fp, 'rb') as f:
                 data = pickle.load(f)
                 assert isinstance(data, dict)
