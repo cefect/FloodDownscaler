@@ -24,8 +24,12 @@ from hp.plot import Plotr, get_dict_str
 from hp.pd import view
 
 
-
+ 
 from fdsc.analysis.valid import ValidateSession
+from fdsc.scripts.coms2 import nicknames_d
+
+nicknames_d['']='vali'
+nicknames_d2 = {v:k for k,v in nicknames_d.items()}
 
 def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
@@ -222,12 +226,7 @@ class Plot_rlays_wrkr(object):
                     #===========================================================
                     
                     ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
-                    
-                    """
-                    help(ax.imshow)
-                    help(show)
-                    plt.show()
-                    """
+ 
                     #===========================================================
                     # post format
                     #===========================================================
@@ -238,9 +237,11 @@ class Plot_rlays_wrkr(object):
                     #add text
                     if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
                         md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
-                        ax.text(0.9, 0.1, get_dict_str(md), 
-                                transform=ax.transAxes, va='bottom', ha='right', fontsize=6, 
-                                color='black')
+                        #md = {**{rowk:''}, **md} 
+                        ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
+                                va='bottom', ha='right', fontsize=6, color='black',
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                )
                         
                     #colorbar
                     if not gridk in axImg_d:
@@ -321,12 +322,11 @@ class Plot_rlays_wrkr(object):
             for colk, ax in d0.items():
                 #turn off useless axis
                 
-                #first col
-                if colk==col_keys[0]:
-                    pass
-                    #ax.set_ylabel(rowk)
+                #second col
+                if colk==col_keys[1]:
+                    ax.set_ylabel(nicknames_d2[rowk], fontsize=6)
                     
-                #last row
+                #first row
                 if rowk==row_keys[0]:
                     pass
                     #===========================================================
@@ -343,16 +343,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         log.info('finished')
         return self.output_fig(fig, ofp=ofp, logger=log)
-        """
-        plt.show()
-        """
-                    
-                
-                
-                
-                
-        
-        
+ 
         
 class Plot_samples_wrkr(object):
     
@@ -532,8 +523,11 @@ class Plot_samples_wrkr(object):
                 #===============================================================
                 # text
                 #===============================================================
-                ax.text(0.1, 0.9, get_dict_str(txt_d), 
-                                transform=ax.transAxes, va='top', fontsize=8, color='black')
+                ax.text(0.9, 0.1, get_dict_str(txt_d), 
+                                transform=ax.transAxes, va='bottom',ha='right',
+                                 fontsize=8, color='black',
+                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                 )
                  
         #=======================================================================
         # post format
