@@ -30,10 +30,10 @@ from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
 from fdsc.scripts.coms2 import (
-    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract
+    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d
     )
 
-nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
+
 
 class Dsc_basic(object):
     def _func_setup_dsc(self, dkey, wse1_fp, dem_fp,  **kwargs):

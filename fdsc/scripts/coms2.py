@@ -15,6 +15,8 @@ from hp.rio import (
     assert_rlay_simple, get_stats
     )
 
+nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
+
 class Master_Session(Session):
     def __init__(self, 
                  run_name='v1', #using v instead of r to avoid resolution confusion
