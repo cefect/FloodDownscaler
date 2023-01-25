@@ -27,7 +27,7 @@ from fdsc.scripts.coms2 import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.dsc import Dsc_basic, ar_buffer
+from fdsc.scripts.control import Dsc_basic, ar_buffer
 
 
 class BufferGrowLoop(Dsc_basic):
