@@ -33,6 +33,7 @@ from fdsc.scripts.coms2 import (
     )
 
 from fdsc.scripts.simple import CostGrowSimple,BufferGrowLoop
+from fdsc.scripts.schu14 import Schuman14
 
 class Dsc_basic(object):
     def _func_setup_dsc(self, dkey, wse1_fp, dem_fp,  **kwargs):
@@ -46,7 +47,7 @@ class Dsc_basic(object):
     
 
 
-class Dsc_Session(CostGrowSimple,BufferGrowLoop,
+class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         RioSession,  Master_Session, WBT_worker):
       
     #===========================================================================

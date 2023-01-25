@@ -15,6 +15,7 @@ xfail = pytest.mark.xfail
 #from fdsc.scripts.disag import disag
 from fdsc.scripts.dsc import run_downscale, ar_buffer
 from fdsc.scripts.dsc import Dsc_Session as Session
+from fdsc.scripts.schu14 import Schuman14
 
 from tests.conftest import (
     get_rlay_fp, crs_default, proj_lib,get_aoi_fp,
