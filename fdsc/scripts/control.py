@@ -3,7 +3,7 @@ Created on Dec. 4, 2022
 
 @author: cefect
 
-flood downscaling control scripts
+flood downscaling top-level control scripts
 '''
 import os, datetime, shutil
 import numpy as np
@@ -11,57 +11,42 @@ import numpy.ma as ma
  
 import rasterio as rio
 from rasterio import shutil as rshutil
- 
-
-
- 
-
-
-
 
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
-    rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
+    rlay_apply, rlay_ar_apply, write_resample, Resampling, get_ds_attr, get_stats2
     )
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
 from fdsc.scripts.wbt import WBT_worker
-from fdsc.scripts.coms2 import (
+from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.simple import CostGrowSimple,BufferGrowLoop
+from fdsc.scripts.simple import CostGrowSimple, BufferGrowLoop
 from fdsc.scripts.schu14 import Schuman14
 
-class Dsc_basic(object):
-    def _func_setup_dsc(self, dkey, wse1_fp, dem_fp,  **kwargs):
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
-        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse1_fp)
-        meta_lib = {'smry':{
-            'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
-        start = now()
-        return skwargs, meta_lib, log, ofp, start
-    
 
 
-class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
-        RioSession,  Master_Session, WBT_worker):
+
+
+class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
+        RioSession, Master_Session, WBT_worker):
       
     #===========================================================================
     # phase0-------  
     #===========================================================================
-    def p0_clip_rasters(self, wse_fp, dem_fp, 
-                        bbox=None,crs=None, 
+    def p0_clip_rasters(self, wse_fp, dem_fp,
+                        bbox=None, crs=None,
                         **kwargs):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_rasters',  **kwargs) 
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_rasters', **kwargs) 
      
-        write_kwargs =RioSession._get_defaults(self, bbox=bbox, crs=crs, as_dict=True)
+        write_kwargs = RioSession._get_defaults(self, bbox=bbox, crs=crs, as_dict=True)
         bbox = write_kwargs['bbox']
  
         #=======================================================================
@@ -78,18 +63,16 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         log.info(f'clipped rasters and wrote to\n    {tmp_dir}\n    {bbox.bounds}')
         return wse_clip_fp, dem_clip_fp
         
-        
     def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, crs=None,
                           **kwargs):
         """load and extract some data from the raster files"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters',  **kwargs)
-        crs, bbox, compress, nodata =RioSession._get_defaults(self, crs=crs)
-        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_rasters', **kwargs)
+        crs, bbox, compress, nodata = RioSession._get_defaults(self, crs=crs)
 
         #=======================================================================
         # load
         #=======================================================================
-        #load wse with aoi rounded
+        # load wse with aoi rounded
         wse_stats, wse2_ar = rlay_extract(wse2_rlay_fp)
  
         dem_stats, dem1_ar = rlay_extract(dem1_rlay_fp)        
@@ -105,9 +88,9 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
             self.crs = dem_stats['crs']
             crs = self.crs
             
-            log.info('set crs from dem (%s)'%crs.to_epsg())
+            log.info('set crs from dem (%s)' % crs.to_epsg())
             
-        assert dem_stats['crs']==crs, f'DEM crs %s doesnt match session {crs}'%dem_stats['crs']
+        assert dem_stats['crs'] == crs, f'DEM crs %s doesnt match session {crs}' % dem_stats['crs']
         for stat in ['crs', 'bounds']:
             assert dem_stats[stat] == wse_stats[stat]
  
@@ -115,16 +98,15 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         if not s1 % s2 == 0.0:
             log.warning(f'uneven resolution relation ({s1}/{s2}={s1%s2})')
             
-        #report
+        # report
         downscale = s1 / s2
         log.info(f'downscaling from {s2} to {s1} ({downscale})')
-        
  
         #=======================================================================
         # wrap
         #=======================================================================
-        #get rlay write kwargs for this session
-        #rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)        
+        # get rlay write kwargs for this session
+        # rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)        
       
         self.s2, self.s1, self.downscale = s2, s1, downscale 
         return wse2_ar, dem1_ar, wse_stats, dem_stats
@@ -135,15 +117,14 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         s1 = get_ds_attr(fp1, 'res')[0]
         s2 = get_ds_attr(fp2, 'res')[0]
         
-        assert s1>s2
+        assert s1 > s2
         
-        return s1/s2
-        
+        return s1 / s2
 
     #===========================================================================
     # PHASE1---------
     #===========================================================================
-    def p1_wetPartials(self, wse2_fp, dem_fp,  downscale=None,
+    def p1_wetPartials(self, wse2_fp, dem_fp, downscale=None,
                        resampling=Resampling.bilinear,
                         **kwargs):
         """downscale wse2 grid in wet-partial regions
@@ -154,10 +135,10 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP',subdir=True,  **kwargs)
-        start=now()
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP', subdir=True, **kwargs)
+        start = now()
         if downscale is None: 
-            downscale=self.get_downscale(wse2_fp, dem_fp)
+            downscale = self.get_downscale(wse2_fp, dem_fp)
 
         log.info(f'downscale={downscale} on {os.path.basename(wse2_fp)} w/ {resampling}')
         #=======================================================================
@@ -172,7 +153,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #     assert ds1/ds2==downscale, downscale
         #=======================================================================
             
-        #meta
+        # meta
         meta_d = {'wse2_fp':wse2_fp, 'dem_fp':dem_fp, 'resampling':resampling, 'downscale':downscale}
         
         #=======================================================================
@@ -185,8 +166,8 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
  
         wse1_rsmp_fp = write_resample(wse2_fp, resampling=resampling,
-                       scale=downscale, 
-                       ofp= self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
+                       scale=downscale,
+                       ofp=self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
                        )
         
         meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
@@ -204,42 +185,40 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
                 assert_wse_ar(wse1_ar)
                 meta_d['pre_dem_filter_mask_cnt'] = wse1_ar.mask.sum().sum()
                 
-                #extend mask to include violators mask
+                # extend mask to include violators mask
                 wse_wp_bx = np.logical_or(
                     wse1_ar.mask,
                     wse1_ar.data <= dem1_ar.data)
                 
-                #build new array
+                # build new array
                 wse1_ar2 = ma.array(wse1_ar.data, mask=wse_wp_bx)
                 assert_wse_ar(wse1_ar2)
                 meta_d['post_dem_filter_mask_cnt'] = wse1_ar2.mask.sum().sum()
                 
                 delta_cnt = meta_d['post_dem_filter_mask_cnt'] - meta_d['pre_dem_filter_mask_cnt']
                 log.info(f'filtered {delta_cnt} of {dem1_ar.size} additional cells w/ DEM')
-                assert delta_cnt>=0, 'dem filter should extend the mask'
+                assert delta_cnt >= 0, 'dem filter should extend the mask'
                 
                 prof = wse1_ds.profile
                 
-        #write
+        # write
         with rio.open(ofp, mode='w', **prof) as ds:
             ds.write(wse1_ar2, indexes=1, masked=False)
  
         #=======================================================================
         # wrap
         #=======================================================================
-        tdelta = (now()-start).total_seconds()
+        tdelta = (now() - start).total_seconds()
         meta_d['tdelta'] = tdelta
         
         log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}')
         meta_d['wse1_wp_fp'] = ofp
         return ofp, meta_d
 
-
-
     #===========================================================================
     # PHASE2-----------------
     #===========================================================================
-    def p2_dryPartials(self, wse1_fp, dem1_fp, 
+    def p2_dryPartials(self, wse1_fp, dem1_fp,
                        dryPartial_method='none',
                        write_meta=True,
                        **kwargs):
@@ -256,41 +235,38 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP',subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         start = now()
         assert_spatial_equal(wse1_fp, dem1_fp)
-        meta_lib={'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
+        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
             
-        sn = nicknames_d[dryPartial_method] #short name
+        sn = nicknames_d[dryPartial_method]  # short name
         #=======================================================================
         # by method
         #=======================================================================
         if dryPartial_method == 'none':
             rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
-            wse1_dp_fp=ofp
-            d = {'none':'none'} #dummy placeholder
+            wse1_dp_fp = ofp
+            d = {'none':'none'}  # dummy placeholder
  
         elif dryPartial_method == 'costGrowSimple': 
-            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
- 
+            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **skwargs)            
             
-        elif dryPartial_method=='bufferGrowLoop':
-            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp,ofp=ofp, **skwargs)            
- 
-            
+        elif dryPartial_method == 'bufferGrowLoop':
+            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **skwargs)            
             
         else:
             raise KeyError(dryPartial_method)
         """option 0.... Schuman 2014"""
-        #buffer fixed number of pixels?
+        # buffer fixed number of pixels?
         """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
-        #for 1 cell
-            #grow/buffer 1
-            #filter dem violators
+        # for 1 cell
+            # grow/buffer 1
+            # filter dem violators
         """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing""" 
         
-        meta_lib.update({sn+'_'+k:v for k,v in d.items()}) 
+        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
         #=======================================================================
         # check
         #=======================================================================
@@ -301,7 +277,7 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
         # wrap
         #=======================================================================
-        tdelta = (now()-start).total_seconds()
+        tdelta = (now() - start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
         meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
         log.info(f'finished in {tdelta:.2f} secs')
@@ -311,13 +287,11 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
  
         return wse1_dp_fp, meta_lib
 
-
-
     def run_dsc(self,
             wse2_fp,
             dem1_fp,
  
-            dryPartial_method = 'costGrowSimple',
+            dryPartial_method='costGrowSimple',
             downscale=None,
             write_meta=True,
                 **kwargs):
@@ -340,10 +314,10 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True, **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
-        start=now()
+        start = now()
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
@@ -354,23 +328,23 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
         #=======================================================================
         # wet partials
         #=======================================================================                
-        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp,downscale=downscale,
+        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, downscale=downscale,
                                                             **skwargs)
  
         #=======================================================================
         # dry partials
         #=======================================================================
-        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp, 
-                                                dryPartial_method=dryPartial_method, 
+        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp,
+                                                dryPartial_method=dryPartial_method,
                                                 **skwargs)
         
         #=======================================================================
         # wrap
         #=======================================================================
-        #copy tover to the main result
+        # copy tover to the main result
         rshutil.copy(wse1_dp_fp, ofp)
         
-        tdelta = (now()-start).total_seconds()
+        tdelta = (now() - start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
  
         if write_meta:
@@ -384,31 +358,30 @@ class Dsc_Session(CostGrowSimple,BufferGrowLoop,Schuman14,
     # PRIVATES--------
     #===========================================================================
 
+
 def get_neighbours_D4(ar, mindex):
     """get values of d4 neighbours"""
     
-    res_ar = np.full((3,3), np.nan)
+    res_ar = np.full((3, 3), np.nan)
     val_d, loc_d = dict(), dict()
     for i, shift in enumerate([
         (0, 1), (0, -1),
         (1, 0), (-1, 0)]):
- 
         
-        #get shifted location
-        jx = mindex[0]+shift[0]
-        jy = mindex[1]+shift[1]
+        # get shifted location
+        jx = mindex[0] + shift[0]
+        jy = mindex[1] + shift[1]
         
-        if jx<0 or jx>=ar.shape[0]:
+        if jx < 0 or jx >= ar.shape[0]:
             res = ma.masked
-        elif jy<0 or jy>=ar.shape[1]:
-            res=ma.masked
+        elif jy < 0 or jy >= ar.shape[1]:
+            res = ma.masked
         else:
             try:
                 res = ar[jx, jy]
             except Exception as e:
                 raise IndexError(
                     f'failed to retrieve value jy={jy} jx={jx} shape={ar.shape} w/ \n    {e}')
-
             
         res_ar[shift] = res
         
@@ -423,8 +396,6 @@ def get_neighbours_D4(ar, mindex):
     #===========================================================================
     
     return res_ar
-        
-        
  
 
 def ar_buffer(wse_ar):
@@ -435,37 +406,36 @@ def ar_buffer(wse_ar):
      
     res_ar = np.full(wse_ar.shape, np.nan)
     
-    
     it = np.nditer([wse_ar, res_ar],
-            flags = [
+            flags=[
                 'multi_index'
-                #'external_loop', 
-                #'buffered'
+                # 'external_loop', 
+                # 'buffered'
                 ],
-            op_flags = [['readonly'], 
-                        ['writeonly', 
-                         #'allocate', #populate None 
-                         #'no_broadcast', #no aggregation?
+            op_flags=[['readonly'],
+                        ['writeonly',
+                         # 'allocate', #populate None 
+                         # 'no_broadcast', #no aggregation?
                          ]],
-            #op_axes=[None, new_shape],
+            # op_axes=[None, new_shape],
             )
                          
     #===========================================================================
     # execute iteration
     #===========================================================================
     with it: 
-        for wse,   res in it:
+        for wse, res in it:
             
-            #dry
+            # dry
             if np.isnan(wse):
-                #retrieve neighbours
+                # retrieve neighbours
                 nei_ar = get_neighbours_D4(wse_ar, it.multi_index)
                 
-                #all dry
+                # all dry
                 if np.isnan(nei_ar).all():
                     res[...] = np.nan
                     
-                #wet neighbours
+                # wet neighbours
                 else:
                     res[...] = np.ravel(nei_ar[~np.isnan(nei_ar)]).mean()
                     #===========================================================
@@ -480,29 +450,22 @@ def ar_buffer(wse_ar):
                     #     res[...] = np.nan
                     #===========================================================
  
- 
-            #wet
+            # wet
             else:
                 res[...] = wse
-                
             
-            #print(f'{it.multi_index}: wse={wse} dem={dem}, res={res}')
+            # print(f'{it.multi_index}: wse={wse} dem={dem}, res={res}')
                 
-                
-        result= it.operands[-1]
+        result = it.operands[-1]
         
     return result
- 
- 
-
- 
 
 
 def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
-        aoi_fp=None, 
-        dryPartial_method = 'costGrowSimple',
+        aoi_fp=None,
+        dryPartial_method='costGrowSimple',
         **kwargs):
     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
     
@@ -516,7 +479,6 @@ def run_downscale(
     """
     
     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp,dem1_rlay_fp,dryPartial_method=dryPartial_method)
-
+        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, dryPartial_method=dryPartial_method)
         
     return wse1_dp_fp

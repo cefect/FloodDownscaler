@@ -3,9 +3,9 @@ Created on Jan. 6, 2023
 
 @author: cefect
 
-shared by all sessions
+base objects and functions for all dsc scripts
 '''
-import datetime
+import datetime, os
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
@@ -13,13 +13,26 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats
+    assert_rlay_simple, get_stats, assert_spatial_equal
     )
 
 nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
 
 def now():
     return datetime.datetime.now()
+
+
+class Dsc_basic(object):
+
+    def _func_setup_dsc(self, dkey, wse1_fp, dem_fp, **kwargs):
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+        assert_spatial_equal(dem_fp, wse1_fp)
+        meta_lib = {'smry':{
+            'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
+        start = now()
+        return skwargs, meta_lib, log, ofp, start
+    
 
 class Master_Session(Session):
     def __init__(self, 

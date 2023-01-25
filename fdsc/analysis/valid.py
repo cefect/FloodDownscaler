@@ -22,7 +22,7 @@ from hp.gpd import (
 from hp.logr import get_new_console_logger
 from hp.err_calc import ErrorCalcs
 
-from fdsc.scripts.coms2 import (
+from fdsc.base import (
     Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar
     )
 #from definitions import src_name

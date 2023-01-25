@@ -26,7 +26,7 @@ from hp.pd import view
 
  
 from fdsc.analysis.valid import ValidateSession
-from fdsc.scripts.coms2 import nicknames_d
+from fdsc.base import nicknames_d
 
 nicknames_d['validation']='vali'
 nicknames_d2 = {v:k for k,v in nicknames_d.items()}

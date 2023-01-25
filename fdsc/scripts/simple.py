@@ -23,7 +23,7 @@ from hp.rio import (
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
 
-from fdsc.scripts.coms2 import (
+from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
