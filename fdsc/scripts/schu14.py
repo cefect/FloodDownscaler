@@ -12,7 +12,7 @@ import numpy as np
 import rasterio as rio
 from rasterio import shutil as rshutil
 
-from fdsc.scripts.control import Dsc_basic
+from fdsc.base import Dsc_basic
 
  
 

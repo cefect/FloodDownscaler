@@ -1,2 +1,4 @@
-call C:\Users\cefect\miniforge3\Scripts\activate.bat
-conda activate fdsc
+call conda_activate.bat
+call conda activate %ENV_NAME%
+
+ECHO %PATH%

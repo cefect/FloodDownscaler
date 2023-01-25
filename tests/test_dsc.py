@@ -13,9 +13,10 @@ import shapely.geometry as sgeo
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
-from fdsc.scripts.control import run_downscale, ar_buffer
+from fdsc.scripts.control import run_downscale
 from fdsc.scripts.control import Dsc_Session as Session
 from fdsc.scripts.schu14 import Schuman14
+from fdsc.scripts.simple import ar_buffer
 
 from tests.conftest import (
     get_rlay_fp, crs_default, proj_lib,get_aoi_fp,

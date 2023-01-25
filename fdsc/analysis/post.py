@@ -676,6 +676,8 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
         #=======================================================================
         res_d = self._load_pick_lib(fp_d, log)
                 
+        for k,v in res_d.items():
+            assert isinstance(v, pd.Series), f'bad type on \'{k}\':{type(v)}'
         #=======================================================================
         # concat                
         #=======================================================================

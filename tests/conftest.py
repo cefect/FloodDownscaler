@@ -11,8 +11,7 @@ import pandas as pd
 import rasterio as rio
 import shapely.geometry as sgeo
 from shapely.geometry import mapping, Polygon
-
-import xarray as xr
+ 
  
 import fiona
 import fiona.crs
@@ -87,24 +86,7 @@ def get_xy_coords(transform, shape):
     return x_ar, y_ar
 
  
-def get_xda(ar,
-            transform=None, 
-            #transform=rio.transform.from_origin(0,0,1,1), 
-            crs = crs_default,            
-            ):
-    """build a rioxarray from scratch"""
-    
-    if transform is None:
-        transform = rio.transform.from_bounds(*bbox_default.bounds,ar.shape[1], ar.shape[0])
-    
-    xs, ys = get_xy_coords(transform, ar.shape)            
- 
-    return xr.DataArray(np.array([ar]), 
-                       coords={'band':[1],  'y':ys, 'x':xs} #order is important
-                       #coords = [[1],  ys, xs,], dims=["band",  'y', 'x']
-                       #).rio.write_transform(transform_i
-                       ).rio.write_nodata(-9999, inplace=True
-                      ).rio.set_crs(crs, inplace=True)    
+  
                       
  
 def get_rlay_fp(ar, layName, 
