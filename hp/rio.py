@@ -851,8 +851,8 @@ def write_array(raw_ar,ofp,
             dst.write(data, indexes=count,
                       masked=masked,
                       #we do this explicitly above
-                      #If given a Numpy MaskedArray and masked is True, the input’s data and mask will be written to the dataset’s bands and band mask. 
-                     #If masked is False, no band mask is written. Instead, the input array’s masked values are filled with the dataset’s nodata value (if defined) or the input’s own fill value.
+                      #If given a Numpy MaskedArray and masked is True, the inputï¿½s data and mask will be written to the datasetï¿½s bands and band mask. 
+                     #If masked is False, no band mask is written. Instead, the input arrayï¿½s masked values are filled with the datasetï¿½s nodata value (if defined) or the inputï¿½s own fill value.
                       )
             
         
@@ -1382,6 +1382,43 @@ def write_clip(raw_fp,
         ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
         
     return ofp, stats_d
+
+def write_mask(raw_fp,
+               ofp=None,out_dir=None,
+                 **kwargs):
+ 
+    
+    """write the mask as a separate raster. 0=masked"""
+    
+    #===========================================================================
+    # retrieve
+    #===========================================================================
+    with rio.open(raw_fp, mode='r') as dataset:
+        
+        raw_ar = dataset.read(1, window=None, masked=True)
+        
+        profile = dataset.profile
+        
+    #===========================================================================
+    # manipulate
+    #===========================================================================
+    ar = np.where(raw_ar.mask, 0, 1)
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    if out_dir is None:
+        out_dir = os.path.dirname(raw_fp)
+    assert os.path.exists(out_dir)
+    
+    if ofp is None:
+        fname, ext = os.path.splitext(os.path.basename(raw_fp))                
+        ofp = os.path.join(out_dir,f'{fname}_mask{ext}')
+                
+    
+    
+    return write_array(ar, ofp,  masked=False,   **profile)
+    
     
     
 #===============================================================================
