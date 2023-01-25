@@ -5,6 +5,7 @@ Created on Jan. 6, 2023
 
 shared by all sessions
 '''
+import datetime
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
@@ -16,6 +17,9 @@ from hp.rio import (
     )
 
 nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
+
+def now():
+    return datetime.datetime.now()
 
 class Master_Session(Session):
     def __init__(self, 
