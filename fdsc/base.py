@@ -13,7 +13,7 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal
+    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr
     )
 
 nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
@@ -23,15 +23,31 @@ def now():
 
 
 class Dsc_basic(object):
+    
+    downscale=None
 
-    def _func_setup_dsc(self, dkey, wse1_fp, dem_fp, **kwargs):
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
-        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse1_fp)
-        meta_lib = {'smry':{
-            'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
-        start = now()
-        return skwargs, meta_lib, log, ofp, start
+ 
+    def get_downscale(self, fp1, fp2, **kwargs):
+        """compute the scale difference between two layers
+        
+        Parameters
+        --------
+        fp1: str
+            low-res (coarse)
+        fp2: str
+            hi-res (fine)
+        """
+        
+        if self.downscale is None:
+            s1 = get_ds_attr(fp1, 'res')[0]
+            s2 = get_ds_attr(fp2, 'res')[0]
+            
+            assert s1 > s2
+            
+            self.downscale = s1 / s2
+            
+        
+        return self.downscale
     
 
 class Master_Session(Session):

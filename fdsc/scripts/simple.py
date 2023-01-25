@@ -30,7 +30,114 @@ from fdsc.base import (
 from fdsc.base import Dsc_basic
 
 
-class BufferGrowLoop(Dsc_basic):
+
+class WetPartials(Dsc_basic):
+    """first phase of two phase downsamplers"""
+    
+    def p1_wetPartials(self, wse2_fp, dem_fp, downscale=None,
+                       resampling=Resampling.bilinear,
+                        **kwargs):
+        """downscale wse2 grid in wet-partial regions
+        
+        Parameters
+        ------------
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p1WP', subdir=True, **kwargs)
+        start = now()
+        if downscale is None: 
+            downscale = self.get_downscale(wse2_fp, dem_fp)
+
+        log.info(f'downscale={downscale} on {os.path.basename(wse2_fp)} w/ {resampling}')
+        #=======================================================================
+        # #precheck
+        #=======================================================================
+        assert_extent_equal(wse2_fp, dem_fp, msg='phase1')
+        #=======================================================================
+        # assert_dem_ar(dem1_ar)
+        # assert_wse_ar(wse2_ar)
+        # 
+        # for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
+        #     assert ds1/ds2==downscale, downscale
+        #=======================================================================
+            
+        # meta
+        meta_d = {'wse2_fp':wse2_fp, 'dem_fp':dem_fp, 'resampling':resampling, 'downscale':downscale}
+        
+        #=======================================================================
+        # def fmeta(ar, pfx): #meta updater
+        #     meta_d.update({f'{pfx}_size':ar.size, f'{pfx}_nullCnt':np.isnan(ar).sum()})
+        #     
+        #=======================================================================
+        #=======================================================================
+        # resample
+        #=======================================================================
+ 
+        wse1_rsmp_fp = write_resample(wse2_fp, resampling=resampling,
+                       scale=downscale,
+                       ofp=self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
+                       )
+        
+        meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
+ 
+        #=======================================================================
+        # #filter dem violators
+        #=======================================================================
+        with rio.open(dem_fp, mode='r') as dem_ds:
+            dem1_ar = dem_ds.read(1, window=None, masked=True)
+            assert_dem_ar(dem1_ar)
+            meta_d['s1_size'] = dem1_ar.size
+            
+            with rio.open(wse1_rsmp_fp, mode='r') as wse1_ds:
+                wse1_ar = wse1_ds.read(1, window=None, masked=True)
+                assert_wse_ar(wse1_ar)
+                meta_d['pre_dem_filter_mask_cnt'] = wse1_ar.mask.sum().sum()
+                
+                # extend mask to include violators mask
+                wse_wp_bx = np.logical_or(
+                    wse1_ar.mask,
+                    wse1_ar.data <= dem1_ar.data)
+                
+                # build new array
+                wse1_ar2 = ma.array(wse1_ar.data, mask=wse_wp_bx)
+                assert_wse_ar(wse1_ar2)
+                meta_d['post_dem_filter_mask_cnt'] = wse1_ar2.mask.sum().sum()
+                
+                delta_cnt = meta_d['post_dem_filter_mask_cnt'] - meta_d['pre_dem_filter_mask_cnt']
+                log.info(f'filtered {delta_cnt} of {dem1_ar.size} additional cells w/ DEM')
+                assert delta_cnt >= 0, 'dem filter should extend the mask'
+                
+                prof = wse1_ds.profile
+                
+        # write
+        with rio.open(ofp, mode='w', **prof) as ds:
+            ds.write(wse1_ar2, indexes=1, masked=False)
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        tdelta = (now() - start).total_seconds()
+        meta_d['tdelta'] = tdelta
+        
+        log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}')
+        meta_d['wse1_wp_fp'] = ofp
+        return ofp, meta_d
+
+class TwoPhaseDSC(WetPartials):
+    """methods common to simple two phase downsamplers"""
+    
+    def _func_setup_dsc(self, dkey, wse1_fp, dem_fp, **kwargs):
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+        assert_spatial_equal(dem_fp, wse1_fp)
+        meta_lib = {'smry':{
+            'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
+        start = now()
+        return skwargs, meta_lib, log, ofp, start
+    
+class BufferGrowLoop(TwoPhaseDSC):
     def run_bufferGrowLoop(self,wse1_fp, dem_fp,
                        loop_range=range(30), 
                        min_growth_ratio=1.00001,
@@ -123,11 +230,8 @@ class BufferGrowLoop(Dsc_basic):
         log.info(f'finished in {tdelta:.2f} secs')
         
         return ofp, meta_lib
-        
-        
-                       
-
-class CostGrowSimple(Dsc_basic):
+ 
+class CostGrowSimple(TwoPhaseDSC):
     def run_costGrowSimple(self,wse1_fp, dem_fp, 
                               **kwargs):
         """dry partial algo with simple cost distancing
@@ -287,25 +391,26 @@ class CostGrowSimple(Dsc_basic):
         start = now()
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('costGrow_wbt', subdir=False,  **kwargs)
         log.info(f'on {wse_fp}')
-    #=======================================================================
-    # costDistance
-    #=======================================================================
-    #fillnodata in wse (for source)
+        #=======================================================================
+        # costDistance
+        #=======================================================================
+        #fillnodata in wse (for source)
         wse_fp1 = os.path.join(tmp_dir, f'wse1_fnd.tif')
         assert self.convert_nodata_to_zero(wse_fp, wse_fp1) == 0
-    #build cost friction (constant)
+        #build cost friction (constant)
         cost_fric_fp = os.path.join(tmp_dir, f'cost_fric.tif')
         assert self.new_raster_from_base(wse_fp, cost_fric_fp, value=1.0, data_type='float') == 0
-    #compute backlink raster
+        #compute backlink raster
         backlink_fp = os.path.join(out_dir, f'backlink.tif')
         assert self.cost_distance(wse_fp1, 
             cost_fric_fp,
  
             os.path.join(tmp_dir, f'backlink.tif'), backlink_fp) == 0
         log.info(f'built costDistance backlink raster \n    {backlink_fp}')
-    #=======================================================================
-    # costAllocation
-    #=======================================================================
+        
+        #=======================================================================
+        # costAllocation
+        #=======================================================================
         costAlloc_fp = os.path.join(out_dir, 'costAllocation.tif')
         assert self.cost_allocation(wse_fp1, backlink_fp, costAlloc_fp) == 0
         log.info(f'finished in {now()-start}\n    {costAlloc_fp}')
