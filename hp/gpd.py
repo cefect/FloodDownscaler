@@ -10,7 +10,7 @@ import shapely, os, logging
 import shapely.geometry as sgeo
 import numpy as np
 import pandas as pd
-from shapely.geometry import polygon
+from shapely.geometry import polygon, point, Point
 import rasterio as rio
 from pyproj.crs import CRS
 
@@ -23,6 +23,7 @@ logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
 logging.getLogger("fiona").setLevel(logging.WARNING)
 
 from hp.oop import Basic
+ 
 class GeoPandasWrkr(object):
     def __init__(self, 
                  bbox=None,
@@ -103,4 +104,49 @@ def get_samples(gser, rlay_ds, colName=None):
     return gpd.GeoDataFrame(data={colName:samp_ar}, index=gser.index, geometry=gser)
     
     
+def raster_to_points(rlay_fp, drop_mask=True):
+    """convert a raster to a set of points"""
     
+    with rio.open(rlay_fp, mode='r') as ds:
+ 
+        #coordinates
+        cols, rows = np.meshgrid(np.arange(ds.width), np.arange(ds.height))
+        
+        xs, ys = rio.transform.xy(ds.transform, rows, cols)
+        
+        xloc_ar, yloc_ar = np.array(xs), np.array(ys)
+        
+        #data
+        ar = ds.read(1, masked=True)
+        
+        #populate geoseries
+        coord_l= list(zip(xloc_ar.flatten(), yloc_ar.flatten(), ar.data.flatten()))
+        gser_raw = gpd.GeoSeries([Point(c) for c in coord_l], crs=ds.crs)
+        
+        #handle mask
+        if np.any(ar.mask) and drop_mask: 
+            bx = pd.Series(ar.mask.flatten())
+            
+            gser = gser_raw.loc[~bx].reset_index(drop=True)
+            
+        else:
+            gser = gser_raw            
+        
+    gser.name = os.path.basename(rlay_fp)
+    return gser
+        
+        
+def drop_z(geo):
+    
+    assert isinstance(geo, gpd.GeoSeries)
+    
+    coord_l= list(zip(geo.x.values,geo.y.values))
+    
+    return gpd.GeoSeries([Point(c) for c in coord_l],
+                         index = geo.index, crs=geo.crs, name='geometry')
+    
+        
+ 
+        
+ 
+ 
