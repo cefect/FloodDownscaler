@@ -385,7 +385,7 @@ class RioWrkr(Basic):
             res =self.write_dataset(merge_ar, ofp=ofp, logger=log, transform=merge_trans)
             
         return res
-    
+ 
     
     #===========================================================================
     # IO---------
@@ -795,6 +795,9 @@ def write_array(raw_ar,ofp,
     
     Parameters
     ----------
+    raw_ar: np.Array
+        takes masked or non-masked. the latter is converted to a masked before writing
+        
     masked: bool default False
         if True, the result usually has 2 bands
     """
@@ -858,6 +861,8 @@ def write_array(raw_ar,ofp,
         
     return ofp
 
+
+
 def load_array(rlay_obj, 
                indexes=1,
                  window=None,
@@ -907,6 +912,9 @@ def load_array(rlay_obj,
 
     return rlay_apply(rlay_obj, get_ar)
 
+
+    
+
 def rlay_apply(rlay, func, **kwargs):
     """flexible apply a function to either a filepath or a rio ds"""
     
@@ -925,7 +933,11 @@ def rlay_apply(rlay, func, **kwargs):
     return res
 
 def rlay_ar_apply(rlay, func, masked=False, **kwargs):
-    """apply a func to an array"""
+    """apply a func to an array
+    
+    takes a function like
+        f(np.Array, **kwargs)
+    """
     def ds_func(dataset, **kwargs):
         return func(dataset.read(1, window=None, masked=masked), **kwargs)
     
@@ -1383,41 +1395,82 @@ def write_clip(raw_fp,
         
     return ofp, stats_d
 
-def write_mask(raw_fp,
+
+
+def write_mask_apply(rlay_fp, mask_ar,
+ 
+                     logic=np.logical_or,
                ofp=None,out_dir=None,
                  **kwargs):
- 
+    """mask the passed rlay by the passed mask
     
-    """write the mask as a separate raster. 0=masked"""
+    NOTE: using numpy mask convention (True=Mask)
+    
+    Parameters
+    -----------
+    mask_ar: np.array
+        boolean mask
+        
+    logic: function or None
+        numpy logic function to apply to the raw mask and the new mask
+            e.g., set the mask as mask values in either raster
+        
+        or
+        
+        None: just use the new mask
+            
+    """
+    
+    #assert_spatial_equal(rlay_fp, mask_fp)
+    
+    assert isinstance(mask_ar, np.array)
+    assert mask_ar.dtype==np.dtype('bool')
     
     #===========================================================================
-    # retrieve
+    # retrieve raw
     #===========================================================================
-    with rio.open(raw_fp, mode='r') as dataset:
+    with rio.open(rlay_fp, mode='r') as dataset:
         
         raw_ar = dataset.read(1, window=None, masked=True)
         
         profile = dataset.profile
         
+ 
+    
     #===========================================================================
-    # manipulate
+    # apply mask
     #===========================================================================
-    ar = np.where(raw_ar.mask, 0, 1)
+    if not logic is None:
+        new_mask_ar = logic(raw_ar.mask, mask_ar)
+    else:
+        new_mask_ar = mask_ar
+        
+    assert mask_ar.dtype==np.dtype('bool')
+    if not np.any(mask_ar):
+        raise Warning('no masked values!')
+    
+    #===========================================================================
+    # rebuild 
+    #===========================================================================
+    new_ar = ma.array(raw_ar.data, mask=new_mask_ar)
     
     #===========================================================================
     # write
     #===========================================================================
     if out_dir is None:
-        out_dir = os.path.dirname(raw_fp)
+        out_dir = os.path.dirname(rlay_fp)
     assert os.path.exists(out_dir)
     
     if ofp is None:
-        fname, ext = os.path.splitext(os.path.basename(raw_fp))                
-        ofp = os.path.join(out_dir,f'{fname}_mask{ext}')
+        fname, ext = os.path.splitext(os.path.basename(rlay_fp))                
+        ofp = os.path.join(out_dir,f'{fname}_maskd{ext}')
                 
     
     
-    return write_array(ar, ofp,  masked=False,   **profile)
+    return write_array(new_ar, ofp,  masked=False,   **profile)
+    
+    
+    
     
     
     
@@ -1482,8 +1535,7 @@ def assert_extent_equal(left, right,  msg='',):
 def assert_spatial_equal(left, right,  msg='',): 
     """check all spatial attributes match"""
     if not __debug__: # true if Python was not started with an -O option
-        return
- 
+        return 
     __tracebackhide__ = True
     
     f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l) 
@@ -1509,6 +1561,10 @@ def assert_ds_attribute_match(rlay,
                           crs=None, height=None, width=None, transform=None, nodata=None,bounds=None,
                           msg=''):
 
+    #assertion setup
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    __tracebackhide__ = True
     
     stats_d = rlay_apply(rlay, get_stats)
     
@@ -1525,11 +1581,7 @@ def assert_ds_attribute_match(rlay,
     if not cnt>0:
         raise IOError('no check values passed')
  
-    
-    
-             
-                          
-        
+
         
         
         
