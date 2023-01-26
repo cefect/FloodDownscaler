@@ -78,16 +78,17 @@ class Schuman14(Dsc_basic):
         assert_spatial_equal(dem_fp, wse1_fp)
         
         #=======================================================================
-        # identify buffer region
+        # identify the search region
         #=======================================================================        
-        buff_fp, meta_lib['buff'] = self.get_buffer(wse1_fp, wbt_kwargs=dict(
+        buff_fp, meta_lib['buff'] = self.get_searchzone(wse1_fp, wbt_kwargs=dict(
             size=buffer_size*downscale, gridcells=gridcells), **skwargs)
         
         #=======================================================================
-        # get the DEM within the buffer
+        # get the DEM within the search zone
         #=======================================================================
-        demF_fp, meta_lib['demMask'] = write_mask_apply(dem_fp, buff_fp, maskType='binary', logic=np.logical_or, **skwargs)
-        
+        buff_ar = load_mask_array(buff_fp, maskType='binary')
+        demF_fp = write_mask_apply(dem_fp, buff_ar, logic=np.logical_or, ofp=os.path.join(tmp_dir, 'dem_masked.tif'))
+        log.info(f'masked DEM to inundation search zone\n    {demF_fp}')
         
         #=======================================================================
         # filter to all those within buffer and less than DEM
@@ -129,14 +130,14 @@ class Schuman14(Dsc_basic):
                 raise NotImplementedError('not sure about this')
         
         
-    def get_buffer(self, wse1_fp,  
+    def get_searchzone(self, wse1_fp,  
                    wbt_kwargs=dict(), **kwargs):
         """get a mask for the buffer search region"""
         
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('buffer', subdir=False,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('srch', subdir=False,  **kwargs)
  
         start = now()
         
@@ -174,7 +175,7 @@ class Schuman14(Dsc_basic):
         new_mask = np.logical_and(np.invert(buff1_ar), mask1_ar)
         
         #write the new mask
-        write_array_mask(np.invert(new_mask), ofp=ofp, maskType='native')
+        write_array_mask(np.invert(new_mask), ofp=ofp, maskType='binary')
         
         #=======================================================================
         # wrap
