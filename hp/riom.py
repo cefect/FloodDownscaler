@@ -9,9 +9,9 @@ Often, we have raster layers which are ONLY masks (i.e., no underlying data)
     
 this module contains functions for loading, writing, and converting
 
-maskTypes: key for how the data is stored in the raster
-    binary: ignore native mask. 1=noMask, 0=mask
-    native: use the gdal native mask
+maskTypes: key for whether or not 0 values are natively masked
+    binary: no native mask
+    native: 0s are natively masked
     
 0=null=True=masked=-9999
         
@@ -78,7 +78,7 @@ def load_mask_array(mask_fp, maskType='binary'):
     return mask_ar
 
 
-def write_array_mask(raw_ar, maskType='native', 
+def write_array_mask(raw_ar, maskType='binary', 
                      ofp=None, out_dir=None,
                      **kwargs):
     """write a boolean mask to a raster

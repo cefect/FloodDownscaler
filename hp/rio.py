@@ -1401,7 +1401,7 @@ def write_mask_apply(rlay_fp, mask_ar,
  
                      logic=np.logical_or,
                ofp=None,out_dir=None,
-                 **kwargs):
+               ):
     """mask the passed rlay by the passed mask
     
     NOTE: using numpy mask convention (True=Mask)
@@ -1422,10 +1422,11 @@ def write_mask_apply(rlay_fp, mask_ar,
     """
     
     #assert_spatial_equal(rlay_fp, mask_fp)
-    
-    assert isinstance(mask_ar, np.array)
+ 
+    assert isinstance(mask_ar, np.ndarray)
     assert mask_ar.dtype==np.dtype('bool')
-    
+    assert not np.all(mask_ar)
+    assert np.any(mask_ar)
     #===========================================================================
     # retrieve raw
     #===========================================================================
