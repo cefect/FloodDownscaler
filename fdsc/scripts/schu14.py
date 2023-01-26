@@ -9,20 +9,29 @@ Scripts to replicate Schumann 2014's downscaling
 
 import os, datetime, shutil
 import numpy as np
+import numpy.ma as ma
+import pandas as pd
 import rasterio as rio
 from rasterio import shutil as rshutil
+import geopandas as gpd
+from sklearn.neighbors import KDTree, BallTree
 
-from fdsc.base import Dsc_basic, now
+
 
 from hp.rio import (
      write_resample, assert_extent_equal, Resampling, assert_spatial_equal,
-     write_mask_apply, 
+     write_mask_apply, get_profile
      )
 
 from hp.riom import (
     assert_mask_ar, load_mask_array, write_array_mask, write_extract_mask
     )
 
+from hp.gpd import (
+    raster_to_points, drop_z
+    )
+
+from fdsc.base import Dsc_basic, now
 
 class Schuman14(Dsc_basic):
     
@@ -80,57 +89,123 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # identify the search region
         #=======================================================================        
-        buff_fp, meta_lib['buff'] = self.get_searchzone(wse1_fp, wbt_kwargs=dict(
+        search_mask_fp, meta_lib['searchzone'] = self.get_searchzone(wse1_fp, wbt_kwargs=dict(
             size=buffer_size*downscale, gridcells=gridcells), **skwargs)
         
+
         #=======================================================================
         # get the DEM within the search zone
         #=======================================================================
-        buff_ar = load_mask_array(buff_fp, maskType='binary')
-        demF_fp = write_mask_apply(dem_fp, buff_ar, logic=np.logical_or, ofp=os.path.join(tmp_dir, 'dem_masked.tif'))
+        srch_ar = load_mask_array(search_mask_fp, maskType='binary')
+        demF_fp = write_mask_apply(dem_fp, srch_ar, logic=np.logical_or, ofp=os.path.join(tmp_dir, 'dem_search_masked.tif'))
         log.info(f'masked DEM to inundation search zone\n    {demF_fp}')
         
         #=======================================================================
         # filter to all those within buffer and less than DEM
         #=======================================================================
-        wse2_fp, meta_lib['dscF'] = self.get_dsc_filtered(wse1_fp, dem_fp, buff_fp, **skwargs)
+        wse1_filld_fp, meta_lib['knnF'] = self.get_knnFill(wse2_fp, demF_fp,
+                                                           #k=buffer_size*downscale,
+                                                            **skwargs)
         
         #=======================================================================
         # wrap
         #=======================================================================
  
-        rshutil.copy(wse2_fp, ofp)
+        rshutil.copy(wse1_filld_fp, ofp)
         
  
         
-    def get_dsc_filtered(self, wse1_fp, dem_fp, buff_fp, **kwargs):
+    def get_knnFill(self, wse2_fp, dem_fp,k=1,  **kwargs):
         """
-         filter to all those within buffer and less than DEM
+        fill the DEM with NN from the WSE (if higher)
+        
+        Parmaeters
+        ----------
+        wse2_fp: str
+            filepath to coarse wse raster
+ 
+            
+        dem_fp: str
+            filepath to fine DEm raster. should be masked so only zones-to-be-filled are un-masked
+            
+        
         """
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('buffer', subdir=False,  **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('knnFill', subdir=False,  **kwargs)
         start = now()
         
-        assert_spatial_equal(wse1_fp, dem_fp)
-        assert_spatial_equal(buff_fp, dem_fp)
-        
+        assert_extent_equal(wse2_fp, dem_fp)
+ 
         
         #=======================================================================
-        # mask wse
+        # extract poinst
         #=======================================================================
-        with rio.open(wse1_fp, mode='r') as wse_ds:
-            wse_ar1 = wse_ds.read(1, masked=True)
-            
-            
-            with rio.open(buff_fp, mode='r') as buff_ds:
-                buff_ar = buff_ds.read(1, masked=False)
-                
-                raise NotImplementedError('not sure about this')
+        wse2_gser = raster_to_points(wse2_fp)
+        
+        #DEM points to populate
+        dem_raw_gser = raster_to_points(dem_fp, drop_mask=False)
+        bx = dem_raw_gser.geometry.z==-9999 #mask
+        dem_gser =   dem_raw_gser[~bx]  
+        
+        #setup results frame
+        res_gdf = gpd.GeoDataFrame(dem_gser.geometry.z.rename('dem'), geometry=drop_z(dem_gser.geometry))
+        
+        log.info(f'seraching from {len(dem_gser)} fine to {len(wse2_gser)} coarse')
+        
+        """
+        ax = wse2_gser.plot(color='black')
+        dem_gser.plot(color='green', ax=ax)
+        
+        res_gdf.plot(ax=ax, linewidth=0, column='wse2_id')
+        """
+        
+        #=======================================================================
+        # NN search
+        #=======================================================================
+        #convert point format
+        src_pts = [(x,y) for x,y in zip(wse2_gser.geometry.x , wse2_gser.geometry.y)]
+        qry_pts =  [(x,y) for x,y in zip(dem_gser.geometry.x , dem_gser.geometry.y)]
+        
+        #build model
+        tree = KDTree(src_pts, leaf_size=3, metric='manhattan')
+        
+        #compute the distance and index to the source points (for each query point
+        dist_ar, index_ar = tree.query(qry_pts, k=k, return_distance=True)        
+        assert len(dist_ar)==len(qry_pts)
+        
+        #=======================================================================
+        # join matches
+        #=======================================================================
+        res_gdf['wse2_id'] = pd.Series(index_ar.ravel(), index=dem_gser.index)
+        
+        res_gdf = res_gdf.join(wse2_gser.z.rename('wse2'), on='wse2_id').set_geometry('geometry', drop=True)
+        
+        assert res_gdf['wse2'].notna().all()
+        
+        res_gdf['wet'] = res_gdf['wse2']>res_gdf['dem'] #flag real water
+        
+        log.info(f'found %i/%i wet cells'%(res_gdf['wet'].sum(), len(res_gdf)))
+        
+        #=======================================================================
+        # rasterize result
+        #=======================================================================
+        #add the empties back
+        res_gdf2 = gpd.GeoDataFrame(res_gdf, index=dem_raw_gser.index, geometry=drop_z(dem_raw_gser.geometry)
+                                    ).set_geometry('geometry', drop=True)
+                                    
+        res_gdf2['wet'] = res_gdf2['wet'].fillna(False).astype(bool)
+        
+        raise IOError('stopped here')
+        res_ar = ma.array(res_gdf2['wse2'].values, mask=res_gdf2['wet'])
         
         
-    def get_searchzone(self, wse1_fp,  
+        
+        
+ 
+        
+    def get_searchzone(self, wse1_fp,
                    wbt_kwargs=dict(), **kwargs):
         """get a mask for the buffer search region"""
         
@@ -149,7 +224,7 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         mask1_fp  = write_extract_mask(wse1_fp, out_dir=tmp_dir, maskType='binary')
         
-        
+        assert_spatial_equal(wse1_fp, mask1_fp)
         #=======================================================================
         # #make the buffer
         #=======================================================================
@@ -165,18 +240,18 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         log.debug(f'computing donut on {buff1_fp}')
         #load the raw buffer
-        buff1_ar = load_mask_array(buff1_fp, maskType='binary')
- 
+        buff1_ar = load_mask_array(buff1_fp, maskType='binary') 
         
         #load the original mask
         mask1_ar = load_mask_array(mask1_fp, maskType='binary')
  
         #inside buffer but outside wse
+        
         new_mask = np.logical_and(np.invert(buff1_ar), mask1_ar)
         
         #write the new mask
-        write_array_mask(np.invert(new_mask), ofp=ofp, maskType='binary')
-        
+        write_array_mask(np.invert(new_mask), ofp=ofp, maskType='binary', **get_profile(wse1_fp))
+        assert_spatial_equal(ofp, wse1_fp)
         #=======================================================================
         # wrap
         #=======================================================================
@@ -189,7 +264,33 @@ class Schuman14(Dsc_basic):
     
     
     
+def get_nearest(src_points, candidates, k_neighbors=2):
+    """
+    Find nearest neighbors for all source points from a set of candidate points
+    modified from: https://automating-gis-processes.github.io/site/notebooks/L3/nearest-neighbor-faster.html
+    and: https://stackoverflow.com/questions/62198199/k-nearest-points-from-two-dataframes-with-geopandas?noredirect=1&lq=1
+    """
     
+
+    # Create tree from the candidate points
+    tree = BallTree(candidates, leaf_size=15, metric='manhattan')
+
+    # Find closest points and distances
+    distances, indices = tree.query(src_points, k=k_neighbors)
+
+    # Transpose to get distances and indices into arrays
+    distances = distances.transpose()
+    indices = indices.transpose()
+
+    # Get closest indices and distances (i.e. array at index 0)
+    # note: for the second closest points, you would take index 1, etc.
+    closest = indices[0]
+    closest_dist = distances[0]
+    closest_second = indices[1] # *manually add per comment above*
+    closest_second_dist = distances[1] # *manually add per comment above*
+
+    # Return indices and distances
+    return (closest, closest_dist, closest_second, closest_second_dist)
     
     
     
