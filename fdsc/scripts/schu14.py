@@ -15,8 +15,13 @@ from rasterio import shutil as rshutil
 from fdsc.base import Dsc_basic, now
 
 from hp.rio import (
-     write_mask, write_resample, assert_extent_equal, Resampling, assert_spatial_equal
+     write_resample, assert_extent_equal, Resampling, assert_spatial_equal,
+     write_mask_apply, 
      )
+
+from hp.riom import (
+    assert_mask_ar, load_mask_array, write_array_mask, write_extract_mask
+    )
 
 
 class Schuman14(Dsc_basic):
@@ -28,6 +33,8 @@ class Schuman14(Dsc_basic):
  
                               **kwargs):
         """run python port of schuman 2014's downscaling
+        
+        Original script uses matlab's 'rangesearch' to match a 1.5 cell buffer
         
         
         Parameters
@@ -77,6 +84,12 @@ class Schuman14(Dsc_basic):
             size=buffer_size*downscale, gridcells=gridcells), **skwargs)
         
         #=======================================================================
+        # get the DEM within the buffer
+        #=======================================================================
+        demF_fp, meta_lib['demMask'] = write_mask_apply(dem_fp, buff_fp, maskType='binary', logic=np.logical_or, **skwargs)
+        
+        
+        #=======================================================================
         # filter to all those within buffer and less than DEM
         #=======================================================================
         wse2_fp, meta_lib['dscF'] = self.get_dsc_filtered(wse1_fp, dem_fp, buff_fp, **skwargs)
@@ -86,6 +99,8 @@ class Schuman14(Dsc_basic):
         #=======================================================================
  
         rshutil.copy(wse2_fp, ofp)
+        
+ 
         
     def get_dsc_filtered(self, wse1_fp, dem_fp, buff_fp, **kwargs):
         """
@@ -116,7 +131,7 @@ class Schuman14(Dsc_basic):
         
     def get_buffer(self, wse1_fp,  
                    wbt_kwargs=dict(), **kwargs):
-        """make  mask then buffer it"""
+        """get a mask for the buffer search region"""
         
         #=======================================================================
         # defaults
@@ -131,22 +146,43 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # #convert inundation to mask
         #=======================================================================
-        mask1_fp  = write_mask(wse1_fp, out_dir=tmp_dir)
+        mask1_fp  = write_extract_mask(wse1_fp, out_dir=tmp_dir, maskType='binary')
         
         
         #=======================================================================
         # #make the buffer
         #=======================================================================
-        assert self.buffer_raster(mask1_fp, ofp, **wbt_kwargs)==0
+        buff1_fp = os.path.join(tmp_dir, 'buff1.tif')
+        """this requires a binary type mask (just 1s and 0s"""
+        assert self.buffer_raster(mask1_fp, buff1_fp, **wbt_kwargs)==0
         
-        assert_spatial_equal(mask1_fp, wse1_fp)
+        assert_spatial_equal(buff1_fp, wse1_fp)
+        
+        
+        #=======================================================================
+        # convert to donut
+        #=======================================================================
+        log.debug(f'computing donut on {buff1_fp}')
+        #load the raw buffer
+        buff1_ar = load_mask_array(buff1_fp, maskType='binary')
+ 
+        
+        #load the original mask
+        mask1_ar = load_mask_array(mask1_fp, maskType='binary')
+ 
+        #inside buffer but outside wse
+        new_mask = np.logical_and(np.invert(buff1_ar), mask1_ar)
+        
+        #write the new mask
+        write_array_mask(np.invert(new_mask), ofp=ofp, maskType='native')
+        
         #=======================================================================
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        log.info(f'built buffer in {tdelta} \n    {ofp}')
+        log.info(f'built buffer in {tdelta} w/ {new_mask.sum()}/{new_mask.size} active \n    {ofp}')
         
-        return ofp, dict(tdelta=tdelta, ofp=ofp, mask_fp=mask1_fp)
+        return ofp, dict(tdelta=tdelta, ofp=ofp, mask_fp=mask1_fp, valid_cnt=new_mask.sum())
     
     
     
