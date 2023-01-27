@@ -33,7 +33,8 @@ from fdsc.base import Dsc_basic
 
 class WetPartials(Dsc_basic):
     """first phase of two phase downsamplers"""
-    
+
+
     def p1_wetPartials(self, wse2_fp, dem_fp, downscale=None,
                        resampling=Resampling.bilinear,
                         **kwargs):
@@ -55,22 +56,11 @@ class WetPartials(Dsc_basic):
         # #precheck
         #=======================================================================
         assert_extent_equal(wse2_fp, dem_fp, msg='phase1')
-        #=======================================================================
-        # assert_dem_ar(dem1_ar)
-        # assert_wse_ar(wse2_ar)
-        # 
-        # for ds1, ds2 in zip(dem1_ar.shape, wse2_ar.shape):
-        #     assert ds1/ds2==downscale, downscale
-        #=======================================================================
-            
-        # meta
+ 
+ 
         meta_d = {'wse2_fp':wse2_fp, 'dem_fp':dem_fp, 'resampling':resampling, 'downscale':downscale}
         
-        #=======================================================================
-        # def fmeta(ar, pfx): #meta updater
-        #     meta_d.update({f'{pfx}_size':ar.size, f'{pfx}_nullCnt':np.isnan(ar).sum()})
-        #     
-        #=======================================================================
+ 
         #=======================================================================
         # resample
         #=======================================================================
@@ -85,43 +75,18 @@ class WetPartials(Dsc_basic):
         #=======================================================================
         # #filter dem violators
         #=======================================================================
-        with rio.open(dem_fp, mode='r') as dem_ds:
-            dem1_ar = dem_ds.read(1, window=None, masked=True)
-            assert_dem_ar(dem1_ar)
-            meta_d['s1_size'] = dem1_ar.size
-            
-            with rio.open(wse1_rsmp_fp, mode='r') as wse1_ds:
-                wse1_ar = wse1_ds.read(1, window=None, masked=True)
-                assert_wse_ar(wse1_ar)
-                meta_d['pre_dem_filter_mask_cnt'] = wse1_ar.mask.sum().sum()
-                
-                # extend mask to include violators mask
-                wse_wp_bx = np.logical_or(
-                    wse1_ar.mask,
-                    wse1_ar.data <= dem1_ar.data)
-                
-                # build new array
-                wse1_ar2 = ma.array(wse1_ar.data, mask=wse_wp_bx)
-                assert_wse_ar(wse1_ar2)
-                meta_d['post_dem_filter_mask_cnt'] = wse1_ar2.mask.sum().sum()
-                
-                delta_cnt = meta_d['post_dem_filter_mask_cnt'] - meta_d['pre_dem_filter_mask_cnt']
-                log.info(f'filtered {delta_cnt} of {dem1_ar.size} additional cells w/ DEM')
-                assert delta_cnt >= 0, 'dem filter should extend the mask'
-                
-                prof = wse1_ds.profile
-                
-        # write
-        with rio.open(ofp, mode='w', **prof) as ds:
-            ds.write(wse1_ar2, indexes=1, masked=False)
+        wse1_filter_ofp, d = self.get_wse_dem_filter(wse1_rsmp_fp, dem_fp,logger=log, out_dir=tmp_dir)
+        meta_d.update(d)
  
         #=======================================================================
         # wrap
         #=======================================================================
+        rshutil.copy(wse1_filter_ofp, ofp)
+        
         tdelta = (now() - start).total_seconds()
         meta_d['tdelta'] = tdelta
         
-        log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}')
+        log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}\n    {ofp}')
         meta_d['wse1_wp_fp'] = ofp
         return ofp, meta_d
 

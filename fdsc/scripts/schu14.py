@@ -39,8 +39,7 @@ class Schuman14(Dsc_basic):
     def run_schu14(self, wse2_fp, dem_fp,
                    buffer_size=1.5,
                    gridcells=True,
- 
-                              **kwargs):
+                   **kwargs):
         """run python port of schuman 2014's downscaling
         
         Original script uses matlab's 'rangesearch' to match a 1.5 cell buffer
@@ -62,12 +61,12 @@ class Schuman14(Dsc_basic):
         
         #=======================================================================
         # defaults
-        #=======================================================================        
+        #=======================================================================
+        start = now()        
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('schu14', subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_extent_equal(wse2_fp, dem_fp) 
-
-        start = now()
+        assert_extent_equal(wse2_fp, dem_fp)
+        
         
         # get the downscale
         downscale = self.get_downscale(wse2_fp, dem_fp)
@@ -80,14 +79,22 @@ class Schuman14(Dsc_basic):
         # get simple downscalled inundation
         #=======================================================================
         """ we want to allow buffer sizes as a fraction of the high-res grid
+        
+        but we dont want to filter wet partials yet (no use in including thesein the search)
         """
-        wse1_fp = write_resample(wse2_fp, scale=downscale, resampling=Resampling.nearest, out_dir=tmp_dir)
-        assert_spatial_equal(dem_fp, wse1_fp)
+        wse1_rsmp_fp = write_resample(wse2_fp, resampling=Resampling.nearest,
+                       scale=downscale,
+                       ofp=self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
+                       )
+        
+        meta_lib['smry']['wse1_rsmp_fp'] = wse1_rsmp_fp
+        
+        log.info(f'basic nearest resampled WSE {downscale} \n    {wse1_rsmp_fp}')       
         
         #=======================================================================
         # identify the search region
         #=======================================================================        
-        search_mask_fp, meta_lib['searchzone'] = self.get_searchzone(wse1_fp, wbt_kwargs=dict(
+        search_mask_fp, meta_lib['searchzone'] = self.get_searchzone(wse1_rsmp_fp, wbt_kwargs=dict(
             size=buffer_size * downscale, gridcells=gridcells), **skwargs)
 
         #=======================================================================
@@ -105,15 +112,22 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # merge
         #=======================================================================
-        wse1_merge_fp = write_mosaic(wse1_fp, wse1_filld_fp, ofp=os.path.join(tmp_dir, 'wse_mosaic.tif'))
+        wse1_merge_fp = write_mosaic(wse1_rsmp_fp, wse1_filld_fp, ofp=os.path.join(tmp_dir, 'wse_mosaic.tif'))
+        
+        #=======================================================================
+        # final filter
+        #=======================================================================
+        """should be for just the wet partials"""
+        wse1_filter_ofp, meta_lib['WPfilter'] = self.get_wse_dem_filter(wse1_merge_fp, dem_fp,**skwargs)
+        
         
         #=======================================================================
         # wrap
         #======================================================================= 
-        rshutil.copy(wse1_merge_fp, ofp)
+        rshutil.copy(wse1_filter_ofp, ofp)
         tdelta = (now() - start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
-        log.info(f'finished in {tdelta:.2f} secs')
+        log.info(f'finished in {tdelta:.2f} secs on \n    {ofp}')
         
         return ofp, meta_lib
         
@@ -210,7 +224,7 @@ class Schuman14(Dsc_basic):
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        log.info(f'finished fill search in {tdelta} w/ %i/%i \n    {ofp}'%(
+        log.info(f'finished KNN searchc + fill in {tdelta} secs w/ %i/%i \n    {ofp}'%(
             res_gdf2['wet'].sum(), len(res_gdf2['wet'])))
         
         return ofp, dict(tdelta=tdelta, ofp=ofp, wet_cnt=res_gdf2['wet'].sum(), qry_cnt=len(qry_pts), src_cnt=len(src_pts))
@@ -273,7 +287,7 @@ class Schuman14(Dsc_basic):
         # wrap
         #=======================================================================
         tdelta = (now()-start).total_seconds()
-        log.info(f'built buffer in {tdelta} w/ {new_mask.sum()}/{new_mask.size} active \n    {ofp}')
+        log.info(f'built search zone buffer in {tdelta} w/ {new_mask.sum()}/{new_mask.size} active \n    {ofp}')
         
         return ofp, dict(tdelta=tdelta, ofp=ofp, mask_fp=mask1_fp, valid_cnt=new_mask.sum())
     

@@ -13,7 +13,7 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr
+    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
     )
 
 nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl'}
@@ -48,6 +48,53 @@ class Dsc_basic(object):
             
         
         return self.downscale
+    
+    def get_wse_dem_filter(self, wse_fp, dem_fp,  **kwargs):
+        """filter the passed WSe by the DEM"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        meta_d= dict()
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('wdFilter', **kwargs)
+        
+        assert_spatial_equal(wse_fp, dem_fp)
+        
+        #=======================================================================
+        # compute
+        #=======================================================================
+        with rio.open(dem_fp, mode='r') as dem_ds:
+            dem1_ar = dem_ds.read(1, window=None, masked=True)
+            assert_dem_ar(dem1_ar)
+            meta_d['s1_size'] = dem1_ar.size
+            
+            
+            with rio.open(wse_fp, mode='r') as wse1_ds:
+                wse1_ar = wse1_ds.read(1, window=None, masked=True)
+                assert_wse_ar(wse1_ar)
+                meta_d['pre_dem_filter_mask_cnt'] = wse1_ar.mask.sum().sum()
+                
+                # extend mask to include violators mask
+                wse_wp_bx = np.logical_or(
+                    wse1_ar.mask, 
+                    wse1_ar.data <= dem1_ar.data)
+                
+                # build new array
+                wse1_ar2 = ma.array(wse1_ar.data, mask=wse_wp_bx)
+                assert_wse_ar(wse1_ar2)
+                
+                #wrap
+                meta_d['post_dem_filter_mask_cnt'] = wse1_ar2.mask.sum().sum()
+                delta_cnt = meta_d['post_dem_filter_mask_cnt'] - meta_d['pre_dem_filter_mask_cnt']
+                log.info(f'filtered {delta_cnt} of {dem1_ar.size} additional cells w/ DEM')
+                assert delta_cnt >= 0, 'dem filter should extend the mask'
+                prof = wse1_ds.profile
+                
+        #=======================================================================
+        # wrap
+        #======================================================================= 
+        log.debug(f'finsihed on {ofp}')
+        return write_array2(wse1_ar2, ofp, **prof), meta_d
+ 
     
 
 class Master_Session(Session):
