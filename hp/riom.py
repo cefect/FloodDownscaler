@@ -25,7 +25,7 @@ import rasterio as rio
 
 
 from hp.rio import (
-    rlay_apply, write_array
+    rlay_apply, write_array2
     )
 
 
@@ -80,6 +80,7 @@ def load_mask_array(mask_fp, maskType='binary'):
 
 def write_array_mask(raw_ar, maskType='binary', 
                      ofp=None, out_dir=None,
+                     nodata=-9999,
                      **kwargs):
     """write a boolean mask to a raster
     
@@ -105,10 +106,10 @@ def write_array_mask(raw_ar, maskType='binary',
                 
         ofp = os.path.join(out_dir,'mask.tif')
     
-    return write_array(mask_raw_ar, ofp, maskType=maskType, **kwargs)
+    return write_array2(mask_raw_ar, ofp, **kwargs)
 
 
-def write_extract_mask(raw_fp,  ofp=None, out_dir=None, **kwargs):
+def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwargs):
  
     
     """extractc the native mask from a rlay as a separate raster. 0=masked"""
@@ -128,7 +129,7 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, **kwargs):
     ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
         
     
-    return write_array_mask(raw_ar.mask, ofp=ofp, **kwargs, **profile)
+    return write_array_mask(raw_ar.mask, ofp=ofp, maskType=maskType, **kwargs, **profile)
         
  
 #===============================================================================

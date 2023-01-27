@@ -779,6 +779,22 @@ class RioSession(RioWrkr):
 #===============================================================================
 # HELPERS----------
 #===============================================================================
+
+def write_array2(ar, ofp, **kwargs):
+    """skinny writer"""
+    #===========================================================================
+    # precheck
+    #===========================================================================
+    assert isinstance(ofp, str), ofp
+    assert os.path.exists(os.path.dirname(ofp)), ofp
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    with rio.open(ofp, 'w', **kwargs) as ds:
+        ds.write(ar, indexes=1, masked=False)
+    return ofp
+            
 def write_array(raw_ar,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
@@ -866,7 +882,7 @@ def write_array(raw_ar,ofp,
 def load_array(rlay_obj, 
                indexes=1,
                  window=None,
-                 masked=False,
+                 masked=True,
                  bbox=None,
                  ):
     """skinny array from raster object"""
@@ -1472,6 +1488,30 @@ def write_mask_apply(rlay_fp, mask_ar,
     return write_array(new_ar, ofp,  masked=False,   **profile)
     
     
+def write_mosaic(fp1, fp2, ofp=None):
+    """combine valid cell values on two rasters"""
+    
+    #===========================================================================
+    # load
+    #===========================================================================
+    assert_spatial_equal(fp1, fp2)
+    ar1 = load_array(fp1, masked=True)
+    
+    ar2 = load_array(fp2, masked=True)
+    
+    #===========================================================================
+    # check overlap
+    #===========================================================================
+    overlap = np.logical_and(~ar1.mask, ~ar2.mask)
+    assert not np.any(overlap), f'masks overlap {overlap.sum()}'
+    
+    
+    merge_ar = ma.array(ar1.filled(1)*ar2.filled(1), mask=ar1.mask*ar2.mask)
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    return write_array2(merge_ar, ofp, **get_profile(fp1))
     
     
     
