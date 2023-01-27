@@ -20,7 +20,7 @@ from sklearn.neighbors import KDTree, BallTree
 
 from hp.rio import (
      write_resample, assert_extent_equal, Resampling, assert_spatial_equal,
-     write_mask_apply, get_profile
+     write_mask_apply, get_profile, write_array2, write_mosaic
      )
 
 from hp.riom import (
@@ -33,10 +33,10 @@ from hp.gpd import (
 
 from fdsc.base import Dsc_basic, now
 
+
 class Schuman14(Dsc_basic):
     
-    
-    def run_schu14(self,wse2_fp, dem_fp,
+    def run_schu14(self, wse2_fp, dem_fp,
                    buffer_size=1.5,
                    gridcells=True,
  
@@ -69,9 +69,7 @@ class Schuman14(Dsc_basic):
 
         start = now()
         
-        
-        
-        #get the downscale
+        # get the downscale
         downscale = self.get_downscale(wse2_fp, dem_fp)
         
         meta_lib = {'smry':{
@@ -90,8 +88,7 @@ class Schuman14(Dsc_basic):
         # identify the search region
         #=======================================================================        
         search_mask_fp, meta_lib['searchzone'] = self.get_searchzone(wse1_fp, wbt_kwargs=dict(
-            size=buffer_size*downscale, gridcells=gridcells), **skwargs)
-        
+            size=buffer_size * downscale, gridcells=gridcells), **skwargs)
 
         #=======================================================================
         # get the DEM within the search zone
@@ -101,21 +98,26 @@ class Schuman14(Dsc_basic):
         log.info(f'masked DEM to inundation search zone\n    {demF_fp}')
         
         #=======================================================================
-        # filter to all those within buffer and less than DEM
+        # populate valid WSE within the search zone (on the DEM)
         #=======================================================================
-        wse1_filld_fp, meta_lib['knnF'] = self.get_knnFill(wse2_fp, demF_fp,
-                                                           #k=buffer_size*downscale,
-                                                            **skwargs)
+        wse1_filld_fp, meta_lib['knnF'] = self.get_knnFill(wse2_fp, demF_fp, **skwargs)
+        
+        #=======================================================================
+        # merge
+        #=======================================================================
+        wse1_merge_fp = write_mosaic(wse1_fp, wse1_filld_fp, ofp=os.path.join(tmp_dir, 'wse_mosaic.tif'))
         
         #=======================================================================
         # wrap
-        #=======================================================================
- 
-        rshutil.copy(wse1_filld_fp, ofp)
+        #======================================================================= 
+        rshutil.copy(wse1_merge_fp, ofp)
+        tdelta = (now() - start).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
+        log.info(f'finished in {tdelta:.2f} secs')
         
- 
+        return ofp, meta_lib
         
-    def get_knnFill(self, wse2_fp, dem_fp,k=1,  **kwargs):
+    def get_knnFill(self, wse2_fp, dem_fp,   **kwargs):
         """
         fill the DEM with NN from the WSE (if higher)
         
@@ -138,7 +140,7 @@ class Schuman14(Dsc_basic):
         
         assert_extent_equal(wse2_fp, dem_fp)
  
-        
+        profile = get_profile(dem_fp)
         #=======================================================================
         # extract poinst
         #=======================================================================
@@ -172,7 +174,7 @@ class Schuman14(Dsc_basic):
         tree = KDTree(src_pts, leaf_size=3, metric='manhattan')
         
         #compute the distance and index to the source points (for each query point
-        dist_ar, index_ar = tree.query(qry_pts, k=k, return_distance=True)        
+        dist_ar, index_ar = tree.query(qry_pts, k=1, return_distance=True)        
         assert len(dist_ar)==len(qry_pts)
         
         #=======================================================================
@@ -197,8 +199,23 @@ class Schuman14(Dsc_basic):
                                     
         res_gdf2['wet'] = res_gdf2['wet'].fillna(False).astype(bool)
         
-        raise IOError('stopped here')
-        res_ar = ma.array(res_gdf2['wse2'].values, mask=res_gdf2['wet'])
+        
+        #recombine and resahep
+        res_ar = ma.array(res_gdf2['wse2'].fillna(profile['nodata']).values, mask=~res_gdf2['wet'], fill_value=profile['nodata']
+                          ).reshape((profile['height'], profile['width']))
+                          
+        write_array2(res_ar, ofp, **profile)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        tdelta = (now()-start).total_seconds()
+        log.info(f'finished fill search in {tdelta} w/ %i/%i \n    {ofp}'%(
+            res_gdf2['wet'].sum(), len(res_gdf2['wet'])))
+        
+        return ofp, dict(tdelta=tdelta, ofp=ofp, wet_cnt=res_gdf2['wet'].sum(), qry_cnt=len(qry_pts), src_cnt=len(src_pts))
+
+ 
         
         
         
