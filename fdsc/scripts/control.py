@@ -194,7 +194,7 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
             wse2_fp,
             dem1_fp,
  
-            dryPartial_method='costGrowSimple',
+            method='costGrowSimple',
             downscale=None,
             write_meta=True,
                 **kwargs):
@@ -208,6 +208,9 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         dem1_fp: str
             filepath to DEM raster layer at high-resolution (used to infer downscaled WSE)
             
+        method: str
+            downsccaling method to apply
+            
         Note
         -------
         no AOI clipping is performed. raster layers must have the same spatial extents. 
@@ -218,9 +221,12 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True, **kwargs)
-        meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
+        meta_lib = {'smry':{**{'today':self.today_str, 'method':method}, **self._get_init_pars()}}
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         start = now()
+        assert_extent_equal(wse2_fp, dem1_fp)
+        
+        
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
@@ -228,18 +234,33 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         meta_lib['wse_raw'] = get_stats2(wse2_fp)
         meta_lib['dem_raw'] = get_stats2(dem1_fp)
         
+        if downscale is None:
+            downscale = self.get_downscale(wse2_fp, dem1_fp)
+        
         #=======================================================================
-        # wet partials
-        #=======================================================================                
-        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, downscale=downscale,
-                                                            **skwargs)
- 
+        # run algo
         #=======================================================================
-        # dry partials
-        #=======================================================================
-        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp,
-                                                dryPartial_method=dryPartial_method,
-                                                **skwargs)
+        if not method in ['schumann14']:
+            #=======================================================================
+            # wet partials
+            #=======================================================================                
+            wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, downscale=downscale,
+                                                                **skwargs)
+     
+            #=======================================================================
+            # dry partials
+            #=======================================================================
+            wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp,
+                                                    dryPartial_method=method,
+                                                    **skwargs)
+        
+        elif method=='schumann14':
+                wse1_dp_fp, md1 = self.run_schu14(wse2_fp, dem1_fp, downscale=downscale, **skwargs)
+                
+                meta_lib.update(md1)
+        
+        else:
+            raise KeyError(method)
         
         #=======================================================================
         # wrap
@@ -268,20 +289,20 @@ def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
         aoi_fp=None,
-        dryPartial_method='costGrowSimple',
+        method='costGrowSimple',
         **kwargs):
     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
     
     Parameters
     ----------
-    dryPartial_method: str
-        dry partial algo method
+    method: str
+        downscaling method to apply
         
     aoi_fp: str, Optional
         filepath to AOI. must be well rounded to the coarse raster
     """
     
     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, dryPartial_method=dryPartial_method)
+        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, method=method)
         
     return wse1_dp_fp

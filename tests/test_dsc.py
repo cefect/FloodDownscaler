@@ -13,9 +13,10 @@ import shapely.geometry as sgeo
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
+from fdsc.base import nicknames_d
 from fdsc.scripts.control import run_downscale
 from fdsc.scripts.control import Dsc_Session as Session
-from fdsc.scripts.schu14 import Schuman14
+ 
 from fdsc.scripts.simple import ar_buffer
 
 from tests.conftest import (
@@ -152,23 +153,28 @@ def test_ar_buffer(wse_ar):
     ar_buffer(wse_ar)
 
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    #(dem1_rlay_fp, wse2_rlay_fp),
+    (dem1_rlay_fp, wse2_rlay_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ]) 
 def test_schu14(dem_fp, wse_fp, wrkr):
     wrkr.run_schu14(wse_fp, dem_fp, buffer_size=float(2/3))
     
 
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
-@pytest.mark.parametrize('dryPartial_method', [
-    'costGrowSimple','none'
-    ])
-def test_runr(dem_fp, wse_fp, tmp_path, dryPartial_method):    
+@pytest.mark.parametrize('method, kwargs', 
+                         #list(nicknames_d.keys())
+                         [
+                             #'costGrowSimple', 'none','bufferGrowLoop', 
+                          ('schumann14', dict(buffer_size=float(2/3))),
+                           ]
+                         )
+def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs):    
     run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',
-                  dryPartial_method=dryPartial_method)
+                  method=method, **kwargs)
     

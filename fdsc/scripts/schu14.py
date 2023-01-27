@@ -35,10 +35,20 @@ from fdsc.base import Dsc_basic, now
 
 
 class Schuman14(Dsc_basic):
+    buffer_size=None
+    
+    def __init__(self, 
+                 buffer_size=1.5,
+                 **kwargs):
+        
+        self.buffer_size=buffer_size
+        
+        super().__init__(**kwargs)
     
     def run_schu14(self, wse2_fp, dem_fp,
-                   buffer_size=1.5,
+                   buffer_size=None,
                    gridcells=True,
+                   downscale=None,
                    **kwargs):
         """run python port of schuman 2014's downscaling
         
@@ -68,13 +78,15 @@ class Schuman14(Dsc_basic):
         assert_extent_equal(wse2_fp, dem_fp)
         
         
-        # get the downscale
-        downscale = self.get_downscale(wse2_fp, dem_fp)
+        
+        if buffer_size is None: buffer_size=self.buffer_size
+        if downscale is None:
+            downscale = self.get_downscale(wse2_fp, dem_fp)
         
         meta_lib = {'smry':{
             'downscale':downscale, 'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
         
-        log.info(f'downscaling \'{os.path.basename(wse2_fp)}\' by {downscale} with buffer of {buffer_size}')
+        log.info(f'downscaling \'{os.path.basename(wse2_fp)}\' by {downscale} with buffer of {buffer_size:.3f}')
         #=======================================================================
         # get simple downscalled inundation
         #=======================================================================
