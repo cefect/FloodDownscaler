@@ -91,10 +91,10 @@ def write_array_mask(raw_ar, maskType='binary',
     assert_mask_ar(raw_ar)
     
     if maskType=='native':
-        mask_raw_ar = ma.array(np.where(raw_ar, 0, 1),mask=raw_ar)
+        mask_raw_ar = ma.array(np.where(raw_ar, 0, 1),mask=raw_ar, fill_value=nodata)
     elif maskType=='binary':
         #no native mask.. just 1s and zeros
-        mask_raw_ar = ma.array(np.where(raw_ar, 0, 1), mask=np.full(raw_ar.shape, False))
+        mask_raw_ar = ma.array(np.where(raw_ar, 0, 1), mask=np.full(raw_ar.shape, False), fill_value=nodata)
     else:
         raise KeyError(maskType)
     

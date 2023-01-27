@@ -1358,7 +1358,7 @@ def write_resample(rlay_fp,
                           transform=transform,
                           )}
             
-            return write_array(res_mar,ofp, **prof_rsmp)
+            return write_array2(res_mar,ofp, **prof_rsmp)
             
 
 
