@@ -20,7 +20,7 @@ from hp.gpd import (
     get_samples,GeoPandasWrkr,
     )
 from hp.logr import get_new_console_logger
-from hp.err_calc import ErrorCalcs
+from hp.err_calc import ErrorCalcs, get_confusion_cat
 
 from fdsc.base import (
     Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar
@@ -161,6 +161,9 @@ class ValidateGrid(RioWrkr):
         self.logger.info('computed all inundation metrics:\n    %s'%d)
         return d
     
+
+
+
     def get_confusion_grid(self,
                            confusion_codes=None,**kwargs):
         """generate confusion grid
@@ -177,28 +180,7 @@ class ValidateGrid(RioWrkr):
         #convert to boolean (true=wet=nonnull)
         true_arB, pred_arB =  np.invert(true_ar.mask), np.invert(pred_ar.mask)
         
-        #start with dummy
-        res_ar = np.full(true_ar.shape, np.nan)
-        
-        #true positives
-        res_ar = np.where(
-            np.logical_and(true_arB, pred_arB),
-            confusion_codes['TP'], res_ar)
-        
-        #true negatives
-        res_ar = np.where(
-            np.logical_and(np.invert(true_arB), np.invert(pred_arB)),
-            confusion_codes['TN'], res_ar)
-        
-        #false positives
-        res_ar = np.where(
-            np.logical_and(np.invert(true_arB), pred_arB),
-            confusion_codes['FP'], res_ar)
-        
-        #false negatives
-        res_ar = np.where(
-            np.logical_and(true_arB, np.invert(pred_arB)),
-            confusion_codes['FN'], res_ar)
+        res_ar = get_confusion_cat(true_arB, pred_arB, confusion_codes=confusion_codes)
         
         #=======================================================================
         # check
