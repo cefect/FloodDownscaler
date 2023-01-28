@@ -3,7 +3,7 @@ Created on Aug. 7, 2022
 
 @author: cefect
 '''
-import os
+import os, warnings
 import numpy as np
  
 import numpy.ma as ma
@@ -1053,6 +1053,10 @@ def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
     return d
 
 def get_stats2(rlay, **kwargs):
+    warnings.warn("deprecated (2023 01 28). use get_meta() instead", DeprecationWarning)
+    return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
+
+def get_meta(rlay, **kwargs):
     return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
 
 def get_ds_attr(rlay, stat):
