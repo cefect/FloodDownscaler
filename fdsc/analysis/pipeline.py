@@ -188,6 +188,7 @@ def run_dsc_vali(
         #=======================================================================
         # get depths-------
         #=======================================================================
+        """same for all algos... building for consistency"""
         dep2_fp, meta_lib['dep2'] = ses.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
         
         meta_lib['smry']['dep2'] = wse1_fp #promoting key results to the summary page

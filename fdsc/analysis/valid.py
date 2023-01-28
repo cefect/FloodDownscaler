@@ -588,18 +588,16 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         
         #=======================================================================
         # asset samples---------
-        #=======================================================================
-
-            
+        #=======================================================================            
         if not sample_pts_fp is None:
             assert isinstance(dem_fp, str), type(dem_fp)
             #build depth grids
             true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
             pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
-            err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
-            metric_lib['samp'] = err_d            
-            meta_lib['samp'] = meta_d
+            metric_lib['samp'], meta_lib['samp'] = self.run_vali_pts(sample_pts_fp, 
+                                        true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
+ 
             
             meta_lib['grid']['true_dep_fp']=true_dep_fp
             meta_lib['grid']['dep1']=pred_dep_fp

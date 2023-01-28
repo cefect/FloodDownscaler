@@ -53,7 +53,7 @@ class Plot_rlays_wrkr(object):
                         if k2 in [
                             #'wse1', 'wse2', 
                             'dep2']:
-                            fp_lib[k0][k2]=d2
+                            dep2=d2
                         elif k2 in ['dem1']:
                             dem_fp = d2                    
                         
@@ -76,7 +76,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # get validation
         #=======================================================================
-        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp}}, **fp_lib} #order matters
+        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp, 'dep2':dep2}}, **fp_lib} #order matters
  
  
         log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
@@ -104,7 +104,6 @@ class Plot_rlays_wrkr(object):
         log.info(f'on {list(fp_lib.keys())}')
         
         cc_d = self.confusion_codes.copy()
-
         
         #=======================================================================
         # setup figure
@@ -117,13 +116,10 @@ class Plot_rlays_wrkr(object):
         
         for rowk in row_keys:
             if rowk=='vali':
-                col_d = {'c1':'dem1', 'c2':'dep1', 'c3':None}
+                col_d = {'c1':'dem1', 'c2':'dep1', 'c3':'dep2'}
             else:
                 col_d = {'c1':None, 'c2':'dep1', 'c3':'confuGrid_fp'}
-            
-            #add input to second row
-            if rowk==row_keys[1]:
-                col_d['c1'] = 'dep2'
+ 
                 
             grid_lib[rowk] = col_d             
                 
@@ -163,11 +159,15 @@ class Plot_rlays_wrkr(object):
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
                 gridk = grid_lib[rowk][colk]
+                aname = nicknames_d2[rowk]
+                
+                log.debug(f'plot loop for {rowk}.{colk}.{gridk} ({aname})')
                 
                 if gridk is None:
                     ax.set_axis_off()
                     continue
                 else:
+                    assert gridk in fp_lib[rowk], f'missing raster file for {rowk}.{colk}.{gridk} ({aname})'
                     fp = fp_lib[rowk][gridk]
                 
                 #===============================================================
@@ -363,6 +363,8 @@ class Plot_samples_wrkr(object):
         fp_lib={k:dict() for k in run_lib.keys()}
         metric_lib = {k:dict() for k in run_lib.keys()}
         log.info(f'on {len(run_lib)}')
+        
+        sample_pts_fp=None
         #=======================================================================
         # pull for each
         #=======================================================================
@@ -375,6 +377,11 @@ class Plot_samples_wrkr(object):
                             for k3, v3 in d2.items():
                                 if k3=='samples_fp':
                                     fp_lib[k0][k3]=v3
+                                elif k3=='sample_pts_fp':
+                                    if sample_pts_fp is None:
+                                        sample_pts_fp=v3
+                                    else:
+                                        assert sample_pts_fp==v3
                                 else:
                                     metric_lib[k0][k3]=v3
                                     
