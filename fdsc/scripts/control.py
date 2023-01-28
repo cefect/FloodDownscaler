@@ -124,6 +124,7 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
     def p2_dryPartials(self, wse1_fp, dem1_fp,
                        dryPartial_method='none',
                        write_meta=True,
+                       run_kwargs=dict(),
                        **kwargs):
         """downscale in drypartial zones        
         should develop a few options here
@@ -132,6 +133,9 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         ----------
         dryPartial_method: str
             method to apply
+            
+        run_kwargs: dict
+            pass kwargs to the run caller. used for testing.
         
         """
         
@@ -149,15 +153,16 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         # by method
         #=======================================================================
         if dryPartial_method == 'none':
+            assert len(run_kwargs)==0
             rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
             wse1_dp_fp = ofp
             d = {'none':'none'}  # dummy placeholder
  
         elif dryPartial_method == 'costGrowSimple': 
-            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **skwargs)            
+            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
             
         elif dryPartial_method == 'bufferGrowLoop':
-            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **skwargs)            
+            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
             
         else:
             raise KeyError(dryPartial_method)

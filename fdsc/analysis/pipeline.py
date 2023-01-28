@@ -81,13 +81,34 @@ class PipeSession(Dsc_Session, ValidateSession):
         return res_d
         
 
+
+    def get_depths_coarse(self, wse2_fp, dem1_fp, downscale=None, **kwargs):
+        """get the coarse depths"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dep2', subdir=True, **kwargs)
+        if downscale is None:
+            downscale = self.get_downscale(wse2_fp, dem1_fp)
+        
+        meta_d = {'downscale':downscale, 'wse2_fp':wse2_fp, 'dem_fp':dem1_fp}
+        #=======================================================================
+        # #upscale DEM
+        #=======================================================================
+        log.info('building depths grid')
+        dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, 
+            scale=1 / downscale, out_dir=tmp_dir)
+        #write depths
+        meta_d['dep2'] = get_depth(dem2_fp, wse2_fp,ofp=ofp)
+        
+        return ofp, meta_d
+
 def run_dsc_vali(
         wse2_fp,
         dem1_fp,
         wse1V_fp=None,
-        dsc_kwargs=dict(dryPartial_method = 'costGrowSimple'),
-        vali_kwargs=dict(),
- 
+        dsc_kwargs=dict(method = 'costGrowSimple'),
+        vali_kwargs=dict(), 
         **kwargs
         ):
     """generate downscale then compute metrics (one option)
@@ -96,6 +117,9 @@ def run_dsc_vali(
     ------------
     wse1_V_fp: str
         filepath to wse1 raster (for validation)
+        
+    kwargs: dict
+        catchAll... including any method-specific parameters
     """
     
     #===========================================================================
@@ -105,7 +129,7 @@ def run_dsc_vali(
         start = now()
         log = ses.logger.getChild('r')
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
-        
+        skwargs = dict(out_dir=ses.out_dir, tmp_dir=ses.tmp_dir)
         #=======================================================================
         # precheck
         #=======================================================================
@@ -142,6 +166,7 @@ def run_dsc_vali(
         
         wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
         meta_lib['smry'].update(d)  #add cropped layers to summary
+        
         #=======================================================================
         # downscale------
         #=======================================================================
@@ -163,21 +188,17 @@ def run_dsc_vali(
         #=======================================================================
         # get depths-------
         #=======================================================================
-        """nice for some plots"""
-        #upscale DEM        
-        log.info('building depths grid')
-        dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, 
-                                 scale=1/downscale,out_dir=ses.tmp_dir)
-  
-        #write depths
-        meta_lib['smry']['dep2'] = get_depth(dem2_fp, wse2_fp, 
-                                         ofp=ses._get_ofp(out_dir=ses.out_dir, dkey='dep2'))
+        dep2_fp, meta_lib['dep2'] = ses.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
         
-        tdelta = (now()-start).total_seconds()
-        meta_lib['smry']['tdelta'] = tdelta
+        meta_lib['smry']['dep2'] = wse1_fp #promoting key results to the summary page
+
         #=======================================================================
         # meta
         #=======================================================================
+        tdelta = (now()-start).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
+        
+        
         print(meta_lib.keys())
         #collapse and promote
         md=dict()

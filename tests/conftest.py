@@ -23,16 +23,34 @@ from definitions import src_dir
 from hp.logr import get_new_console_logger, logging
 from hp.rio import write_array
 
-crs_default = CRS.from_user_input(25832)
-bbox_default = sgeo.box(0, 0, 60, 90)
+
 
 
 temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir)
+    
 #===============================================================================
-# setup test arrays
+# TEST PARAMETERS-----------
 #===============================================================================
+#common test methodName and associated parameters.
+"""because we use non-default pars for speeding up the tests
+use:
+    @pytest.mark.parametrize(*par_algoMethodKwargs)
+"""
+par_algoMethodKwargs = ('method, kwargs', [
+      ('costGrowSimple', dict()),
+      ('none', dict()),
+      ('bufferGrowLoop', dict(loop_range=range(2))), 
+      ('schumann14', dict(buffer_size=float(2/3))),
+                           ])
+#===============================================================================
+# TEST DATA---------
+#===============================================================================
+
+crs_default = CRS.from_user_input(25832)
+bbox_default = sgeo.box(0, 0, 60, 90)
+
 
 proj_lib = dict()
 proj_lib['fred01'] = {
@@ -67,7 +85,7 @@ proj_lib['fred01'] = {
  
 
 #===============================================================================
-# helpers
+# helpers-----
 #===============================================================================
 
 def get_xy_coords(transform, shape):
