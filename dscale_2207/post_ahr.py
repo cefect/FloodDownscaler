@@ -52,16 +52,17 @@ for k,v in {
   
 print('loaded matplotlib %s'%matplotlib.__version__)
  
+ 
 
 
 
-def aoi08_r32_1215_53(meta_fp_d,
-                      run_name='post_0124',
+
+
+def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
-                      **kwargs):
+                      **kwargs):    
     
-    
-    with PostSession(run_name=run_name,proj_name='ahr_aoi08', **kwargs) as ses:
+    with PostSession(**kwargs) as ses:
         
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
@@ -90,15 +91,20 @@ def aoi08_r32_1215_53(meta_fp_d,
         ses.plot_samples_mat(df_wet, metric_lib)
     
 
-
-if __name__=='__main__':
-    aoi08_r32_1215_53({
+def aoi08_r32_1215_53(**kwargs):
+    return basic_post_pipeline(
+        {
         'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230113\ahr_aoi08_121553_nodp_0113_meta_lib.pkl',
         'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl',
         'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_bgl\20230119\ahr_aoi08_121553_bgl_0119_meta_lib.pkl',
         },
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',
-    )
-    #aoi08_r32_1215_53(dryPartial_method='none')
+        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
+        run_name='post_0124',proj_name='ahr_aoi08',
+        **kwargs)
+    
+
+if __name__=='__main__':
+    aoi08_r32_1215_53()
+   
  
     print('done')
