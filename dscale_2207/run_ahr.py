@@ -20,7 +20,7 @@ def runr(method='none',run_name=None,
         
     return run_dsc_vali(wse2_fp, dem1_fp,        
         dsc_kwargs=dict(method=method),
-        run_name=run_name, proj_name='ahr_aoi08', index_coln='fid',
+        run_name=run_name,  index_coln='fid',
         **kwargs)
     
     
@@ -36,14 +36,27 @@ def aoi08_r32_1215_53(**kwargs):
         dem1_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\r04\dem005_r04_aoi08_1210.asc',
         wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r04_1215-0053_wse.tif',
         sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
-        aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson', #target aligned
+        aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson', 
+        proj_name='ahr_aoi08',
+        **kwargs)
+
+def ahr_aoi08_r32_0130_30(**kwargs):
+    return runr(proj_name='ahr_aoi08_0130',
+        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r32_1221-0030_wse.tif',
+        dem1_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\r04\dem005_r04_aoi08_1210.asc',
+        wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif',
+        sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+        aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
     
     
 if __name__=='__main__':
-    #aoi08_r32_1215_53(method='bufferGrowLoop')
-    #aoi08_r32_1215_53(method='costGrowSimple')
-    aoi08_r32_1215_53(method='schumann14')
-    #aoi08_r32_1215_53(method='none')
+    for method in [
+        'bufferGrowLoop','costGrowSimple','schumann14', 
+        #'none',
+        ]:
+        print(f'\n\nMETHOD={method}\n\n')
+        ahr_aoi08_r32_0130_30(method=method)    
+ 
  
     print('done')
