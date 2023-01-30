@@ -170,9 +170,11 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # extract poinst
         #=======================================================================
+        log.debug(f'converting raster_to_points on {wse2_fp}')
         wse2_gser = raster_to_points(wse2_fp)
         
         #DEM points to populate
+        log.debug(f'converting raster_to_points on {dem_fp}')
         dem_raw_gser = raster_to_points(dem_fp, drop_mask=False)
         bx = dem_raw_gser.geometry.z==-9999 #mask
         dem_gser =   dem_raw_gser[~bx]  
@@ -180,6 +182,11 @@ class Schuman14(Dsc_basic):
         #setup results frame
         res_gdf = gpd.GeoDataFrame(dem_gser.geometry.z.rename('dem'), geometry=drop_z(dem_gser.geometry))
         
+
+        
+        #=======================================================================
+        # NN search
+        #=======================================================================
         log.info(f'seraching from {len(dem_gser)} fine to {len(wse2_gser)} coarse')
         
         """
@@ -189,9 +196,6 @@ class Schuman14(Dsc_basic):
         res_gdf.plot(ax=ax, linewidth=0, column='wse2_id')
         """
         
-        #=======================================================================
-        # NN search
-        #=======================================================================
         #convert point format
         src_pts = [(x,y) for x,y in zip(wse2_gser.geometry.x , wse2_gser.geometry.y)]
         qry_pts =  [(x,y) for x,y in zip(dem_gser.geometry.x , dem_gser.geometry.y)]

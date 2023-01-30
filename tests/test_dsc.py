@@ -20,7 +20,7 @@ from fdsc.scripts.control import Dsc_Session as Session
 from fdsc.scripts.simple import ar_buffer
 
 from tests.conftest import (
-    get_rlay_fp, crs_default, proj_lib,get_aoi_fp,
+    get_rlay_fp, crs_default, proj_lib,get_aoi_fp,par_algoMethodKwargs,
  
     )
  
@@ -103,21 +103,20 @@ def test_p1(dem_fp, wse_fp, wrkr):
     wrkr.p1_wetPartials(wse_fp, dem_fp)
 
 
-
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
+    ])
  
-    ])
-@pytest.mark.parametrize('dryPartial_method', [
-    'costGrowSimple',
-    'none',
-    'bufferGrowLoop'
-    ])
+@pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_p2(dem_fp, wse_fp, 
-            dryPartial_method,
+            method, kwargs,
             wrkr):
-    wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=dryPartial_method)
+    if method in ['schumann14']:
+        pass
+    else:
+        wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=method, run_kwargs=kwargs)
     
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
@@ -139,8 +138,7 @@ def test_p2_filter_isolated(wse_fp, wrkr):
 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
- 
+    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
     ])
 def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
     wrkr.run_bufferGrowLoop(wse_fp, dem_fp, loop_range=range(5))
@@ -162,19 +160,13 @@ def test_schu14(dem_fp, wse_fp, wrkr):
     wrkr.run_schu14(wse_fp, dem_fp, buffer_size=float(2/3))
     
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
-@pytest.mark.parametrize('method, kwargs', 
-                         #list(nicknames_d.keys())
-                         [
-                             #'costGrowSimple', 'none','bufferGrowLoop', 
-                          ('schumann14', dict(buffer_size=float(2/3))),
-                           ]
-                         )
-def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs):    
-    run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',
+@pytest.mark.parametrize(*par_algoMethodKwargs)
+def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):    
+    run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',logger=logger,
                   method=method, **kwargs)
     

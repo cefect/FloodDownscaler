@@ -20,7 +20,7 @@ from hp.gpd import (
     get_samples,GeoPandasWrkr,
     )
 from hp.logr import get_new_console_logger
-from hp.err_calc import ErrorCalcs
+from hp.err_calc import ErrorCalcs, get_confusion_cat
 
 from fdsc.base import (
     Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar
@@ -161,6 +161,9 @@ class ValidateGrid(RioWrkr):
         self.logger.info('computed all inundation metrics:\n    %s'%d)
         return d
     
+
+
+
     def get_confusion_grid(self,
                            confusion_codes=None,**kwargs):
         """generate confusion grid
@@ -177,28 +180,7 @@ class ValidateGrid(RioWrkr):
         #convert to boolean (true=wet=nonnull)
         true_arB, pred_arB =  np.invert(true_ar.mask), np.invert(pred_ar.mask)
         
-        #start with dummy
-        res_ar = np.full(true_ar.shape, np.nan)
-        
-        #true positives
-        res_ar = np.where(
-            np.logical_and(true_arB, pred_arB),
-            confusion_codes['TP'], res_ar)
-        
-        #true negatives
-        res_ar = np.where(
-            np.logical_and(np.invert(true_arB), np.invert(pred_arB)),
-            confusion_codes['TN'], res_ar)
-        
-        #false positives
-        res_ar = np.where(
-            np.logical_and(np.invert(true_arB), pred_arB),
-            confusion_codes['FP'], res_ar)
-        
-        #false negatives
-        res_ar = np.where(
-            np.logical_and(true_arB, np.invert(pred_arB)),
-            confusion_codes['FN'], res_ar)
+        res_ar = get_confusion_cat(true_arB, pred_arB, confusion_codes=confusion_codes)
         
         #=======================================================================
         # check
@@ -588,18 +570,16 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         
         #=======================================================================
         # asset samples---------
-        #=======================================================================
-
-            
+        #=======================================================================            
         if not sample_pts_fp is None:
             assert isinstance(dem_fp, str), type(dem_fp)
             #build depth grids
             true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
             pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
-            err_d, meta_d = self.run_vali_pts(sample_pts_fp, true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
-            metric_lib['samp'] = err_d            
-            meta_lib['samp'] = meta_d
+            metric_lib['samp'], meta_lib['samp'] = self.run_vali_pts(sample_pts_fp, 
+                                        true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
+ 
             
             meta_lib['grid']['true_dep_fp']=true_dep_fp
             meta_lib['grid']['dep1']=pred_dep_fp

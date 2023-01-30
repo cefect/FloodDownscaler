@@ -18,10 +18,15 @@ from rasterio.plot import show
 
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
-from hp.plot import Plotr, get_dict_str
+from hp.plot import Plotr, get_dict_str, hide_text
 from hp.pd import view
+from hp.rio import (    
+    get_ds_attr,get_meta
+    )
+from hp.err_calc import get_confusion_cat
 
 
  
@@ -35,6 +40,7 @@ def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
 
 class Plot_rlays_wrkr(object):
+    gdf_d=dict() #container for preloading geopandas
     
     def collect_rlay_fps(self, run_lib, **kwargs):
         """collect the filepaths from the run_lib"""
@@ -53,7 +59,7 @@ class Plot_rlays_wrkr(object):
                         if k2 in [
                             #'wse1', 'wse2', 
                             'dep2']:
-                            fp_lib[k0][k2]=d2
+                            dep2=d2
                         elif k2 in ['dem1']:
                             dem_fp = d2                    
                         
@@ -70,24 +76,35 @@ class Plot_rlays_wrkr(object):
                                     fp_lib[k0][k3]=v3
                                 elif k3=='true_dep_fp':
                                     dep1V = v3
+                        
+                        #get the sample points layer
+                        elif k2=='samp':
+                            for k3, v3 in d2.items():
+                                if k3=='samples_fp':
+                                    fp_lib[k0][k3]=v3
+                            
                     else:
                         pass
-             
+ 
         #=======================================================================
         # get validation
         #=======================================================================
-        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp}}, **fp_lib} #order matters
+        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp, 'dep2':dep2}}, **fp_lib} #order matters
  
  
         log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
         
- 
+        self.fp_lib=fp_lib
         return fp_lib, metric_lib
         
     
+
+
+
     def plot_rlay_mat(self,
                       fp_lib, metric_lib=None, 
-                      figsize=(9,5),
+                      figsize=(9,9),
+ 
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
         
@@ -99,13 +116,18 @@ class Plot_rlays_wrkr(object):
         columns
             depthRaster r2, depthRaster r1, confusionRaster
         """
+        #=======================================================================
+        # defaults
+        #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayMat',ext='.png', **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
         
         cc_d = self.confusion_codes.copy()
-
         
+        #spatial meta from dem for working with points
+        self.rmeta_d = get_meta(fp_lib['vali']['dem1']) 
+ 
         #=======================================================================
         # setup figure
         #=======================================================================
@@ -117,13 +139,10 @@ class Plot_rlays_wrkr(object):
         
         for rowk in row_keys:
             if rowk=='vali':
-                col_d = {'c1':'dem1', 'c2':'dep1', 'c3':None}
+                col_d = {'c1':None, 'c2':'dep1', 'c3':'dep2'}
             else:
-                col_d = {'c1':None, 'c2':'dep1', 'c3':'confuGrid_fp'}
-            
-            #add input to second row
-            if rowk==row_keys[1]:
-                col_d['c1'] = 'dep2'
+                col_d = {'c1':'pie', 'c2':'dep1', 'c3':'confuGrid_fp'}
+ 
                 
             grid_lib[rowk] = col_d             
                 
@@ -135,14 +154,17 @@ class Plot_rlays_wrkr(object):
                                         add_subfigLabel=True,
                                         )
         
+ 
         
         #=======================================================================
         # colormap
         #=======================================================================
-        cval_d = {
-            cc_d['FN']:'#c700fe', cc_d['FP']:'#ff5101', cc_d['TP']:'#00fe19', cc_d['TN']:'white'
+        confusion_color_d = {
+            'FN':'#c700fe', 'FP':'#ff5101', 'TP':'#00fe19', 'TN':'white'
             }
         
+        #get rastetr val to color conversion for confusion grid
+        cval_d = {v:confusion_color_d[k] for k,v in cc_d.items()}        
         cval_d = {k:cval_d[k] for k in sorted(cval_d)} #sort it
  
         #build a custom color map        
@@ -156,102 +178,130 @@ class Plot_rlays_wrkr(object):
                                               )
         
         #=======================================================================
-        # plot loop
+        # plot loop------
         #=======================================================================
         axImg_d = dict() #container for objects for colorbar
         #dep1_yet=False
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
                 gridk = grid_lib[rowk][colk]
+                aname = nicknames_d2[rowk]                
+                log.debug(f'plot loop for {rowk}.{colk}.{gridk} ({aname})')
                 
+ 
+                #===============================================================
+                # blank
+                #===============================================================
                 if gridk is None:
                     ax.set_axis_off()
+                    hide_text(ax)
+ 
                     continue
-                else:
+                #===============================================================
+                # raster plot
+                #===============================================================
+                elif not gridk=='pie':
+                    assert gridk in fp_lib[rowk], f'missing data file for {rowk}.{colk}.{gridk} ({aname})'
                     fp = fp_lib[rowk][gridk]
+                    
+                    log.info(f'plotting {rowk} x {colk} ({gridk}): {os.path.basename(fp)}')
+                    with rio.open(fp, mode='r') as ds:
+                        ar_raw = ds.read(1, window=None, masked=True)
+                        
+                        #===========================================================
+                        # #apply masks
+                        #===========================================================
+                        if 'dep' in gridk:
+                            ar = np.where(ar_raw==0, np.nan, ar_raw)
+                        elif 'confuGrid' in gridk:
+                            #mask out true negatives
+                            ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
+                        elif 'dem1' ==gridk:
+                            ar = np.where(ar_raw<130, ar_raw, np.nan)
+                            print(ar_raw.max())
+                        else:
+                            raise KeyError(gridk)
+                            
+                        #===========================================================
+                        # #get styles by key
+                        #===========================================================
+                        if 'confuGrid_fp' ==gridk:
+                            cmap=confuGrid_cmap
+                            norm=confuGrid_norm
+                        elif gridk=='dem1':
+                            cmap='plasma'
+                            norm=None
+                        elif 'dep' in gridk:
+                            cmap='viridis'
+                            norm=None
+                        else:
+                            raise KeyError(gridk)
+                         
+                        #===========================================================
+                        # #raster plot
+                        #===========================================================
+                        _ = show(ar, 
+                                      transform=ds.transform, 
+                                      ax=ax,contour=False, cmap=cmap, interpolation='nearest', 
+                                      norm=norm)
+                        
+                        #ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
+                        
+                        #=======================================================
+                        # asset sample plot
+                        #=======================================================
+                        if colk =='c2' and 'samples_fp' in fp_lib[rowk]:                           
+ 
+                            #load
+                            gdf = self._load_gdf(rowk)
+                            
+                            #drop Trues 
+                            gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
+                            
+                            #map colors                            
+                            gdf1['conf_color'] = gdf1['confusion'].replace(cc_d)                            
+                            
+                            #plot
+                            _= gdf1.plot(column='conf_color', ax=ax, cmap=confuGrid_cmap, norm=confuGrid_norm,
+                                     markersize=.2, marker='.', #alpha=0.8,
+                                     )
+                        
+ 
+                        #===========================================================
+                        # post format
+                        #===========================================================
+                        #hide labels
+                        ax.get_xaxis().set_ticks([])
+                        ax.get_yaxis().set_ticks([])
+                        
+                        #add text
+                        if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
+                            md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
+                            #md = {**{rowk:''}, **md} 
+                            ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
+                                    va='bottom', ha='right', fontsize=6, color='black',
+                                    bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                    )
+                            
+                        #colorbar
+                        if not gridk in axImg_d:
+                            axImg_d[gridk]=[obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
                 
                 #===============================================================
-                # if rowk=='vali' and colk=='dep2':
-                #     colk='dem1'
-                #                 
-                # if not colk in fp_lib[rowk]:                    
-                #     print(colk, rowk)
-                #     continue 
-                # 
-                # if colk=='dep2':
-                #     
-                # 
-                # fp=fp_lib[rowk][colk]
+                # pie plot         
                 #===============================================================
-                log.info(f'plotting {rowk} x {colk} ({gridk}): {os.path.basename(fp)}')
-                with rio.open(fp, mode='r') as ds:
-                    ar_raw = ds.read(1, window=None, masked=True)
+                elif gridk=='pie':
+                    gdf = self._load_gdf(rowk)
                     
-                    #===========================================================
-                    # #apply masks
-                    #===========================================================
-                    if 'dep' in gridk:
-                        ar = np.where(ar_raw==0, np.nan, ar_raw)
-                    elif 'confuGrid' in gridk:
-                        #mask out true negatives
-                        ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
-                    elif 'dem1' ==gridk:
-                        ar = np.where(ar_raw<130, ar_raw, np.nan)
-                        print(ar_raw.max())
-                    else:
-                        raise KeyError(gridk)
-                        
-                    #===========================================================
-                    # #get styles by key
-                    #===========================================================
-                    if 'confuGrid_fp' ==gridk:
-                        cmap=confuGrid_cmap
-                        norm=confuGrid_norm
-                    elif gridk=='dem1':
-                        cmap='plasma'
-                        norm=None
-                    elif 'dep' in gridk:
-                        cmap='viridis'
-                        norm=None
-                    else:
-                        raise KeyError(gridk)
-                     
-                    #===========================================================
-                    # #raster plot
-                    #===========================================================
-                    #===========================================================
-                    # _ = show(ar, 
-                    #               transform=ds.transform, 
-                    #               ax=ax,contour=False, cmap=cmap, interpolation='nearest', norm=norm)
-                    #===========================================================
-                    
-                    ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
+                    total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
+                    colors_l = [confusion_color_d[k] for k in total_ser.index]
  
-                    #===========================================================
-                    # post format
-                    #===========================================================
-                    #hide labels
-                    ax.get_xaxis().set_ticks([])
-                    ax.get_yaxis().set_ticks([])
-                    
-                    #add text
-                    if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
-                        md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
-                        #md = {**{rowk:''}, **md} 
-                        ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
-                                va='bottom', ha='right', fontsize=6, color='black',
-                                bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                                )
+                    ax.pie(total_ser.values, colors=colors_l, autopct='%1.1f%%', 
+                           shadow=True, labels=total_ser.index.values)
                         
-                    #colorbar
-                    if not gridk in axImg_d:
-                        axImg_d[gridk]=ax_img  
-                         
-                        
-                        
-        #help(fig.colorbar)
+ 
         #=======================================================================
-        # colorbar
+        # colorbar-------
         #=======================================================================
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
@@ -287,6 +337,9 @@ class Plot_rlays_wrkr(object):
                     fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
                     location='bottom'
                     
+                elif gridk=='pie':
+                    continue
+                    
                 else:
                     raise KeyError(gridk)
                 
@@ -315,16 +368,22 @@ class Plot_rlays_wrkr(object):
  
             
         #=======================================================================
-        # post format
+        # post format-------
         #=======================================================================
  
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
                 #turn off useless axis
                 
+                #first col
+                if colk==col_keys[0]:
+                    ax.set_ylabel(nicknames_d2[rowk], 
+                                  #fontsize=6,
+                                  )
                 #second col
                 if colk==col_keys[1]:
-                    ax.set_ylabel(nicknames_d2[rowk], fontsize=6)
+                    pass
+                    #ax.set_ylabel(nicknames_d2[rowk], fontsize=6)
                     
                 #first row
                 if rowk==row_keys[0]:
@@ -343,6 +402,42 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         log.info('finished')
         return self.output_fig(fig, ofp=ofp, logger=log)
+    
+    def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None):
+        """convenienve to retrieve pre-loaded or load points"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if rmeta_d is None: rmeta_d=self.rmeta_d.copy()
+        
+        if samples_fp is None:
+            samples_fp = self.fp_lib[dkey]['samples_fp']
+        
+        #=======================================================================
+        # preloaded
+        #=======================================================================
+        if dkey in self.gdf_d:
+            gdf = self.gdf_d[dkey].copy()
+            
+        #=======================================================================
+        # load
+        #=======================================================================
+        else:        
+            gdf = gpd.read_file(samples_fp, bbox=rmeta_d['bounds'])
+            
+            #compute wet-dry confusion
+            """TODO: move this to valid.py"""
+            
+            gdf['confusion'] = get_confusion_cat(gdf['true']>0.0, gdf['pred']>0.0)
+            
+
+
+        #=======================================================================
+        # check
+        #=======================================================================
+        assert gdf.crs == rmeta_d['crs']
+        
+        return gdf 
  
         
 class Plot_samples_wrkr(object):
@@ -363,6 +458,8 @@ class Plot_samples_wrkr(object):
         fp_lib={k:dict() for k in run_lib.keys()}
         metric_lib = {k:dict() for k in run_lib.keys()}
         log.info(f'on {len(run_lib)}')
+        
+ 
         #=======================================================================
         # pull for each
         #=======================================================================
@@ -375,6 +472,7 @@ class Plot_samples_wrkr(object):
                             for k3, v3 in d2.items():
                                 if k3=='samples_fp':
                                     fp_lib[k0][k3]=v3
+ 
                                 else:
                                     metric_lib[k0][k3]=v3
                                     

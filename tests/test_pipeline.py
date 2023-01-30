@@ -11,7 +11,7 @@ import shapely.geometry as sgeo
 
 
 from tests.conftest import (
-      proj_lib, get_rlay_fp, crs_default, get_aoi_fp
+      proj_lib, get_rlay_fp, crs_default, get_aoi_fp, par_algoMethodKwargs
     )
 
 from fdsc.analysis.pipeline import run_dsc_vali
@@ -76,15 +76,13 @@ def test_clip_set(raster_fp_d, aoi_fp,
     #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp, None),
     (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'])
     ])
-@pytest.mark.parametrize('dryPartial_method', [
-    'costGrowSimple','none'
-    ])
+@pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp,
-              dryPartial_method,
-              tmp_path):    
+              method, kwargs,
+              tmp_path, logger):    
     run_dsc_vali(wse2_fp, dem1_fp, 
                  wse1V_fp = wse1V_fp, aoi_fp=aoi_fp, 
-                 out_dir=tmp_path, run_name='test',
-                 dsc_kwargs=dict(dryPartial_method = dryPartial_method),
+                 out_dir=tmp_path, run_name='test',logger=logger,
+                 dsc_kwargs=dict(method = method),
                  vali_kwargs=dict(sample_pts_fp=sample_pts_fp),
-                 )
+                 **kwargs)

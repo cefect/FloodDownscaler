@@ -103,8 +103,16 @@ class TwoPhaseDSC(WetPartials):
         return skwargs, meta_lib, log, ofp, start
     
 class BufferGrowLoop(TwoPhaseDSC):
+    def __init__(self, 
+                 loop_range=range(30),
+                 **kwargs):
+        
+        self.loop_range=loop_range
+        
+        super().__init__(**kwargs)
+        
     def run_bufferGrowLoop(self,wse1_fp, dem_fp,
-                       loop_range=range(30), 
+                       loop_range=None, 
                        min_growth_ratio=1.00001,
                               **kwargs):
         """loop of buffer + filter
@@ -122,6 +130,7 @@ class BufferGrowLoop(TwoPhaseDSC):
         #=======================================================================
         # defaults
         #=======================================================================
+        if loop_range is None: loop_range=self.loop_range
         assert loop_range.__class__.__name__ == 'range'
         assert min_growth_ratio>=1.0
         
