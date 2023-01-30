@@ -75,19 +75,23 @@ def basic_post_pipeline(meta_fp_d,
         
         #plot them
         ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
-        return
+        plt.close()
         #=======================================================================
         # sample metrics
         #=======================================================================
-        plt.close()
+        try: 
+            del run_lib['nodp'] #clear this
+        except: pass
+        
         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
         
+        """switched to plotting all trues per simulation"""
         #clear any samples w/ zeros
-        bx = np.invert((df==0).any(axis=1))
-        df_wet = df.loc[bx, :]
+        #bx = np.invert((df==0).any(axis=1))
+        #df_wet = df.loc[bx, :]
+        df_wet=df
         
-        """nodp and cgs are the same if we subset to all wet
-        (cgs starts with nodp then expands"""
+
         ses.plot_samples_mat(df_wet, metric_lib)
     
 
@@ -111,7 +115,7 @@ def ahr_aoi08_r32_0130_30(**kwargs):
         'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_bgl\20230130\ahr_aoi08_0130_121553_bgl_0130_meta_lib.pkl',
         's14':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_s14\20230130\ahr_aoi08_0130_121553_s14_0130_meta_lib.pkl',
         },
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230130\ahr_aoi08_0130_p0130_0130_collect_samples_data.pkl',   
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230130\ahr_aoi08_0130_p0130_0130_collect_samples_data.pkl',   
         run_name='p0130',proj_name='ahr_aoi08_0130',
         **kwargs)
     

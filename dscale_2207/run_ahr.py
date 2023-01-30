@@ -52,7 +52,9 @@ def ahr_aoi08_r32_0130_30(**kwargs):
     
 if __name__=='__main__':
     for method in [
-        'bufferGrowLoop','costGrowSimple','schumann14', 
+        #'bufferGrowLoop',
+        'costGrowSimple',
+        #'schumann14', 
         #'none',
         ]:
         print(f'\n\nMETHOD={method}\n\n')

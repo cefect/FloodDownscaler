@@ -26,7 +26,7 @@ from hp.pd import view
 from hp.rio import (    
     get_ds_attr,get_meta
     )
-from hp.err_calc import get_confusion_cat
+from hp.err_calc import get_confusion_cat, ErrorCalcs
 
 
  
@@ -34,6 +34,7 @@ from fdsc.analysis.valid import ValidateSession
 from fdsc.base import nicknames_d
 
 nicknames_d['validation']='vali'
+ 
 nicknames_d2 = {v:k for k,v in nicknames_d.items()}
 
 def dstr(d):
@@ -299,7 +300,11 @@ class Plot_rlays_wrkr(object):
                     colors_l = [confusion_color_d[k] for k in total_ser.index]
  
                     ax.pie(total_ser.values, colors=colors_l, autopct='%1.1f%%', 
-                           shadow=True, labels=total_ser.index.values)
+                           pctdistance=0.9, #move percent labels out
+                           shadow=True, 
+                           textprops=dict(size=6),
+                           #labels=total_ser.index.values,
+                           )
                         
  
         #=======================================================================
@@ -496,7 +501,7 @@ class Plot_samples_wrkr(object):
                         
                     true_serj=true_ser
                     
-            d['true'] = true_ser
+            d['vali'] = true_ser
             dx = pd.concat(d, axis=1)
             
             #write compiled
@@ -517,7 +522,7 @@ class Plot_samples_wrkr(object):
                         
                         
     def plot_samples_mat(self, 
-                         df, metric_lib,
+                         df_raw, metric_lib,
                          figsize=None,
                          color_d=None,
                         **kwargs):
@@ -530,92 +535,108 @@ class Plot_samples_wrkr(object):
             
         same as Figure 5 on RICorDE paper"""
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt',ext='.svg', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt', ext='.svg', **kwargs)
         
-        log.info(f'on {df.columns}')
+        log.info(f'on {df_raw.columns}')
         
         if color_d is None: color_d = self.sim_color_d.copy()
         
+        #=======================================================================
+        # data prep
+        #=======================================================================
+        #drop any where the truth is zero
+        df = df_raw[df_raw['vali']!=0]
  
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['true', 'nodp', 'cgs', 'bgl']#list(df.columns)
+        row_keys = ['vali', 'cgs', 'bgl', 's14']  # list(df.columns)
         col_keys = ['raw_hist', 'diff_hist', 'corr_scatter']
         
-        
-        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
                                         set_ax_title=False, figsize=figsize,
                                         constrained_layout=True,
-                                        sharex='col', 
+                                        sharex='col',
                                         sharey='col',
                                         add_subfigLabel=True,
                                         )
-        
  
         #=======================================================================
-        # plot loop
+        # plot loop---------
         #=======================================================================
  
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
                 log.info(f'plotting {rowk} x {colk}')
-                ser = df[rowk]
-                c=color_d[rowk]
-                txt_d={rowk:''}
                 
+                c = color_d[rowk]
+                #txt_d = {rowk:''}
+                txt_d=dict()
                 
                 hist_kwargs = dict(color=c, bins=30)
                 """:
                 plt.show()
                 """
                 #===============================================================
+                # data prep
+                #===============================================================
+                #drop any that are zero
+                bx = df[rowk]!=0
+                assert bx.any()
+                ser = df.loc[bx, rowk]
+                
+                #corresponding true values
+                true_ser = df.loc[bx, 'vali']
+                #===============================================================
                 # raw histograms
                 #===============================================================
-                if colk=='raw_hist':
+                if colk == 'raw_hist':
  
                     n, bins, patches = ax.hist(ser, **hist_kwargs)
                     
-                    stats_d = {k:getattr(ser,k)() for k in ['min', 'max', 'mean', 'count']}
+                    stats_d = {k:getattr(ser, k)() for k in ['min', 'max', 'mean', 'count']}
                     txt_d.update(stats_d)
-                    txt_d['bins']=len(bins)
+                    txt_d['bins'] = len(bins)
  
-                elif rowk=='true':
-                    continue
-                    
+                elif rowk == 'vali':
+                    hide_text(ax)
+                    txt_d=None
                 #===============================================================
                 # difference histograms
                 #===============================================================
-                elif colk=='diff_hist':
-                    si = ser-df['true']
+                elif colk == 'diff_hist':
+                    si = ser - true_ser
                     n, bins, patches = ax.hist(si, **hist_kwargs)
                     
-                    stats_d = {k:getattr(si,k)() for k in ['min', 'max', 'mean', 'count']}
+                    #error calcs
+                    #stats_d = {k:getattr(si, k)() for k in ['min', 'max', 'mean', 'count']}
+                    with ErrorCalcs(pred_ser=ser, true_ser=true_ser, logger=log) as wrkr:
+                        stats_d = wrkr.get_all(dkeys_l=['RMSE', 'bias', 'meanError'])
                     txt_d.update(stats_d)
-                    txt_d['bins']=len(bins)
+                    #txt_d['bins'] = len(bins)
                     
                 #===============================================================
                 # scatter
                 #===============================================================
-                elif colk=='corr_scatter':
-                    xar, yar = df['true'].values, ser.values
+                elif colk == 'corr_scatter':
+                    xar, yar = true_ser.values, ser.values
                     xmin, xmax = xar.min(), xar.max()
                     
-                    #scatters
+                    # scatters
                     ax.plot(xar, yar, color=c, linestyle='none', marker='.',
                             markersize=2, alpha=0.8)
                     
-                    #1:1
+                    # 1:1
                     ax.plot([xmin, xmax], [xmin, xmax],
                             color='black', linewidth=1.0)
                     
-                    #correlation
-                    f, fit_d = self.scipy_lineregres(df.loc[:, [rowk, 'true']],xcoln='true', ycoln=rowk)
+                    # correlation
+                    f, fit_d = self.scipy_lineregres(df.loc[bx, [rowk, 'vali']], xcoln='vali', ycoln=rowk)
                     
-                    xar =  np.linspace(xmin, xmax, num=10)
+                    xar = np.linspace(xmin, xmax, num=10)
                     ax.plot(xar, f(xar), color='red', linewidth=1.0)
  
-                    #post format
+                    # post format
                     ax.grid()
                     
                     txt_d.update(fit_d)
@@ -623,14 +644,15 @@ class Plot_samples_wrkr(object):
                 #===============================================================
                 # text
                 #===============================================================
-                ax.text(0.9, 0.1, get_dict_str(txt_d), 
-                                transform=ax.transAxes, va='bottom',ha='right',
-                                 fontsize=8, color='black',
-                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                                 )
+                if not txt_d is None:
+                    ax.text(0.9, 0.1, get_dict_str(txt_d),
+                                    transform=ax.transAxes, va='bottom', ha='right',
+                                     fontsize=8, color='black',
+                                     bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0, alpha=0.5),
+                                     )
                  
         #=======================================================================
-        # post format
+        # post format--------
         #=======================================================================
  
         for rowk, d0 in ax_d.items():
@@ -645,7 +667,16 @@ class Plot_samples_wrkr(object):
                     
                 #last col
                 if colk==col_keys[-1]:
-                    ax.set_ylabel('pred. depth (m)')
+                    if not rowk=='vali':
+                        ax.set_ylabel('pred. depth (m)')
+                        
+ 
+                    
+                    ax.text(1.1, 0.5, nicknames_d2[rowk],
+                                    transform=ax.transAxes, va='center', ha='center',
+                                     fontsize=12, color='black',rotation=-90,
+                                     #bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0, alpha=0.5),
+                                     )
                     
                 #first row
                 if rowk==row_keys[0]:
@@ -708,7 +739,7 @@ class Plot_samples_wrkr(object):
 
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
                   Plotr, ValidateSession):
-    sim_color_d = {'true':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet'}
+    sim_color_d = {'vali':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet', 's14':'#24855d'}
     "Session for analysis on multiple downscale results and their validation metrics"
     def __init__(self, 
                  run_name = None,
