@@ -22,9 +22,10 @@ from hp.rio import (
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
+from hp.riom import write_extract_mask, write_array_mask, assert_mask
 
 from fdsc.base import (
-    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
+    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
     )
 
 from fdsc.base import Dsc_basic
@@ -242,16 +243,17 @@ class CostGrowSimple(TwoPhaseDSC):
         #=======================================================================
         # remove isolated 
         #======================================================================= 
-        wse1_ar2_fp, meta_lib['filter_iso'] = self._filter_isolated(wse1_ar1_fp, ofp=ofp, **skwargs)
+        wse1_ar2_fp, meta_lib['filter_iso'] = self._filter_isolated(wse1_ar1_fp,**skwargs)
         
         #=======================================================================
         # wrap
         #=======================================================================
+        rshutil.copy(wse1_ar2_fp, ofp)
         tdelta = (now()-start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
         log.info(f'finished in {tdelta:.2f} secs')
         
-        return wse1_ar2_fp, meta_lib
+        return ofp, meta_lib
     
     def _filter_dem_violators(self, dem_fp, wse_fp, **kwargs):
         """replace WSe values with nodata where they dont exceed the DEM"""
@@ -303,30 +305,32 @@ class CostGrowSimple(TwoPhaseDSC):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('filter_iso', subdir=False,  **kwargs)
         start = now()
         meta_d=dict()
+        assert get_ds_attr(wse_fp, 'nodata')==-9999
         #=======================================================================
         # #convert to mask
         #=======================================================================
-        """not working
-        self.raster_calculator(os.path.join(tmp_dir, 'rcalc.tif'),
-                               statement="{raster}/{raster}".format(raster=f'\'{wse_fp}\''))"""
-         
-        mask_fp = rlay_calc1(wse_fp, os.path.join(tmp_dir, 'mask.tif'), lambda x:np.where(np.isnan(x), np.nan, 1.0))
-        
+        """wbt.clump needs 1s and 0s"""
+        mask_fp = write_extract_mask(wse_fp, out_dir=out_dir, maskType='native')
+        assert_mask(mask_fp,  maskType='native')
         #=======================================================================
         # #clump it
         #=======================================================================
         clump_fp = os.path.join(tmp_dir, 'clump.tif')
         assert self.clump(mask_fp, clump_fp, diag=False, zero_back=True)==0
         meta_d['clump_fp'] = clump_fp
+        meta_d['clump_mask_fp'] = mask_fp
         #=======================================================================
         # find main clump
         #=======================================================================
         with rio.open(clump_fp, mode='r') as ds:            
             mar = load_array(ds, masked=True)
+            assert_partial_wet(mar.mask, 'expects some nodata cells on the clump result')
             ar = np.where(mar.mask, np.nan, mar.data)
             
             #identify the largest clump
             vals_ar, counts_ar = np.unique(ar, return_counts=True, equal_nan=True)
+            
+            assert len(vals_ar)>1, f'wbt.clump failed to identify enough clusters\n    {clump_fp}'
             
             max_clump_id = int(pd.Series(counts_ar, index=vals_ar).sort_values(ascending=False
                         ).reset_index().dropna('index').iloc[0, 0])
@@ -334,7 +338,8 @@ class CostGrowSimple(TwoPhaseDSC):
             #build a mask of this
             bx = ar==max_clump_id
             
-            log.info(f'found main clump of {bx.sum()}/{bx.size} '+\
+            assert_partial_wet(bx)
+            log.info(f'found main clump of {len(vals_ar)} with {bx.sum()}/{bx.size} unmasked cells'+\
                      '(%.2f)'%(bx.sum()/bx.size))
             
             meta_d.update({'clump_cnt':len(counts_ar), 'clump_max_size':bx.sum()})
@@ -343,20 +348,31 @@ class CostGrowSimple(TwoPhaseDSC):
         # filter wse to main clump
         #=======================================================================
         with rio.open(wse_fp, mode='r') as ds:
-            ar = load_array(ds, masked=False)
-            filtered_ar  = np.where(bx, ar, np.nan)
+            wse_ar = load_array(ds, masked=True)
+            wse_ar1 = ma.array(wse_ar.data, mask = np.logical_or(
+                np.invert(bx), #not in the clump
+                wse_ar.mask, #dry
+                ), fill_value=wse_ar.fill_value)
+            
+ 
+ 
             profile = ds.profile
             
-        #=======================================================================
-        # #write
-        #=======================================================================
-        write_array(filtered_ar, ofp=ofp, masked=False, **profile)
  
-            
+        assert_wse_ar(wse_ar1)
+        meta_d.update({'raw_mask':wse_ar.mask.sum(), 'clump_filtered_mask':wse_ar1.mask.sum()})
+        assert meta_d['raw_mask']<meta_d['clump_filtered_mask']
+ 
+        #write
+        write_array(wse_ar1, ofp=ofp, masked=False, **profile)
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
         tdelta = (now()-start).total_seconds()
         meta_d['tdelta'] = tdelta
         meta_d['ofp'] = ofp
-        log.info(f'wrote {filtered_ar.shape} in {tdelta:.2f} secs to \n    {ofp}')
+        log.info(f'wrote {wse_ar1.shape} in {tdelta:.2f} secs to \n    {ofp}')
         
         return ofp, meta_d
     
