@@ -51,6 +51,7 @@ def load_mask_array(mask_fp, maskType='binary'):
     # load by type
     #===========================================================================
     with rio.open(mask_fp, mode='r') as dataset:
+        assert dataset.nodata==-9999
         if maskType=='binary':
             mask_ar_raw = dataset.read(1,   masked=False)
             
@@ -82,9 +83,10 @@ def write_array_mask(raw_ar, maskType='binary',
                      ofp=None, out_dir=None,
                      nodata=-9999,
                      **kwargs):
-    """write a boolean mask to a raster
+    """write a boolean mask to a raster. 
     
-    0=null=True=masked=-9999
+    name is a bit misleading:
+        0=null=True=masked=-9999
     
     see load_mask_array"""
     
@@ -106,7 +108,7 @@ def write_array_mask(raw_ar, maskType='binary',
                 
         ofp = os.path.join(out_dir,'mask.tif')
     
-    return write_array2(mask_raw_ar, ofp, **kwargs)
+    return write_array2(mask_raw_ar, ofp, nodata=nodata, **kwargs)
 
 
 def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwargs):
@@ -121,7 +123,9 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwa
         
         raw_ar = dataset.read(1,  masked=True)
         
-        profile = dataset.profile
+        prof = dataset.profile
+        
+        assert np.any(raw_ar.mask)
         
     #===========================================================================
     # filenames
@@ -129,7 +133,7 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwa
     ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
         
     
-    return write_array_mask(raw_ar.mask, ofp=ofp, maskType=maskType, **kwargs, **profile)
+    return write_array_mask(raw_ar.mask, ofp=ofp, maskType=maskType, **kwargs, **prof)
         
  
 #===============================================================================
@@ -152,7 +156,7 @@ def _get_ofp(raw_fp, dkey='mask', out_dir=None, ofp=None):
 # ASSERTIONS--------
 #===============================================================================
 
-def assert_mask(rlay,
+def assert_mask(rlay_fp,
                
                 **kwargs):
     """check the passed rlay is a mask-like raster"""
@@ -161,9 +165,10 @@ def assert_mask(rlay,
         return
     __tracebackhide__ = True    
 
-    
+    assert isinstance(rlay_fp, str)
+    assert os.path.exists(rlay_fp)
     #need to use the custom loader. this calls assert_mask_ar
-    rlay_apply(load_mask_array, **kwargs)
+    load_mask_array(rlay_fp, **kwargs)
     #rlay_ar_apply(rlay, assert_mask_ar, masked=False, **kwargs)
     
 
