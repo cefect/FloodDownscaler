@@ -52,6 +52,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # pull for each
         #=======================================================================
+        dem_fp, dep2=None, None
         for k0, d0 in run_lib.items(): #simulation name
             for k1, d1 in d0.items(): #cat0
                 for k2, d2 in d1.items():
@@ -59,7 +60,7 @@ class Plot_rlays_wrkr(object):
                         if k2 in [
                             #'wse1', 'wse2', 
                             'dep2']:
-                            dep2=d2
+                            if dep2 is None: dep2=d2
                         elif k2 in ['dem1']:
                             dem_fp = d2                    
                         
@@ -212,6 +213,7 @@ class Plot_rlays_wrkr(object):
                         # #apply masks
                         #===========================================================
                         if 'dep' in gridk:
+                            assert np.any(ar_raw==0), 'depth grid has no zeros ' + rowk
                             ar = np.where(ar_raw==0, np.nan, ar_raw)
                         elif 'confuGrid' in gridk:
                             #mask out true negatives
