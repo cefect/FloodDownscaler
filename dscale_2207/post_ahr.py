@@ -97,6 +97,7 @@ def aoi08_r32_1215_53(**kwargs):
         'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230113\ahr_aoi08_121553_nodp_0113_meta_lib.pkl',
         'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl',
         'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_bgl\20230119\ahr_aoi08_121553_bgl_0119_meta_lib.pkl',
+        's14':r'L:\10_IO\fdsc\outs\ahr_aoi08\121553_s14\20230130\ahr_aoi08_121553_s14_0130_meta_lib.pkl',
         },
         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
         run_name='post_0124',proj_name='ahr_aoi08',
