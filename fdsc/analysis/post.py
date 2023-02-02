@@ -834,10 +834,41 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
     #     
     #===========================================================================
         
+def basic_post_pipeline(meta_fp_d, 
+                      sample_dx_fp=None,
+                      **kwargs):    
     
-
-            
+    with PostSession(**kwargs) as ses:
         
+        #load the metadata from teh run
+        run_lib, smry_d = ses.load_metas(meta_fp_d)
+        
+        #=======================================================================
+        # RASTER PLOTS
+        #=======================================================================
+        #get rlays
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        
+        #plot them
+        ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
+        plt.close()
+        #=======================================================================
+        # sample metrics
+        #=======================================================================
+        try: 
+            del run_lib['nodp'] #clear this
+        except: pass
+        
+        df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
+        
+        """switched to plotting all trues per simulation"""
+        #clear any samples w/ zeros
+        #bx = np.invert((df==0).any(axis=1))
+        #df_wet = df.loc[bx, :]
+        df_wet=df
+        
+
+        ses.plot_samples_mat(df_wet, metric_lib)
         
         
         

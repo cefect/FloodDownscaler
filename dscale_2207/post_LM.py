@@ -7,7 +7,7 @@ data analysis
 '''
 import os
 import numpy as np
-from fdsc.analysis.post import basic_post_pipeline
+from fdsc.analysis.post import PostSession, basic_post_pipeline
 
  
 
@@ -53,7 +53,14 @@ for k,v in {
 print('loaded matplotlib %s'%matplotlib.__version__)
  
  
- 
+
+
+
+
+
+
+    
+
 def aoi08_r32_1215_53(**kwargs):
     return basic_post_pipeline(
         {

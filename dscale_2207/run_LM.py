@@ -32,7 +32,7 @@ def LM_aoi13_0202(**kwargs):
     """    
     return runr(
         wse2_fp=r'l:\10_IO\2207_dscale\ins\LM\aoi12\fdsc\lm_aoi12_r128_0202_fv1-0100_wse.tif',
-        dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\LM\terrain\aoi12\r16\LMFRA_NHC2019_dtm_aoi12_noDikes_r16_f40.tif',
+        dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\LM\terrain\aoi12\r16\LMFRA_NHC2019_dtm_aoi12_noDikes_r16.tif', #unmasked
         wse1V_fp=r'l:\10_IO\2207_dscale\ins\LM\aoi12\fdsc\lm_aoi12_r16_0202_fv1-0100_wse.tif',
         sample_pts_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\LM\bldgs\microsoft_CanBldgFt_LM_0715_aoi12_pts.geojson',
         aoi_fp=r'l:\04_LIB\02_spatial\LowerFraser\AOI\aoi13_20230202.geojson', 
