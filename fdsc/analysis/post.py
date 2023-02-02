@@ -235,8 +235,8 @@ class Plot_rlays_wrkr(object):
                             cmap='plasma'
                             norm=None
                         elif 'dep' in gridk:
-                            cmap='viridis'
-                            norm=None
+                            cmap='viridis_r'
+                            norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
                         else:
                             raise KeyError(gridk)
                          
