@@ -545,7 +545,9 @@ class Plot_samples_wrkr(object):
         # data prep
         #=======================================================================
         #drop any where the truth is zero
-        df = df_raw[df_raw['vali']!=0]
+        bx = df_raw['vali']!=0
+        log.info(f'dropped {bx.sum()}/{len(bx)} samples where vali=0')
+        df = df_raw[bx]
  
         #=======================================================================
         # setup figure
@@ -703,7 +705,7 @@ class Plot_samples_wrkr(object):
         # wrap
         #=======================================================================
         log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
     
     def scipy_lineregres(self,
                df_raw,
