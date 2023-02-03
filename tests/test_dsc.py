@@ -103,17 +103,16 @@ def test_p1(dem_fp, wse_fp, wrkr):
     wrkr.p1_wetPartials(wse_fp, dem_fp)
 
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse1_rlay2_fp),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
-    ])
- 
+    ]) 
 @pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_p2(dem_fp, wse_fp, 
             method, kwargs,
             wrkr):
-    if method in ['schumann14']:
+    if method in ['schumann14', 'none']: #skip those w/o phases
         pass
     else:
         wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=method, run_kwargs=kwargs)
@@ -160,7 +159,7 @@ def test_schu14(dem_fp, wse_fp, wrkr):
     wrkr.run_schu14(wse_fp, dem_fp, buffer_size=float(2/3))
     
 
-
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])

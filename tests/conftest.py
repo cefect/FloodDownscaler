@@ -38,11 +38,12 @@ if not os.path.exists(temp_dir):
 use:
     @pytest.mark.parametrize(*par_algoMethodKwargs)
 """
-par_algoMethodKwargs = ('method, kwargs', [
-      ('costGrowSimple', dict()),
+par_algoMethodKwargs = ('method, kwargs', [      
       ('none', dict()),
-      ('bufferGrowLoop', dict(loop_range=range(2))), 
-      ('schumann14', dict(buffer_size=float(2/3))),
+    ('wetPartialsOnly', dict()),
+    ('bufferGrowLoop', dict(loop_range=range(2))), 
+    ('schumann14', dict(buffer_size=float(2/3))),
+    ('costGrowSimple', dict()),
                            ])
 #===============================================================================
 # TEST DATA---------

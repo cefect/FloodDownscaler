@@ -16,7 +16,11 @@ from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
     )
 
-nicknames_d = {'costGrowSimple':'cgs', 'none':'nodp', 'bufferGrowLoop':'bgl', 'schumann14':'s14'}
+nicknames_d = {'costGrowSimple':'cgs', 
+               'none':'none',
+               'wetPartialsOnly':'nodp', 
+               'bufferGrowLoop':'bgl', 
+               'schumann14':'s14'}
 
 def now():
     return datetime.datetime.now()

@@ -122,7 +122,7 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
     # PHASE2-----------------
     #===========================================================================
     def p2_dryPartials(self, wse1_fp, dem1_fp,
-                       dryPartial_method='none',
+                       dryPartial_method='wetPartialsOnly',
                        write_meta=True,
                        run_kwargs=dict(),
                        **kwargs):
@@ -152,11 +152,11 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         #=======================================================================
         # by method
         #=======================================================================
-        if dryPartial_method == 'none':
+        if dryPartial_method == 'wetPartialsOnly':
             assert len(run_kwargs)==0
             rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
             wse1_dp_fp = ofp
-            d = {'none':'none'}  # dummy placeholder
+            d = {'wetPartialsOnly':'none'}  # dummy placeholder
  
         elif dryPartial_method == 'costGrowSimple': 
             wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
@@ -166,14 +166,7 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
             
         else:
             raise KeyError(dryPartial_method)
-        """option 0.... Schuman 2014"""
-        # buffer fixed number of pixels?
-        """option3... buffer-filter loop. like costDistanceSimple but applies filter after each cell"""
-        # for 1 cell
-            # grow/buffer 1
-            # filter dem violators
-        """option 2... 1) identify hydraulic blocks; 2) apply 1D weighted smoothing""" 
-        
+ 
         meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
         #=======================================================================
         # check
@@ -245,11 +238,12 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         #=======================================================================
         # run algo
         #=======================================================================
-        if not method in ['schumann14']:
+        if not method in ['schumann14', 'none']: #2 phase
             #=======================================================================
             # wet partials
             #=======================================================================                
-            wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, downscale=downscale,
+            wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
+                                                                downscale=downscale,
                                                                 **skwargs)
      
             #=======================================================================
@@ -263,6 +257,12 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
                 wse1_dp_fp, md1 = self.run_schu14(wse2_fp, dem1_fp, downscale=downscale, **skwargs)
                 
                 meta_lib.update(md1)
+                
+        elif method=='none':            
+            wse1_dp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
+                                                                downscale=downscale,
+                                                                dem_filter=False,
+                                                                **skwargs)
         
         else:
             raise KeyError(method)
@@ -301,7 +301,7 @@ def run_downscale(
     Parameters
     ----------
     method: str
-        downscaling method to apply
+        downscaling method to apply. see run_dsc
         
     aoi_fp: str, Optional
         filepath to AOI. must be well rounded to the coarse raster

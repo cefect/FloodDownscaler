@@ -38,11 +38,14 @@ class WetPartials(Dsc_basic):
 
     def p1_wetPartials(self, wse2_fp, dem_fp, downscale=None,
                        resampling=Resampling.bilinear,
+                       dem_filter=True,
                         **kwargs):
         """downscale wse2 grid in wet-partial regions
         
         Parameters
         ------------
+        dem_filter: bool, default True
+            whether or not to filter by DEM
         """
         #=======================================================================
         # defaults
@@ -76,8 +79,11 @@ class WetPartials(Dsc_basic):
         #=======================================================================
         # #filter dem violators
         #=======================================================================
-        wse1_filter_ofp, d = self.get_wse_dem_filter(wse1_rsmp_fp, dem_fp,logger=log, out_dir=tmp_dir)
-        meta_d.update(d)
+        if dem_filter:
+            wse1_filter_ofp, d = self.get_wse_dem_filter(wse1_rsmp_fp, dem_fp,logger=log, out_dir=tmp_dir)
+            meta_d.update(d)
+        else:
+            wse1_filter_ofp = wse1_rsmp_fp
  
         #=======================================================================
         # wrap
