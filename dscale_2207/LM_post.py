@@ -55,10 +55,10 @@ print('loaded matplotlib %s' % matplotlib.__version__)
 
 def LM_aoi13_0203(**kwargs):
     return basic_post_pipeline(
-            {'bgl': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\bgl\\20230203\\LM_aoi13_bgl_0203_meta_lib.pkl',
-             'cgs': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\cgs\\20230203\\LM_aoi13_cgs_0203_meta_lib.pkl',
-             's14': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\s14\\20230203\\LM_aoi13_s14_0203_meta_lib.pkl',
-             'nodp': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\nodp\\20230203\\LM_aoi13_nodp_0203_meta_lib.pkl'}
+            {'cgs': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\cgs\\20230203\\LM_aoi13_cgs_0203_meta_lib.pkl',
+         's14': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\s14\\20230203\\LM_aoi13_s14_0203_meta_lib.pkl',
+         'none': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\none\\20230203\\LM_aoi13_none_0203_meta_lib.pkl',
+         'nodp': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\nodp\\20230203\\LM_aoi13_nodp_0203_meta_lib.pkl'}
             ,
 
         #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
