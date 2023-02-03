@@ -15,7 +15,7 @@ import rasterio as rio
 from rasterio import shutil as rshutil
 import geopandas as gpd
 from sklearn.neighbors import KDTree, BallTree
-
+from joblib import parallel_backend
 
 
 from hp.rio import (
@@ -39,9 +39,18 @@ class Schuman14(Dsc_basic):
     
     def __init__(self, 
                  buffer_size=1.5,
+                 n_jobs=6,
                  **kwargs):
+        """
+        Parameters
+        -----------
+        n_jobs: int, default 6
+            number of workers (threads or processes) that are spawned in parallel
+            for sklearn
+        """
         
         self.buffer_size=buffer_size
+        self.n_jobs=n_jobs
         
         super().__init__(**kwargs)
     
@@ -143,7 +152,7 @@ class Schuman14(Dsc_basic):
         
         return ofp, meta_lib
         
-    def get_knnFill(self, wse2_fp, dem_fp,   **kwargs):
+    def get_knnFill(self, wse2_fp, dem_fp, n_jobs=None,  **kwargs):
         """
         fill the DEM with NN from the WSE (if higher)
         
@@ -163,6 +172,7 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('knnFill', subdir=False,  **kwargs)
         start = now()
+        if n_jobs is None: n_jobs=self.n_jobs
         
         assert_extent_equal(wse2_fp, dem_fp)
  
@@ -176,13 +186,13 @@ class Schuman14(Dsc_basic):
         #DEM points to populate
         log.debug(f'converting raster_to_points on {dem_fp}')
         dem_raw_gser = raster_to_points(dem_fp, drop_mask=False)
+        log.debug(f'set mask on {len(dem_raw_gser)}')
         bx = dem_raw_gser.geometry.z==-9999 #mask
         dem_gser =   dem_raw_gser[~bx]  
         
         #setup results frame
+        log.debug('building results frame')
         res_gdf = gpd.GeoDataFrame(dem_gser.geometry.z.rename('dem'), geometry=drop_z(dem_gser.geometry))
-        
-
         
         #=======================================================================
         # NN search
@@ -201,10 +211,11 @@ class Schuman14(Dsc_basic):
         qry_pts =  [(x,y) for x,y in zip(dem_gser.geometry.x , dem_gser.geometry.y)]
         
         #build model
-        tree = KDTree(src_pts, leaf_size=3, metric='manhattan')
-        
-        #compute the distance and index to the source points (for each query point
-        dist_ar, index_ar = tree.query(qry_pts, k=1, return_distance=True)        
+        with parallel_backend('threading', n_jobs=n_jobs): 
+            tree = KDTree(src_pts, leaf_size=3, metric='manhattan')
+            
+            #compute the distance and index to the source points (for each query point
+            dist_ar, index_ar = tree.query(qry_pts, k=1, return_distance=True)        
         assert len(dist_ar)==len(qry_pts)
         
         #=======================================================================
