@@ -125,9 +125,9 @@ def run_dsc_vali(
     #===========================================================================
     # defaults
     #===========================================================================
-    with PipeSession(logfile_duplicate=True, dem_fp=dem1_fp, **kwargs) as ses:
+    with PipeSession(logfile_duplicate=False, dem_fp=dem1_fp, **kwargs) as ses:
         start = now()
-        log = ses.logger.getChild('r')
+        log = ses.logger
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
         skwargs = dict(out_dir=ses.out_dir, tmp_dir=ses.tmp_dir)
         #=======================================================================
@@ -226,4 +226,6 @@ def run_dsc_vali(
         # wrap
         #=======================================================================
         log.info(f'finished in {now()-start} at \n    {ses.out_dir}')
+        
+    return log
  
