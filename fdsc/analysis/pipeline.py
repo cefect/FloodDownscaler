@@ -6,7 +6,7 @@ Created on Jan. 7, 2023
 integrated downscaling and validation
 '''
 
-import os, datetime, pickle
+import os, datetime, pickle, pprint
 import shapely.geometry as sgeo
 import rasterio as rio
 from rasterio.enums import Resampling, Compression
@@ -227,5 +227,44 @@ def run_dsc_vali(
         #=======================================================================
         log.info(f'finished in {now()-start} at \n    {ses.out_dir}')
         
-    return log
+    return meta_fp, log
  
+def run_pipeline_multi(
+        
+          wse2_fp=None, 
+          dem1_fp=None,
+        method_l=[
+                    'bufferGrowLoop',
+                    'costGrowSimple',
+                    'schumann14', 
+                    'none',
+                    ],
+        
+ 
+        **kwargs):
+    """run the pipeline on each method
+    
+    TODO: we should move both these onto the class
+        we have a confusing extra layer now in the strucrue
+        proj_name
+            method (run_name)
+                date
+                
+    """
+    
+    logger=None
+    res_d = dict()
+    #===========================================================================
+    # loop onmethods
+    #===========================================================================
+    for method in method_l:
+        assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}' 
+        
+        print(f'\n\nMETHOD={method}\n\n')
+        res_d[nicknames_d[method]], logger= run_dsc_vali(wse2_fp, dem1_fp,        
+                            dsc_kwargs=dict(method=method),
+                            run_name=nicknames_d[method], logger=logger,
+                            **kwargs)  
+ 
+    
+    print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))

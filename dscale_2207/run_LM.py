@@ -5,23 +5,14 @@ Created on Dec. 15, 2022
 
 downscaling ahr case study
 '''
+import pprint
+from fdsc.analysis.pipeline import run_pipeline_multi, nicknames_d
 
-from fdsc.analysis.pipeline import run_dsc_vali, nicknames_d
 
-
-def runr(method='none',run_name=None,
-          wse2_fp=None, dem1_fp=None,
-                      **kwargs):
- 
-    assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}'        
-    
-    if run_name is None:
-        run_name='121553_%s'%nicknames_d[method]
+def runr(**kwargs):
         
-    return run_dsc_vali(wse2_fp, dem1_fp,        
-        dsc_kwargs=dict(method=method),
-        run_name=run_name,  index_coln='fid',
-        **kwargs)
+    return run_pipeline_multi(index_coln='fid',
+                              **kwargs)
     
     
 
@@ -57,15 +48,4 @@ def LM_aoi13_0203(**kwargs):
         **kwargs)
     
 if __name__=='__main__':
-    logger=None
-    for method in [
-        'bufferGrowLoop',
-        'costGrowSimple',
-        'schumann14', 
-        'none',
-        ]:
-        print(f'\n\nMETHOD={method}\n\n')
-        logger= LM_aoi13_0202(method=method, logger=logger)    
- 
- 
-    print('done')
+    LM_aoi13_0203()
