@@ -676,20 +676,7 @@ class RioWrkr(Basic):
             return None
         
 
-    def _clear(self):
-        #close all open datasets
-        for k,v in self.dataset_d.items():
-            v.close()
-            
-        for k,v in self.memoryfile_d.items():
-            v.close()
-            
-    def __enter__(self):
-        return self
-    
-    def __exit__(self,  *args,**kwargs):
-        #print('RioWrkr.__exit__')
-        self._clear()
+ 
         
 class RioSession(RioWrkr):
     aoi_fp=None

@@ -328,11 +328,9 @@ class Basic(object): #simple base class
         return self
     
     def __exit__(self,  *args,**kwargs):
- 
-        #clear all my attriburtes
-        for k in copy.copy(list(self.__dict__.keys())):
-            if not k=='trash_fps':
-                del self.__dict__[k]
+        pass
+        """not needed by lowest object
+        super().__exit__(*args, **kwargs)"""
     
 
 
@@ -410,7 +408,7 @@ class LogSession(Basic):
         logger = logging.getLogger() #get the root logger
         logging.config.fileConfig(logcfg_file,
                                   defaults={'logdir':str(out_dir).replace('\\','/')},
-                                  #disable_existing_loggers=True,
+                                  disable_existing_loggers=True,
                                   ) #load the configuration file
         'usually adds a log file to the working directory/_outs/root.log'
         logger.info('root logger initiated and configured from file: %s'%(logcfg_file))
@@ -450,6 +448,18 @@ class LogSession(Basic):
         logger.info('logger configured w/ %i handlers\n%s'%(len(res_lib), txt))
         
         return res_lib
+    
+ 
+    
+    def __exit__(self,  *args,**kwargs):
+ 
+        #close teh loggers
+        for handler in self.logger.handlers:
+            handler.close()
+            
+        #logging.shutdown()
+            
+        super().__exit__(*args, **kwargs)
         
                  
 class Session(LogSession): #analysis with flexible loading of intermediate results
