@@ -110,7 +110,7 @@ class Plot_rlays_wrkr(object):
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
         
-        TODO: add point samples (color coded by confusion)
+ 
         
         rows: cols
             valid: 
@@ -133,7 +133,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['vali', 'nodp', 'bgl', 'cgs', 's14'] #list(fp_lib.keys())
+        row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
         col_keys = ['c1', 'c2', 'c3']
         
         #grid_lib={k:dict() for k in row_keys}
@@ -552,7 +552,7 @@ class Plot_samples_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['vali', 'cgs', 'bgl', 's14']  # list(df.columns)
+        row_keys = ['vali', 's14', 'cgs' ]   # list(df.columns)
         col_keys = ['raw_hist', 'diff_hist', 'corr_scatter']
         
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,

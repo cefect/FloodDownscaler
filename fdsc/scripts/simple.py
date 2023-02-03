@@ -236,7 +236,6 @@ class CostGrowSimple(TwoPhaseDSC):
         
         #report
         if __debug__:
-
             og_noDataCount = getNoDataCount(wse1_fp)
             new_noDataCount = meta_lib['filter_dem']['violation_count']
             assert og_noDataCount>0            

@@ -234,10 +234,11 @@ def run_pipeline_multi(
           wse2_fp=None, 
           dem1_fp=None,
         method_l=[
-                    'bufferGrowLoop',
+                    #'bufferGrowLoop',
                     'costGrowSimple',
                     'schumann14', 
                     'none',
+                    'wetPartialsOnly',
                     ],
         
  
