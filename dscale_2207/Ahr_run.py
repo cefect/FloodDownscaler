@@ -5,23 +5,12 @@ Created on Dec. 15, 2022
 
 downscaling ahr case study
 '''
+from fdsc.analysis.pipeline import run_pipeline_multi, nicknames_d
 
-from fdsc.analysis.pipeline import run_dsc_vali, nicknames_d
 
-
-def runr(method='none',run_name=None,
-          wse2_fp=None, dem1_fp=None,
-                      **kwargs):
- 
-    assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}'        
-    
-    if run_name is None:
-        run_name='121553_%s'%nicknames_d[method]
-        
-    return run_dsc_vali(wse2_fp, dem1_fp,        
-        dsc_kwargs=dict(method=method),
-        run_name=run_name,  index_coln='fid',
-        **kwargs)
+def runr(**kwargs):        
+    return run_pipeline_multi(index_coln='fid',
+                              **kwargs)
     
     
 
@@ -49,16 +38,24 @@ def ahr_aoi08_r32_0130_30(**kwargs):
         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
     
+def ahr11_rim0201_r32_0203(**kwargs):
+    """this is too big... need to block it?"""
+    return runr(proj_name='ahr11_0203',
+        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r32_flood2021_max_wse_0203a.tif',
+        dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\terrain\aoi11_0129\r04\dem005_r04_aoi11_0129.tif',
+        wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r04_flood2021_reconstructed_max_wse_0203.tif',
+        sample_pts_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\bldgs\osm_buildings_aoi07_1114_poly_a50_c240_pts.geojson',
+        #aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
+        **kwargs)
     
 if __name__=='__main__':
-    for method in [
-        #'bufferGrowLoop',
-        'costGrowSimple',
-        #'schumann14', 
-        #'none',
-        ]:
-        print(f'\n\nMETHOD={method}\n\n')
-        ahr_aoi08_r32_0130_30(method=method)    
+    ahr11_rim0201_r32_0203(method_l=[
+                    #'bufferGrowLoop',
+                    #'costGrowSimple',
+                    'schumann14', 
+                    #'none',
+                    #'wetPartialsOnly',
+                    ]) 
  
  
     print('done')

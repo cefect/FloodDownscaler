@@ -3,14 +3,13 @@ Created on Dec. 15, 2022
 
 @author: cefect
 
-downscaling ahr case study
+downscaling LowerMainland case study
 '''
-import pprint
+ 
 from fdsc.analysis.pipeline import run_pipeline_multi, nicknames_d
 
 
-def runr(**kwargs):
-        
+def runr(**kwargs):        
     return run_pipeline_multi(index_coln='fid',
                               **kwargs)
     
