@@ -53,23 +53,23 @@ for k,v in {
 print('loaded matplotlib %s' % matplotlib.__version__)
     
 
-def LM_aoi13_0202(**kwargs):
+def LM_aoi13_0203(**kwargs):
     return basic_post_pipeline(
-        {
-        'nodp':r'L:\10_IO\fdsc\outs\LM_aoi13\121553_nodp\20230202\LM_aoi13_121553_nodp_0202_meta_lib.pkl',
-        'cgs':r'l:\10_IO\fdsc\outs\LM_aoi13\121553_cgs\20230202\LM_aoi13_121553_cgs_0202_meta_lib.pkl',
-        'bgl':r'l:\10_IO\fdsc\outs\LM_aoi13\121553_bgl\20230202\LM_aoi13_121553_bgl_0202_meta_lib.pkl',
-        's14':r'l:\10_IO\fdsc\outs\LM_aoi13\121553_s14\20230202\LM_aoi13_121553_s14_0202_meta_lib.pkl',
-        },
+            {'bgl': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\bgl\\20230203\\LM_aoi13_bgl_0203_meta_lib.pkl',
+             'cgs': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\cgs\\20230203\\LM_aoi13_cgs_0203_meta_lib.pkl',
+             's14': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\s14\\20230203\\LM_aoi13_s14_0203_meta_lib.pkl',
+             'nodp': 'L:\\10_IO\\fdsc\\outs\\LM_aoi13\\nodp\\20230203\\LM_aoi13_nodp_0203_meta_lib.pkl'}
+            ,
+
         #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
-        run_name='post_0202',proj_name='LM_aoi13',
+        run_name='post_0203',proj_name='LM_aoi13',
         **kwargs)
     
  
     
     
 if __name__=='__main__':
-    LM_aoi13_0202()
+    LM_aoi13_0203()
    
  
     print('done')

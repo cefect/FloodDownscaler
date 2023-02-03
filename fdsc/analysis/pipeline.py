@@ -218,8 +218,8 @@ def run_dsc_vali(
                 md[k0]=d0m
                 
         #write 
-        meta_fp  = ses._write_meta(md, logger=log)
-        write(meta_lib, 'meta_lib')
+        _  = ses._write_meta(md, logger=log)
+        meta_fp = write(meta_lib, 'meta_lib')
 
         
         #=======================================================================

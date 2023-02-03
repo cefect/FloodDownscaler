@@ -133,7 +133,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = list(fp_lib.keys())
+        row_keys = ['vali', 'nodp', 'bgl', 'cgs', 's14'] #list(fp_lib.keys())
         col_keys = ['c1', 'c2', 'c3']
         
         #grid_lib={k:dict() for k in row_keys}
