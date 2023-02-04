@@ -40,7 +40,7 @@ class Schuman14(Dsc_basic):
     def __init__(self, 
                  buffer_size=1.5,
                  n_jobs=6,
-                 r2p_backend='rio',
+                 r2p_backend='gr',
                  **kwargs):
         """
         Parameters
