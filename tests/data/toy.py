@@ -19,15 +19,18 @@ more seamless with using real data in tests"""
 #===============================================================================
 # helpers
 #===============================================================================
-def get_mar(ar_raw):
-    return ma.array(ar_raw, mask=np.isnan(ar_raw), fill_value=-9999)
-
-def get_ar_from_str(ar_str, dtype=float):
-    return pd.read_csv(StringIO(ar_str), sep='\s+', header=None).astype(dtype).values
-
-def get_wse_ar(ar_str, **kwargs):
-    ar1 = get_ar_from_str(ar_str, **kwargs)
-    return np.where(ar1==-9999, np.nan, ar1) #replace nans
+from hp.tests.tools.rasters import get_mar, get_ar_from_str, get_wse_ar
+#===============================================================================
+# def get_mar(ar_raw):
+#     return ma.array(ar_raw, mask=np.isnan(ar_raw), fill_value=-9999)
+# 
+# def get_ar_from_str(ar_str, dtype=float):
+#     return pd.read_csv(StringIO(ar_str), sep='\s+', header=None).astype(dtype).values
+# 
+# def get_wse_ar(ar_str, **kwargs):
+#     ar1 = get_ar_from_str(ar_str, **kwargs)
+#     return np.where(ar1==-9999, np.nan, ar1) #replace nans
+#===============================================================================
 
 
  
