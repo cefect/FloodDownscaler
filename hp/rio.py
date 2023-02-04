@@ -850,6 +850,7 @@ def write_array(raw_ar,ofp,
     #===========================================================================
     # execute
     #===========================================================================
+    print(f'writing {data.shape} to {ofp}')
     with rio.open(ofp,'w',driver=driver,
                   height=height,width=width,
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,

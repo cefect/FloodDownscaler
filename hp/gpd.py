@@ -119,7 +119,15 @@ def raster_to_points(rlay_fp, drop_mask=True, max_workers=1):
     NOTE: this can be very slow for large rasters
     
     see also hp.rio_to_points for windowed paralleleization
+    
+    PERFORMANCE TESTS
+    ---------------
+    max_workers>1 slows things down tremendously.
+        GeoRaster package works much better. see hp.gr.pixels_to_points
+     
     """
+    if max_workers is None:
+        max_workers=os.cpu_count()
     
     with rio.open(rlay_fp, mode='r') as ds:
         #do some operation
@@ -144,7 +152,7 @@ def raster_to_points(rlay_fp, drop_mask=True, max_workers=1):
         #=======================================================================
         # plug each coordinate into a point object
         #=======================================================================
-        print('GeoSeries %s'%now())
+        print(f'preparing GeoSeries on {ar.shape} w/ max_workers={max_workers} %s'%now())
         
         if max_workers==1:
             point_l=[Point(c) for c in coord_l]
@@ -155,6 +163,7 @@ def raster_to_points(rlay_fp, drop_mask=True, max_workers=1):
         #=======================================================================
         # collect
         #=======================================================================
+        print(f'collecting geoseries on {len(point_l)} %s'%now())
         gser_raw = gpd.GeoSeries(point_l,crs=ds.crs)
         
         #handle mask

@@ -21,6 +21,7 @@ def now():
 
 
 def process_window(ds, window):
+    
     # Calculate x, y coordinate arrays for a given window shape
     #rows, cols = np.meshgrid(*map(np.arange, window))
     cols, rows = np.meshgrid(np.arange(window.width), np.arange(window.height))
@@ -42,6 +43,12 @@ def process_window(ds, window):
     return point_l
 
 def raster_to_points(rlay_fp, drop_mask=True, max_workers=os.cpu_count()):
+    """convert raster pixels to point using window paralleization
+    
+    PERFORMANCE TESTS
+    ---------------
+    see hp.tests.text_pix_to_points
+    """
     start = now()
     # Open the raster file
     with rio.open(rlay_fp, mode='r') as ds:
