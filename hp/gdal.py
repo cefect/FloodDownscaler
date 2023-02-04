@@ -348,24 +348,6 @@ def getCrs(fp):
     return proj.GetAuthorityName(None) + ':' + proj.GetAuthorityCode(None)
 
     
-    
-    
-                
-            
-if __name__ =="__main__": 
-    rlay_fp = r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.tif'
-    
-    ar = rlay_to_array(rlay_fp)
-    
-    import pandas as pd
-    df = pd.DataFrame(ar)
-    
-    df.to_csv(r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.csv')
-           
-            
-            
-            
-            
             
             
             

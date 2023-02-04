@@ -110,76 +110,7 @@ def get_samples(gser, rlay_ds, colName=None):
     
  
  
-def process_coord(c):
-    return Point(c)
-    
-def raster_to_points(rlay_fp, drop_mask=True, max_workers=1):
-    """simply convert a raster to a set of points
-    
-    NOTE: this can be very slow for large rasters
-    
-    see also hp.rio_to_points for windowed paralleleization
-    
-    PERFORMANCE TESTS
-    ---------------
-    max_workers>1 slows things down tremendously.
-        GeoRaster package works much better. see hp.gr.pixels_to_points
-     
-    """
-    if max_workers is None:
-        max_workers=os.cpu_count()
-    
-    with rio.open(rlay_fp, mode='r') as ds:
-        #do some operation
- 
-        #coordinates
- 
-        cols, rows = np.meshgrid(np.arange(ds.width), np.arange(ds.height))
- 
-        xs, ys = rio.transform.xy(ds.transform, rows, cols)
-        
-        xloc_ar, yloc_ar = np.array(xs), np.array(ys)
-        
-        #data
- 
-        ar = ds.read(1, masked=True)
-        
-        #populate geoseries
- 
-        coord_l= list(zip(xloc_ar.flatten(), yloc_ar.flatten(), ar.data.flatten()))
-        
-        """bottleneck here"""
-        #=======================================================================
-        # plug each coordinate into a point object
-        #=======================================================================
-        print(f'preparing GeoSeries on {ar.shape} w/ max_workers={max_workers} %s'%now())
-        
-        if max_workers==1:
-            point_l=[Point(c) for c in coord_l]
-        else: #multiprocess 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                point_l = list(executor.map(process_coord, coord_l))
-                
-        #=======================================================================
-        # collect
-        #=======================================================================
-        print(f'collecting geoseries on {len(point_l)} %s'%now())
-        gser_raw = gpd.GeoSeries(point_l,crs=ds.crs)
-        
-        #handle mask
-        if np.any(ar.mask) and drop_mask:
-            print('ar.mask.flatten %s'%now()) 
-            bx = pd.Series(ar.mask.flatten())
-            
-            gser = gser_raw.loc[~bx].reset_index(drop=True)
-            
-        else:
-            gser = gser_raw            
-        
-    gser.name = os.path.basename(rlay_fp)
-    return gser
-        
-        
+  
 def drop_z(geo):
     
     assert isinstance(geo, gpd.GeoSeries)
@@ -190,7 +121,15 @@ def drop_z(geo):
                          index = geo.index, crs=geo.crs, name='geometry')
     
         
- 
+def set_mask(gser_raw, drop_mask):
+    assert gser_raw.geometry.z.notna().all(), 'got some bad z values'
+    #handle mask
+    bx = gser_raw.geometry.z == -9999
+    if bx.any() and drop_mask:
+        gser = gser_raw.loc[~bx].reset_index(drop=True)
+    else:
+        gser = gser_raw
+    return gser
         
  
  
