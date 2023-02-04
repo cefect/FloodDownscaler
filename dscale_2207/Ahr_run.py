@@ -39,22 +39,27 @@ def ahr_aoi08_r32_0130_30(**kwargs):
         **kwargs)
     
 def ahr11_rim0201_r32_0203(**kwargs):
-    """this is too big... need to block it?"""
+    """Heiko's RIM2D Feb 2023 run.
+    r32 is low
+    r4 has houses removed... so we get lots of FP assets
+        use buffered polygons instead?
+        ask for a run with r04 houses burned?
+        use r32 w/ houses burned"""
     return runr(proj_name='ahr11_0203',
-        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r32_flood2021_max_wse_0203a.tif',
+        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r32_flood2021_nohouses_max_wse_0204.tif',
         dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\terrain\aoi11_0129\r04\dem005_r04_aoi11_0129.tif',
         wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r04_flood2021_reconstructed_max_wse_0203.tif',
         sample_pts_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\bldgs\osm_buildings_aoi07_1114_poly_a50_c240_pts.geojson',
-        #aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
+        aoi_fp=r'L:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi11b_20230204.geojson',        
         **kwargs)
     
 if __name__=='__main__':
     ahr11_rim0201_r32_0203(method_l=[
                     #'bufferGrowLoop',
-                    #'costGrowSimple',
+                    'costGrowSimple',
                     'schumann14', 
-                    #'none',
-                    #'wetPartialsOnly',
+                    'none',
+                    'wetPartialsOnly',
                     ]) 
  
  

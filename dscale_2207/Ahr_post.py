@@ -77,10 +77,21 @@ def ahr_aoi08_r32_0130_30(**kwargs):
         #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230130\ahr_aoi08_0130_p0130_0130_collect_samples_data.pkl',   
         run_name='p0130',proj_name='ahr_aoi08_0130',
         **kwargs)
-    
+
+def ahr11_rim0201_r32_0203(**kwargs):
+    return basic_post_pipeline(
+            {
+                'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr11_0203\\cgs\\20230204\\ahr11_0203_cgs_0204_meta_lib.pkl',
+                 'none': 'L:\\10_IO\\fdsc\\outs\\ahr11_0203\\none\\20230204\\ahr11_0203_none_0204_meta_lib.pkl',
+                 'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr11_0203\\nodp\\20230204\\ahr11_0203_nodp_0204_meta_lib.pkl',
+                 's14':r'l:\10_IO\fdsc\outs\ahr11_0203\s14\20230204\ahr11_0203_s14_0204_meta_lib.pkl',
+                 },
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230130\ahr_aoi08_0130_p0130_0130_collect_samples_data.pkl',   
+        run_name='p0204',proj_name='ahr11_0203',
+        **kwargs)
     
 if __name__=='__main__':
-    ahr_aoi08_r32_0130_30()
+    ahr11_rim0201_r32_0203()
    
  
     print('done')

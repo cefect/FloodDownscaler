@@ -105,7 +105,7 @@ class Plot_rlays_wrkr(object):
 
     def plot_rlay_mat(self,
                       fp_lib, metric_lib=None, 
-                      figsize=(9,9),
+                      figsize=(12,9),
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -162,7 +162,7 @@ class Plot_rlays_wrkr(object):
         # colormap
         #=======================================================================
         confusion_color_d = {
-            'FN':'#c700fe', 'FP':'#ff5101', 'TP':'#00fe19', 'TN':'white'
+            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
             }
         
         #get rastetr val to color conversion for confusion grid
@@ -408,7 +408,7 @@ class Plot_rlays_wrkr(object):
         # wrap
         #=======================================================================
         log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
     
     def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None):
         """convenienve to retrieve pre-loaded or load points"""
@@ -840,6 +840,7 @@ def basic_post_pipeline(meta_fp_d,
                       sample_dx_fp=None,
                       **kwargs):    
     
+    res_d = dict()
     with PostSession(**kwargs) as ses:
         
         #load the metadata from teh run
@@ -852,11 +853,12 @@ def basic_post_pipeline(meta_fp_d,
         rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
         
         #plot them
-        ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
+        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
         plt.close()
         #=======================================================================
         # sample metrics
         #=======================================================================
+        ses.logger.info('\n\nSAMPLES\n\n')
         try: 
             del run_lib['nodp'] #clear this
         except: pass
@@ -870,7 +872,10 @@ def basic_post_pipeline(meta_fp_d,
         df_wet=df
         
 
-        ses.plot_samples_mat(df_wet, metric_lib)
+        res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib)
+        
+    print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
+    return res_d
         
         
         
