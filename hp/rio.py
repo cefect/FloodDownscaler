@@ -471,6 +471,7 @@ class RioWrkr(Basic):
         if dtype is None: dtype=raw_ar.dtype
         if driver is None: driver=self.driver
         if bandCount is None: bandCount=self.bandCount
+
         
         kwargs2 = dict(masked=masked, crs=crs, transform=transform,nodata=nodata, 
                        dtype=dtype, compress=compress, driver=driver, count=bandCount,
@@ -479,6 +480,7 @@ class RioWrkr(Basic):
         _ = write_array(raw_ar, ofp, **kwargs2)
                          
         
+
         log.info(f'wrote {str(raw_ar.shape)} on crs {crs} (masked={masked}) to \n    {ofp}')
         
         return ofp
@@ -715,6 +717,52 @@ class RioSession(RioWrkr):
             assert bbox is None
             self._set_aoi(aoi_fp)
             
+
+    def __enter__(self):
+        return self
+    
+    def __exit__(self,  *args,**kwargs):
+        #print('RioWrkr.__exit__')
+        self._clear()
+        
+class RioSession(RioWrkr):
+    aoi_fp=None
+    
+    def __init__(self, 
+                 #==============================================================
+                 # crs=CRS.from_user_input(25832),
+                 # bbox=
+                 #==============================================================
+                 crs=None, bbox=None, aoi_fp=None,
+                 
+                 #defaults
+                 
+                 
+                 **kwargs):
+        
+        """"
+        
+        Parameters
+        -----------
+        
+        bbox: shapely.polygon
+            bounds assumed to be on the same crs as the data
+            sgeo.box(0, 0, 100, 100),
+            
+        crs: <class 'pyproj.crs.crs.CRS'>
+            coordinate reference system
+        """
+        super().__init__(**kwargs)
+        
+        #=======================================================================
+        # set aoi
+        #=======================================================================
+        if not aoi_fp is None:            
+            assert crs is None
+            assert bbox is None
+            self._set_aoi(aoi_fp)
+            
+
         else:
             self.crs=crs
             self.bbox = bbox
@@ -767,6 +815,7 @@ class RioSession(RioWrkr):
 # HELPERS----------
 #===============================================================================
 
+
 def write_array2(ar, ofp, **kwargs):
     """skinny writer"""
     #===========================================================================
@@ -782,6 +831,7 @@ def write_array2(ar, ofp, **kwargs):
         ds.write(ar, indexes=1, masked=False)
     return ofp
             
+
 def write_array(raw_ar,ofp,
                 crs=rio.crs.CRS.from_epsg(2953),
                 transform=rio.transform.from_origin(0,0,1,1), #dummy identify
@@ -798,9 +848,11 @@ def write_array(raw_ar,ofp,
     
     Parameters
     ----------
+
     raw_ar: np.Array
         takes masked or non-masked. the latter is converted to a masked before writing
         
+
     masked: bool default False
         if True, the result usually has 2 bands
     """
@@ -850,7 +902,9 @@ def write_array(raw_ar,ofp,
     #===========================================================================
     # execute
     #===========================================================================
+
     print(f'writing {data.shape} to {ofp}')
+
     with rio.open(ofp,'w',driver=driver,
                   height=height,width=width,
                   count=count,dtype=dtype,crs=crs,transform=transform,nodata=nodata,compress=compress,
@@ -858,8 +912,10 @@ def write_array(raw_ar,ofp,
             dst.write(data, indexes=count,
                       masked=masked,
                       #we do this explicitly above
-                      #If given a Numpy MaskedArray and masked is True, the input�s data and mask will be written to the dataset�s bands and band mask. 
-                     #If masked is False, no band mask is written. Instead, the input array�s masked values are filled with the dataset�s nodata value (if defined) or the input�s own fill value.
+
+                      #If given a Numpy MaskedArray and masked is True, the inputï¿½s data and mask will be written to the datasetï¿½s bands and band mask. 
+                     #If masked is False, no band mask is written. Instead, the input arrayï¿½s masked values are filled with the datasetï¿½s nodata value (if defined) or the inputï¿½s own fill value.
+
                       )
             
         
@@ -917,8 +973,6 @@ def load_array(rlay_obj,
     return rlay_apply(rlay_obj, get_ar)
 
 
-    
-
 def rlay_apply(rlay, func, **kwargs):
     """flexible apply a function to either a filepath or a rio ds"""
     
@@ -937,11 +991,13 @@ def rlay_apply(rlay, func, **kwargs):
     return res
 
 def rlay_ar_apply(rlay, func, masked=False, **kwargs):
+
     """apply a func to an array
     
     takes a function like
         f(np.Array, **kwargs)
     """
+
     def ds_func(dataset, **kwargs):
         return func(dataset.read(1, window=None, masked=masked), **kwargs)
     
@@ -1041,10 +1097,12 @@ def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
     return d
 
 def get_stats2(rlay, **kwargs):
+
     warnings.warn("deprecated (2023 01 28). use get_meta() instead", DeprecationWarning)
     return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
 
 def get_meta(rlay, **kwargs):
+
     return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
 
 def get_ds_attr(rlay, stat):
@@ -1076,9 +1134,6 @@ def get_write_kwargs( obj,
     
     return rlay_kwargs
 
-
- 
-    
 
 def rlay_calc1(rlay_fp, ofp, statement):
     """evaluate a statement with numpy math on a single raster"""
@@ -1350,7 +1405,9 @@ def write_resample(rlay_fp,
                           transform=transform,
                           )}
             
+
             return write_array2(res_mar,ofp, **prof_rsmp)
+
             
 
 
@@ -1364,6 +1421,7 @@ def write_clip(raw_fp,
                  ofp=None,
                  **kwargs):
     """write a new raster from a window"""
+
     
     with rio.open(raw_fp, mode='r') as ds:
         
@@ -1505,7 +1563,46 @@ def write_mosaic(fp1, fp2, ofp=None):
     #===========================================================================
     return write_array2(merge_ar, ofp, **get_profile(fp1))
     
+
     
+    with rio.open(raw_fp, mode='r') as ds:
+        
+        #crs check/load
+        if not crs is None:
+            assert crs==ds.crs
+        else:
+            crs = ds.crs
+        
+        #window default
+        if window is None:
+            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+ 
+        else: 
+            assert bbox is None
+            
+        #get the windowed transform
+        transform = rasterio.windows.transform(window, ds.transform)
+        
+        #get stats
+        stats_d = get_stats(ds)
+        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+            
+        #load the windowed data
+        ar = ds.read(1, window=window, masked=masked)
+        
+        #=======================================================================
+        # #write clipped data
+        #=======================================================================
+        if ofp is None:
+            fname = os.path.splitext( os.path.basename(raw_fp))[0] + '_clip.tif'
+            ofp = os.path.join(os.path.dirname(raw_fp),fname)
+        
+        write_kwargs = get_write_kwargs(ds)
+        write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
+        
+        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
+        
+    return ofp, stats_d
     
     
 #===============================================================================
@@ -1569,7 +1666,9 @@ def assert_extent_equal(left, right,  msg='',):
 def assert_spatial_equal(left, right,  msg='',): 
     """check all spatial attributes match"""
     if not __debug__: # true if Python was not started with an -O option
+
         return 
+
     __tracebackhide__ = True
     
     f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l) 
@@ -1616,6 +1715,3 @@ def assert_ds_attribute_match(rlay,
         raise IOError('no check values passed')
  
 
-        
-        
-        
