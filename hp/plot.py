@@ -615,7 +615,7 @@ class Plotr(object):
                   transparent=True, 
                   dpi = 300,
                   logger=None,
-                  ):
+                  **kwargs):
         #======================================================================
         # defaults
         #======================================================================
@@ -674,7 +674,7 @@ class Plotr(object):
         # #write the file
         #=======================================================================
         try: 
-            fig.savefig(ofp, dpi = dpi, format = fmt, transparent=transparent)
+            fig.savefig(ofp, dpi = dpi, format = fmt, transparent=transparent, **kwargs)
             log.info('saved figure to file:\n   %s'%ofp)
         except Exception as e:
             raise IOError('failed to write figure to file w/ \n    %s'%e)
