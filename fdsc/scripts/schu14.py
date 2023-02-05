@@ -28,7 +28,7 @@ from hp.riom import (
     )
 
 from hp.gpd import (
-    drop_z, set_mask
+    drop_z, set_mask, view
     )
 
 from fdsc.base import Dsc_basic, now, assert_partial_wet
@@ -60,6 +60,7 @@ class Schuman14(Dsc_basic):
         super().__init__(**kwargs)
     
     def run_schu14(self, wse2_fp, dem_fp,
+                   resampling=Resampling.nearest,
                    buffer_size=None,
                    gridcells=True,
                    downscale=None,
@@ -108,8 +109,10 @@ class Schuman14(Dsc_basic):
         """ we want to allow buffer sizes as a fraction of the high-res grid
         
         but we dont want to filter wet partials yet (no use in including thesein the search)
+        
+        knn search goes from the coarse WSE, so the resample method doesn't matter much here
         """
-        wse1_rsmp_fp = write_resample(wse2_fp, resampling=Resampling.nearest,
+        wse1_rsmp_fp = write_resample(wse2_fp, resampling=resampling,
                        scale=downscale,
                        ofp=self._get_ofp(dkey='wse1_resamp', out_dir=tmp_dir, ext='.tif'),
                        )
@@ -268,14 +271,7 @@ class Schuman14(Dsc_basic):
         log.debug(f'converting raster_to_points on {dem_fp}')
         dem_gser = self._get_gser(dem_fp,**skwargs)
         
-
-        
-        #mask out        
-        #=======================================================================
-        # bx = dem_raw_gser.geometry.z==profile['nodata'] #mask
-        # log.debug(f'masking DEM {bx.sum()}/{len(dem_raw_gser)}')
-        # dem_gser =   dem_raw_gser[~bx]  
-        #=======================================================================
+ 
         
         #setup results frame
         log.debug('building results frame')
@@ -291,6 +287,8 @@ class Schuman14(Dsc_basic):
         dem_gser.plot(color='green', ax=ax)
         
         res_gdf.plot(ax=ax, linewidth=0, column='wse2_id')
+        
+        view(res_gdf)
         """
         
         #convert point format
@@ -321,20 +319,7 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # rasterize result
         #=======================================================================
-        #add the empties back
-        #=======================================================================
-        # res_gdf2 = gpd.GeoDataFrame(res_gdf, index=dem_raw_gser.index, geometry=drop_z(dem_raw_gser.geometry)
-        #                             ).set_geometry('geometry', drop=True)
-        #                             
-        # res_gdf2['wet'] = res_gdf2['wet'].fillna(False).astype(bool)
-        # 
-        # 
-        # #recombine and resahep
-        # res_ar = ma.array(res_gdf2['wse2'].fillna(profile['nodata']).values, mask=~res_gdf2['wet'], fill_value=profile['nodata']
-        #                   ).reshape((profile['height'], profile['width']))
-        #                   
-        # write_array2(res_ar, ofp, **profile)
-        #=======================================================================
+ 
         #dump points to file
         pts_fp = os.path.join(tmp_dir, 'wse1_match_wet_pts.shp')
         res_wet_gdf = res_gdf.loc[res_gdf['wet'], :].reset_index()

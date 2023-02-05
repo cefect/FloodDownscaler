@@ -153,10 +153,7 @@ wse_plot_kwargs= dict( norm = matplotlib.colors.Normalize(vmin=3, vmax=5), cmap=
         
     
 def run_toy_0205(
-        pars_lib = {
-            'none_wse1':dict (**dict(
-                fp=r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',                 
-                  ), **wse_plot_kwargs)},
+        pars_lib = None,
         run_name='r1',
           **kwargs):
     """
@@ -164,17 +161,54 @@ def run_toy_0205(
     
     """
     #===========================================================================
+    # setup downsample parameters
+    #===========================================================================
+    if pars_lib is None:
+        fp_d = {
+            #'none_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',
+            #'nodp':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\wetPartialsOnly\FloodDownscaler_test_0205_dsc.tif',
+            #'cgs_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\FloodDownscaler_test_0205_dsc.tif',
+            #'cgs_costAllocation':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\costAllocation.tif',
+            #'cgs_demFilter':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\FloodDownscaler_test_0205_filter.tif',
+            #'cgs_clump':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\clump.tif',
+            #'s14_wse1_rsmp':r'C:\Users\cefect\AppData\Local\Temp\pytest-of-cefect\pytest-4226\test_runr_schumann14_kwargs0_C0\temp_Session_0840\dsc\FloodDownscaler_test_0205_wse1_resamp.tif',
+            #'s14_srch_mask':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_srch.tif',
+            #'s14_knn':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_knnFill.tif',
+            's14_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_schu14.tif',
+            }
+ 
+        pars_lib=dict()
+        for k,v in fp_d.items():
+            pars_lib[k] = dict (**dict(fp=fp_d[k]), **wse_plot_kwargs)
+            
+            if '_mask' in k:
+                pars_lib[k]['cmap'] = 'RdYlGn'
+                pars_lib[k]['norm'] = matplotlib.colors.Normalize(vmin=0, vmax=1)
+            
+            
+            elif k=='cgs_clump':
+                pars_lib['cgs_clump']['cmap']='Set1'
+                pars_lib['cgs_clump']['norm']=matplotlib.colors.Normalize(vmin=0, vmax=3)
+                
+ 
+                
+            
+        
+ 
+    #===========================================================================
     # build toy inputs
     #===========================================================================
-    from tests.test_dsc import dem1_ar, wse2_ar, get_rlay_fp
-    dem1_fp = get_rlay_fp(dem1_ar, 'dem1') 
-    wse2_fp = get_rlay_fp(wse2_ar, 'wse2')
-    
-    #add these
-    pars_lib.update(
-        {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
-         'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
-        )
+    #===========================================================================
+    # from tests.test_dsc import dem1_ar, wse2_ar, get_rlay_fp
+    # dem1_fp = get_rlay_fp(dem1_ar, 'dem1') 
+    # wse2_fp = get_rlay_fp(wse2_ar, 'wse2')
+    # 
+    # #add these
+    # pars_lib.update(
+    #     {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
+    #      'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
+    #     )
+    #===========================================================================
  
     
     
