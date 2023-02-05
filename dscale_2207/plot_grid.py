@@ -5,8 +5,8 @@ Created on Jan. 9, 2023
 
 plot a raster as a table/grid
 '''
-import os, logging, sys
-os.environ['USE_PYGEOS'] = '0'
+import os, logging, sys, pprint
+ 
 import numpy as np
 import rasterio as rio
 from rasterio.plot import show
@@ -149,7 +149,7 @@ class Plot_RasterToTable(Plotr, Session):
             
  
             
-wse_plot_kwargs= dict( norm = matplotlib.colors.Normalize(vmin=3, vmax=5), cmap='Blues') 
+wse_plot_kwargs= dict( norm = matplotlib.colors.Normalize(vmin=2, vmax=5), cmap='Blues') 
         
     
 def run_toy_0205(
@@ -167,14 +167,14 @@ def run_toy_0205(
         fp_d = {
             #'none_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',
             #'nodp':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\wetPartialsOnly\FloodDownscaler_test_0205_dsc.tif',
-            #'cgs_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\FloodDownscaler_test_0205_dsc.tif',
-            #'cgs_costAllocation':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\costAllocation.tif',
+            'cgs_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\FloodDownscaler_test_0205_dsc.tif',
+            #'cgs_costDistance':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\costAllocation.tif',
             #'cgs_demFilter':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\FloodDownscaler_test_0205_filter.tif',
             #'cgs_clump':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\costGrowSimple\p2DP\clump.tif',
             #'s14_wse1_rsmp':r'C:\Users\cefect\AppData\Local\Temp\pytest-of-cefect\pytest-4226\test_runr_schumann14_kwargs0_C0\temp_Session_0840\dsc\FloodDownscaler_test_0205_wse1_resamp.tif',
             #'s14_srch_mask':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_srch.tif',
             #'s14_knn':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_knnFill.tif',
-            's14_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_schu14.tif',
+            #'s14_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\schumann14\FloodDownscaler_test_0205_schu14.tif',
             }
  
         pars_lib=dict()
@@ -188,12 +188,7 @@ def run_toy_0205(
             
             elif k=='cgs_clump':
                 pars_lib['cgs_clump']['cmap']='Set1'
-                pars_lib['cgs_clump']['norm']=matplotlib.colors.Normalize(vmin=0, vmax=3)
-                
- 
-                
-            
-        
+                pars_lib['cgs_clump']['norm'] = matplotlib.colors.Normalize(vmin=0, vmax=3)
  
     #===========================================================================
     # build toy inputs
@@ -202,18 +197,24 @@ def run_toy_0205(
     # from tests.test_dsc import dem1_ar, wse2_ar, get_rlay_fp
     # dem1_fp = get_rlay_fp(dem1_ar, 'dem1') 
     # wse2_fp = get_rlay_fp(wse2_ar, 'wse2')
-    # 
-    # #add these
+    #     
+    # # add these
     # pars_lib.update(
     #     {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
     #      'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
     #     )
     #===========================================================================
- 
     
-    
+    #===========================================================================
+    # run
+    #===========================================================================
     with Plot_RasterToTable(proj_name='toy',run_name=run_name, **kwargs) as ses:
         result= ses.plot_set(pars_lib) 
+        
+    d = {k: v.replace('\\', '/') for k, v in result.items()}
+    
+    print('\n\n\n')
+    print(pprint.pformat(d, width=30, indent=True, compact=True, sort_dicts =False))
         
         
     return result
