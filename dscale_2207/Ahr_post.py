@@ -14,9 +14,10 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-cm = 1/2.54
+env_type='present'
 
-output_format='png'
+
+cm = 1/2.54
 usetex=False
 if usetex:
     os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
@@ -29,31 +30,65 @@ import matplotlib.pyplot as plt
  
 #set teh styles
 plt.style.use('default')
+
+
+#===============================================================================
+# journal style
+#===============================================================================
+if env_type=='journal':
+    output_format='png'
+    #font
+    font_size=8
+    matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
  
-#font
-matplotlib.rc('font', **{
-        'family' : 'serif',
-        'weight' : 'normal',
-        'size'   : 8})
+     
+     
+    for k,v in {
+        'axes.titlesize':10,
+        'axes.labelsize':10,
+        'xtick.labelsize':8,
+        'ytick.labelsize':8,
+        'figure.titlesize':12,
+        'figure.autolayout':False,
+        'figure.figsize':(20*cm,14*cm),
+        'legend.title_fontsize':'large',
+        'text.usetex':usetex,
+        }.items():
+            matplotlib.rcParams[k] = v
+            
+            
  
- 
-for k,v in {
-    'axes.titlesize':10,
-    'axes.labelsize':10,
-    'xtick.labelsize':8,
-    'ytick.labelsize':8,
-    'figure.titlesize':12,
-    'figure.autolayout':False,
-    'figure.figsize':(10,10),
-    'legend.title_fontsize':'large',
-    'text.usetex':usetex,
-    }.items():
-        matplotlib.rcParams[k] = v
+        
+#===============================================================================
+# presentation style    
+#===============================================================================
+elif env_type=='present':
+    output_format='png'
+    #font
+    font_size=12
+    #matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : 8})
+    matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
+     
+     
+    for k,v in {
+        'axes.titlesize':font_size+2,
+        'axes.labelsize':font_size+2,
+        'xtick.labelsize':font_size,
+        'ytick.labelsize':font_size,
+        'figure.titlesize':font_size+4,
+        'figure.autolayout':False,
+        'figure.figsize':(20*cm,14*cm),
+        'legend.title_fontsize':'large',
+        'text.usetex':usetex,
+        }.items():
+            matplotlib.rcParams[k] = v
   
 print('loaded matplotlib %s'%matplotlib.__version__)
  
  
- 
+#===============================================================================
+# funcs----------
+#===============================================================================
 def aoi08_r32_1215_53(**kwargs):
     return basic_post_pipeline(
         {
@@ -66,16 +101,26 @@ def aoi08_r32_1215_53(**kwargs):
         run_name='post_0124',proj_name='ahr_aoi08',
         **kwargs)
     
+ahr_aoi08_r32_0130_d = {
+            'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\cgs\\20230205\\ahr_aoi08_0130_cgs_0205_meta_lib.pkl',
+             #'s14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\s14\\20230205\\ahr_aoi08_0130_s14_0205_meta_lib.pkl',
+             'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
+             #'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
+             }
+    
 def ahr_aoi08_r32_0130_30(**kwargs):
-    return basic_post_pipeline(
-        {
-        'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_nodp\20230130\ahr_aoi08_0130_121553_nodp_0130_meta_lib.pkl',
-        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_cgs\20230130\ahr_aoi08_0130_121553_cgs_0130_meta_lib.pkl',
-        'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_bgl\20230130\ahr_aoi08_0130_121553_bgl_0130_meta_lib.pkl',
-        's14':r'l:\10_IO\fdsc\outs\ahr_aoi08_0130\121553_s14\20230130\ahr_aoi08_0130_121553_s14_0130_meta_lib.pkl',
-        },
-        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230130\ahr_aoi08_0130_p0130_0130_collect_samples_data.pkl',   
+    return basic_post_pipeline(ahr_aoi08_r32_0130_d,
+        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
         run_name='p0130',proj_name='ahr_aoi08_0130',
+        **kwargs)
+    
+
+def ahr_aoi08_r32_0130_30_present(**kwargs):
+    return basic_post_pipeline(ahr_aoi08_r32_0130_d,
+        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
+        run_name='present',proj_name='ahr_aoi08_0130',
+        rlay_mat_kwargs=dict(
+            row_keys = ['vali', 'none', 'cgs' ],col_keys = ['c2', 'c3'],add_subfigLabel=False, transparent=False, figsize=(22*cm,16*cm)),
         **kwargs)
 
 def ahr11_rim0201_r32_0203(**kwargs):
@@ -91,7 +136,9 @@ def ahr11_rim0201_r32_0203(**kwargs):
         **kwargs)
     
 if __name__=='__main__':
-    ahr11_rim0201_r32_0203()
+    #ahr11_rim0201_r32_0203()
+    
+    ahr_aoi08_r32_0130_30_present()
    
  
     print('done')

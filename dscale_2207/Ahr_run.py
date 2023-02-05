@@ -54,13 +54,23 @@ def ahr11_rim0201_r32_0203(**kwargs):
         **kwargs)
     
 if __name__=='__main__':
-    ahr11_rim0201_r32_0203(method_l=[
+    ahr_aoi08_r32_0130_30(method_l=[
                     #'bufferGrowLoop',
                     'costGrowSimple',
                     'schumann14', 
                     'none',
                     'wetPartialsOnly',
-                    ]) 
+                    ])
+    
+    #===========================================================================
+    # ahr11_rim0201_r32_0203(method_l=[
+    #                 #'bufferGrowLoop',
+    #                 'costGrowSimple',
+    #                 'schumann14', 
+    #                 'none',
+    #                 'wetPartialsOnly',
+    #                 ]) 
+    #===========================================================================
  
  
     print('done')

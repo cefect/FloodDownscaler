@@ -100,7 +100,10 @@ class Plot_rlays_wrkr(object):
 
     def plot_rlay_mat(self,
                       fp_lib, metric_lib=None,
-                      figsize=(12, 9),
+                      figsize=None, #(12, 9),
+                      row_keys=None,col_keys = None,
+                      add_subfigLabel=True,
+                      transparent=True,
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -118,6 +121,8 @@ class Plot_rlays_wrkr(object):
         
         log.info(f'on {list(fp_lib.keys())}')
         
+        font_size=matplotlib.rcParams['font.size']
+        
         cc_d = self.confusion_codes.copy()
         
         #spatial meta from dem for working with points
@@ -126,8 +131,11 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
-        col_keys = ['c1', 'c2', 'c3']
+        if row_keys is None:
+            row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
+            
+        if col_keys is None:
+            col_keys = ['c1', 'c2', 'c3']
         
         #grid_lib={k:dict() for k in row_keys}
         grid_lib=dict()
@@ -146,7 +154,7 @@ class Plot_rlays_wrkr(object):
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
                                         set_ax_title=False, figsize=figsize,
                                         constrained_layout=True,
-                                        add_subfigLabel=True,
+                                        add_subfigLabel=add_subfigLabel,
                                         )
         
  
@@ -275,7 +283,7 @@ class Plot_rlays_wrkr(object):
                             md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
                             #md = {**{rowk:''}, **md} 
                             ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
-                                    va='bottom', ha='right', fontsize=6, color='black',
+                                    va='bottom', ha='right', fontsize=font_size, color='black',
                                     bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
                                     )
                             
@@ -295,7 +303,7 @@ class Plot_rlays_wrkr(object):
                     ax.pie(total_ser.values, colors=colors_l, autopct='%1.1f%%', 
                            pctdistance=0.9, #move percent labels out
                            shadow=True, 
-                           textprops=dict(size=6),
+                           textprops=dict(size=font_size),
                            #labels=total_ser.index.values,
                            )
                         
@@ -401,7 +409,7 @@ class Plot_rlays_wrkr(object):
         # wrap
         #=======================================================================
         log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600, transparent=transparent)
     
     def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None):
         """convenienve to retrieve pre-loaded or load points"""
@@ -754,7 +762,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
         
         log.info(f'loaded for {len(run_lib)} runs\n    {run_lib.keys()}')
         
-        print(pprint.pformat(run_lib['nodp'], width=30, indent=0.3, compact=True, sort_dicts =False))
+        #print(pprint.pformat(run_lib['nodp'], width=30, indent=0.3, compact=True, sort_dicts =False))
         
         self.run_lib = copy.deepcopy(run_lib)
         
@@ -831,6 +839,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
         
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
+                      rlay_mat_kwargs= dict(),
                       **kwargs):    
     
     res_d = dict()
@@ -846,7 +855,9 @@ def basic_post_pipeline(meta_fp_d,
         rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
         
         #plot them
-        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib)
+        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        
+        return
         plt.close()
         #=======================================================================
         # sample metrics

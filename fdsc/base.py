@@ -16,9 +16,9 @@ from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, assert_masked_ar
     )
 
-nicknames_d = {'costGrowSimple':'cgs', 
-               'none':'none',
-               'wetPartialsOnly':'nodp', 
+nicknames_d = {'costGrow':'cgs', 
+               'basicBilinear':'none',
+               'simpleFilter':'nodp', 
                'bufferGrowLoop':'bgl', 
                'schumann14':'s14'}
 
