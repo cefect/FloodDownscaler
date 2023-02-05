@@ -53,7 +53,8 @@ dem1_ar = get_mar(
     4    4    4    9    9    1
     """))
 
-wse2_ar = get_mar(
+
+wse2_ar = get_mar( #get_wse_ar converts 9999 to null. get_mar converts back to -9999
     get_wse_ar("""
     3    -9999
     4    -9999

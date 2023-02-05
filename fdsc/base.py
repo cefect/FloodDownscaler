@@ -13,7 +13,7 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
+    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, assert_masked_ar
     )
 
 nicknames_d = {'costGrowSimple':'cgs', 
@@ -141,15 +141,7 @@ def rlay_extract(fp,
         
     return stats_d, ar
     
-def assert_masked_ar(ar, msg=''):
-    """check the array satisfies expectations for a masked array"""
-    if not __debug__: # true if Python was not started with an -O option
-        return
-    
-    if not isinstance(ar, ma.MaskedArray):
-        raise AssertionError(msg+' bad type ' + str(type(ar)))
-    if not 'float' in ar.dtype.name:
-        raise AssertionError(msg+' bad dtype ' + ar.dtype.name)
+
     
 def assert_dem_ar(ar, msg=''):
     """check the array satisfies expectations for a DEM array"""
