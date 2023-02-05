@@ -16,7 +16,7 @@ from pyproj.crs import CRS
 
 import geopandas as gpd
 
-import concurrent.futures
+ 
 
 #set fiona logging level
 
@@ -24,7 +24,7 @@ logging.getLogger("fiona.collection").setLevel(logging.WARNING)
 logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
 logging.getLogger("fiona").setLevel(logging.WARNING)
 
- 
+from hp.pd import view 
 
 def now():
     return datetime.datetime.now()
