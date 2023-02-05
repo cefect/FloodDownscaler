@@ -93,25 +93,18 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp, 'dep2':dep2}}, **fp_lib} #order matters
  
- 
-        log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s'%(dstr(fp_lib), dstr(metric_lib)))
+        log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s' % (dstr(fp_lib), dstr(metric_lib)))
         
-        self.fp_lib=fp_lib
+        self.fp_lib = fp_lib
         return fp_lib, metric_lib
-        
-    
-
-
 
     def plot_rlay_mat(self,
-                      fp_lib, metric_lib=None, 
-                      figsize=(12,9),
+                      fp_lib, metric_lib=None,
+                      figsize=(12, 9),
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
-        
  
-        
         rows: cols
             valid: 
             methods
@@ -121,7 +114,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayMat',ext='.png', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayMat', ext='.png', **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
         

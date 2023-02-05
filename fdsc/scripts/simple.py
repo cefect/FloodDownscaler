@@ -61,9 +61,7 @@ class WetPartials(Dsc_basic):
         #=======================================================================
         assert_extent_equal(wse2_fp, dem_fp, msg='phase1')
  
- 
         meta_d = {'wse2_fp':wse2_fp, 'dem_fp':dem_fp, 'resampling':resampling, 'downscale':downscale}
-        
  
         #=======================================================================
         # resample
@@ -74,13 +72,15 @@ class WetPartials(Dsc_basic):
                        ofp=self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
                        )
         
+        rlay_ar_apply(wse1_rsmp_fp, assert_wse_ar, msg='WSE resample')
+        
         meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
  
         #=======================================================================
         # #filter dem violators
         #=======================================================================
         if dem_filter:
-            wse1_filter_ofp, d = self.get_wse_dem_filter(wse1_rsmp_fp, dem_fp,logger=log, out_dir=tmp_dir)
+            wse1_filter_ofp, d = self.get_wse_dem_filter(wse1_rsmp_fp, dem_fp, logger=log, out_dir=tmp_dir)
             meta_d.update(d)
         else:
             wse1_filter_ofp = wse1_rsmp_fp
@@ -96,6 +96,7 @@ class WetPartials(Dsc_basic):
         log.info(f'built wse from downscale={downscale} on wet partials\n    {meta_d}\n    {ofp}')
         meta_d['wse1_wp_fp'] = ofp
         return ofp, meta_d
+
 
 class TwoPhaseDSC(WetPartials):
     """methods common to simple two phase downsamplers"""

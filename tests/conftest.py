@@ -21,7 +21,7 @@ from definitions import src_dir
 
 
 from hp.logr import get_new_console_logger, logging
-from hp.rio import write_array
+from hp.rio import write_array, write_array2, assert_masked_ar
 
 
 
@@ -40,10 +40,12 @@ use:
 """
 par_algoMethodKwargs = ('method, kwargs', [      
       ('none', dict()),
-    ('wetPartialsOnly', dict()),
-    ('bufferGrowLoop', dict(loop_range=range(2))), 
-    ('schumann14', dict(buffer_size=float(2/3))),
-    ('costGrowSimple', dict()),
+    #===========================================================================
+    # ('wetPartialsOnly', dict()),
+    # ('bufferGrowLoop', dict(loop_range=range(2))), 
+    # ('schumann14', dict(buffer_size=float(2/3))),
+    # ('costGrowSimple', dict()),
+    #===========================================================================
                            ])
 #===============================================================================
 # TEST DATA---------
@@ -114,20 +116,25 @@ def get_rlay_fp(ar, layName,
             bbox=bbox_default,
  
             ):
+    """wrapper for array writing with default spatial meta"""
     
+    
+    assert_masked_ar(ar), layName
     #===========================================================================
     # build out path
     #===========================================================================
-    #assert isinstance(ar, np.ndarray)
-    assert isinstance(ar, ma.MaskedArray)
+ 
     height, width  = ar.shape
     
     if ofp is None: 
         ofp = os.path.join(temp_dir,f'{layName}_{width}x{height}.tif')
-        
-    return write_array(ar, ofp, crs=crs, 
+    
+    #===========================================================================
+    # write    
+    #===========================================================================
+    return write_array2(ar, ofp, crs=crs, 
                         transform=rio.transform.from_bounds(*bbox.bounds,width, height),
-                        masked=True)
+                        )
 
 
 def get_aoi_fp(bbox, crs=crs_default, ofp=None):
