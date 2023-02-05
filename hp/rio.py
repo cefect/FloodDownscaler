@@ -767,7 +767,9 @@ class RioSession(RioWrkr):
 # HELPERS----------
 #===============================================================================
 
-def write_array2(ar, ofp, **kwargs):
+def write_array2(ar, ofp, 
+                 count=1, width=None, height=None, nodata=-9999, dtype=None,
+                 **kwargs):
     """skinny writer"""
     #===========================================================================
     # precheck
@@ -776,9 +778,20 @@ def write_array2(ar, ofp, **kwargs):
     assert os.path.exists(os.path.dirname(ofp)), ofp
     
     #===========================================================================
+    # defaults
+    #===========================================================================
+    if width is None or height is None:
+        height, width  = ar.shape
+        
+    if dtype is None:
+        dtype=ar.dtype
+    
+    #===========================================================================
     # write
     #===========================================================================
-    with rio.open(ofp, 'w', **kwargs) as ds:
+    with rio.open(ofp, 'w', 
+                  count=count, width=width, height=height,nodata=nodata, dtype=dtype,
+                  **kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
             
@@ -936,7 +949,7 @@ def rlay_apply(rlay, func, **kwargs):
     
     return res
 
-def rlay_ar_apply(rlay, func, masked=False, **kwargs):
+def rlay_ar_apply(rlay, func, masked=True, **kwargs):
     """apply a func to an array
     
     takes a function like
@@ -1266,13 +1279,18 @@ def write_resample(rlay_fp,
         # # resample data to target shape
         #===========================================================================
         with rasterio.open(rlay_fp, mode='r') as dataset:
+            
+            """
+            dataset.read(1, masked=False)
+            """
          
             out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
  
             
             data_rsmp = dataset.read(1,
                 out_shape=out_shape,
-                resampling=resampling
+                resampling=resampling,
+                masked=True,
                                     )
         
             # scale image transform
@@ -1292,6 +1310,7 @@ def write_resample(rlay_fp,
                     resampling=Resampling.nearest, #doesnt bleed
                 )""" 
             mar_raw = dataset.read_masks(1)
+            
             #downsample.disag. (zoom in)
             if scale>1.0:
                 #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
@@ -1616,6 +1635,21 @@ def assert_ds_attribute_match(rlay,
         raise IOError('no check values passed')
  
 
-        
-        
+def assert_masked_ar(ar, msg=''):
+    """check the array satisfies expectations for a masked array
+    
+    NOTE: to call this on a raster filepath, wrap with rlay_ar_apply:
+        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
+    """
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    
+    if not isinstance(ar, ma.MaskedArray):
+        raise AssertionError(msg+'\n     bad type ' + str(type(ar)))
+    if not 'float' in ar.dtype.name:
+        raise AssertionError(msg+'\n     bad dtype ' + ar.dtype.name)
+    
+    #check there are no nulls on the data
+    if np.any(np.isnan(ar.filled())):
+        raise AssertionError(msg+f'\n    got {np.isnan(ar.data).sum()}/{ar.size} nulls outside of mask')
         
