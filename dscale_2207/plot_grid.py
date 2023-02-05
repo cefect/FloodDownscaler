@@ -6,6 +6,7 @@ Created on Jan. 9, 2023
 plot a raster as a table/grid
 '''
 import os, logging, sys
+os.environ['USE_PYGEOS'] = '0'
 import numpy as np
 import rasterio as rio
 from rasterio.plot import show
@@ -19,7 +20,7 @@ from hp.oop import Session
 #===============================================================================
 cm = 1/2.54
 
-output_format='png'
+output_format='svg'
 usetex=False
 if usetex:
     os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
@@ -34,10 +35,8 @@ import matplotlib.pyplot as plt
 plt.style.use('default')
  
 #font
-matplotlib.rc('font', **{
-        'family' : 'serif',
-        'weight' : 'normal',
-        'size'   : 8})
+font_size=12
+matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
  
  
 for k,v in {
@@ -47,7 +46,7 @@ for k,v in {
     'ytick.labelsize':8,
     'figure.titlesize':12,
     'figure.autolayout':False,
-    'figure.figsize':(10,10),
+    'figure.figsize':(8*cm,8*cm),
     'legend.title_fontsize':'large',
     'text.usetex':usetex,
     }.items():
@@ -58,7 +57,13 @@ print('loaded matplotlib %s' % matplotlib.__version__)
 
 
 class Plot_RasterToTable(Plotr, Session):
-    def plot_set(self, pars_d, **kwargs):
+    def __init__(self,
+                 proj_name='RasterToTable',
+                 **kwargs):
+        
+        super().__init__(proj_name=proj_name, **kwargs)
+         
+    def plot_set(self, pars_lib, **kwargs):
         """plot a set of rasters"""
         #=======================================================================
         # defaults
@@ -70,8 +75,8 @@ class Plot_RasterToTable(Plotr, Session):
         #=======================================================================
         # loop and plot
         #=======================================================================
-        log.info(f'plotting {len(pars_d)} rasters')
-        for name, pars_d in pars_d.items():
+        log.info(f'plotting {len(pars_lib)} rasters')
+        for name, pars_d in pars_lib.items():
             fp = pars_d.pop('fp')
             log.info(f'plotting {name} w/\n    {pars_d}')
             res_d[name] = self.plot_rasterToTable(fp, resname = self._get_resname(dkey=f'rasterTable_{name}'),
@@ -81,12 +86,13 @@ class Plot_RasterToTable(Plotr, Session):
         
     
     def plot_rasterToTable(self, fp, 
-                           cmap='virids', norm=None,
+                           cmap='viridis_r', norm=None,
+                           fontsize=font_size,
                            **kwargs):
         """main caller to plot the raster file"""
         assert os.path.exists(fp), fp
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('Plot_RasterToTable',ext='.svg', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('Plot_RasterToTable',ext='.'+output_format, **kwargs)
         
         log.debug(f'from {fp}')
         #=======================================================================
@@ -126,7 +132,7 @@ class Plot_RasterToTable(Plotr, Session):
                  #fontsize=32,
                  )
         
-        table.set_fontsize(16)
+        table.set_fontsize(fontsize)
         
         #===================================================================
         # format
@@ -143,20 +149,43 @@ class Plot_RasterToTable(Plotr, Session):
             
  
             
-            
+wse_plot_kwargs= dict( norm = matplotlib.colors.Normalize(vmin=3, vmax=5), cmap='Blues') 
         
     
-def run01(pars_d = {
-        'final':dict(
-            fp=r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',
-              norm = matplotlib.colors.Normalize(vmin=0, vmax=4), cmap='viridis_r'
-              )},
+def run_toy_0205(
+        pars_lib = {
+            'none_wse1':dict (**dict(
+                fp=r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',                 
+                  ), **wse_plot_kwargs)},
+        run_name='r1',
           **kwargs):
-    with Plot_RasterToTable(**kwargs) as ses:
-        result= ses.plot_set(pars_d) 
+    """
+    build plots of toy grid data
+    
+    """
+    #===========================================================================
+    # build toy inputs
+    #===========================================================================
+    from tests.test_dsc import dem1_ar, wse2_ar, get_rlay_fp
+    dem1_fp = get_rlay_fp(dem1_ar, 'dem1') 
+    wse2_fp = get_rlay_fp(wse2_ar, 'wse2')
+    
+    #add these
+    pars_lib.update(
+        {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
+         'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
+        )
+ 
+    
+    
+    with Plot_RasterToTable(proj_name='toy',run_name=run_name, **kwargs) as ses:
+        result= ses.plot_set(pars_lib) 
         
         
     return result
+
+
+
 if __name__=='__main__':
     #basic standalone setup
     logging.basicConfig(force=True, #overwrite root handlers
@@ -165,7 +194,7 @@ if __name__=='__main__':
         )
  
     
-    run01(logger = logging.getLogger())
+    run_toy_0205(logger = logging.getLogger())
     
  
     print('done')
