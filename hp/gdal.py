@@ -328,6 +328,7 @@ def getNoDataCount(fp, dtype=np.dtype('float')):
     ar = rlay_to_array(fp)
     
     return np.isnan(ar).astype(int).sum()
+
     
 
 def getCrs(fp):
@@ -337,6 +338,7 @@ def getCrs(fp):
     proj=osr.SpatialReference(wkt=ds.GetProjection())
     assert proj.AutoIdentifyEPSG()==OGRERR_NONE
     del ds
+
     
     """alternative formats
     proj.ExportToWkt()
