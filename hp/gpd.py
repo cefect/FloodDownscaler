@@ -6,15 +6,17 @@ Created on Sep. 6, 2022
 geopandas
 '''
 
-import shapely, os, logging
+import shapely, os, logging, datetime
 import shapely.geometry as sgeo
 import numpy as np
 import pandas as pd
-from shapely.geometry import polygon
+from shapely.geometry import Point, polygon
 import rasterio as rio
 from pyproj.crs import CRS
 
 import geopandas as gpd
+
+import concurrent.futures
 
 #set fiona logging level
 
@@ -22,7 +24,11 @@ logging.getLogger("fiona.collection").setLevel(logging.WARNING)
 logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
 logging.getLogger("fiona").setLevel(logging.WARNING)
 
-from hp.oop import Basic
+ 
+
+def now():
+    return datetime.datetime.now()
+ 
 class GeoPandasWrkr(object):
     def __init__(self, 
                  bbox=None,
@@ -102,5 +108,28 @@ def get_samples(gser, rlay_ds, colName=None):
     
     return gpd.GeoDataFrame(data={colName:samp_ar}, index=gser.index, geometry=gser)
     
+ 
+ 
+  
+def drop_z(geo):
     
+    assert isinstance(geo, gpd.GeoSeries)
     
+    coord_l= list(zip(geo.x.values,geo.y.values))
+    
+    return gpd.GeoSeries([Point(c) for c in coord_l],
+                         index = geo.index, crs=geo.crs, name='geometry')
+    
+        
+def set_mask(gser_raw, drop_mask):
+    assert gser_raw.geometry.z.notna().all(), 'got some bad z values'
+    #handle mask
+    bx = gser_raw.geometry.z == -9999
+    if bx.any() and drop_mask:
+        gser = gser_raw.loc[~bx].reset_index(drop=True)
+    else:
+        gser = gser_raw
+    return gser
+        
+ 
+ 

@@ -681,3 +681,10 @@ class Plotr(object):
         
         return ofp
     
+def hide_text(ax):
+    """hide all text objects foundon the axis"""
+    for obj in ax.get_children():
+        if isinstance(obj, matplotlib.text.Text):
+            obj.set_visible(False)
+    
+    

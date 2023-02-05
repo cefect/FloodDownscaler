@@ -18,6 +18,8 @@ import time, sys, os, logging, copy, tempfile, datetime
 
 from osgeo import ogr, gdal_array, gdal, osr
 
+from osgeo.ogr import OGRERR_NONE
+
 import numpy as np
  
 
@@ -326,26 +328,28 @@ def getNoDataCount(fp, dtype=np.dtype('float')):
     ar = rlay_to_array(fp)
     
     return np.isnan(ar).astype(int).sum()
+
     
+
+def getCrs(fp):
+    """retrive the CRS (EPSG:1234) from the file using gdal"""
+    assert os.path.exists(fp), fp
+    ds=gdal.Open(fp)
+    proj=osr.SpatialReference(wkt=ds.GetProjection())
+    assert proj.AutoIdentifyEPSG()==OGRERR_NONE
+    del ds
+
+    
+    """alternative formats
+    proj.ExportToWkt()
+    proj.ExportToPrettyWkt()
+    proj.ExportToMICoordSys()
+    proj.ExportToProj4()"""
  
+ 
+    return proj.GetAuthorityName(None) + ':' + proj.GetAuthorityCode(None)
+
     
-    
-                
-            
-if __name__ =="__main__": 
-    rlay_fp = r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.tif'
-    
-    ar = rlay_to_array(rlay_fp)
-    
-    import pandas as pd
-    df = pd.DataFrame(ar)
-    
-    df.to_csv(r'C:\LS\02_WORK\NRC\2112_Agg\04_CALC\hyd\OBWB\wd\present\wd_1grid.csv')
-           
-            
-            
-            
-            
             
             
             
