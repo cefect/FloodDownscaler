@@ -98,6 +98,8 @@ class Plot_rlays_wrkr(object):
         self.fp_lib = fp_lib
         return fp_lib, metric_lib
 
+
+
     def plot_rlay_mat(self,
                       fp_lib, metric_lib=None,
                       figsize=None, #(12, 9),
@@ -105,6 +107,7 @@ class Plot_rlays_wrkr(object):
                       add_subfigLabel=True,
                       transparent=True,
                       font_size=None,
+                      confusion_color_d=None,
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -124,6 +127,8 @@ class Plot_rlays_wrkr(object):
         
         if font_size is None:
             font_size=matplotlib.rcParams['font.size']
+        if confusion_color_d is None:
+            confusion_color_d=self.confusion_color_d.copy()
         
         cc_d = self.confusion_codes.copy()
         
@@ -137,7 +142,7 @@ class Plot_rlays_wrkr(object):
             row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
             
         if col_keys is None:
-            col_keys = ['c1', 'c2', 'c3']
+            col_keys = ['c2', 'c3']
         
         #grid_lib={k:dict() for k in row_keys}
         grid_lib=dict()
@@ -164,9 +169,7 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # colormap
         #=======================================================================
-        confusion_color_d = {
-            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
-            }
+        
         
         #get rastetr val to color conversion for confusion grid
         cval_d = {v:confusion_color_d[k] for k,v in cc_d.items()}        
@@ -272,6 +275,12 @@ class Plot_rlays_wrkr(object):
                             _= gdf1.plot(column='conf_color', ax=ax, cmap=confuGrid_cmap, norm=confuGrid_norm,
                                      markersize=.2, marker='.', #alpha=0.8,
                                      )
+                            
+                            #pie chart
+                            
+                            # Add a subplot to the lower right quadrant
+ 
+                            self._add_pie(ax, rowk)
                         
  
                         #===========================================================
@@ -293,30 +302,18 @@ class Plot_rlays_wrkr(object):
                         #colorbar
                         if not gridk in axImg_d:
                             axImg_d[gridk]=[obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
+                            
+                        
+                        
                 
                 #===============================================================
-                # pie plot         
+                # pie plot--------
                 #===============================================================
                 elif gridk=='pie':
-                    gdf = self._load_gdf(rowk)
+                    pass
+                    #
                     
-                    total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
-                    colors_l = [confusion_color_d[k] for k in total_ser.index]
- 
-                    patches, texts = ax.pie(total_ser.values, colors=colors_l, 
-                           #autopct='%1.1f%%', 
-                           #pctdistance=1.2, #move percent labels out
-                           shadow=True, 
-                           textprops=dict(size=font_size),
-                           #labels=total_ser.index.values,
-                           wedgeprops={"edgecolor":"black",'linewidth': .5, 'linestyle': 'solid', 'antialiased': True},
-                           )
                     
-                    labels = [f'{k}: {v*100:1.1f}%' for k,v in (total_ser/total_ser.sum()).to_dict().items()]
-                    
-                    ax.legend(patches, labels, loc='center left', 
-                              bbox_to_anchor=(1, .5),mode=None,
-                               fontsize=font_size-2)
                         
  
         #=======================================================================
@@ -392,15 +389,16 @@ class Plot_rlays_wrkr(object):
  
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
+                if colk=='c1':
+                    pass
+                    #ax.get_xscale()
                 #turn off useless axis
                 
                 #first col
-                #===============================================================
-                # if colk==col_keys[0]:
-                #     ax.set_ylabel(nicknames_d2[rowk], 
-                #                   #fontsize=6,
-                #                   )
-                #===============================================================
+                if colk==col_keys[0]:
+                    ax.set_ylabel(nicknames_d2[rowk], 
+                                  #fontsize=6,
+                                  )
  
                 #first row
                 if rowk==row_keys[0]:
@@ -455,7 +453,90 @@ class Plot_rlays_wrkr(object):
         assert gdf.crs == rmeta_d['crs']
         
         return gdf 
+
+    def _add_pie(self, ax, rowk, 
+                 font_size=None, 
+                 confusion_color_d=None,
+                 legend=True,
+                 center_loc=(0.91, 0.2),
+                 radius=0.075,
+                 ):
+         
+        """add a pie chart to the axis
+        
+        Parameters
+        --------
+        radius: float
+            radius of pie chart (relative ot the xdimensino)
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if confusion_color_d is None:
+            confusion_color_d=self.confusion_color_d.copy()
+        
+        if font_size is None:
+            font_size=matplotlib.rcParams['font.size']
+            
+        #=======================================================================
+        # #load data
+        #=======================================================================
+        gdf = self._load_gdf(rowk)
+        total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
+        
+        colors_l = [confusion_color_d[k] for k in total_ser.index]
+        
+        #=======================================================================
+        # get center location
+        #=======================================================================
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        
+        xdelta = xlim[1] - xlim[0]
+        # Calculate the center of the pie chart, relative to the axis
+        center_x = xlim[0] + center_loc[0] * (xdelta)
+        center_y = ylim[0] + center_loc[1] * (ylim[1] - ylim[0])
+        
  
+        #ax.set_clip_box(ax.bbox)
+        #=======================================================================
+        # add pie
+        #=======================================================================
+        
+
+    
+    
+        patches, texts = ax.pie(total_ser.values, colors=colors_l, 
+            #autopct='%1.1f%%',
+            #pctdistance=1.2, #move percent labels out
+            shadow=False, 
+            textprops=dict(size=font_size), 
+            #labels=total_ser.index.values,
+            wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True}, 
+            radius=xdelta*radius, 
+            center=(center_x,center_y),
+            frame=True)
+        #=======================================================================
+        # reset lims
+        #=======================================================================
+        ax.set_ylim(ylim)
+        ax.set_xlim(xlim)
+        #=======================================================================
+        # legend
+        #=======================================================================
+        if legend:
+            labels = [f'{k}:{v*100:1.1f}%' for k, v in (total_ser / total_ser.sum()).to_dict().items()]
+            ax.legend(patches, labels, 
+                      #loc='upper left',
+                      loc='lower left', 
+                      ncols=len(labels),
+                #bbox_to_anchor=(0, 0, 1.0, .1), 
+                mode=None, #alpha=0.9,
+                frameon=True,framealpha=0.5,fancybox=False,alignment='left',columnspacing=0.5,handletextpad=0.2,
+                fontsize=font_size-2)
+        return  
+
+
         
 class Plot_samples_wrkr(object):
     
@@ -757,6 +838,9 @@ class Plot_samples_wrkr(object):
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
                   Plotr, ValidateSession):
     sim_color_d = {'vali':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet', 's14':'#24855d'}
+    confusion_color_d = {
+            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
+            }
     "Session for analysis on multiple downscale results and their validation metrics"
     def __init__(self, 
                  run_name = None,
@@ -871,8 +955,8 @@ def basic_post_pipeline(meta_fp_d,
         
         #plot them
         res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        
         return
- 
         plt.close()
         #=======================================================================
         # sample metrics
@@ -885,17 +969,11 @@ def basic_post_pipeline(meta_fp_d,
         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
         
         """switched to plotting all trues per simulation"""
-        #clear any samples w/ zeros
-        #bx = np.invert((df==0).any(axis=1))
-        #df_wet = df.loc[bx, :]
+ 
         df_wet=df
-        
 
         res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
         
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
     return res_d
-        
-        
-        
  

@@ -14,7 +14,7 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type='present'
+env_type='journal'
 
 
 cm = 1/2.54
@@ -48,7 +48,7 @@ if env_type=='journal':
         'ytick.labelsize':8,
         'figure.titlesize':12,
         'figure.autolayout':False,
-        'figure.figsize':(20*cm,14*cm),
+        'figure.figsize':(17*cm,19*cm),
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -95,18 +95,19 @@ def aoi08_r32_1215_53(**kwargs):
         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
         run_name='post_0124',proj_name='ahr_aoi08',
         **kwargs)
-    
+
+#results data (for present and non-present functions)
 ahr_aoi08_r32_0130_d = {
             'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\cgs\\20230205\\ahr_aoi08_0130_cgs_0205_meta_lib.pkl',
              's14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\s14\\20230205\\ahr_aoi08_0130_s14_0205_meta_lib.pkl',
              'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
-             #'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
+             'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
              }
     
 def ahr_aoi08_r32_0130_30(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
-        run_name='p0130',proj_name='ahr_aoi08_0130',
+        run_name='post_0206',proj_name='ahr_aoi08_0130',
         **kwargs)
     
 
@@ -145,7 +146,7 @@ def ahr11_rim0201_r32_0203(**kwargs):
 if __name__=='__main__':
     #ahr11_rim0201_r32_0203()
     
-    ahr_aoi08_r32_0130_30_present()
+    ahr_aoi08_r32_0130_30()
    
  
     print('done')
