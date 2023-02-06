@@ -40,8 +40,6 @@ if env_type=='journal':
     #font
     font_size=8
     matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
- 
-     
      
     for k,v in {
         'axes.titlesize':10,
@@ -55,9 +53,6 @@ if env_type=='journal':
         'text.usetex':usetex,
         }.items():
             matplotlib.rcParams[k] = v
-            
-            
- 
         
 #===============================================================================
 # presentation style    
@@ -103,7 +98,7 @@ def aoi08_r32_1215_53(**kwargs):
     
 ahr_aoi08_r32_0130_d = {
             'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\cgs\\20230205\\ahr_aoi08_0130_cgs_0205_meta_lib.pkl',
-             #'s14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\s14\\20230205\\ahr_aoi08_0130_s14_0205_meta_lib.pkl',
+             's14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\s14\\20230205\\ahr_aoi08_0130_s14_0205_meta_lib.pkl',
              'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
              #'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
              }
@@ -117,10 +112,22 @@ def ahr_aoi08_r32_0130_30(**kwargs):
 
 def ahr_aoi08_r32_0130_30_present(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
         run_name='present',proj_name='ahr_aoi08_0130',
         rlay_mat_kwargs=dict(
-            row_keys = ['vali', 'none', 'cgs' ],col_keys = ['c2', 'c3'],add_subfigLabel=False, transparent=False, figsize=(22*cm,16*cm)),
+            #row_keys = ['vali', 'none', 's14','cgs' ],
+            #col_keys = ['c2', 'c3'],
+            
+            #pieplots only
+            row_keys = ['s14','cgs' ],
+            col_keys = ['c1'],
+            
+            add_subfigLabel=False, 
+            transparent=False, figsize=(8*cm,12*cm)),
+        samples_mat_kwargs=dict(
+            col_keys = ['raw_hist', 'corr_scatter'],add_subfigLabel=False,transparent=False,
+            figsize=(24*cm, 16*cm),
+            ),
         **kwargs)
 
 def ahr11_rim0201_r32_0203(**kwargs):

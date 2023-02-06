@@ -104,6 +104,7 @@ class Plot_rlays_wrkr(object):
                       row_keys=None,col_keys = None,
                       add_subfigLabel=True,
                       transparent=True,
+                      font_size=None,
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -121,7 +122,8 @@ class Plot_rlays_wrkr(object):
         
         log.info(f'on {list(fp_lib.keys())}')
         
-        font_size=matplotlib.rcParams['font.size']
+        if font_size is None:
+            font_size=matplotlib.rcParams['font.size']
         
         cc_d = self.confusion_codes.copy()
         
@@ -204,6 +206,7 @@ class Plot_rlays_wrkr(object):
                 # raster plot
                 #===============================================================
                 elif not gridk=='pie':
+                    assert rowk in fp_lib, rowk
                     assert gridk in fp_lib[rowk], f'missing data file for {rowk}.{colk}.{gridk} ({aname})'
                     fp = fp_lib[rowk][gridk]
                     
@@ -300,12 +303,20 @@ class Plot_rlays_wrkr(object):
                     total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
                     colors_l = [confusion_color_d[k] for k in total_ser.index]
  
-                    ax.pie(total_ser.values, colors=colors_l, autopct='%1.1f%%', 
-                           pctdistance=0.9, #move percent labels out
+                    patches, texts = ax.pie(total_ser.values, colors=colors_l, 
+                           #autopct='%1.1f%%', 
+                           #pctdistance=1.2, #move percent labels out
                            shadow=True, 
                            textprops=dict(size=font_size),
                            #labels=total_ser.index.values,
+                           wedgeprops={"edgecolor":"black",'linewidth': .5, 'linestyle': 'solid', 'antialiased': True},
                            )
+                    
+                    labels = [f'{k}: {v*100:1.1f}%' for k,v in (total_ser/total_ser.sum()).to_dict().items()]
+                    
+                    ax.legend(patches, labels, loc='center left', 
+                              bbox_to_anchor=(1, .5),mode=None,
+                               fontsize=font_size-2)
                         
  
         #=======================================================================
@@ -384,15 +395,13 @@ class Plot_rlays_wrkr(object):
                 #turn off useless axis
                 
                 #first col
-                if colk==col_keys[0]:
-                    ax.set_ylabel(nicknames_d2[rowk], 
-                                  #fontsize=6,
-                                  )
-                #second col
-                if colk==col_keys[1]:
-                    pass
-                    #ax.set_ylabel(nicknames_d2[rowk], fontsize=6)
-                    
+                #===============================================================
+                # if colk==col_keys[0]:
+                #     ax.set_ylabel(nicknames_d2[rowk], 
+                #                   #fontsize=6,
+                #                   )
+                #===============================================================
+ 
                 #first row
                 if rowk==row_keys[0]:
                     pass
@@ -526,6 +535,10 @@ class Plot_samples_wrkr(object):
                          df_raw, metric_lib,
                          figsize=None,
                          color_d=None,
+                         col_keys = ['raw_hist', 'diff_hist', 'corr_scatter'],
+                   add_subfigLabel=True,
+                      transparent=True,
+ 
                         **kwargs):
         """matrix plot comparing methods for downscaling: sampled values
         
@@ -539,6 +552,7 @@ class Plot_samples_wrkr(object):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt', ext='.svg', **kwargs)
         
         log.info(f'on {df_raw.columns}')
+        font_size=matplotlib.rcParams['font.size']
         
         if color_d is None: color_d = self.sim_color_d.copy()
         
@@ -554,14 +568,14 @@ class Plot_samples_wrkr(object):
         # setup figure
         #=======================================================================
         row_keys = ['vali', 's14', 'cgs' ]   # list(df.columns)
-        col_keys = ['raw_hist', 'diff_hist', 'corr_scatter']
+        
         
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
                                         set_ax_title=False, figsize=figsize,
                                         constrained_layout=True,
                                         sharex='col',
                                         sharey='col',
-                                        add_subfigLabel=True,
+                                        add_subfigLabel=add_subfigLabel,
                                         )
  
         #=======================================================================
@@ -577,9 +591,7 @@ class Plot_samples_wrkr(object):
                 txt_d=dict()
                 
                 hist_kwargs = dict(color=c, bins=30)
-                """:
-                plt.show()
-                """
+ 
                 #===============================================================
                 # data prep
                 #===============================================================
@@ -650,7 +662,7 @@ class Plot_samples_wrkr(object):
                 if not txt_d is None:
                     ax.text(0.9, 0.1, get_dict_str(txt_d),
                                     transform=ax.transAxes, va='bottom', ha='right',
-                                     fontsize=8, color='black',
+                                     fontsize=font_size, color='black',
                                      bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0, alpha=0.5),
                                      )
                  
@@ -677,19 +689,21 @@ class Plot_samples_wrkr(object):
                     
                     ax.text(1.1, 0.5, nicknames_d2[rowk],
                                     transform=ax.transAxes, va='center', ha='center',
-                                     fontsize=12, color='black',rotation=-90,
+                                     fontsize=font_size+2, color='black',rotation=-90,
                                      #bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0, alpha=0.5),
                                      )
                     
                 #first row
                 if rowk==row_keys[0]:
+                    pass
                     
-                    ax.set_title({
-                        'raw_hist':'depths',
-                        'diff_hist':'differences',
-                        'corr_scatter':'correlation'
-                        }[colk])
-                    
+                    #===========================================================
+                    # ax.set_title({
+                    #     'raw_hist':'depths',
+                    #     'diff_hist':'differences',
+                    #     'corr_scatter':'correlation'
+                    #     }[colk])
+                    # 
                     if not colk=='raw_hist':
                         ax.axis('off')
                     
@@ -706,7 +720,7 @@ class Plot_samples_wrkr(object):
         # wrap
         #=======================================================================
         log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600, transparent=transparent)
     
     def scipy_lineregres(self,
                df_raw,
@@ -840,6 +854,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
                       rlay_mat_kwargs= dict(),
+                      samples_mat_kwargs=dict(),
                       **kwargs):    
     
     res_d = dict()
@@ -856,8 +871,8 @@ def basic_post_pipeline(meta_fp_d,
         
         #plot them
         res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
-        
         return
+ 
         plt.close()
         #=======================================================================
         # sample metrics
@@ -876,7 +891,7 @@ def basic_post_pipeline(meta_fp_d,
         df_wet=df
         
 
-        res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib)
+        res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
         
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
     return res_d
