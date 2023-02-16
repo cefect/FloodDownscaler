@@ -106,7 +106,7 @@ ahr_aoi08_r32_0130_d = {
     
 def ahr_aoi08_r32_0130_30(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
         run_name='post_0206',proj_name='ahr_aoi08_0130',
         **kwargs)
     
@@ -116,15 +116,14 @@ def ahr_aoi08_r32_0130_30_present(**kwargs):
         #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
         run_name='present',proj_name='ahr_aoi08_0130',
         rlay_mat_kwargs=dict(
-            #row_keys = ['vali', 'none', 's14','cgs' ],
-            #col_keys = ['c2', 'c3'],
-            
+             
             #pieplots only
-            row_keys = ['s14','cgs' ],
+            row_keys = ['none','s14','cgs' ],
             col_keys = ['c1'],
             
             add_subfigLabel=False, 
-            transparent=False, figsize=(8*cm,12*cm)),
+            transparent=False, figsize=(6*cm,12*cm)),
+        
         samples_mat_kwargs=dict(
             col_keys = ['raw_hist', 'corr_scatter'],add_subfigLabel=False,transparent=False,
             figsize=(24*cm, 16*cm),
@@ -146,7 +145,8 @@ def ahr11_rim0201_r32_0203(**kwargs):
 if __name__=='__main__':
     #ahr11_rim0201_r32_0203()
     
-    ahr_aoi08_r32_0130_30()
+    #ahr_aoi08_r32_0130_30()
+    ahr_aoi08_r32_0130_30_present()
    
  
     print('done')

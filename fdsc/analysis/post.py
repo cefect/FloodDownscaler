@@ -139,10 +139,13 @@ class Plot_rlays_wrkr(object):
         # setup figure
         #=======================================================================
         if row_keys is None:
-            row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
+            row_keys = ['vali', 'none',
+                         'nodp',
+                         's14', 
+                         'cgs' ] #list(fp_lib.keys())
             
         if col_keys is None:
-            col_keys = ['c2', 'c3']
+            col_keys = ['c1', 'c2', 'c3']
         
         #grid_lib={k:dict() for k in row_keys}
         grid_lib=dict()
@@ -310,7 +313,41 @@ class Plot_rlays_wrkr(object):
                 # pie plot--------
                 #===============================================================
                 elif gridk=='pie':
-                    pass
+                    #prep
+                    gdf = self._load_gdf(rowk)
+                    total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
+        
+                    colors_l = [confusion_color_d[k] for k in total_ser.index]
+                    
+                    #plot
+                    patches, texts = ax.pie(total_ser.values, colors=colors_l, 
+                        #autopct='%1.1f%%',
+                        #pctdistance=1.3, #move percent labels out
+                        shadow=False, 
+ 
+                        #labels=total_ser.index.values,
+                        wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True}, 
+ 
+                        frame=True, )
+                    
+                    ax.set_title(nicknames_d2[rowk])
+                    ax.axis('off')
+                    
+                    #legend
+                    labels = [f'{k}:{v*100:1.1f}%' for k, v in (total_ser / total_ser.sum()).to_dict().items()]
+                    ax.legend(patches, labels,
+                              #loc='upper left',
+                              loc='upper left', 
+                              #ncols=len(labels),
+                        #bbox_to_anchor=(0, 0, 1.0, .1), 
+                        #mode=None, #alpha=0.9,
+                        frameon=True,
+                        #framealpha=0.5,
+                        fancybox=False,
+                        alignment='left',
+                        columnspacing=0.5,handletextpad=0.2,
+                        fontsize=font_size-2,
+                        )
                     #
                     
                     
@@ -460,7 +497,7 @@ class Plot_rlays_wrkr(object):
                  legend=True,
                  center_loc=(0.91, 0.2),
                  radius=0.075,
-                 ):
+                 **kwargs,):
          
         """add a pie chart to the axis
         
@@ -496,15 +533,11 @@ class Plot_rlays_wrkr(object):
         # Calculate the center of the pie chart, relative to the axis
         center_x = xlim[0] + center_loc[0] * (xdelta)
         center_y = ylim[0] + center_loc[1] * (ylim[1] - ylim[0])
-        
  
         #ax.set_clip_box(ax.bbox)
         #=======================================================================
         # add pie
         #=======================================================================
-        
-
-    
     
         patches, texts = ax.pie(total_ser.values, colors=colors_l, 
             #autopct='%1.1f%%',
@@ -515,7 +548,8 @@ class Plot_rlays_wrkr(object):
             wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True}, 
             radius=xdelta*radius, 
             center=(center_x,center_y),
-            frame=True)
+            frame=True,
+            **kwargs)
         #=======================================================================
         # reset lims
         #=======================================================================
@@ -535,7 +569,6 @@ class Plot_rlays_wrkr(object):
                 frameon=True,framealpha=0.5,fancybox=False,alignment='left',columnspacing=0.5,handletextpad=0.2,
                 fontsize=font_size-2)
         return  
-
 
         
 class Plot_samples_wrkr(object):
@@ -648,7 +681,10 @@ class Plot_samples_wrkr(object):
         #=======================================================================
         # setup figure
         #=======================================================================
-        row_keys = ['vali', 's14', 'cgs' ]   # list(df.columns)
+        row_keys = ['vali', 
+                    #'s14', 
+                    'none',
+                    'cgs' ]   # list(df.columns)
         
         
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
@@ -837,7 +873,12 @@ class Plot_samples_wrkr(object):
 
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
                   Plotr, ValidateSession):
-    sim_color_d = {'vali':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet', 's14':'#24855d'}
+    sim_color_d = {'vali':'black', 
+                   'none':'orange',
+                   'nodp':'orange', 
+                   'cgs':'teal', 
+                   'bgl':'violet', 
+                   's14':'#24855d'}
     confusion_color_d = {
             'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
             }
