@@ -4,6 +4,7 @@ Created on Jan. 25, 2023
 @author: cefect
 
 Scripts to replicate Schumann 2014's downscaling
+    see (https://github.com/cefect/Schu14_dscale) for original MatLab source code
 '''
 
 
