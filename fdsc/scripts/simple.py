@@ -399,9 +399,9 @@ class CostGrowSimple(TwoPhaseDSC):
         #compute backlink raster
         backlink_fp = os.path.join(out_dir, f'backlink.tif')
         assert self.cost_distance(wse_fp1, 
-            cost_fric_fp,
- 
+            cost_fric_fp, 
             os.path.join(tmp_dir, f'backlink.tif'), backlink_fp) == 0
+            
         log.info(f'built costDistance backlink raster \n    {backlink_fp}')
         
         #=======================================================================

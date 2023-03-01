@@ -956,7 +956,7 @@ def basic_post_pipeline(meta_fp_d,
         #plot them
         res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
         
-        return
+ 
         plt.close()
         #=======================================================================
         # sample metrics
