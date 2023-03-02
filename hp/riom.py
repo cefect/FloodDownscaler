@@ -90,7 +90,7 @@ def write_array_mask(raw_ar, maskType='binary',
     
     see load_mask_array"""
     
-    assert_mask_ar(raw_ar)
+    assert_mask_ar(raw_ar, msg='expect a masked array')
     
     if maskType=='native':
         mask_raw_ar = ma.array(np.where(raw_ar, 0, 1),mask=raw_ar, fill_value=nodata)

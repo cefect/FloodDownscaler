@@ -1067,17 +1067,7 @@ def rlay_ar_apply(rlay, func, masked=True, **kwargs):
 #===============================================================================
     
     
-def is_divisible(rlay, divisor):
-    """check if the rlays dimensions are evenly divislbe by the divisor"""
-    assert isinstance(divisor, int)
-    
-    shape = rlay_apply(rlay, lambda x:x.shape)
-        
-    for dim in shape:
-        if dim%divisor!=0:
-            return False
 
-    return True
 
 def get_window(ds, bbox,
                 round_offsets=False,
@@ -1646,12 +1636,12 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
         mar = src.read(1, masked=True)
         
         if convert_to_binary:
-            source = np.where(0,1, mar.mask)
+            source = np.where(mar.mask, int(mar.fill_value),1)
         else:
             source = mar
         #mask = image != src.nodata
         d=dict()
-        for geom, val in rasterio.features.shapes(source, mask=mar.mask, transform=src.transform,
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
                                                   connectivity=8):
             
             d[val] = sgeo.shape(geom)
@@ -1661,6 +1651,40 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
  
         
     return d
+
+def get_raster_extensions():
+    with rasterio.Env() as env:
+        extensions = []
+        for driver in env.drivers().values():
+            if 'extension' in driver:
+                ext = driver['extension']
+                if isinstance(ext, str):
+                    extensions.append(ext)
+                elif isinstance(ext, list):
+                    extensions.extend(ext)
+        return set(extensions)
+
+#===============================================================================
+# TESTS--------
+#===============================================================================
+def is_divisible(rlay, divisor):
+    """check if the rlays dimensions are evenly divislbe by the divisor"""
+    assert isinstance(divisor, int)
+    
+    shape = rlay_apply(rlay, lambda x:x.shape)
+        
+    for dim in shape:
+        if dim%divisor!=0:
+            return False
+
+    return True
+
+def is_raster_file(filepath):
+ 
+    _, ext = os.path.splitext(filepath)
+    return ext.lower() in get_raster_extensions()
+
+
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================

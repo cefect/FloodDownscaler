@@ -12,8 +12,11 @@ import numpy as np
 from io import StringIO
 import shapely.geometry as sgeo
 import numpy.ma as ma
-from hp.rio import write_array
 import pandas as pd
+
+from hp.rio import write_array
+from hp.gpd import rlay_to_gdf
+
 
 nan, array = np.nan, np.array
 
@@ -68,3 +71,17 @@ def get_rand_ar(shape, null_frac=0.1):
         assert np.any(np.isnan(ar_raw))
         
     return ar_raw
+
+def get_poly_fp_from_rlay(rlay_fp, convert_to_binary=True, ofp=None):
+    
+    #geto geoDataFrame
+    gdf = rlay_to_gdf(rlay_fp, convert_to_binary=convert_to_binary)
+    
+    #write
+    if ofp is None:
+        ofp = os.path.join(temp_dir, os.path.basename(rlay_fp).replace('.tif', '.gpkg'))
+    gdf.to_file(ofp)
+    
+    return ofp
+    
+    

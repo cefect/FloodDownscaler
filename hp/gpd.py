@@ -148,11 +148,5 @@ def rlay_to_gdf(rlay_fp, convert_to_binary=True):
     """
     
  
-def polygon_to_rlay(rlay_fp,):
-    with rio.open(rlay_fp, mode='r') as src:
-        mar = src.read(1, masked=True)
-        #mask = image != src.nodata
-        for geom, val in shapes(mar, mask=mar.mask, transform=src.transform):
-            return shape(geom)
 
  
