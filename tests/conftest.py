@@ -37,13 +37,11 @@ use:
     @pytest.mark.parametrize(*par_algoMethodKwargs)
 """
 par_algoMethodKwargs = ('method, kwargs', [
-    #('CostGrow', dict()),      
-     ('Basic', dict()),
-    #===========================================================================
-    # ('SimpleFilter', dict()),
-    # ('BufferGrowLoop', dict(loop_range=range(2))), 
-    #  ('Schumann14', dict(buffer_size=float(2/3))),    
-    #===========================================================================
+    ('CostGrow', dict()),      
+    ('Basic', dict()),
+    ('SimpleFilter', dict()),
+    ('BufferGrowLoop', dict(loop_range=range(2))), 
+    ('Schumann14', dict(buffer_size=float(2/3))),    
                            ])
 
 
