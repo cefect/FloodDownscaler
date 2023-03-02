@@ -34,7 +34,7 @@ from hp.gpd import get_samples
 from fdsc.analysis.valid import ValidateSession
 from fdsc.base import nicknames_d
 
-nicknames_d['validation']='vali'
+nicknames_d['Hydrodynamic']='vali'
 cm = 1/2.54
  
 nicknames_d2 = {v:k for k,v in nicknames_d.items()}
@@ -110,6 +110,7 @@ class Plot_rlays_wrkr(object):
                       transparent=True,
                       font_size=None,
                       confusion_color_d=None,
+                      output_format=None,
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -123,7 +124,8 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayMat', ext='.png', **kwargs)
+        if output_format is None: output_format=self.output_format
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
         
@@ -278,10 +280,8 @@ class Plot_rlays_wrkr(object):
                                      markersize=.2, marker='.', #alpha=0.8,
                                      )
                             
-                            #pie chart
-                            
-                            # Add a subplot to the lower right quadrant
- 
+                            #pie chart                            
+                            # Add a subplot to the lower right quadrant 
                             self._add_pie(ax, rowk)
                         
  
@@ -387,8 +387,7 @@ class Plot_rlays_wrkr(object):
             
         #=======================================================================
         # post format-------
-        #=======================================================================
- 
+        #======================================================================= 
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():
                 if colk=='c1':
@@ -498,25 +497,21 @@ class Plot_rlays_wrkr(object):
         # Calculate the center of the pie chart, relative to the axis
         center_x = xlim[0] + center_loc[0] * (xdelta)
         center_y = ylim[0] + center_loc[1] * (ylim[1] - ylim[0])
-        
  
-        #ax.set_clip_box(ax.bbox)
+        # ax.set_clip_box(ax.bbox)
         #=======================================================================
         # add pie
         #=======================================================================
-        
-
     
-    
-        patches, texts = ax.pie(total_ser.values, colors=colors_l, 
-            #autopct='%1.1f%%',
-            #pctdistance=1.2, #move percent labels out
-            shadow=False, 
-            textprops=dict(size=font_size), 
-            #labels=total_ser.index.values,
-            wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True}, 
-            radius=xdelta*radius, 
-            center=(center_x,center_y),
+        patches, texts = ax.pie(total_ser.values, colors=colors_l,
+            # autopct='%1.1f%%',
+            # pctdistance=1.2, #move percent labels out
+            shadow=False,
+            textprops=dict(size=font_size),
+            # labels=total_ser.index.values,
+            wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True},
+            radius=xdelta * radius,
+            center=(center_x, center_y),
             frame=True)
         #=======================================================================
         # reset lims
@@ -527,17 +522,17 @@ class Plot_rlays_wrkr(object):
         # legend
         #=======================================================================
         if legend:
-            labels = [f'{k}:{v*100:1.1f}%' for k, v in (total_ser / total_ser.sum()).to_dict().items()]
-            ax.legend(patches, labels, 
-                      #loc='upper left',
-                      loc='lower left', 
+            labels = [f'{k}:{v*100:1.1f}\%' for k, v in (total_ser / total_ser.sum()).to_dict().items()]
+            ax.legend(patches, labels,
+                      # loc='upper left',
+                      loc='lower left',
                       ncols=len(labels),
-                #bbox_to_anchor=(0, 0, 1.0, .1), 
-                mode=None, #alpha=0.9,
-                frameon=True,framealpha=0.5,fancybox=False,alignment='left',columnspacing=0.5,handletextpad=0.2,
-                fontsize=font_size-2)
+                # bbox_to_anchor=(0, 0, 1.0, .1), 
+                mode=None,  # alpha=0.9,
+                frameon=True, framealpha=0.5, fancybox=False, alignment='left', columnspacing=0.5, handletextpad=0.2,
+                fontsize=font_size - 2)
+            
         return  
-
 
         
 class Plot_samples_wrkr(object):
@@ -621,7 +616,7 @@ class Plot_samples_wrkr(object):
                          col_keys = ['raw_hist', 'diff_hist', 'corr_scatter'],
                    add_subfigLabel=True,
                       transparent=True,
- 
+                      output_format=None,
                         **kwargs):
         """matrix plot comparing methods for downscaling: sampled values
         
@@ -632,7 +627,12 @@ class Plot_samples_wrkr(object):
             
         same as Figure 5 on RICorDE paper"""
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt', ext='.svg', **kwargs)
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if output_format is None: output_format=self.output_format
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pSamplesMapt', ext='.'+output_format, **kwargs)
         
         log.info(f'on {df_raw.columns}')
         font_size=matplotlib.rcParams['font.size']
@@ -1272,6 +1272,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
                       hwm_fp=None,
+                      inun_fp=None,
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
@@ -1282,31 +1283,39 @@ def basic_post_pipeline(meta_fp_d,
         
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
+        
+        
+        #=======================================================================
+        # hydrodyn HWM performance
+        #=======================================================================
+ #==============================================================================
+ #        gdf = ses.load_depth_samples(run_lib, hwm_fp, 
+ #                                     samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
+ #                                     )
+ # 
+ #        
+ #        ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
+ #        
+ #        plt.close()
+ #==============================================================================
  
         
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
-        #get rlays
-        #rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+ #==============================================================================
+ #        #get rlays
+ #        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+ #        
+ #        #plot them
+ #        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, inun_fp=inun_fp, **rlay_mat_kwargs)
+ #        
+ # 
+ #        plt.close()
+ #==============================================================================
         
-        #plot them
-        #res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
-        
+
  
-        #plt.close()
-        
-        #=======================================================================
-        # hydrodyn HWM performance
-        #=======================================================================
-        gdf = ses.load_depth_samples(run_lib, hwm_fp, 
-                                     samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
-                                     )
- 
-        
-        ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
-        
-        return
         #=======================================================================
         # sample metrics
         #=======================================================================
