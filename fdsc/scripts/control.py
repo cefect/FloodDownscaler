@@ -25,7 +25,7 @@ from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.simple import BufferGrowLoop
+from fdsc.scripts.simple import BufferGrowLoop, BasicDSC
 from fdsc.scripts.schu14 import Schuman14
 from fdsc.scripts.costGrow import CostGrow
 
@@ -33,7 +33,7 @@ from fdsc.scripts.costGrow import CostGrow
 
 
 
-class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,
+class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         RioSession, Master_Session, WBT_worker):
       
     #===========================================================================

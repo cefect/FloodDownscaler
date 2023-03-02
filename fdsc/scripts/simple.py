@@ -97,7 +97,33 @@ class WetPartials(Dsc_basic):
         meta_d['wse1_wp_fp'] = ofp
         return ofp, meta_d
 
-
+class BasicDSC(WetPartials):
+    
+    def __init__(self,
+                 run_dsc_handle_d=dict(), 
+                 **kwargs):
+        
+        run_dsc_handle_d['Basic'] = self.run_basicDSC #add your main method to the caller dict
+        
+        super().__init__(run_dsc_handle_d=run_dsc_handle_d, **kwargs)
+        
+    def run_basicDSC(self,wse_fp=None, dem_fp=None, 
+                              **kwargs):
+        """run Basic (resample only) pipeline
+        """
+        method='Basic'
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], subdir=False, **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir, ofp=ofp)
+        meta_lib=dict()
+        downscale = self.downscale
+        
+        
+        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse_fp, dem_fp, downscale=downscale,**skwargs)
+        
+        
+        return wse1_wp_fp, meta_lib
+        
+        
 class TwoPhaseDSC(WetPartials):
     """methods common to simple two phase downsamplers"""
     
