@@ -17,7 +17,7 @@ from hp.rio import (
     )
 
 nicknames_d = {'CostGrow':'cgs', 
-               'BasicBilinear':'none',
+               'Basic':'basic',
                'SimpleFilter':'nodp', 
                'BufferGrowLoop':'bgl', 
                'Schumann14':'s14'}
@@ -27,9 +27,34 @@ def now():
 
 
 class Dsc_basic(object):
+    """methods shared by all downscaler classes"""
     
     downscale=None
-
+    
+    def __init__(self,
+                 run_dsc_handle_d=dict(), 
+                 **kwargs):
+        """
+        Parameters
+        ----------
+        run_dsc_handle_d: dict
+            {methodName: callable function (takes kwargs)}
+            
+        """
+        #=======================================================================
+        # set caller funcs
+        #=======================================================================
+        miss_s = set(run_dsc_handle_d.keys()).difference(nicknames_d.keys())
+        assert miss_s==set(), miss_s
+ 
+        self.run_dsc_handle_d=run_dsc_handle_d
+        
+        #=======================================================================
+        # init
+        #=======================================================================
+        super().__init__(**kwargs)
+    
+    
  
     def get_downscale(self, fp1, fp2, **kwargs):
         """compute the scale difference between two layers

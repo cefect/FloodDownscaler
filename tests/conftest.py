@@ -15,9 +15,12 @@ from shapely.geometry import mapping, Polygon
 import fiona
 import fiona.crs
 from pyproj.crs import CRS
-from definitions import src_dir
-# from osgeo import ogr
 
+#project
+from definitions import src_dir
+from fdsc.base import nicknames_d
+
+#helpers
 from hp.logr import get_new_console_logger, logging
 from hp.rio import write_array, write_array2, assert_masked_ar
 
@@ -33,15 +36,19 @@ if not os.path.exists(temp_dir):
 use:
     @pytest.mark.parametrize(*par_algoMethodKwargs)
 """
-par_algoMethodKwargs = ('method, kwargs', [      
-      # ('none', dict()),
-    #===========================================================================
-    # ('wetPartialsOnly', dict()),
-    # ('bufferGrowLoop', dict(loop_range=range(2))), 
-     # ('schumann14', dict(buffer_size=float(2/3))),
-     ('costGrowSimple', dict()),
-    #===========================================================================
+par_algoMethodKwargs = ('method, kwargs', [
+    ('CostGrow', dict()),      
+     ('Basic', dict()),
+    ('SimpleFilter', dict()),
+    ('BufferGrowLoop', dict(loop_range=range(2))), 
+     ('Schumann14', dict(buffer_size=float(2/3))),    
                            ])
+
+
+#check it
+miss_s = {e[0] for e in par_algoMethodKwargs[1]}.symmetric_difference(nicknames_d.keys())
+assert miss_s==set(), 'parameter key mismatch: %s'%miss_s
+
 #===============================================================================
 # TEST DATA---------
 #===============================================================================

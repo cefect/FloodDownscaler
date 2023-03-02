@@ -107,7 +107,7 @@ def run_dsc_vali(
         wse2_fp,
         dem1_fp,
         wse1V_fp=None,
-        dsc_kwargs=dict(method = 'costGrowSimple'),
+        dsc_kwargs=dict(method = 'CostGrow'),
         vali_kwargs=dict(), 
         **kwargs
         ):
@@ -235,10 +235,10 @@ def run_pipeline_multi(
           dem1_fp=None,
         method_l=[
                     #'bufferGrowLoop',
-                    'costGrowSimple',
-                    'schumann14', 
+                    'CostGrow',
+                    'Schumann14', 
                     'none',
-                    'wetPartialsOnly',
+                    'SimpleFilter',
                     ],
         
  

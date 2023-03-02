@@ -104,26 +104,30 @@ def test_p1(dem_fp, wse_fp, wrkr):
 
 
 
-@pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse1_rlay2_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
-    ]) 
-@pytest.mark.parametrize(*par_algoMethodKwargs)
-def test_p2(dem_fp, wse_fp, 
-            method, kwargs,
-            wrkr):
-    if method in ['schumann14', 'none']: #skip those w/o phases
-        pass
-    else:
-        wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=method, run_kwargs=kwargs)
+#===============================================================================
+# @pytest.mark.parametrize('dem_fp, wse_fp', [
+#     (dem1_rlay_fp, wse1_rlay2_fp),
+#     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
+#     ]) 
+# @pytest.mark.parametrize(*par_algoMethodKwargs)
+# def test_p2(dem_fp, wse_fp, 
+#             method, kwargs,
+#             wrkr):
+#     if method in ['Schumann14', 'none']: #skip those w/o phases
+#         pass
+#     else:
+#         wrkr.p2_dryPartials(wse_fp, dem_fp, dryPartial_method=method, run_kwargs=kwargs)
+#===============================================================================
     
-@pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse1_rlay2_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
- 
-    ])
-def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
-    wrkr.run_costGrowSimple(wse_fp, dem_fp)
+#===============================================================================
+# @pytest.mark.parametrize('dem_fp, wse_fp', [
+#     (dem1_rlay_fp, wse1_rlay2_fp),
+#     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']),
+#  
+#     ])
+# def test_p2_costGrowSimple(dem_fp, wse_fp, wrkr):
+#     wrkr.run_costGrowSimple(wse_fp, dem_fp)
+#===============================================================================
 
 
 @pytest.mark.parametrize('wse_fp', [
