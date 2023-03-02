@@ -56,3 +56,15 @@ def get_ar_from_str(ar_str, dtype=float):
 def get_wse_ar(ar_str, **kwargs):
     ar1 = get_ar_from_str(ar_str, **kwargs)
     return np.where(ar1==-9999, np.nan, ar1) #replace nans
+
+
+def get_rand_ar(shape, null_frac=0.1):
+    ar_raw = np.random.random(shape)
+    
+    #add nulls randomly
+    if null_frac>0:
+        c = int(math.ceil(ar_raw.size*null_frac))
+        ar_raw.ravel()[np.random.choice(ar_raw.size, c, replace=False)] = np.nan
+        assert np.any(np.isnan(ar_raw))
+        
+    return ar_raw

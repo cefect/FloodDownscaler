@@ -14,6 +14,9 @@ from shapely.geometry import Point, polygon
 import rasterio as rio
 from pyproj.crs import CRS
 
+from rasterio.features import shapes
+from shapely.geometry import shape
+
 import geopandas as gpd
 
  
@@ -24,7 +27,8 @@ logging.getLogger("fiona.collection").setLevel(logging.WARNING)
 logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
 logging.getLogger("fiona").setLevel(logging.WARNING)
 
-from hp.pd import view 
+from hp.pd import view
+from hp.rio import rlay_to_polygons 
 
 def now():
     return datetime.datetime.now()
@@ -130,6 +134,25 @@ def set_mask(gser_raw, drop_mask):
     else:
         gser = gser_raw
     return gser
-        
+
+def rlay_to_gdf(rlay_fp, convert_to_binary=True):
+    
+    #get geometry collection
+    geo_d = rlay_to_polygons(rlay_fp, convert_to_binary=convert_to_binary)
+    
+    #convert to geopandas
+    return gpd.GeoDataFrame({'val':list(geo_d.keys())}, geometry=list(geo_d.values()))
+    
+    """
+    gdf.plot()
+    """
+    
  
+def polygon_to_rlay(rlay_fp,):
+    with rio.open(rlay_fp, mode='r') as src:
+        mar = src.read(1, masked=True)
+        #mask = image != src.nodata
+        for geom, val in shapes(mar, mask=mar.mask, transform=src.transform):
+            return shape(geom)
+
  

@@ -17,6 +17,7 @@ assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s
  
 import rasterio.merge
 import rasterio.io
+import rasterio.features
 from rasterio.plot import show
 from rasterio.enums import Resampling, Compression
 
@@ -1624,8 +1625,42 @@ def write_mosaic(fp1, fp2, ofp=None):
         ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
         
     return ofp, stats_d
+
+
+def rlay_to_polygons(rlay_fp, convert_to_binary=True,
+                          ):
+    """
+    get shapely polygons for each clump in a raster
     
+    Parameters
+    -----------
+    convert_to_binary: bool, True
+        polygonize the mask (rather than groups of data values)
+        
+    """
     
+    #===========================================================================
+    # collect polygons
+    #===========================================================================
+    with rio.open(rlay_fp, mode='r') as src:
+        mar = src.read(1, masked=True)
+        
+        if convert_to_binary:
+            source = np.where(0,1, mar.mask)
+        else:
+            source = mar
+        #mask = image != src.nodata
+        d=dict()
+        for geom, val in rasterio.features.shapes(source, mask=mar.mask, transform=src.transform,
+                                                  connectivity=8):
+            
+            d[val] = sgeo.shape(geom)
+            
+        #print(f'finished w/ {len(d)} polygon')
+        
+ 
+        
+    return d
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================
