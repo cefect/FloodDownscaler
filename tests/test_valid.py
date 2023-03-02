@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+from hp.gpd import rlay_to_gdf
+from hp.tests.tools.rasters import get_poly_fp_from_rlay
 
 from fdsc.analysis.valid import ValidateGrid, ValidateSession, run_validator
 
@@ -21,19 +23,20 @@ from tests.conftest import (
 #===============================================================================
 # test data-------
 #===============================================================================
-from tests.data.toy import wse1_arV, wse1_ar3
+from tests.data.toy import wse1_arV, wse1_ar3, dem1_ar
 td1 = proj_lib['fred01']
 
 wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
 wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
+dem1_rlay_fp = get_rlay_fp(wse1_arV, 'dem1')
+
+inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
 #===============================================================================
 # fixtures------------
 #===============================================================================
 @pytest.fixture(scope='function')
 def wrkr(logger, tmp_path):
-    with ValidateGrid(logger=logger,
-                                         #oop.Basic
-
+    with ValidateGrid(logger=logger, 
                  ) as ses:
         yield ses
         
@@ -176,6 +179,7 @@ def test_inundation_all(true_ar, pred_ar, wrkr):
 @pytest.mark.parametrize('true_fp, pred_fp', [
     #(td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),
+    
     ]) 
 def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
     """just the validation worker init"""
@@ -228,7 +232,7 @@ def test_run_vali_pts(true_fp, pred_fp, sample_pts_fp, ses):
 # test.pipeline----
 #===============================================================================
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
     #(wse1_rlayV_fp, wse1_rlay3_fp, None),
@@ -237,10 +241,10 @@ def test_run_vali(true_fp, pred_fp, sample_pts_fp, dem_fp, ses):
     ses.run_vali(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
 
     
- 
+@pytest.mark.dev
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
-    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
+    #(td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
+    (inun_poly_fp, wse1_rlay3_fp, None, dem1_rlay_fp),
     ]) 
 def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_path):
     run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, out_dir=tmp_path)

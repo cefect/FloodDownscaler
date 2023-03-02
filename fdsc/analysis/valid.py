@@ -7,14 +7,19 @@ validating downscaling results
 '''
 import logging, os, copy, datetime, pickle
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import rasterio as rio
+import rasterio.features 
 import geopandas as gpd
 from sklearn.metrics import confusion_matrix
 
 from hp.rio import (
-    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
+    write_array2,get_write_kwargs
     )
+
+from hp.riom import write_array_mask
 
 from hp.gpd import (
     get_samples, GeoPandasWrkr,
@@ -37,6 +42,9 @@ class ValidateGrid(RioWrkr):
     pred_fp = None
     true_fp = None
     
+    pred_ar=None
+    pred_stats_d=None
+    
     def __init__(self,
                  true_fp=None,
                  pred_fp=None,
@@ -57,15 +65,28 @@ class ValidateGrid(RioWrkr):
         #=======================================================================
         """using ocnditional loading mostly for testing"""
         
-        if not true_fp is None:
-            self._load_true(true_fp) 
-            
         if not pred_fp is None: 
             self._load_pred(pred_fp)
+        
+        if not true_fp is None:
+            if not is_raster_file(true_fp):
+                rlay_fp = self._rasterize_inundation(true_fp)
+            else:
+                rlay_fp=true_fp
+                
+            self._load_true(rlay_fp) 
             
-    def _load_true(self, true_fp):
 
-        stats_d, self.true_ar = rlay_extract(true_fp)
+            
+    def _load_true(self, rlay_fp):
+
+        #=======================================================================
+        # rasterize polygon
+        #=======================================================================
+
+            
+            
+        stats_d, self.true_ar = rlay_extract(rlay_fp)
         assert_wse_ar(self.true_ar, msg='true array')
         self.logger.info('loaded true raster from file w/\n    %s' % stats_d)
         # set the session defaults from this
@@ -73,13 +94,13 @@ class ValidateGrid(RioWrkr):
             stats_d['dtype'] = stats_d['dtypes'][0]
         self.stats_d = stats_d
         self._set_defaults(stats_d)
-        self.true_fp = true_fp
+        self.true_fp = rlay_fp
         
         if not self.pred_fp is None:
             assert_spatial_equal(self.true_fp, self.pred_fp)
 
     def _load_pred(self, pred_fp):
-        stats_d, self.pred_ar = rlay_extract(pred_fp)
+        self.pred_stats_d, self.pred_ar = rlay_extract(pred_fp)
         assert_wse_ar(self.pred_ar, msg='pred array')
         
         self.pred_fp = pred_fp
@@ -87,7 +108,53 @@ class ValidateGrid(RioWrkr):
         if not self.true_fp is None:
             assert_spatial_equal(self.true_fp, self.pred_fp)
             
-        self.logger.info('loaded pred raster from file w/\n    %s' % stats_d)
+        self.logger.info('loaded pred raster from file w/\n    %s' % self.pred_stats_d)
+        
+    def _rasterize_inundation(self, poly_fp,
+                              out_shape=None,
+                              transform=None,
+                              dtype=None,nodata=None,
+                               **kwargs):
+        """convert polygonized inundation into a raster"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, _, resname = self._func_setup('rasterize', **kwargs)
+        ext = os.path.splitext(poly_fp)[1]
+        ofp = os.path.join(out_dir, os.path.basename(poly_fp).replace(ext, '.tif'))
+        
+        #copy spatial defaults from the predicted array
+        if out_shape is None:
+            out_shape=self.pred_ar.shape
+        
+        if transform is None:
+            transform=self.pred_stats_d['transform']
+            
+        if dtype is None:
+            dtype = self.pred_ar.dtype
+            
+        if nodata is None:
+            nodata=self.pred_stats_d['nodata']
+            
+ 
+ 
+        log.info(f'building raster from {poly_fp}')
+        
+        
+        assert not self.pred_stats_d is None, 'need to load a predicted array first'
+        gdf = gpd.read_file(poly_fp)
+        assert len(gdf)==1
+        
+        #get an array from this
+        ar = rasterio.features.rasterize(gdf.geometry,all_touched=False,
+                                         fill=nodata,
+                                         out_shape=out_shape,transform=transform,  dtype=dtype,
+                                         )
+        mar = ma.array(ar, mask=ar==nodata, fill_value=nodata)
+        #write to raster
+        return write_array2(mar, ofp,  **get_write_kwargs(self.pred_fp))
+            
+ 
     
     #===========================================================================
     # grid inundation metrics------
