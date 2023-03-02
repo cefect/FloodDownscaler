@@ -17,8 +17,8 @@ from hp.rio import (
     )
 
 nicknames_d = {'CostGrow':'cgs', 
-               'Basic':'basic',
-               'SimpleFilter':'nodp', 
+               'Basic':'rsmp',
+               'SimpleFilter':'rsmpF', #basic + DEM filter
                'BufferGrowLoop':'bgl', 
                'Schumann14':'s14'}
 
