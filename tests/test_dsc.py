@@ -17,7 +17,7 @@ from fdsc.base import nicknames_d
 from fdsc.scripts.control import run_downscale
 from fdsc.scripts.control import Dsc_Session as Session
  
-from fdsc.scripts.simple import ar_buffer
+from fdsc.scripts.bufferLoop import ar_buffer
 
 from tests.conftest import (
     get_rlay_fp, crs_default, proj_lib,get_aoi_fp,par_algoMethodKwargs,

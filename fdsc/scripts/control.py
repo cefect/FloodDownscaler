@@ -25,9 +25,10 @@ from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.simple import BufferGrowLoop, BasicDSC
+from fdsc.scripts.simple import BasicDSC
 from fdsc.scripts.schu14 import Schuman14
 from fdsc.scripts.costGrow import CostGrow
+from fdsc.scripts.bufferLoop import BufferGrowLoop
 
 
 
@@ -113,72 +114,74 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
     
  
  
-    def p2_dryPartials(self, wse1_fp, dem1_fp,
-                       dryPartial_method='SimpleFilter',
-                       write_meta=True,
-                       run_kwargs=dict(),
-                       **kwargs):
-        """downscale in drypartial zones        
-        should develop a few options here
-        
-        Parameters
-        ----------
-        dryPartial_method: str
-            method to apply
-            
-        run_kwargs: dict
-            pass kwargs to the run caller. used for testing.
-        
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
-        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        start = now()
-        assert_spatial_equal(wse1_fp, dem1_fp)
-        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
-            
-        sn = nicknames_d[dryPartial_method]  # short name
-        #=======================================================================
-        # by method
-        #=======================================================================
-        if dryPartial_method == 'SimpleFilter':
-            assert len(run_kwargs)==0
-            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
-            wse1_dp_fp = ofp
-            d = {'SimpleFilter':'none'}  # dummy placeholder
+ #==============================================================================
+ #    def p2_dryPartials(self, wse1_fp, dem1_fp,
+ #                       dryPartial_method='SimpleFilter',
+ #                       write_meta=True,
+ #                       run_kwargs=dict(),
+ #                       **kwargs):
+ #        """downscale in drypartial zones        
+ #        should develop a few options here
+ #        
+ #        Parameters
  
-        elif dryPartial_method == 'CostGrow': 
-            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
-            
-        elif dryPartial_method == 'bufferGrowLoop':
-            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
-            
-        else:
-            raise KeyError(dryPartial_method)
- 
-        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
-        #=======================================================================
-        # check
-        #=======================================================================
-        if __debug__:
-            assert_spatial_equal(wse1_fp, wse1_dp_fp)
-            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
-        
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        tdelta = (now() - start).total_seconds()
-        meta_lib['smry']['tdelta'] = tdelta
-        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
-        log.info(f'finished in {tdelta:.2f} secs')
-        
-        if write_meta:
-            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
- 
-        return wse1_dp_fp, meta_lib
+ #        dryPartial_method: str
+ #            method to apply
+ #            
+ #        run_kwargs: dict
+ #            pass kwargs to the run caller. used for testing.
+ #        
+ #        """
+ #        
+ #        #=======================================================================
+ #        # defaults
+ #        #=======================================================================
+ #        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
+ #        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+ #        start = now()
+ #        assert_spatial_equal(wse1_fp, dem1_fp)
+ #        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
+ #            
+ #        sn = nicknames_d[dryPartial_method]  # short name
+ #        #=======================================================================
+ #        # by method
+ #        #=======================================================================
+ #        if dryPartial_method == 'SimpleFilter':
+ #            assert len(run_kwargs)==0
+ #            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
+ #            wse1_dp_fp = ofp
+ #            d = {'SimpleFilter':'none'}  # dummy placeholder
+ # 
+ #        elif dryPartial_method == 'CostGrow': 
+ #            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
+ #            
+ #        elif dryPartial_method == 'bufferGrowLoop':
+ #            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
+ #            
+ #        else:
+ #            raise KeyError(dryPartial_method)
+ # 
+ #        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
+ #        #=======================================================================
+ #        # check
+ #        #=======================================================================
+ #        if __debug__:
+ #            assert_spatial_equal(wse1_fp, wse1_dp_fp)
+ #            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
+ #        
+ #        #=======================================================================
+ #        # wrap
+ #        #=======================================================================
+ #        tdelta = (now() - start).total_seconds()
+ #        meta_lib['smry']['tdelta'] = tdelta
+ #        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
+ #        log.info(f'finished in {tdelta:.2f} secs')
+ #        
+ #        if write_meta:
+ #            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
+ # 
+ #        return wse1_dp_fp, meta_lib
+ #==============================================================================
 
     def run_dsc(self,
             wse2_fp,

@@ -15,7 +15,7 @@ import rasterio as rio
 from rasterio import shutil as rshutil
 
 #project
-from fdsc.scripts.simple import TwoPhaseDSC
+from fdsc.scripts.simple import WetPartials
 
 from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
@@ -31,7 +31,7 @@ from hp.rio import (
 
 from hp.riom import write_extract_mask, write_array_mask, assert_mask
 
-class CostGrow(TwoPhaseDSC):
+class CostGrow(WetPartials):
     
     def __init__(self,
                  run_dsc_handle_d=dict(), 
