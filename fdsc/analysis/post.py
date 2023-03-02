@@ -7,7 +7,7 @@ data analysis on multiple downscale results
 '''
 
 
-import logging, os, copy, datetime, pickle, pprint
+import logging, os, copy, datetime, pickle, pprint, math
 import numpy as np
 import pandas as pd
 import rasterio as rio
@@ -855,6 +855,41 @@ class Plot_hyd_HWMS(object):
         
         self.wd_key=wd_key
         
+    def load_depth_samples(self, run_lib, hwm_fp, samp_fp=None, write=True, **kwargs):
+        """pipeline loading of depth samples"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('load_dsamps', ext='.pkl', **kwargs)
+        skwargs = dict(logger=log, tmp_dir=tmp_dir, out_dir=out_dir)
+        
+        #=======================================================================
+        # load from source
+        #=======================================================================
+        if samp_fp is None:
+            rlay_fp_lib = self.collect_hyd_fps(run_lib, **skwargs)
+            
+            gdf = self.get_depth_samples(rlay_fp_lib, hwm_fp=hwm_fp, **skwargs) #sample HWMs on depth rasters
+            
+            #write for dev
+            if write:
+                gdf.to_pickle(ofp)
+                
+                log.info(f'wrote {str(gdf.shape)} to \n    {ofp}')
+            
+        #=======================================================================
+        # load precompiled
+        #=======================================================================
+        else:
+            log.warning(f'loading precompiled depth samples from \n    {samp_fp}')
+            gdf = pd.read_pickle(samp_fp)
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert isinstance(gdf, gpd.geodataframe.GeoDataFrame)
+        log.info(f'loaded {str(gdf.shape)}')
+        
+        return gdf
+        
     def collect_hyd_fps(self, run_lib, **kwargs):
         """collect the filepaths from the run_lib"""
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_rlay_fps', **kwargs)
@@ -903,15 +938,16 @@ class Plot_hyd_HWMS(object):
     
     def plot_hyd_hwm(self,
                       gdf,  
+                      
+                      ax=None,
                       figsize=None, #(12, 9),
-                      row_keys=None,col_keys = None,
-                      add_subfigLabel=True,
+ 
                       transparent=True,
                       font_size=None,
  
  
             **kwargs):
-        """matrix plot comparing performance of hyd models against HWMs
+        """plot comparing performance of hyd models against HWMs
  
         rows: cols
             valid: 
@@ -923,7 +959,22 @@ class Plot_hyd_HWMS(object):
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.png', **kwargs)
- 
+
+        if font_size is None:
+            font_size=matplotlib.rcParams['font.size']
+            
+            
+        #=======================================================================
+        # figure setup
+        #=======================================================================
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+            
+        else:
+            fig = ax.figure
+            
+        
+        max_val = math.ceil(gdf.loc[:, ['obs', 'sim']].max().max())
     
     def get_hwm(self, fp):
         """load hwm data"""
@@ -989,10 +1040,10 @@ class Plot_hyd_HWMS(object):
  
         return samp_gdf
     
-    def get_errs(self, rlay_fp_lib, hwm_fp=None,  hwm_gdf=None, **kwargs):
+    def get_depth_samples(self, rlay_fp_lib, hwm_fp=None,  hwm_gdf=None, **kwargs):
         """wrapper for loading and building errosr"""
         
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_errs', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_depth_samples', **kwargs)
         skwargs = dict(logger=log, tmp_dir=tmp_dir, out_dir=out_dir)
         #=======================================================================
         # load the data
@@ -1165,11 +1216,12 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
-        rlay_fp_lib = ses.collect_hyd_fps(run_lib)
+        gdf = ses.load_depth_samples(run_lib, hwm_fp, 
+                                     samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
+                                     )
+ 
         
-        gdf = ses.get_errs(rlay_fp_lib, hwm_fp=hwm_fp) #sample HWMs on depth rasters
-        
-        ses.plot_hyd_hwm(gdf, **hyd_hwm_kwargs)
+        ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
         
         #=======================================================================
         # sample metrics
