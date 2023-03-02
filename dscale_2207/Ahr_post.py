@@ -106,7 +106,8 @@ ahr_aoi08_r32_0130_d = {
     
 def ahr_aoi08_r32_0130_30(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
+        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
+        hwm_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\hwm\hwm_ahr_aoi08_r04_1215_aoi09_0030.geojson',   
         run_name='post_0206',proj_name='ahr_aoi08_0130',
         **kwargs)
     

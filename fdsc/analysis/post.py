@@ -27,6 +27,7 @@ from hp.rio import (
     get_ds_attr,get_meta
     )
 from hp.err_calc import get_confusion_cat, ErrorCalcs
+from hp.gpd import get_samples
 
 
  
@@ -833,9 +834,208 @@ class Plot_samples_wrkr(object):
         
         
         return predict, {'rvalue':lm.rvalue, 'slope':lm.slope, 'intercept':lm.intercept}
-        
 
-class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, 
+class Plot_hyd_HWMS(object):
+    """plotting HWM error scatter for two simulations
+    
+    largely copied from ceLF.scrips.validate
+    
+    NOTE: this doesn't use any downscaling results
+        so we could keep it separate
+        decided to keep it integrated to avoid mismatch between specifying sim results 
+            and the downscaling results pickles 
+    
+    """
+    
+    def __init__(self,
+                 wd_key = 'wd', #key of validation ata
+                 **kwargs):
+        
+        super().__init__(**kwargs)
+        
+        self.wd_key=wd_key
+        
+    def collect_hyd_fps(self, run_lib, **kwargs):
+        """collect the filepaths from the run_lib"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_rlay_fps', **kwargs)
+        
+        fp_lib={k:dict() for k in run_lib.keys()}
+ 
+        
+        #=======================================================================
+        # pull for each
+        #=======================================================================
+        dem_fp, dep2=None, None
+        for k0, d0 in run_lib.items(): #simulation name
+            for k1, d1 in d0.items(): #cat0
+                for k2, d2 in d1.items():
+                    if k1=='smry':
+                        if k2 in [
+                            #'wse1', 'wse2', 
+                            'dep2']:
+                            if dep2 is None: dep2=d2 #name is misleading... this is just an input
+                        elif k2 in ['dem1']:
+                            dem_fp = d2                    
+                        
+                    elif k1=='vali':
+ 
+                        if k2=='grid':
+                            for k3, v3 in d2.items():
+                                if k3=='dep1':
+                                    fp_lib[k0][k3]=v3
+                                elif k3=='true_dep_fp':
+                                    dep1V = v3
+ 
+                    else:
+                        pass
+ 
+        #=======================================================================
+        # get validation
+        #=======================================================================
+        fp_lib = {'dep1':dep1V, 
+                  #'dem1':dem_fp, 
+                  'dep2':dep2}
+ 
+        log.info('got fp_lib:\n%s ' % (dstr(fp_lib) ))
+        
+        self.fp_lib = fp_lib
+        return fp_lib 
+    
+    def plot_hyd_hwm(self,
+                      gdf,  
+                      figsize=None, #(12, 9),
+                      row_keys=None,col_keys = None,
+                      add_subfigLabel=True,
+                      transparent=True,
+                      font_size=None,
+ 
+ 
+            **kwargs):
+        """matrix plot comparing performance of hyd models against HWMs
+ 
+        rows: cols
+            valid: 
+            methods
+        columns
+            depthRaster r2, depthRaster r1, confusionRaster
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.png', **kwargs)
+ 
+    
+    def get_hwm(self, fp):
+        """load hwm data"""
+        assert os.path.exists(fp), f'bad path for hwm: {fp}'
+        
+        gdf = gpd.read_file(fp)
+        
+        assert len(gdf) > 0
+        assert np.all(gdf.geometry.geom_type == 'Point')
+        
+        assert self.wd_key in gdf, self.wd_key
+        
+        return gdf
+    
+    def get_hwm_pts(self, gdf=None, hwm_fp=None):
+        """get the points from the HWM data"""
+        #load
+        if gdf is None:
+            gdf = self.get_hwm(hwm_fp)
+
+        return gdf.geometry
+    
+    def get_simulated(self, samp_gs, rlay_fp,
+                      colName=None,
+                      **kwargs):
+        """retrieve depths from simulation
+        
+        Parameters
+        -----------
+        samp_gs: GeoSeries
+            points to sample
+            
+        colName: str
+            what to name the new series
+            
+        """
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_sim', **kwargs)
+        
+        if colName is None:
+            colName = os.path.basename(rlay_fp) 
+ 
+        #=======================================================================
+        # get raster
+        #=======================================================================
+            
+        log.info(f'loading depth grid from {os.path.basename(rlay_fp)}')
+        
+        ds = rio.open(rlay_fp, mode='r')
+        
+        #=======================================================================
+        # sample points
+        #=======================================================================  
+            
+        samp_gdf_raw = get_samples(samp_gs, ds, colName=colName)
+        
+        samp_gdf = samp_gdf_raw.dropna(axis=0, subset=colName)
+        
+        stats_d = {n:getattr(samp_gdf[colName], n)() for n in ['mean', 'min', 'max']}
+        
+        log.info(f'got {len(samp_gdf)} samples on {colName}\n    {stats_d}')
+        
+        assert isinstance(samp_gdf, gpd.geodataframe.GeoDataFrame)
+ 
+        return samp_gdf
+    
+    def get_errs(self, rlay_fp_lib, hwm_fp=None,  hwm_gdf=None, **kwargs):
+        """wrapper for loading and building errosr"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_errs', **kwargs)
+        skwargs = dict(logger=log, tmp_dir=tmp_dir, out_dir=out_dir)
+        #=======================================================================
+        # load the data
+        #=======================================================================
+        if hwm_gdf is None:
+            log.info(f'loading HWMs from {hwm_fp}')
+            hwm_gdf = self.get_hwm(hwm_fp)
+        else:
+            assert hwm_fp is None
+        
+        #=======================================================================
+        # sample the simulated raster
+        #=======================================================================
+        d=dict()
+        for k, rlay_fp in rlay_fp_lib.items():
+            samp_gdf = self.get_simulated(hwm_gdf.geometry, rlay_fp, colName=k, **skwargs)
+            
+            d[k] = samp_gdf[k]
+        
+        d['obs'] = hwm_gdf[self.wd_key] #add HWMs
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        res_gdf = pd.concat(d, axis=1).set_geometry(hwm_gdf.geometry)
+ 
+        log.info(f'assembled obs and sim w/ {str(res_gdf.shape)}')
+        return res_gdf
+ 
+    def get_err(self, gdf, logger=None, **kwargs):
+        if logger is None: logger=self.logger
+        with ErrorCalcs(pred_ser=gdf['sim'], true_ser=gdf['obs'],logger=logger, **kwargs) as wrkr:
+            err_d = {
+                'count':len(gdf), 
+                'rmse':wrkr.get_RMSE(), 
+                'meanError':wrkr.get_meanError(), 
+                'bias':wrkr.get_bias()}
+            confusion_df, confusion_dx = wrkr.get_confusion(wetdry=True)
+        return confusion_df, err_d, confusion_dx
+
+ 
+ 
+
+class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
                   Plotr, ValidateSession):
     sim_color_d = {'vali':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet', 's14':'#24855d'}
     confusion_color_d = {
@@ -937,8 +1137,10 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr,
         
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
+                      hwm_fp=None,
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
+                      hyd_hwm_kwargs=dict(),
                       **kwargs):    
     
     res_d = dict()
@@ -946,18 +1148,29 @@ def basic_post_pipeline(meta_fp_d,
         
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
+ 
         
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
         #get rlays
-        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        #rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
         
         #plot them
-        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
         
  
-        plt.close()
+        #plt.close()
+        
+        #=======================================================================
+        # hydrodyn HWM performance
+        #=======================================================================
+        rlay_fp_lib = ses.collect_hyd_fps(run_lib)
+        
+        gdf = ses.get_errs(rlay_fp_lib, hwm_fp=hwm_fp) #sample HWMs on depth rasters
+        
+        ses.plot_hyd_hwm(gdf, **hyd_hwm_kwargs)
+        
         #=======================================================================
         # sample metrics
         #=======================================================================
