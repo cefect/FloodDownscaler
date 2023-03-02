@@ -116,6 +116,8 @@ class ValidateGrid(RioWrkr):
                               dtype=None,nodata=None,
                                **kwargs):
         """convert polygonized inundation into a raster"""
+        
+        raise IOError('make this a standalone function that takes a reference raster')
         #=======================================================================
         # defaults
         #=======================================================================

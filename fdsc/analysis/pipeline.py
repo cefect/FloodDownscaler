@@ -16,7 +16,7 @@ from definitions import wrk_dir, src_name
 
 from hp.basic import today_str
 from hp.rio import (
-    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,
+    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,is_raster_file,
     )
 
 
@@ -107,6 +107,7 @@ def run_dsc_vali(
         wse2_fp,
         dem1_fp,
         wse1V_fp=None,
+ 
         dsc_kwargs=dict(method = 'CostGrow'),
         vali_kwargs=dict(), 
         **kwargs
@@ -130,10 +131,27 @@ def run_dsc_vali(
         log = ses.logger
         meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
         skwargs = dict(out_dir=ses.out_dir, tmp_dir=ses.tmp_dir)
+        
+        #=======================================================================
+        # polygonize
+        #=======================================================================
+        
+        raise IOError('stopped here.')
+    """TODO:
+    use separate inputs for depths vs. inundation validation
+    promote this to a method of PipeSession
+    add rasterization of inundation polygon (using DEM atttributes).
+    """
+    
+        if not is_raster_file(wse1V_fp):
+            irlay_fp = self._rasterize_inundation(wse1V_fp,
+                                                  )
+            
+        
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_spatial_equal(dem1_fp, wse1V_fp, msg='DEM and validation')
+        #assert_spatial_equal(dem1_fp, wse1V_fp, msg='DEM and validation')
         assert_extent_equal(dem1_fp, wse2_fp, msg='DEM and WSE')
         
         #=======================================================================
@@ -199,8 +217,7 @@ def run_dsc_vali(
         tdelta = (now()-start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
         
-        
-        print(meta_lib.keys())
+ 
         #collapse and promote
         md=dict()
         for k0, d0 in meta_lib.items():
@@ -233,12 +250,12 @@ def run_pipeline_multi(
         
           wse2_fp=None, 
           dem1_fp=None,
+          inun_fp=None,
         method_l=[
-                    #'bufferGrowLoop',
                     'CostGrow',
-                    'Schumann14', 
-                    'none',
+                    'Basic', 
                     'SimpleFilter',
+                    'Schumann14',
                     ],
         
  

@@ -113,7 +113,7 @@ def ahr_aoi08_r32_0130_30(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
         hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
-        inun_fp=r'L:\02_WORK\NRC\202110_Ahr\01_GEN\01_INOUT\2022 01 13 - Heiko - 2021 data\Ahr_Überflutungsflächen_HW07-2021_LfU712_2021_07_14.shp',   
+          
         run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
         **kwargs)
     

@@ -16,6 +16,8 @@ from tests.conftest import (
 
 from fdsc.analysis.pipeline import run_dsc_vali
 from fdsc.analysis.pipeline import PipeSession as Session
+
+from hp.tests.tools.rasters import get_poly_fp_from_rlay
 #===============================================================================
 # test data
 #===============================================================================
@@ -26,6 +28,7 @@ dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1')
 wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
 wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
 toy_aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
+inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
 
 #===============================================================================
 # fixtures------------
@@ -74,7 +77,9 @@ def test_clip_set(raster_fp_d, aoi_fp,
 @pytest.mark.dev
 @pytest.mark.parametrize('dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp', [
     #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp, None),
-    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'])
+    (dem1_rlay_fp, wse2_rlay_fp, inun_poly_fp, toy_aoi_fp, None),
+    #(td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'], None)
+ 
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp,
