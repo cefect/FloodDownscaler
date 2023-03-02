@@ -21,6 +21,11 @@ cm = 1/2.54
 usetex=False
 if usetex:
     os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
+    output_format='pdf'
+    add_stamp=False
+else:
+    output_format='svg'
+    add_stamp=True
     
   
 import matplotlib
@@ -36,7 +41,7 @@ plt.style.use('default')
 # journal style
 #===============================================================================
 if env_type=='journal':
-    output_format='png'
+    
     #font
     font_size=8
     matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
@@ -107,8 +112,8 @@ ahr_aoi08_r32_0130_d = {
 def ahr_aoi08_r32_0130_30(**kwargs):
     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
-        hwm_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\hwm\hwm_ahr_aoi08_r04_1215_aoi09_0030.geojson',   
-        run_name='post_0206',proj_name='ahr_aoi08_0130',
+        hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',   
+        run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
         **kwargs)
     
 

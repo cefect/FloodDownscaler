@@ -35,6 +35,7 @@ from fdsc.analysis.valid import ValidateSession
 from fdsc.base import nicknames_d
 
 nicknames_d['validation']='vali'
+cm = 1/2.54
  
 nicknames_d2 = {v:k for k,v in nicknames_d.items()}
 
@@ -848,7 +849,7 @@ class Plot_hyd_HWMS(object):
     """
     
     def __init__(self,
-                 wd_key = 'wd', #key of validation ata
+                 wd_key = 'water_depth', #key of validation ata
                  **kwargs):
         
         super().__init__(**kwargs)
@@ -937,16 +938,22 @@ class Plot_hyd_HWMS(object):
         return fp_lib 
     
     def plot_hyd_hwm(self,
-                      gdf,  
+                      gdf_raw,  
                       
                       ax=None,
-                      figsize=None, #(12, 9),
+                      figsize=(10*cm,10*cm), #(12, 9),
  
-                      transparent=True,
+                      transparent=True,output_format=None,
                       font_size=None,
+                      style_d = {
+                          'dep1':dict(color='#996633', label='fine (s1)', marker='x'),
+                          'dep2':dict(color='#9900cc', label='coarse (s2)', marker='o', fillstyle='none')
+                                 },
+                      
+                      xlim = None,
  
- 
-            **kwargs):
+                
+                      **kwargs):
         """plot comparing performance of hyd models against HWMs
  
         rows: cols
@@ -958,12 +965,30 @@ class Plot_hyd_HWMS(object):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.png', **kwargs)
+        if output_format is None: output_format=self.output_format
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.'+output_format, **kwargs)
 
         if font_size is None:
             font_size=matplotlib.rcParams['font.size']
             
-            
+ 
+        assert isinstance(gdf_raw, pd.core.frame.DataFrame)
+        
+        #=======================================================================
+        # data prep
+        #=======================================================================
+        #drop zeros
+        bx = (gdf_raw==0).any(axis=1)
+        log.info(f'dropping {bx.sum()}/{len(bx)}  samples with zeros')
+        gdf = gdf_raw.loc[~bx, :]
+        
+        
+        true_ser = gdf['obs']
+        
+        max_val = math.ceil(gdf.max().max())
+        if xlim is None:
+            xlim = (0, max_val)
+        
         #=======================================================================
         # figure setup
         #=======================================================================
@@ -972,15 +997,68 @@ class Plot_hyd_HWMS(object):
             
         else:
             fig = ax.figure
+        
+        #=======================================================================
+        # plot
+        #=======================================================================
+        meta_lib = dict()
+        for k, ser in gdf.drop('obs', axis=1).items():
+            
+            #scatter
+            xar, yar = true_ser.values, ser.values
+            ax.plot(xar, yar ,linestyle='none', **style_d[k])
+            
+            #=======================================================================
+            # compute error
+            #=======================================================================
+            slope, intercept, rvalue, pvalue, stderr =  scipy.stats.linregress(xar, yar)
+            
+            pearson, pval = scipy.stats.pearsonr(xar, yar)
+            
+            rmse = math.sqrt(np.square(xar - yar).mean())
+            
+            x_vals = np.array(xlim)
+            y_vals = intercept + slope * x_vals
+            
+            d = dict(pearson=pearson, pval=pval, rvalue=rvalue, pvalue=pvalue, stderr=stderr, rmse=rmse)
+            meta_lib[k] = d
+            log.info(f'for {k} got \n    {d}')
+            
+            #===================================================================
+            # plot correlation
+            #===================================================================
+            ax.plot(x_vals, y_vals, color=style_d[k]['color'], linewidth=0.5)
             
         
-        max_val = math.ceil(gdf.loc[:, ['obs', 'sim']].max().max())
+        #1:1 line
+        
+        ax.plot([0.0, max_val*1.1], [0.0, max_val*1.1], color='black', label='1:1', linewidth=0.5, linestyle='dashed')
+            
+        
+        #=======================================================================
+        # post
+        #=======================================================================
+        #make square
+        
+        ax.set_ylim(0, max_val)
+        ax.set_xlim(0, max_val)
+        ax.set_aspect('equal', adjustable='box')
+        
+        ax.set_xlabel('observed HWM (m)')
+        ax.set_ylabel('simulated max depth (m)')
+        
+        ax.legend()
+        
+        return self.output_fig(fig, logger=log, ofp=ofp, transparent=transparent)
     
-    def get_hwm(self, fp):
+        plt.show()
+ 
+    
+    def get_hwm(self, fp, **kwargs):
         """load hwm data"""
         assert os.path.exists(fp), f'bad path for hwm: {fp}'
         
-        gdf = gpd.read_file(fp)
+        gdf = gpd.read_file(fp, **kwargs)
         
         assert len(gdf) > 0
         assert np.all(gdf.geometry.geom_type == 'Point')
@@ -1050,7 +1128,12 @@ class Plot_hyd_HWMS(object):
         #=======================================================================
         if hwm_gdf is None:
             log.info(f'loading HWMs from {hwm_fp}')
-            hwm_gdf = self.get_hwm(hwm_fp)
+            
+            #get bbox
+            rlay_meta_d = get_meta(rlay_fp_lib['dep1'])
+            
+            
+            hwm_gdf = self.get_hwm(hwm_fp, bbox=rlay_meta_d['bounds'])
         else:
             assert hwm_fp is None
         
@@ -1223,6 +1306,7 @@ def basic_post_pipeline(meta_fp_d,
         
         ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
         
+        return
         #=======================================================================
         # sample metrics
         #=======================================================================
