@@ -70,6 +70,7 @@ class Schuman14(Dsc_basic):
                    gridcells=True,
  
                    r2p_backend=None,
+                   downscale=None,
                    **kwargs):
         """run python port of schuman 2014's downscaling
         
@@ -101,7 +102,11 @@ class Schuman14(Dsc_basic):
         
         
         if buffer_size is None: buffer_size=self.buffer_size
-        downscale = self.downscale
+        if downscale is None:
+            downscale = self.downscale
+            
+        if downscale is None:
+            downscale = self.get_downscale(wse_fp, dem_fp, **skwargs)
         
         meta_lib = {'smry':{
             'downscale':downscale, 'wse2_fp':os.path.basename(wse_fp), 'dem_fp':dem_fp, 'ofp':ofp}}

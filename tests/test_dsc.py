@@ -144,7 +144,7 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
     ])
 def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
-    wrkr.run_bufferGrowLoop(wse_fp, dem_fp, loop_range=range(5))
+    wrkr.get_bufferGrowLoop_DP(wse_fp, dem_fp, loop_range=range(5))
     
 
 @pytest.mark.parametrize('wse_ar',[
