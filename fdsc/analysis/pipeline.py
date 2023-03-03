@@ -407,7 +407,7 @@ def run_pipeline_multi(
             #===================================================================
             # passthrough
             #===================================================================
-            downscale = ses.downscale
+ 
             logger = ses.logger
             
     #===========================================================================
@@ -416,37 +416,18 @@ def run_pipeline_multi(
     if validate_hyd:        
         
         #extract kwargs of interest
-        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp']}
+        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp']}
         
-        #collect rasters
+        #=======================================================================
+        # run on each hydro result
+        #=======================================================================
         for wseName, wse_fp in {'wse2':wse2_fp, 'wse1':vali_kwargs['true_wse_fp']}.items():
             print(f'\n\n HYDRO VALI on {wseName}\n\n')
-            meta_lib ={'smry':{'name':wseName, 'wse_fp':wse_fp}}
+ 
             with PipeSession(logger=logger, run_name=wseName+'_vali', **kwargs) as ses:
                 
-                #resample the coarse
-
-        
-                #run the validation                
-                skwargs = dict(out_dir=ses.out_dir, logger=ses.logger.getChild(wseName)) 
-                metric_lib, meta_lib['vali'] = ses.run_vali(pred_wse_fp=wse_fp1, dem_fp=dem1_fp,**vali_kwargs2, **skwargs) 
-                
-                #write
- 
-                ofpi = ses._get_ofp(out_dir=ses.out_dir, dkey='valiMetrics', ext='.pkl')
-                with open(ofpi,  'wb') as f:
-                    pickle.dump(metric_lib, f, pickle.HIGHEST_PROTOCOL)
-                    
-                meta_lib['smry']['valiMetrics_fp'] = ofpi
+                res_d[wseName] = ses.run_hyd_vali(wse_fp, dem1_fp,vali_kwargs=vali_kwargs2)
  
  
-                
- 
-        
-        
-            
-    
-             
-    
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
     return res_d

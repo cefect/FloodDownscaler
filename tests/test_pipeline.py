@@ -93,7 +93,7 @@ def test_run_dsc_vali(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp
                  vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
                  )
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp', [
 
     #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
@@ -110,24 +110,25 @@ def test_run_hyd_vali(dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp,
  
                  vali_kwargs=dict(true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
                  )
-    
-@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp', [
 
-    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
-    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'])
+@pytest.mark.dev
+@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd', [
+
+    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None, False),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'], True)
  
     ])
 
-def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp,
+def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd,
                     tmp_path, logger):
     
     method_pars = {e[0]:e[1] for e in par_algoMethodKwargs[1]}
     
         
-    run_pipeline_multi(wse2_fp, dem1_fp, 
-                  
+    run_pipeline_multi(wse2_fp, dem1_fp,                  
                  aoi_fp=aoi_fp, 
                  method_pars=method_pars,
+                 validate_hyd=validate_hyd,
                  vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
                  out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),logger=logger,logfile_duplicate=False,
                  )
