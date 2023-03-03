@@ -112,14 +112,14 @@ def test_run_hyd_vali(dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp,
                  )
 
 @pytest.mark.dev
-@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd', [
+@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd, hwm_pts_fp', [
 
-    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None, False),
-    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'], True)
+    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None, False, None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'], True,  td1['hwm_pts_fp'])
  
     ])
 
-def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd,
+def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd, hwm_pts_fp,
                     tmp_path, logger):
     
     method_pars = {e[0]:e[1] for e in par_algoMethodKwargs[1]}
@@ -129,7 +129,7 @@ def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, 
                  aoi_fp=aoi_fp, 
                  method_pars=method_pars,
                  validate_hyd=validate_hyd,
-                 vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
+                 vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, hwm_pts_fp=hwm_pts_fp),
                  out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),logger=logger,logfile_duplicate=False,
                  )
     
