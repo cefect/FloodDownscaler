@@ -1,0 +1,196 @@
+'''
+Created on Mar. 3, 2023
+
+@author: cefect
+
+validating water depths
+'''
+#===============================================================================
+# IMPORTS-------
+#===============================================================================
+import logging, os, copy, datetime, pickle
+import numpy as np
+import geopandas as gpd
+
+import pandas as pd
+import rasterio as rio
+
+from hp.rio import (
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
+    write_array2,get_write_kwargs, rlay_ar_apply
+    )
+
+from hp.gpd import (
+    get_samples, GeoPandasWrkr,write_rasterize
+    )
+
+from hp.err_calc import ErrorCalcs, get_confusion_cat
+
+from fdsc.base import (
+    Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar, assert_wd_ar
+    )
+
+class ValidatePoints(RioWrkr, GeoPandasWrkr):
+    """methods for validation with points"""
+    
+    stats_d = None
+    pts_gdf = None
+    sample_pts_fp = None
+    dem_fp = None
+    
+    def __init__(self,
+                 true_wd_fp=None,
+                 pred_wd_fp=None,
+                 
+                 
+ 
+                 sample_pts_fp=None,
+ 
+                 index_coln='id',
+
+                 **kwargs):
+        """
+        Pars
+        ---------
+        true_wd_fp: str
+            filepath to raster of WD values to validate against
+            
+        """
+        
+        #=======================================================================
+        # pre init
+        #=======================================================================
+        
+        super().__init__(**kwargs)
+        
+        #=======================================================================
+        # attach
+        #=======================================================================
+        #depth rasters
+        if not true_wd_fp is None:
+            rlay_ar_apply(true_wd_fp, assert_wd_ar)
+            
+        if not pred_wd_fp is None:
+            rlay_ar_apply(pred_wd_fp, assert_wd_ar)
+            
+                
+        #=======================================================================
+        # load 
+        #=======================================================================
+        #depth rasters
+        
+        
+        self.index_coln = index_coln
+ 
+        if not sample_pts_fp is None:
+            self._load_pts(sample_pts_fp, index_coln=index_coln)
+            
+     
+            
+    def _load_stats(self, fp=None):
+        """set session stats from a raster
+        
+        mostly used by tests where we dont load the raster during init"""
+        
+ 
+            
+        assert not fp is None
+        
+        with rio.open(fp, mode='r') as ds:
+            assert_rlay_simple(ds)
+            self.stats_d = get_stats(ds) 
+ 
+    def _load_pts(self, fp, index_coln=None, bbox=None):
+        """load sample points"""
+        if index_coln is None: index_coln = self.index_coln
+        assert os.path.exists(fp)
+        
+        # load raster stats
+        if self.stats_d is None:
+            self._load_stats()
+        
+        # get bounding box from rasters
+        if bbox is None:
+            bbox = self.stats_d['bounds']
+        
+        gdf = gpd.read_file(fp, bbox=bbox)
+        
+        # check
+        assert gdf.crs == self.stats_d['crs']
+        assert (gdf.geometry.geom_type == 'Point').all()
+        
+        # clean
+        self.pts_gser = gdf.set_index(index_coln).geometry
+        self.sample_pts_fp = fp
+        
+    def get_samples(self,
+                           true_fp=None,
+                           pred_fp=None,
+                           sample_pts_fp=None,
+                           gser=None,
+                           **kwargs):
+        """sample raster with poitns"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', **kwargs)
+        
+        if true_fp is None:
+            true_fp = self.true_inun_fp
+        if pred_fp is None:
+            pred_fp = self.pred_fp
+            
+        if not sample_pts_fp is None:
+            assert gser is None
+            self._load_stats(true_fp)
+            self._load_pts(sample_pts_fp)
+            
+        if gser is None:
+            gser = self.pts_gser
+ 
+        #=======================================================================
+        # sample each
+        #=======================================================================
+        log.info(f'sampling {len(gser)} pts on 2 rasters')
+        d = dict()
+        for k, fp in {'true':true_fp, 'pred':pred_fp}.items():
+            log.info(f'sampling {k}')
+            with rio.open(fp, mode='r') as ds:
+                d[k] = get_samples(gser, ds, colName=k).drop('geometry', axis=1)
+        
+        samp_gdf = pd.concat(d.values(), axis=1).set_geometry(gser)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        assert not samp_gdf.isna().any().any(), 'no nulls.. should be depths'
+        
+        log.info(f'finished sampling w/ {str(samp_gdf.shape)}')
+        
+        return samp_gdf
+    
+    def get_samp_errs(self, gdf_raw, **kwargs):
+        """calc errors between pred and true"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('samp_errs', **kwargs)
+        
+        #=======================================================================
+        # clean
+        #=======================================================================
+        gdf = gdf_raw.drop('geometry', axis=1)  # .dropna(how='any', subset=['true'])
+        
+        assert gdf.notna().all().all()
+        
+        #=======================================================================
+        # calc
+        #=======================================================================
+        
+        with ErrorCalcs(pred_ser=gdf['pred'], true_ser=gdf['true'], logger=log) as wrkr:
+            err_d = wrkr.get_all(dkeys_l=['bias', 'meanError', 'meanErrorAbs', 'RMSE', 'pearson'])
+            
+            # get confusion
+            _, cm_dx = wrkr.get_confusion(wetdry=True, normed=False)            
+            err_d.update(cm_dx.droplevel([1, 2])['counts'].to_dict())
+            
+        return err_d
+
+    

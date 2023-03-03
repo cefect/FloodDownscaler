@@ -189,6 +189,22 @@ def assert_wse_ar(ar, msg=''):
     assert_partial_wet(ar.mask, msg=msg)
     
     
+def assert_wd_ar(ar, msg=''):
+    """check the array satisfies expectations for a WD array"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    
+    assert_masked_ar(ar, msg=msg)
+    
+    if not np.all(np.invert(ar.mask)):
+        raise AssertionError(msg+': some masked values')
+    
+    if not np.min(ar)==0.0:
+        raise AssertionError(msg+': non-zero minimum') 
+    
+    if not np.max(ar)>0.0:
+        raise AssertionError(msg+': zero maximum') 
+    
     
     
 def assert_partial_wet(ar, msg=''):
