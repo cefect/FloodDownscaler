@@ -224,7 +224,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         metric_lib = dict()
         skwargs = dict(logger=log, out_dir=out_dir)
         fp_d = dict(dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp, 
-                    true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, hwm_pts_fp=hwm_pts_fp) #for reporting
+                    true_inun_fp=true_inun_fp,  hwm_pts_fp=hwm_pts_fp) #for reporting
         #=======================================================================
         # common prep
         #=======================================================================
@@ -260,14 +260,15 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # get depths
         #=======================================================================
-        if (sample_pts_fp!=None) or (hwm_pts_fp!=None):
-            #predicted
-            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=out_dir)
-            rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
-            
-            self.pred_wd_fp=pred_wd_fp
-            
-            fp_d['pred_wd_fp'] = pred_wd_fp
+        """doing this everytime... nice to have the wd for plots"""
+        #if (sample_pts_fp!=None) or (hwm_pts_fp!=None):
+        #predicted
+        pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=out_dir)
+        rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
+        
+        self.pred_wd_fp=pred_wd_fp
+        
+        fp_d['pred_wd_fp'] = pred_wd_fp
             
         
         #=======================================================================
@@ -293,6 +294,8 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
                                         true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp, 
                                         **skwargs)
             
+            fp_d['pts_samples_fp'] = meta_lib['pts']['samples_fp']
+            
         #=======================================================================
         # HWMs--------
         #=======================================================================
@@ -300,6 +303,8 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             log.info(f'computing performance against HWMs ({os.path.basename(hwm_pts_fp)})')
             
             metric_lib['hwm'], meta_lib['hwm'] = self.run_vali_hwm(pred_wd_fp, hwm_pts_fp, **skwargs)
+            
+            fp_d['hwm_samples_fp'] = meta_lib['hwm']['samples_fp']
  
         
         #=======================================================================
@@ -328,7 +333,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         # run
         #=======================================================================
         metric_lib['inun'], confuGrid_fp = self.run_vali_inun(true_inun_fp=true_inun_rlay_fp, pred_inun_fp=pred_wse_fp, **skwargs)        
-
+        meta_lib['inun_metrics'] = metric_lib['inun']
         fp_d['confuGrid_fp'] = confuGrid_fp
         #=======================================================================
         # wrap-----

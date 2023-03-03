@@ -421,10 +421,10 @@ def run_pipeline_multi(
         #=======================================================================
         # run on each hydro result
         #=======================================================================
-        for wseName, wse_fp in {'wse2':wse2_fp, 'wse1':vali_kwargs['true_wse_fp']}.items():
+        for wseName, wse_fp in {'WSE2':wse2_fp, 'WSE1':vali_kwargs['true_wse_fp']}.items():
             print(f'\n\n HYDRO VALI on {wseName}\n\n')
  
-            with PipeSession(logger=logger, run_name=wseName+'_vali', **kwargs) as ses:
+            with PipeSession(logger=logger, run_name=wseName.lower()+'_vali', **kwargs) as ses:
                 
                 res_d[wseName] = ses.run_hyd_vali(wse_fp, dem1_fp,vali_kwargs=vali_kwargs2)
  
