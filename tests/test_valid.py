@@ -14,7 +14,7 @@ import geopandas as gpd
 from hp.gpd import rlay_to_gdf
 from hp.tests.tools.rasters import get_poly_fp_from_rlay
 
-from fdsc.analysis.valid import ValidateGrid, ValidateSession, run_validator
+from fdsc.analysis.valid import ValidateMask, ValidateSession, run_validator
 
 from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default
@@ -36,7 +36,7 @@ inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
 #===============================================================================
 @pytest.fixture(scope='function')
 def wrkr(logger, tmp_path):
-    with ValidateGrid(logger=logger, 
+    with ValidateMask(logger=logger, 
                  ) as ses:
         yield ses
         
@@ -73,16 +73,16 @@ def ses(tmp_path,write,logger, test_name,
 # tests--------
 #===============================================================================
 
-
-@pytest.mark.parametrize('true_fp, pred_fp', [
+@pytest.mark.dev
+@pytest.mark.parametrize('true_mask_fp, pred_mask_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),
     ]) 
-def test_valid_wrkr_init(true_fp, pred_fp,
+def test_valid_wrkr_init(true_mask_fp, pred_mask_fp,
                          logger):
     """just the validation worker init"""
     
-    with ValidateGrid(true_fp, pred_fp,  logger=logger) as wrkr:
+    with ValidateMask(true_mask_fp, pred_mask_fp,  logger=logger) as wrkr:
         pass
     
     
@@ -233,15 +233,16 @@ def test_run_vali_pts(true_fp, pred_fp, sample_pts_fp, ses):
 #===============================================================================
 
 
-@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
+@pytest.mark.parametrize('wse_true_fp, pred_fp, sample_pts_fp, dem_fp, inun_true_fp', [
+    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp'], td1['inun_vlay_fp']),
     #(wse1_rlayV_fp, wse1_rlay3_fp, None),
     ]) 
-def test_run_vali(true_fp, pred_fp, sample_pts_fp, dem_fp, ses):
-    ses.run_vali(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
+def test_run_vali(wse_true_fp, pred_fp, sample_pts_fp, dem_fp, inun_true_fp, ses):
+    ses.run_vali(wse_true_fp=wse_true_fp, inun_true_fp=inun_true_fp,
+                 pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
 
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
     #(td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
     (inun_poly_fp, wse1_rlay3_fp, None, dem1_rlay_fp),

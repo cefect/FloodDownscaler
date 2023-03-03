@@ -33,21 +33,20 @@ from fdsc.base import (
 # from definitions import src_name
 
 
-class ValidateGrid(RioWrkr):
-    """compute validation metrics for a raster by comparing to some true raster""" 
+class ValidateMask(RioWrkr):
+    """compute validation metrics for a inundation mask""" 
     
     confusion_ser = None
     confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
     
-    pred_fp = None
-    true_fp = None
+    pred_mask_fp = None
+    true_mask_fp = None
     
-    pred_ar=None
-    pred_stats_d=None
+ 
     
     def __init__(self,
-                 true_fp=None,
-                 pred_fp=None,
+                 true_mask_fp=None,
+                 pred_mask_fp=None,
  
                  logger=None,
                  **kwargs):
@@ -65,48 +64,48 @@ class ValidateGrid(RioWrkr):
         #=======================================================================
         """using ocnditional loading mostly for testing"""
         
-        if not pred_fp is None: 
-            self._load_pred(pred_fp)
+        if not pred_mask_fp is None: 
+            self._load_mask_pred(pred_mask_fp)
         
-        if not true_fp is None:
-            if not is_raster_file(true_fp):
-                rlay_fp = self._rasterize_inundation(true_fp)
+        if not true_mask_fp is None:
+            if not is_raster_file(true_mask_fp):
+                rlay_fp = self._rasterize_inundation(true_mask_fp)
             else:
-                rlay_fp=true_fp
+                rlay_fp=true_mask_fp
                 
-            self._load_true(rlay_fp) 
+            self._load_mask_true(rlay_fp) 
+            
+        self.logger.debug('finished init')
             
 
             
-    def _load_true(self, rlay_fp):
-
-        #=======================================================================
-        # rasterize polygon
-        #=======================================================================
-
-            
+    def _load_mask_true(self, rlay_fp):
+        """load the true mask"""
+ 
             
         stats_d, self.true_ar = rlay_extract(rlay_fp)
-        assert_wse_ar(self.true_ar, msg='true array')
+ 
         self.logger.info('loaded true raster from file w/\n    %s' % stats_d)
         # set the session defaults from this
         if 'dtypes' in stats_d:
             stats_d['dtype'] = stats_d['dtypes'][0]
         self.stats_d = stats_d
         self._set_defaults(stats_d)
-        self.true_fp = rlay_fp
         
-        if not self.pred_fp is None:
-            assert_spatial_equal(self.true_fp, self.pred_fp)
+        self.true_mask_fp = rlay_fp
+        
+        if not self.pred_mask_fp is None:
+            assert_spatial_equal(self.true_mask_fp, self.pred_mask_fp)
 
-    def _load_pred(self, pred_fp):
-        self.pred_stats_d, self.pred_ar = rlay_extract(pred_fp)
-        assert_wse_ar(self.pred_ar, msg='pred array')
+    def _load_mask_pred(self, pred_fp):
+        """load the predicted mask"""
+        self.pred_stats_d, self.pred_mar = get_rlay_mask(pred_fp)
+ 
         
-        self.pred_fp = pred_fp
+        self.pred_mask_fp = pred_fp
         
-        if not self.true_fp is None:
-            assert_spatial_equal(self.true_fp, self.pred_fp)
+        if not self.true_mask_fp is None:
+            assert_spatial_equal(self.true_mask_fp, self.pred_mask_fp)
             
         self.logger.info('loaded pred raster from file w/\n    %s' % self.pred_stats_d)
         
@@ -127,13 +126,13 @@ class ValidateGrid(RioWrkr):
         
         #copy spatial defaults from the predicted array
         if out_shape is None:
-            out_shape=self.pred_ar.shape
+            out_shape=self.pred_mar.shape
         
         if transform is None:
             transform=self.pred_stats_d['transform']
             
         if dtype is None:
-            dtype = self.pred_ar.dtype
+            dtype = self.pred_mar.dtype
             
         if nodata is None:
             nodata=self.pred_stats_d['nodata']
@@ -295,12 +294,12 @@ class ValidateGrid(RioWrkr):
         log = logger.getChild(dkey)
         
         if true_ar is None: true_ar = self.true_ar
-        if pred_ar is None: pred_ar = self.pred_ar
+        if pred_ar is None: pred_ar = self.pred_mar
             
         return log, true_ar, pred_ar
     
 
-class ValidatePoints(ValidateGrid, GeoPandasWrkr):
+class ValidatePoints(ValidateMask, GeoPandasWrkr):
     """methods for validation with points"""
     
     stats_d = None
@@ -381,7 +380,7 @@ class ValidatePoints(ValidateGrid, GeoPandasWrkr):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', **kwargs)
         
         if true_fp is None:
-            true_fp = self.true_fp
+            true_fp = self.true_mask_fp
         if pred_fp is None:
             pred_fp = self.pred_fp
             
@@ -486,7 +485,9 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         return err_d, meta_d
 
     def run_vali(self,
-                 true_fp=None, pred_fp=None,
+                 wse_true_fp=None, 
+                 inun_true_fp=None,
+                 pred_fp=None,
                  sample_pts_fp=None, dem_fp=None,
                  write_meta=True,
                  **kwargs):
@@ -497,6 +498,11 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         
         Parameters
         -----------
+        wse_true_fp: str
+            filepath to WSE rlay to compare values against
+            
+        inun_true_fp: str
+            filepath to inundation (rlay or poly) to compare extents against
         
         sample_pts_fp: str, optional
             filepath to points vector layer for sample-based metrics
@@ -515,13 +521,13 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # load
         #=======================================================================
-        if not true_fp is None:
-            self._load_true(true_fp) 
+        if not wse_true_fp is None:
+            self._load_mask_true(wse_true_fp) 
         else:
-            true_fp = self.true_fp
+            wse_true_fp = self.true_mask_fp
             
         if not pred_fp is None: 
-            self._load_pred(pred_fp)
+            self._load_mask_pred(pred_fp)
         else:
             pred_fp = self.pred_fp
             
@@ -534,7 +540,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # precheck
         #=======================================================================
-        true_ar, pred_ar = self.true_ar, self.pred_ar
+        true_ar, pred_ar = self.true_ar, self.pred_mar
         assert isinstance(pred_ar, np.ndarray)
         
         # data difference check
@@ -547,7 +553,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         # grid metrics
         #=======================================================================        
         shape, size = true_ar.shape, true_ar.size
-        meta_lib['grid'] = {**{'shape':str(shape), 'size':size, 'true_fp':true_fp, 'pred_fp':pred_fp},
+        meta_lib['grid'] = {**{'shape':str(shape), 'size':size, 'wse_true_fp':wse_true_fp, 'pred_fp':pred_fp},
                             **copy.deepcopy(self.stats_d)}
         
         #=======================================================================
@@ -579,11 +585,11 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         if not sample_pts_fp is None:
             assert isinstance(dem_fp, str), type(dem_fp)
             # build depth grids
-            true_dep_fp = get_depth(dem_fp, true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
+            true_dep_fp = get_depth(dem_fp, wse_true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
             pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
             
             metric_lib['samp'], meta_lib['samp'] = self.run_vali_pts(sample_pts_fp,
-                                        true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
+                                        wse_true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
             
             meta_lib['grid']['true_dep_fp'] = true_dep_fp
             meta_lib['grid']['dep1'] = pred_dep_fp
@@ -597,6 +603,27 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         log.info('finished')
         return metric_lib, meta_lib
 
+def get_rlay_mask(fp,
+                 window=None, masked=True, 
+                 ):
+    """load the mask from a raster and some stats"""
+    
+    if not masked:
+        raise NotImplementedError(masked)
+    
+    """load rlay data and arrays"""
+    with rio.open(fp, mode='r') as ds:
+        assert_rlay_simple(ds)
+        stats_d = get_stats(ds) 
+ 
+        ar = ds.read(1, window=window, masked=masked)
+        
+        stats_d['null_cnt'] = ar.mask.sum()
+        
+    #checks
+    assert_partial_wet(ar.mask)
+    
+    return stats_d, ar.mask
     
 def run_validator(true_fp, pred_fp,
         **kwargs):
