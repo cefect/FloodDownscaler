@@ -242,7 +242,8 @@ def run_pipeline_multi(
                      'Basic': {}, 
                      'SimpleFilter': {}, 
                      'BufferGrowLoop': {}, 
-                     'Schumann14': {}},
+                     'Schumann14': {},
+                     },
         
         logger=None, out_dir=None,        
  
@@ -253,6 +254,9 @@ def run_pipeline_multi(
     ------
     method_pars: dict
         method name: kwargs
+        
+    vali_kwargs: dict
+        kwargs for validation. see fdsc.analysis.valid.v_ses.ValidateSession.run_vali()
                 
     """
     

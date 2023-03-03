@@ -10,6 +10,13 @@ from fdsc.analysis.pipeline import run_pipeline_multi, nicknames_d
 
 def runr(**kwargs):        
     return run_pipeline_multi(index_coln='fid',
+                              method_pars={
+                                  'CostGrow': {}, 
+                                 'Basic': {}, 
+                                 'SimpleFilter': {}, 
+                                 #'BufferGrowLoop': {}, 
+                                 'Schumann14': {},
+                                 },
                               **kwargs)
     
     
@@ -31,13 +38,28 @@ def runr(**kwargs):
 #         **kwargs)
 #===============================================================================
 
-def ahr_aoi08_r32_0130_30(**kwargs):
-    return runr(proj_name='ahr_aoi08_0130',
+#===============================================================================
+# def ahr_aoi08_r32_0130_30(**kwargs):
+#     return runr(proj_name='ahr_aoi08_0130',
+#         wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r32_1221-0030_wse.tif',
+#         dem1_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\r04\dem005_r04_aoi08_1210.asc',
+#         wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif',
+#         inun_fp=r'L:\02_WORK\NRC\202110_Ahr\01_GEN\01_INOUT\2022 01 13 - Heiko - 2021 data\Ahr_Überflutungsflächen_HW07-2021_LfU712_2021_07_14.shp', 
+#         sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+#         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
+#         **kwargs)
+#===============================================================================
+    
+
+def ahr_aoi08_r32_0303_30(**kwargs):
+    return runr(proj_name='ahr_aoi08_0303',
         wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r32_1221-0030_wse.tif',
         dem1_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\r04\dem005_r04_aoi08_1210.asc',
-        wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif',
-        inun_fp=r'L:\02_WORK\NRC\202110_Ahr\01_GEN\01_INOUT\2022 01 13 - Heiko - 2021 data\Ahr_Überflutungsflächen_HW07-2021_LfU712_2021_07_14.shp', 
-        sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+        vali_kwargs=dict(
+            true_wse_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif',
+            true_inun_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\inun\inun_anschlaglinie_HW_7_21_220223_aoi09_0303.geojson',
+            sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+            ),        
         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
     
@@ -57,13 +79,8 @@ def ahr11_rim0201_r32_0203(**kwargs):
         **kwargs)
     
 if __name__=='__main__':
-    ahr_aoi08_r32_0130_30(method_l=[
-                    #'bufferGrowLoop',
-                    'CostGrow',
-                    'Basic', 
-                    'SimpleFilter',
-                    'Schumann14',
-                    ])
+    ahr_aoi08_r32_0303_30(
+        )
     
     #===========================================================================
     # ahr11_rim0201_r32_0203(method_l=[
