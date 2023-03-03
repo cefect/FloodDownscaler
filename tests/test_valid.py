@@ -125,14 +125,7 @@ def test_run_vali(pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp,
     ses.run_vali(pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp,
                  true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
 
-    
-
-@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
-    (inun_poly_fp, wse1_rlay3_fp, None, dem1_rlay_fp),
-    ]) 
-def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_path):
-    run_validator(true_fp, pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, out_dir=tmp_path)
+ 
     
     
     

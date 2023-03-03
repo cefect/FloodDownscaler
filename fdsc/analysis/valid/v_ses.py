@@ -257,11 +257,9 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
     
     
 
-def run_validator(true_fp, pred_fp,
-        **kwargs):
+def run_validator(rkwargs,**kwargs):
     """compute error metrics and layers on a wse layer"""
     
-    with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, **kwargs) as ses:
-        res = ses.run_vali()
-        
-    return res
+    with ValidateSession(**kwargs) as ses:
+        return ses.run_vali(**rkwargs)
+ 
