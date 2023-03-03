@@ -95,7 +95,7 @@ class ValidateMask(RioWrkr):
             
     def _load_mask_true(self, rlay_fp):
         """load the true mask"""
- 
+        assert is_raster_file(rlay_fp), 'must pass a raster file'
             
         stats_d, self.true_mar = get_rlay_mask(rlay_fp)
  
@@ -267,6 +267,17 @@ class ValidateMask(RioWrkr):
         assert_partial_wet(pred_mar, msg='pred mask')
             
         return log, true_mar, pred_mar
+    
+    def _check_inun(self, **kwargs):
+        """check loaded inundation grids"""
+        
+        log, true_mar, pred_mar = self._func_setup_local('check', **kwargs)
+        
+        # data difference check
+        if (true_mar == pred_mar).all():
+            raise IOError('passed identical grids')
+ 
+        
     
 
 

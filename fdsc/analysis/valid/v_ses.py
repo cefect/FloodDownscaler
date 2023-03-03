@@ -7,11 +7,15 @@ import logging, os, copy, datetime, pickle
 import numpy as np
 from hp.rio import (
     RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
-    write_array2,get_write_kwargs, rlay_ar_apply
+    write_array2,get_write_kwargs, rlay_ar_apply, get_meta
+    )
+
+from hp.gpd import (
+    write_rasterize
     )
 
 from fdsc.base import (
-    Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar, assert_wd_ar
+    Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar, assert_wd_ar, assert_dem_ar
     )
 
 from fdsc.analysis.valid.v_inun import ValidateMask
@@ -38,9 +42,9 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('vInun', subdir=True, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('inun', subdir=True, **kwargs)
  
-        skwargs = dict(logger=log)
+        skwargs = dict(logger=log) #these funcs are using a specical local setup
  
         #=======================================================================
         # load
@@ -48,36 +52,25 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         if not true_inun_fp is None:
             self._load_mask_true(true_inun_fp) 
  
-        true_inun_fp = self.true_inun_fp
+ 
             
         if not pred_inun_fp is None: 
             self._load_mask_pred(pred_inun_fp)
  
-        pred_inun_fp = self.pred_inun_fp            
+            
  
-        
+        mar = self.true_mar
         #=======================================================================
         # precheck
         #=======================================================================
-        true_mar, pred_mar = self.true_mar, self.pred_mar
- 
+        self._check_inun()
         
-        # data difference check
-        if (true_mar == pred_mar).all():
-            raise IOError('passed identical grids')
  
-        
-        #=======================================================================
-        # grid metrics
-        #=======================================================================        
-        shape, size = true_mar.shape, true_mar.size
-        meta_d = {**{'shape':str(shape), 'size':size, 'true_inun_fp':true_inun_fp, 'pred_inun_fp':pred_inun_fp},
-                            **copy.deepcopy(self.stats_d)}
         
         #=======================================================================
         # inundation metrics-------
         #=======================================================================
-        log.info(f'computing inundation metrics on %s ({size})' % str(shape))
+        log.info(f'computing inundation metrics on {mar.shape} ({mar.size})')
         
         # confusion_ser = self._confusion(**skwargs)
         inun_metrics = self.get_inundation_all(**skwargs)
@@ -93,7 +86,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         
         log.info(f'finished w/ \n    {inun_metrics}')
         
-        return inun_metrics, confuGrid_fp, meta_d
+        return inun_metrics, confuGrid_fp
         
  
  
@@ -106,7 +99,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pts', subdir=False, ext='.gpkg', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pts', subdir=True, ext='.gpkg', **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir)
  
         #=======================================================================
@@ -134,20 +127,33 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         return err_d, meta_d
 
     def run_vali(self,
-                 wse_true_fp=None, 
-                 inun_true_fp=None,
-                 pred_fp=None,
-                 sample_pts_fp=None, dem_fp=None,
+                 pred_wse_fp=None, 
+                 true_wse_fp=None,
+                 true_inun_fp=None,
+                 sample_pts_fp=None, 
+                 dem_fp=None,
                  write_meta=True,
                  **kwargs):
         """
         run all validations on a downsampled grid (compared to a true grid).
             called by pipeline.run_dsc_vali()
+            
+            allows separate inundation and wse validation
+                or just uses wse
+                
+            allows inundation to be a polygon
         
         
         Parameters
         -----------
-
+        pred_wse_fp: str
+            predicted WSE grid. used to build WD. 
+            
+        true_wse_fp: str
+            valid WSE grid. used to build inun grid if its not passed
+            
+        true_inun_fp: str, optional
+            valid inundation extents (rlay or vlay). uses true_wse_fp if not passed
         
         sample_pts_fp: str, optional
             filepath to points vector layer for sample-based metrics
@@ -162,86 +168,87 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('vali', subdir=True, **kwargs)
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         metric_lib = dict()
-        skwargs = dict(logger=log)
+        skwargs = dict(logger=log, out_dir=out_dir)
+        
         #=======================================================================
-        # load
+        # common prep
         #=======================================================================
-        if not wse_true_fp is None:
-            self._load_mask_true(wse_true_fp) 
-        else:
-            wse_true_fp = self.true_inun_fp
+        #dem
+        assert isinstance(dem_fp, str), type(dem_fp)
+        rlay_ar_apply(dem_fp, assert_dem_ar)
+        
+        meta_lib['grid'] = get_meta(dem_fp)
+        
+        #pred
+        if pred_wse_fp is None:
+            raise NotImplementedError('need to passe a wse')
+        
+        rlay_ar_apply(pred_wse_fp, assert_wse_ar)
+        
+        #=======================================================================
+        # water depths----
+        #======================================================================= 
+        if not sample_pts_fp is None:          
+            log.info(f'computing WD performance at points: \n    {sample_pts_fp}')
+            #===================================================================
+            # #build depths arrays
+            #===================================================================
+            #true
+            assert not true_wse_fp is None
+            true_wd_fp = get_depth(dem_fp, true_wse_fp, out_dir=tmp_dir)
+            rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
+            self.true_wd_fp=true_wd_fp
             
-        if not pred_fp is None: 
-            self._load_mask_pred(pred_fp)
-        else:
-            pred_fp = self.pred_fp
+            #predicted
+            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=tmp_dir)
+            rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
             
-        if sample_pts_fp is None:
-            sample_pts_fp = self.sample_pts_fp
-            
-        if dem_fp is None:
-            dem_fp = self.dem_fp
+            self.pred_wd_fp=pred_wd_fp
         
-        #=======================================================================
-        # precheck
-        #=======================================================================
-        true_ar, pred_ar = self.true_ar, self.pred_mar
-        assert isinstance(pred_ar, np.ndarray)
-        
-        # data difference check
-        if (true_ar == pred_ar).all():
-            raise IOError('passed identical grids')
-        if (true_ar.mask == pred_ar.mask).all():
-            log.warning('identical masks on pred and true')
-        
-        #=======================================================================
-        # grid metrics
-        #=======================================================================        
-        shape, size = true_ar.shape, true_ar.size
-        meta_lib['grid'] = {**{'shape':str(shape), 'size':size, 'wse_true_fp':wse_true_fp, 'pred_fp':pred_fp},
-                            **copy.deepcopy(self.stats_d)}
-        
-        #=======================================================================
-        # inundation metrics-------
-        #=======================================================================
-        log.info(f'computing inundation metrics on %s ({size})' % str(shape))
-        
-        # confusion_ser = self._confusion(**skwargs)
-        inun_metrics_d = self.get_inundation_all(**skwargs)
-        
-        # confusion grid
-        confusion_grid_ar = self.get_confusion_grid(**skwargs)
  
-        # meta
-        meta_d = copy.deepcopy(inun_metrics_d)
-        
-        #=======================================================================
-        # write
-        #=======================================================================
-        meta_d['confuGrid_fp'] = self.write_array(confusion_grid_ar, out_dir=out_dir,
-                                                       resname=self._get_resname(dkey='confuGrid'))
+            #===================================================================
+            # run
+            #===================================================================
+            metric_lib['pts'], meta_lib['pts'] = self.run_vali_pts(sample_pts_fp,
+                                        true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp, 
+                                        **skwargs)
  
-        meta_lib['inun'] = meta_d
-        metric_lib['inun'] = inun_metrics_d
         
         #=======================================================================
-        # asset samples---------
-        #=======================================================================            
-        if not sample_pts_fp is None:
-            assert isinstance(dem_fp, str), type(dem_fp)
-            # build depth grids
-            true_dep_fp = get_depth(dem_fp, wse_true_fp, ofp=self._get_ofp(out_dir=out_dir, resname='true_dep'))
-            pred_dep_fp = get_depth(dem_fp, pred_fp, ofp=self._get_ofp(out_dir=tmp_dir, resname='pred_dep'))
+        # inundatdion--------
+        #=======================================================================
+ 
+        #=======================================================================
+        # true inundation
+        #=======================================================================
+        if true_inun_fp is None:
+            log.info('using \'true_wse_fp\' for inundation validation')
+            true_inun_fp = true_wse_fp
             
-            metric_lib['samp'], meta_lib['samp'] = self.run_vali_pts(sample_pts_fp,
-                                        wse_true_fp=true_dep_fp, pred_fp=pred_dep_fp, logger=log, out_dir=out_dir)
+        #rasterize
+        if not is_raster_file(true_inun_fp):
+            log.info('rasterizing polygon')
+            true_inun_rlay_fp = write_rasterize(true_inun_fp, pred_wse_fp)
             
-            meta_lib['grid']['true_dep_fp'] = true_dep_fp
-            meta_lib['grid']['dep1'] = pred_dep_fp
+        else:
+            true_inun_rlay_fp = true_inun_fp
+        
+ 
+        #=======================================================================
+        # run
+        #=======================================================================
+        metric_lib['inun'], confuGrid_fp = self.run_vali_inun(true_inun_fp=true_inun_rlay_fp, pred_inun_fp=pred_wse_fp, **skwargs)        
+
         
         #=======================================================================
         # wrap-----
-        #=======================================================================        
+        #=======================================================================
+        meta_lib['fps'] = dict(
+            dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, 
+            true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, true_inun_rlay_fp=true_inun_rlay_fp,
+            sample_pts_fp=sample_pts_fp, confuGrid_fp=confuGrid_fp)
+        
+                
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)
         

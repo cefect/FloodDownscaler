@@ -93,8 +93,7 @@ def ses(tmp_path, write, logger, test_name,
 #===============================================================================
 # test.pipeline----
 #===============================================================================
-
-
+ 
 @pytest.mark.parametrize('true_wd_fp, pred_wd_fp, sample_pts_fp', [
     td1_wd_fps,
     toy_wd_fps,
@@ -102,29 +101,34 @@ def ses(tmp_path, write, logger, test_name,
 def test_run_vali_pts(true_wd_fp, pred_wd_fp, sample_pts_fp, ses):
     ses.run_vali_pts(sample_pts_fp, true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp)
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('true_inun_fp, pred_inun_fp', [
     td1_inun1_fps,
-    td1_inun2_fps,
+    #td1_inun2_fps,
     toy_inun1_fps,
-    toy_inun2_fps
+    #toy_inun2_fps
     ]) 
 def test_run_vali_inun(true_inun_fp, pred_inun_fp, ses):
     ses.run_vali_inun(true_inun_fp=true_inun_fp, pred_inun_fp=pred_inun_fp)
     
-
-@pytest.mark.parametrize('wse_true_fp, pred_fp, sample_pts_fp, dem_fp, inun_true_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp'], td1['inun_vlay_fp']),
-    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
+@pytest.mark.dev
+@pytest.mark.parametrize('pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp', [
+    
+    (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
+     (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'], td1['dem1_rlay_fp']), 
+     (wse1_rlay3_fp, wse1_rlayV_fp, None, None, dem1_rlay_fp),   
+ 
+    (wse1_rlay3_fp, wse1_rlayV_fp, inun_poly_fp, None, dem1_rlay_fp),
     ]) 
-def test_run_vali(wse_true_fp, pred_fp, sample_pts_fp, dem_fp, inun_true_fp, ses):
-    ses.run_vali(wse_true_fp=wse_true_fp, inun_true_fp=inun_true_fp,
-                 pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
+def test_run_vali(pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp,
+                   ses):
+    ses.run_vali(pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp,
+                 true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
 
     
 
 @pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp, dem_fp', [
-    #(td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
+    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
     (inun_poly_fp, wse1_rlay3_fp, None, dem1_rlay_fp),
     ]) 
 def test_run_validator(true_fp, pred_fp, sample_pts_fp, dem_fp, tmp_path):
