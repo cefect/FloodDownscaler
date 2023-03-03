@@ -3,7 +3,7 @@ Created on Aug. 7, 2022
 
 @author: cefect
 '''
-import os, warnings
+import os, warnings, tempfile
 import numpy as np
  
 import numpy.ma as ma
@@ -1230,14 +1230,18 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-def get_depth(dem_fp, wse_fp, ofp=None):
+def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
     
     if ofp is None:
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        
         fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
-        ofp = os.path.join(os.path.dirname(wse_fp),fname)
+        ofp = os.path.join(out_dir,fname)
     
     #===========================================================================
     # load
@@ -1247,7 +1251,7 @@ def get_depth(dem_fp, wse_fp, ofp=None):
     wse_ar = load_array(wse_fp, masked=True)
     
     #logic checks
-    assert not dem_ar.mask.any()
+    assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
     assert wse_ar.mask.any()
     assert not wse_ar.mask.all()
     
