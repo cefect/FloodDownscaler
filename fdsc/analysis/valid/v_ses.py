@@ -6,13 +6,15 @@ Created on Mar. 3, 2023
 import logging, os, copy, datetime, pickle
 import numpy as np
 import shapely.geometry as sgeo
+import geopandas as gpd
+import rasterio as rio
 from hp.rio import (
     RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
     write_array2,get_write_kwargs, rlay_ar_apply, get_meta, get_ds_attr, write_clip
     )
 
 from hp.gpd import (
-    write_rasterize
+    write_rasterize, get_samples
     )
 
 from fdsc.base import (
@@ -94,7 +96,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
                            true_wd_fp=None,
                            pred_wd_fp=None,
                            **kwargs):
-        """validation on poitns pipeline"""
+        """comprae two depth rasters at points"""
         #=======================================================================
         # defaults
         #=======================================================================
@@ -124,6 +126,58 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         log.info('finished')
         return err_d, meta_d
+    
+    def run_vali_hwm(self, wd_fp, hwm_fp, wd_key=None,
+                     **kwargs):
+        """compare a depth raster against some point values"""
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('hwm', subdir=True, ext='.gpkg', **kwargs)
+        skwargs = dict(logger=log, out_dir=tmp_dir)
+        if wd_key is None: wd_key=self.wd_key
+        
+        #=======================================================================
+        # load points
+        #=======================================================================
+        rlay_stats_d = get_meta(wd_fp)
+        
+        gdf = self._get_gdf(hwm_fp, stats_d=rlay_stats_d)
+        
+        assert wd_key in gdf
+        
+        log.info(f'loaded {len(gdf)} HWMs from \n    {hwm_fp}') 
+        
+        #=======================================================================
+        # get values from raster
+        #=======================================================================
+        log.info(f'sampling {os.path.basename(wd_fp)} on points')
+        with rio.open(wd_fp, mode='r') as ds:
+            gdf = gdf.join(
+                get_samples(gdf.geometry, ds, colName='pred').drop('geometry', axis=1)
+                ).drop('geometry', axis=1).set_geometry(gdf.geometry).rename(columns={wd_key:'true'})
+                
+        
+        # write
+        meta_d = {'hwm_pts_fp':hwm_fp, 'cnt':len(gdf), 'wd_fp':wd_fp}
+ 
+        gdf.to_file(ofp, crs=self.crs)
+        meta_d['samples_fp'] = ofp
+        log.info(f'wrote {len(gdf)} to \n    {ofp}')
+        
+        #=======================================================================
+        # #calc errors
+        #=======================================================================
+        err_d = self.get_samp_errs(gdf, **skwargs)
+        # meta
+        meta_d.update(err_d)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info('finished')
+        return err_d, meta_d
+        
 
     def run_vali(self,
                  pred_wse_fp=None, 

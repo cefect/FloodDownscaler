@@ -100,6 +100,14 @@ def ses(tmp_path, write, logger, test_name,
     ]) 
 def test_run_vali_pts(true_wd_fp, pred_wd_fp, sample_pts_fp, ses):
     ses.run_vali_pts(sample_pts_fp, true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp)
+
+
+@pytest.mark.dev
+@pytest.mark.parametrize('pred_wd_fp, hwm_pts_fp', [
+    (td1_wd1_rlay3_fp, td1['hwm_pts_fp'])
+    ]) 
+def test_run_vali_hwm(pred_wd_fp, hwm_pts_fp, ses):
+    ses.run_vali_hwm(pred_wd_fp, hwm_pts_fp)
     
 
 @pytest.mark.parametrize('true_inun_fp, pred_inun_fp', [
@@ -111,7 +119,7 @@ def test_run_vali_pts(true_wd_fp, pred_wd_fp, sample_pts_fp, ses):
 def test_run_vali_inun(true_inun_fp, pred_inun_fp, ses):
     ses.run_vali_inun(true_inun_fp=true_inun_fp, pred_inun_fp=pred_inun_fp)
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp', [
     
     (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),

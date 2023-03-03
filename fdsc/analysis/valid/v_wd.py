@@ -47,7 +47,7 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
  
                  sample_pts_fp=None,
  
-                 index_coln='id',
+                 index_coln='id',wd_key='water_depth',
                  logger=None,
 
                  **kwargs):
@@ -80,16 +80,18 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
             rlay_ar_apply(pred_wd_fp, assert_wd_ar)
             
             self.pred_wd_fp=pred_wd_fp
-                
+            
+        
+        self.wd_key=wd_key
+        self.index_coln = index_coln
         #=======================================================================
         # load 
         #=======================================================================
-        # depth rasters
-        
-        self.index_coln = index_coln
  
         if not sample_pts_fp is None:
             self._load_pts(sample_pts_fp, index_coln=index_coln)
+            
+        
             
     def _load_stats(self, fp=None):
         """set session stats from a raster
@@ -103,27 +105,39 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
             assert_rlay_simple(ds)
             self.stats_d = get_stats(ds) 
  
-    def _load_pts(self, fp, index_coln=None, bbox=None):
-        """load sample points"""
-        if index_coln is None: index_coln = self.index_coln
+
+    def _get_gdf(self, fp, index_coln=None, bbox=None, stats_d=None):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
         assert os.path.exists(fp)
         
-        # load raster stats
-        if self.stats_d is None:
-            self._load_stats()
+        if index_coln is None: index_coln = self.index_coln
         
-        # get bounding box from rasters
+        if stats_d is None:
+            if self.stats_d is None: self._load_stats()
+            stats_d = self.stats_d.copy()
+        
+    # get bounding box from rasters
         if bbox is None:
-            bbox = self.stats_d['bounds']
-        
+            bbox = stats_d['bounds']
+            
+        #=======================================================================
+        # load
+        #=======================================================================
         gdf = gpd.read_file(fp, bbox=bbox)
-        
         # check
-        assert gdf.crs == self.stats_d['crs'], f'crs mismatch between points {gdf.crs} and raster %s'%self.stats_d['crs']
+        assert gdf.crs == stats_d['crs'], f'crs mismatch between points {gdf.crs} and raster %s' % stats_d['crs']
         assert (gdf.geometry.geom_type == 'Point').all()
-        
         # clean
-        self.pts_gser = gdf.set_index(index_coln).geometry
+        return gdf.set_index(index_coln)
+
+    def _load_pts(self, fp, **kwargs):
+        """load sample points"""
+ 
+        
+        self.pts_gser = self._get_gdf(fp, **kwargs).geometry
         self.sample_pts_fp = fp
         
     def get_samples(self,

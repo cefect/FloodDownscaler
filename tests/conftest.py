@@ -78,6 +78,7 @@ proj_lib['fred01'] = {
     'sample_pts_fp':os.path.join(src_dir, r'tests/data/fred01/vali/sample_pts_0109.geojson'),
     'samp_gdf_fp':os.path.join(src_dir, r'tests/data/fred01/vali/samps_gdf_0109.pkl'),
     'inun_vlay_fp':os.path.join(src_dir, r'tests/data/fred01/vali/inun_vali1.geojson'),
+    'hwm_pts_fp':os.path.join(src_dir, r'tests/data/fred01/vali/hwm_pts_0303.geojson'),
     
     # post data
     'valiM_fp_d':{
