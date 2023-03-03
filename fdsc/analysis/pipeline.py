@@ -416,7 +416,7 @@ def run_pipeline_multi(
     if validate_hyd:        
         
         #extract kwargs of interest
-        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp']}
+        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp']}
         
         #=======================================================================
         # run on each hydro result

@@ -303,15 +303,12 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # WD samples between grids----
         #======================================================================= 
-        if not sample_pts_fp is None:          
+        if (not sample_pts_fp is None) and (not true_wse_fp is None):          
             log.info(f'computing WD performance at points: \n    {sample_pts_fp}')
  
             #===================================================================
             # #build depths arrays
-            #===================================================================
-            #true
-            assert not true_wse_fp is None
-                        
+            #===================================================================                        
             true_wd_fp = get_depth(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
             rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
             self.true_wd_fp=true_wd_fp
