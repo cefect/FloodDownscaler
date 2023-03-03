@@ -67,20 +67,20 @@ def ses(tmp_path,write,logger, test_name,
  
         yield ses
     
-#===============================================================================
-# tests--------
-#===============================================================================
-
-
-
-    
-    
-
+ 
     
 #===============================================================================
 # test.pipeline----
 #===============================================================================
 
+@pytest.mark.dev
+@pytest.mark.parametrize('true_wd_fp, pred_wd_fp, sample_pts_fp', [
+    (*td1_fps, td1['sample_pts_fp']),
+    (*toy_fps, None),
+    ]) 
+def test_run_vali_pts(true_fp, pred_fp, sample_pts_fp, ses):
+    ses.run_vali_pts(sample_pts_fp, true_fp=true_fp, pred_fp=pred_fp)
+    
 
 @pytest.mark.parametrize('wse_true_fp, pred_fp, sample_pts_fp, dem_fp, inun_true_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp'], td1['inun_vlay_fp']),

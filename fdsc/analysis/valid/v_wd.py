@@ -15,6 +15,7 @@ import geopandas as gpd
 import pandas as pd
 import rasterio as rio
 
+from hp.logr import get_new_console_logger
 from hp.rio import (
     RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
     write_array2,get_write_kwargs, rlay_ar_apply
@@ -47,6 +48,7 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
                  sample_pts_fp=None,
  
                  index_coln='id',
+                 logger=None,
 
                  **kwargs):
         """
@@ -60,43 +62,44 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
         #=======================================================================
         # pre init
         #=======================================================================
+        if logger is None:
+            logger = get_new_console_logger(level=logging.DEBUG)
         
-        super().__init__(**kwargs)
+        super().__init__(logger=logger, **kwargs)
         
         #=======================================================================
         # attach
         #=======================================================================
-        #depth rasters
+        # depth rasters
         if not true_wd_fp is None:
             rlay_ar_apply(true_wd_fp, assert_wd_ar)
+            
+            self.true_wd_fp=true_wd_fp
             
         if not pred_wd_fp is None:
             rlay_ar_apply(pred_wd_fp, assert_wd_ar)
             
+            self.pred_wd_fp=pred_wd_fp
                 
         #=======================================================================
         # load 
         #=======================================================================
-        #depth rasters
-        
+        # depth rasters
         
         self.index_coln = index_coln
  
         if not sample_pts_fp is None:
             self._load_pts(sample_pts_fp, index_coln=index_coln)
             
-     
-            
     def _load_stats(self, fp=None):
         """set session stats from a raster
         
         mostly used by tests where we dont load the raster during init"""
-        
- 
             
         assert not fp is None
         
         with rio.open(fp, mode='r') as ds:
+            rlay_ar_apply(ds, assert_wd_ar)
             assert_rlay_simple(ds)
             self.stats_d = get_stats(ds) 
  
@@ -116,7 +119,7 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
         gdf = gpd.read_file(fp, bbox=bbox)
         
         # check
-        assert gdf.crs == self.stats_d['crs']
+        assert gdf.crs == self.stats_d['crs'], f'crs mismatch between points {gdf.crs} and raster %s'%self.stats_d['crs']
         assert (gdf.geometry.geom_type == 'Point').all()
         
         # clean
@@ -124,8 +127,8 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
         self.sample_pts_fp = fp
         
     def get_samples(self,
-                           true_fp=None,
-                           pred_fp=None,
+                           true_wd_fp=None,
+                           pred_wd_fp=None,
                            sample_pts_fp=None,
                            gser=None,
                            **kwargs):
@@ -135,14 +138,14 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', **kwargs)
         
-        if true_fp is None:
-            true_fp = self.true_inun_fp
-        if pred_fp is None:
-            pred_fp = self.pred_fp
+        if true_wd_fp is None:
+            true_wd_fp = self.true_wd_fp
+        if pred_wd_fp is None:
+            pred_wd_fp = self.pred_wd_fp
             
         if not sample_pts_fp is None:
             assert gser is None
-            self._load_stats(true_fp)
+            self._load_stats(true_wd_fp)
             self._load_pts(sample_pts_fp)
             
         if gser is None:
@@ -153,7 +156,7 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
         #=======================================================================
         log.info(f'sampling {len(gser)} pts on 2 rasters')
         d = dict()
-        for k, fp in {'true':true_fp, 'pred':pred_fp}.items():
+        for k, fp in {'true':true_wd_fp, 'pred':pred_wd_fp}.items():
             log.info(f'sampling {k}')
             with rio.open(fp, mode='r') as ds:
                 d[k] = get_samples(gser, ds, colName=k).drop('geometry', axis=1)

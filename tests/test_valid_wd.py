@@ -27,42 +27,58 @@ from fdsc.analysis.valid.v_wd import ValidatePoints
 #===============================================================================
 # test data-------
 #===============================================================================
-from tests.data.toy import wse1_arV, wse1_ar3, dem1_ar
- 
 
+ 
+#===============================================================================
+# fred data
+#===============================================================================
 td1 = proj_lib['fred01']
+
+#convert  Fred WSE to depths
+f = lambda wse_fp:get_depth(td1['dem1_rlay_fp'], wse_fp)
+td1_wd1_rlayV_fp = f(td1['wse1_rlayV_fp'])
+td1_wd1_rlay3_fp = f(td1['wse1_rlay3_fp'])
+
+td1_fps = (td1_wd1_rlayV_fp, td1_wd1_rlay3_fp)
+#===============================================================================
+# toy data
+#===============================================================================
+from tests.data.toy import wse1_arV, wse1_ar3, dem1_ar
 
 wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
 wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
-dem1_rlay_fp = get_rlay_fp(wse1_arV, 'dem1')
+dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1')
 
-inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
+#convert to depths
+f = lambda wse_fp:get_depth(dem1_rlay_fp, wse_fp)
 
+toy_wd1_rlay3_fp = f(wse1_rlay3_fp)
+toy_wd1_rlayV_fp = f(wse1_rlayV_fp)
+
+toy_fps = toy_wd1_rlayV_fp, toy_wd1_rlay3_fp
 
 #===============================================================================
 # fixtures------------
 #===============================================================================
 @pytest.fixture(scope='function')
-def wrkr(logger, tmp_path):
-    with ValidatePoints(logger=logger, 
+def wrkr(logger, tmp_path, test_name):
+    with ValidatePoints(
+                 out_dir=tmp_path, 
+                 tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
+                  proj_name='test', #probably a better way to propagate through this key 
+                 run_name=test_name[:8].replace('_',''), fancy_name='fancy_name',
                  ) as ses:
         yield ses
 
 #===============================================================================
 # tests.points--------
 #===============================================================================
-#convert  Fred WSE to depths
-f1 = lambda x:get_depth(td1['dem1_rlay_fp'], x)
-td1_wd_tp_fps = (f1(td1['wse1_rlayV_fp']), f1(td1['wse1_rlay3_fp']))
-                
-                 
-                 
  
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('true_wd_fp, pred_wd_fp', [
-    td1_wd_tp_fps,
-    (wse1_rlayV_fp, wse1_rlay3_fp), 
+    td1_fps,
+    toy_fps, 
     ]) 
 def test_ValidatePoints_init(true_wd_fp, pred_wd_fp,
                          logger):
@@ -73,13 +89,12 @@ def test_ValidatePoints_init(true_wd_fp, pred_wd_fp,
     
     
 
-@pytest.mark.parametrize('true_fp, pred_inun_fp, sample_pts_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
+@pytest.mark.parametrize('true_wd_fp, pred_wd_fp, sample_pts_fp', [
+    (*td1_fps, td1['sample_pts_fp']), 
+    ])
+def test_get_samples(true_wd_fp, pred_wd_fp, sample_pts_fp, wrkr):
  
-    ]) 
-def test_get_samples(true_fp, pred_inun_fp, sample_pts_fp, ses):
-    """TODO: use depth inputs"""
-    gdf = ses.get_samples(true_fp=true_fp, pred_inun_fp=pred_inun_fp, sample_pts_fp=sample_pts_fp)
+    gdf = wrkr.get_samples(true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp, sample_pts_fp=sample_pts_fp)
     
     #gdf.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\vali\samps_gdf_0109.pkl')
 
@@ -88,17 +103,10 @@ def test_get_samples(true_fp, pred_inun_fp, sample_pts_fp, ses):
 @pytest.mark.parametrize('samp_gdf_fp', [
     td1['samp_gdf_fp']
     ]) 
-def test_get_samp_errs(samp_gdf_fp, ses):
+def test_get_samp_errs(samp_gdf_fp, wrkr):
     
     gdf = pd.read_pickle(samp_gdf_fp)
     
-    ses.get_samp_errs(gdf)
+    wrkr.get_samp_errs(gdf)
     
 
-
-@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
-    (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
-    #(wse1_rlayV_fp, wse1_rlay3_fp, None),
-    ]) 
-def test_run_vali_pts(true_fp, pred_fp, sample_pts_fp, ses):
-    ses.run_vali_pts(sample_pts_fp, true_fp=true_fp, pred_fp=pred_fp)
