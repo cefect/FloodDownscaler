@@ -24,6 +24,8 @@ from tests.conftest import (
 # test data-------
 #===============================================================================
 from tests.data.toy import wse1_arV, wse1_ar3, dem1_ar
+ 
+
 td1 = proj_lib['fred01']
 
 wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
@@ -73,52 +75,58 @@ def ses(tmp_path,write,logger, test_name,
 # tests--------
 #===============================================================================
 
-@pytest.mark.dev
-@pytest.mark.parametrize('true_mask_fp, pred_mask_fp', [
+
+@pytest.mark.parametrize('true_inun_fp, pred_inun_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),
+    (inun_poly_fp, wse1_rlay3_fp),
     ]) 
-def test_valid_wrkr_init(true_mask_fp, pred_mask_fp,
+def test_valid_wrkr_init(true_inun_fp, pred_inun_fp,
                          logger):
     """just the validation worker init"""
     
-    with ValidateMask(true_mask_fp, pred_mask_fp,  logger=logger) as wrkr:
+    with ValidateMask(true_inun_fp, pred_inun_fp,  logger=logger) as wrkr:
         pass
     
     
 #===============================================================================
 # tests.inundation ----------
 #===============================================================================
-@pytest.mark.parametrize('true_ar, pred_ar',[
-    (wse1_arV, wse1_ar3),
+toy_tp_mars = (~wse1_arV.mask, ~wse1_ar3.mask) #shortchutting
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
     ])
-def test_hitRate(true_ar, pred_ar, wrkr):
-    hitRate = wrkr.get_hitRate(true_ar=true_ar, pred_ar=pred_ar)
+def test_confusion_ser(true_mar, pred_mar, wrkr):
+    wrkr._confusion(true_mar=true_mar, pred_mar=pred_mar)
+    
+
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
+    ])
+def test_hitRate(true_mar, pred_mar, wrkr):
+    hitRate = wrkr.get_hitRate(true_mar=true_mar, pred_mar=pred_mar)
     
     #===========================================================================
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+    m1b1 = np.logical_and(pred_mar, true_mar)
+    m0b1 = np.logical_and(np.invert(pred_mar), true_mar)
     
-    m1b1 = np.logical_and(pred_arB, true_arB)
-    m0b1 = np.logical_and(np.invert(pred_arB), true_arB)
-    
-    assert hitRate == m1b1.sum()/(m1b1.sum()+m0b1.sum())
-        
+    assert hitRate == m1b1.sum() / (m1b1.sum() + m0b1.sum())
     
  
-@pytest.mark.parametrize('true_ar, pred_ar',[
-    (wse1_arV, wse1_ar3),
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
     ])
-def test_falseAlarm(true_ar, pred_ar, wrkr):
-    falseAlarm = wrkr.get_falseAlarms(true_ar=true_ar, pred_ar=pred_ar)
+def test_falseAlarm(true_mar, pred_mar, wrkr):
+    falseAlarm = wrkr.get_falseAlarms(true_mar=true_mar, pred_mar=pred_mar)
     
     #===========================================================================
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+    true_arB, pred_arB =true_mar, pred_mar
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m1b1 = np.logical_and(pred_arB, true_arB)
@@ -127,17 +135,17 @@ def test_falseAlarm(true_ar, pred_ar, wrkr):
     assert falseAlarm == m1b0.sum()/(m1b1.sum()+m1b0.sum())
     
 
-@pytest.mark.parametrize('true_ar, pred_ar',[
-    (wse1_arV, wse1_ar3),
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
     ])
-def test_criticalSuccessIndex(true_ar, pred_ar, wrkr):
-    csi = wrkr.get_criticalSuccessIndex(true_ar=true_ar, pred_ar=pred_ar)
+def test_criticalSuccessIndex(true_mar, pred_mar, wrkr):
+    csi = wrkr.get_criticalSuccessIndex(true_mar=true_mar, pred_mar=pred_mar)
     
     #===========================================================================
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+    true_arB, pred_arB =true_mar, pred_mar
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m0b1 = np.logical_and(np.invert(pred_arB), true_arB)
@@ -147,17 +155,17 @@ def test_criticalSuccessIndex(true_ar, pred_ar, wrkr):
     assert csi == m1b1.sum()/(m1b1.sum()+m1b0.sum()+m0b1.sum())
 
  
-@pytest.mark.parametrize('true_ar, pred_ar',[
-    (wse1_arV, wse1_ar3),
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
     ])
-def test_errorBias(true_ar, pred_ar, wrkr):
-    errorBias = wrkr.get_errorBias(true_ar=true_ar, pred_ar=pred_ar)
+def test_errorBias(true_mar, pred_mar, wrkr):
+    errorBias = wrkr.get_errorBias(true_mar=true_mar, pred_mar=pred_mar)
     
     #===========================================================================
     # #check
     #===========================================================================
     
-    true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+    true_arB, pred_arB =true_mar, pred_mar
     
     m1b0 = np.logical_and(pred_arB, np.invert(true_arB))
     m0b1 = np.logical_and(np.invert(pred_arB), true_arB)
@@ -166,25 +174,25 @@ def test_errorBias(true_ar, pred_ar, wrkr):
     assert errorBias == m1b0.sum()/m0b1.sum()
     
 
-@pytest.mark.parametrize('true_ar, pred_ar',[
-    (wse1_arV, wse1_ar3),
+@pytest.mark.parametrize('true_mar, pred_mar',[
+    toy_tp_mars,
     ])
-def test_inundation_all(true_ar, pred_ar, wrkr):
-    res_d = wrkr.get_inundation_all(true_ar=true_ar, pred_ar=pred_ar)
+def test_inundation_all(true_mar, pred_mar, wrkr):
+    res_d = wrkr.get_inundation_all(true_mar=true_mar, pred_mar=pred_mar)
     
     res_d.keys()
     
   
  
-@pytest.mark.parametrize('true_fp, pred_fp', [
+@pytest.mark.parametrize('true_inun_fp, pred_inun_fp', [
     #(td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp']),
     (wse1_rlayV_fp, wse1_rlay3_fp),
     
     ]) 
-def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
+def test_get_confusion_grid(true_inun_fp, pred_inun_fp, logger, tmp_path):
     """just the validation worker init"""
     
-    with ValidateSession(true_fp=true_fp, pred_fp=pred_fp, 
+    with ValidateSession(true_inun_fp=true_inun_fp, pred_inun_fp=pred_inun_fp, 
                         logger=logger,out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
                         fancy_name='test',
                  ) as wrkr:
@@ -194,14 +202,14 @@ def test_get_confusion_grid(true_fp, pred_fp, logger, tmp_path):
 #===============================================================================
 # tests.points--------
 #===============================================================================
- 
-@pytest.mark.parametrize('true_fp, pred_fp, sample_pts_fp', [
+@pytest.mark.dev
+@pytest.mark.parametrize('true_fp, pred_inun_fp, sample_pts_fp', [
     (td1['wse1_rlayV_fp'], td1['wse1_rlay3_fp'], td1['sample_pts_fp']),
  
     ]) 
-def test_get_samples(true_fp, pred_fp, sample_pts_fp, ses):
+def test_get_samples(true_fp, pred_inun_fp, sample_pts_fp, ses):
     """TODO: use depth inputs"""
-    gdf = ses.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp)
+    gdf = ses.get_samples(true_fp=true_fp, pred_inun_fp=pred_inun_fp, sample_pts_fp=sample_pts_fp)
     
     #gdf.to_pickle(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\tests\data\fred01\vali\samps_gdf_0109.pkl')
 

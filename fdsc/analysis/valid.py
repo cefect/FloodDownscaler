@@ -22,7 +22,7 @@ from hp.rio import (
 from hp.riom import write_array_mask
 
 from hp.gpd import (
-    get_samples, GeoPandasWrkr,
+    get_samples, GeoPandasWrkr,write_rasterize
     )
 from hp.logr import get_new_console_logger
 from hp.err_calc import ErrorCalcs, get_confusion_cat
@@ -39,18 +39,31 @@ class ValidateMask(RioWrkr):
     confusion_ser = None
     confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
     
-    pred_mask_fp = None
-    true_mask_fp = None
+    pred_inun_fp = None
+    true_inun_fp = None
     
  
     
     def __init__(self,
-                 true_mask_fp=None,
-                 pred_mask_fp=None,
+                 true_inun_fp=None,
+                 pred_inun_fp=None,
  
                  logger=None,
                  **kwargs):
+        """
         
+        Pars
+        ------------
+ 
+            
+        true_inun_fp: str
+            filepath to inundation (rlay or poly) to compare extents against
+            
+        pred_inun_fp: str
+            filepath to predicted/modelled inundation (rlay) to evaluate
+        """
+        
+ 
         #=======================================================================
         # pre init
         #=======================================================================
@@ -64,14 +77,14 @@ class ValidateMask(RioWrkr):
         #=======================================================================
         """using ocnditional loading mostly for testing"""
         
-        if not pred_mask_fp is None: 
-            self._load_mask_pred(pred_mask_fp)
+        if not pred_inun_fp is None: 
+            self._load_mask_pred(pred_inun_fp)
         
-        if not true_mask_fp is None:
-            if not is_raster_file(true_mask_fp):
-                rlay_fp = self._rasterize_inundation(true_mask_fp)
+        if not true_inun_fp is None:
+            if not is_raster_file(true_inun_fp):
+                rlay_fp = write_rasterize(true_inun_fp, pred_inun_fp)
             else:
-                rlay_fp=true_mask_fp
+                rlay_fp=true_inun_fp
                 
             self._load_mask_true(rlay_fp) 
             
@@ -83,7 +96,7 @@ class ValidateMask(RioWrkr):
         """load the true mask"""
  
             
-        stats_d, self.true_ar = rlay_extract(rlay_fp)
+        stats_d, self.true_mar = get_rlay_mask(rlay_fp)
  
         self.logger.info('loaded true raster from file w/\n    %s' % stats_d)
         # set the session defaults from this
@@ -92,69 +105,24 @@ class ValidateMask(RioWrkr):
         self.stats_d = stats_d
         self._set_defaults(stats_d)
         
-        self.true_mask_fp = rlay_fp
+        self.true_inun_fp = rlay_fp
         
-        if not self.pred_mask_fp is None:
-            assert_spatial_equal(self.true_mask_fp, self.pred_mask_fp)
+        if not self.pred_inun_fp is None:
+            assert_spatial_equal(self.true_inun_fp, self.pred_inun_fp)
 
     def _load_mask_pred(self, pred_fp):
         """load the predicted mask"""
         self.pred_stats_d, self.pred_mar = get_rlay_mask(pred_fp)
  
         
-        self.pred_mask_fp = pred_fp
+        self.pred_inun_fp = pred_fp
         
-        if not self.true_mask_fp is None:
-            assert_spatial_equal(self.true_mask_fp, self.pred_mask_fp)
+        if not self.true_inun_fp is None:
+            assert_spatial_equal(self.true_inun_fp, self.pred_inun_fp)
             
         self.logger.info('loaded pred raster from file w/\n    %s' % self.pred_stats_d)
         
-    def _rasterize_inundation(self, poly_fp,
-                              out_shape=None,
-                              transform=None,
-                              dtype=None,nodata=None,
-                               **kwargs):
-        """convert polygonized inundation into a raster"""
-        
-        raise IOError('make this a standalone function that takes a reference raster')
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, _, resname = self._func_setup('rasterize', **kwargs)
-        ext = os.path.splitext(poly_fp)[1]
-        ofp = os.path.join(out_dir, os.path.basename(poly_fp).replace(ext, '.tif'))
-        
-        #copy spatial defaults from the predicted array
-        if out_shape is None:
-            out_shape=self.pred_mar.shape
-        
-        if transform is None:
-            transform=self.pred_stats_d['transform']
-            
-        if dtype is None:
-            dtype = self.pred_mar.dtype
-            
-        if nodata is None:
-            nodata=self.pred_stats_d['nodata']
-            
  
- 
-        log.info(f'building raster from {poly_fp}')
-        
-        
-        assert not self.pred_stats_d is None, 'need to load a predicted array first'
-        gdf = gpd.read_file(poly_fp)
-        assert len(gdf)==1
-        
-        #get an array from this
-        ar = rasterio.features.rasterize(gdf.geometry,all_touched=False,
-                                         fill=nodata,
-                                         out_shape=out_shape,transform=transform,  dtype=dtype,
-                                         )
-        mar = ma.array(ar, mask=ar==nodata, fill_value=nodata)
-        #write to raster
-        return write_array2(mar, ofp,  **get_write_kwargs(self.pred_fp))
-            
  
     
     #===========================================================================
@@ -224,12 +192,11 @@ class ValidateMask(RioWrkr):
         confusion_codes: dict
             integer codes for confusion labels
         """
-        log, true_ar, pred_ar = self._func_setup_local('confuGrid', **kwargs)
+        #(true=wet=nonnull)
+        log, true_arB, pred_arB = self._func_setup_local('confuGrid', **kwargs)
         
         if confusion_codes is None: confusion_codes = self.confusion_codes
-        
-        # convert to boolean (true=wet=nonnull)
-        true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
+ 
         
         res_ar = get_confusion_cat(true_arB, pred_arB, confusion_codes=confusion_codes)
         
@@ -237,7 +204,8 @@ class ValidateMask(RioWrkr):
         # check
         #=======================================================================
         if __debug__:
-            cf_ser = self._confusion(true_ar=true_ar, pred_ar=pred_ar, **kwargs)
+            """compare against our aspatial confusion generator"""
+            cf_ser = self._confusion(true_mar=true_arB, pred_mar=pred_arB, **kwargs)
             
             # build a frame with the codes
             df1 = pd.Series(res_ar.ravel(), name='grid_counts').value_counts().to_frame().reset_index()            
@@ -263,29 +231,26 @@ class ValidateMask(RioWrkr):
     def _confusion(self, **kwargs):
         """retrieve or construct the wet/dry confusion series"""
         if self.confusion_ser is None:
-            log, true_ar, pred_ar = self._func_setup_local('hitRate', **kwargs)
+            log, true_mar, pred_mar = self._func_setup_local('hitRate', **kwargs)
             
-            # convert to boolean (true=wet=nonnull)
-            true_arB, pred_arB = np.invert(true_ar.mask), np.invert(pred_ar.mask)
-            
-            assert_partial_wet(true_arB)
-            assert_partial_wet(pred_arB)
-  
+ 
             # fancy labelling
-            self.confusion_ser = pd.Series(confusion_matrix(true_arB.ravel(), pred_arB.ravel(),
+            cser = pd.Series(confusion_matrix(true_mar.ravel(), pred_mar.ravel(),
                                                             labels=[False, True]).ravel(),
                       index=['TN', 'FP', 'FN', 'TP'])
             
-            assert self.confusion_ser.notna().all(), self.confusion_ser
+            assert cser.notna().all(), cser
             
             log.info('generated wet-dry confusion matrix on %s\n    %s' % (
-                str(true_ar.shape), self.confusion_ser.to_dict()))
+                str(true_mar.shape), cser.to_dict()))
+            
+            self.confusion_ser = cser.copy()
             
         return self.confusion_ser.copy()
 
     def _func_setup_local(self, dkey,
                     logger=None,
-                    true_ar=None, pred_ar=None,
+                    true_mar=None, pred_mar=None,
                     ):
         """common function default setup"""
  
@@ -293,10 +258,14 @@ class ValidateMask(RioWrkr):
             logger = self.logger
         log = logger.getChild(dkey)
         
-        if true_ar is None: true_ar = self.true_ar
-        if pred_ar is None: pred_ar = self.pred_mar
+        if true_mar is None: true_mar = self.true_mar
+        if pred_mar is None: pred_mar = self.pred_mar
+        
+        #(true=wet=nonnull)
+        assert_partial_wet(true_mar, msg='true mask')
+        assert_partial_wet(pred_mar, msg='pred mask')
             
-        return log, true_ar, pred_ar
+        return log, true_mar, pred_mar
     
 
 class ValidatePoints(ValidateMask, GeoPandasWrkr):
@@ -380,7 +349,7 @@ class ValidatePoints(ValidateMask, GeoPandasWrkr):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('samps', **kwargs)
         
         if true_fp is None:
-            true_fp = self.true_mask_fp
+            true_fp = self.true_inun_fp
         if pred_fp is None:
             pred_fp = self.pred_fp
             
@@ -498,11 +467,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         
         Parameters
         -----------
-        wse_true_fp: str
-            filepath to WSE rlay to compare values against
-            
-        inun_true_fp: str
-            filepath to inundation (rlay or poly) to compare extents against
+
         
         sample_pts_fp: str, optional
             filepath to points vector layer for sample-based metrics
@@ -524,7 +489,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         if not wse_true_fp is None:
             self._load_mask_true(wse_true_fp) 
         else:
-            wse_true_fp = self.true_mask_fp
+            wse_true_fp = self.true_inun_fp
             
         if not pred_fp is None: 
             self._load_mask_pred(pred_fp)
@@ -604,7 +569,7 @@ class ValidateSession(ValidatePoints, RioSession, Master_Session):
         return metric_lib, meta_lib
 
 def get_rlay_mask(fp,
-                 window=None, masked=True, 
+                 window=None, masked=True, invert=True,
                  ):
     """load the mask from a raster and some stats"""
     
@@ -621,9 +586,14 @@ def get_rlay_mask(fp,
         stats_d['null_cnt'] = ar.mask.sum()
         
     #checks
-    assert_partial_wet(ar.mask)
+    if invert:
+        mar = np.invert(ar.mask)
+    else:
+        mar = ar.mask
+        
+    assert_partial_wet(mar)
     
-    return stats_d, ar.mask
+    return stats_d, mar
     
 def run_validator(true_fp, pred_fp,
         **kwargs):
