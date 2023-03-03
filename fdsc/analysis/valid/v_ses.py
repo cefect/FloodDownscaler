@@ -112,7 +112,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         # #write
         #=======================================================================
  
-        gdf.to_file(ofp, crs=self.crs)
+        confu_gdf.to_file(ofp, crs=self.crs)
  
         log.info(f'wrote {len(gdf)} to \n    {ofp}')
         
