@@ -223,16 +223,15 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         meta_lib = {'smry':{**{'today':self.today_str}, **self._get_init_pars()}}
         metric_lib = dict()
         skwargs = dict(logger=log, out_dir=out_dir)
-        
+        fp_d = dict(dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp, 
+                    true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, hwm_pts_fp=hwm_pts_fp) #for reporting
         #=======================================================================
         # common prep
         #=======================================================================
         #dem
         assert isinstance(dem_fp, str), type(dem_fp)
-        rlay_ar_apply(dem_fp, assert_dem_ar)
-        
-        
-        
+        rlay_ar_apply(dem_fp, assert_dem_ar)        
+ 
         #pred
         if pred_wse_fp is None:
             raise NotImplementedError('need to passe a wse')
@@ -268,6 +267,8 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             
             self.pred_wd_fp=pred_wd_fp
             
+            fp_d['pred_wd_fp'] = pred_wd_fp
+            
         
         #=======================================================================
         # WD samples between grids----
@@ -284,7 +285,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             true_wd_fp = get_depth(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
             rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
             self.true_wd_fp=true_wd_fp
- 
+            fp_d['true_wd_fp'] = true_wd_fp
             #===================================================================
             # run
             #===================================================================
@@ -312,6 +313,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             log.info('using \'true_wse_fp\' for inundation validation')
             true_inun_fp = clip_rlay(true_wse_fp)
             
+            
         #rasterize
         if not is_raster_file(true_inun_fp):
             log.info('rasterizing polygon')
@@ -320,23 +322,18 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         else:
             true_inun_rlay_fp = true_inun_fp
         
+        fp_d['true_inun_rlay_fp'] = true_inun_rlay_fp
  
         #=======================================================================
         # run
         #=======================================================================
         metric_lib['inun'], confuGrid_fp = self.run_vali_inun(true_inun_fp=true_inun_rlay_fp, pred_inun_fp=pred_wse_fp, **skwargs)        
 
-        
+        fp_d['confuGrid_fp'] = confuGrid_fp
         #=======================================================================
         # wrap-----
         #=======================================================================
-        meta_lib['fps'] = dict(
-            dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, 
-            true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, true_inun_rlay_fp=true_inun_rlay_fp,
-            sample_pts_fp=sample_pts_fp, confuGrid_fp=confuGrid_fp,
-            true_wd_fp=true_wd_fp,pred_wd_fp=pred_wd_fp,hwm_pts_fp=hwm_pts_fp,
-            )
-       
+        meta_lib['fps'] = fp_d
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)
         
