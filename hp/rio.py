@@ -677,54 +677,13 @@ class RioWrkr(Basic):
             return self.dataset_d[self.ref_name]
         else:
             return None
-        
-
  
-        
-class RioSession(RioWrkr):
-    aoi_fp=None
-    
-    def __init__(self, 
-                 #==============================================================
-                 # crs=CRS.from_user_input(25832),
-                 # bbox=
-                 #==============================================================
-                 crs=None, bbox=None, aoi_fp=None,
-                 
-                 #defaults
-                 
-                 
-                 **kwargs):
-        
-        """"
-        
-        Parameters
-        -----------
-        
-        bbox: shapely.polygon
-            bounds assumed to be on the same crs as the data
-            sgeo.box(0, 0, 100, 100),
-            
-        crs: <class 'pyproj.crs.crs.CRS'>
-            coordinate reference system
-        """
-        super().__init__(**kwargs)
-        
-        #=======================================================================
-        # set aoi
-        #=======================================================================
-        if not aoi_fp is None:            
-            assert crs is None
-            assert bbox is None
-            self._set_aoi(aoi_fp)
-            
-
     def __enter__(self):
         return self
     
     def __exit__(self,  *args,**kwargs):
         #print('RioWrkr.__exit__')
-        self._clear()
+        pass
         
 class RioSession(RioWrkr):
     aoi_fp=None
