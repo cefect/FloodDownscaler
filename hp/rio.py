@@ -1652,17 +1652,7 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
         
     return d
 
-def get_raster_extensions():
-    with rasterio.Env() as env:
-        extensions = []
-        for driver in env.drivers().values():
-            if 'extension' in driver:
-                ext = driver['extension']
-                if isinstance(ext, str):
-                    extensions.append(ext)
-                elif isinstance(ext, list):
-                    extensions.extend(ext)
-        return set(extensions)
+ 
 
 #===============================================================================
 # TESTS--------
@@ -1680,9 +1670,9 @@ def is_divisible(rlay, divisor):
     return True
 
 def is_raster_file(filepath):
- 
+    """probably some more sophisticated way to do this... but I always use tifs"""
     _, ext = os.path.splitext(filepath)
-    return ext.lower() in get_raster_extensions()
+    return ext in ['.tif']
 
 
 #===============================================================================
