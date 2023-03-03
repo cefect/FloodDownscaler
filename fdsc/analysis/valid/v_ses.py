@@ -38,6 +38,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
     def run_vali_inun(self,
                true_inun_fp=None,
                  pred_inun_fp=None,
+                 
                  **kwargs):
         
         """run inundation validation sequence"""
@@ -54,8 +55,6 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         if not true_inun_fp is None:
             self._load_mask_true(true_inun_fp) 
- 
- 
             
         if not pred_inun_fp is None: 
             self._load_mask_pred(pred_inun_fp)
@@ -81,6 +80,9 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         
         confuGrid_fp = self.write_array(confusion_grid_ar, out_dir=out_dir,resname=self._get_resname(dkey='confuGrid'))
         
+ 
+            
+            
         #=======================================================================
         # wrap
         #=======================================================================
@@ -88,6 +90,33 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         log.info(f'finished w/ \n    {inun_metrics}')
         
         return inun_metrics, confuGrid_fp
+    
+    def run_vali_confuSamps(self,
+                            confuGrid_fp, sample_pts_fp,
+                            **kwargs):
+        """sample confusion grid with points"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('confuS', subdir=True, ext='.gpkg', **kwargs)
+        
+        log.info(f'computing inundation metrics on samples from {os.path.basename(sample_pts_fp)}')
+        
+        #load points
+        gdf = self._get_gdf(sample_pts_fp, stats_d=get_meta(confuGrid_fp))
+        
+        
+        # get values from raster 
+        log.info(f'sampling {os.path.basename(confuGrid_fp)} on points')
+        with rio.open(confuGrid_fp, mode='r') as ds:
+            confu_gdf = get_samples(gdf.geometry, ds, colName='confusion')
+            
+        #=======================================================================
+        # #write
+        #=======================================================================
+ 
+        gdf.to_file(ofp, crs=self.crs)
+ 
+        log.info(f'wrote {len(gdf)} to \n    {ofp}')
+        
+        return ofp
         
  
  
@@ -318,8 +347,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             log.info('using \'true_wse_fp\' for inundation validation')
             true_inun_fp = clip_rlay(true_wse_fp)
             
-            
-        #rasterize
+        # rasterize
         if not is_raster_file(true_inun_fp):
             log.info('rasterizing polygon')
             true_inun_rlay_fp = write_rasterize(true_inun_fp, pred_wse_fp)
@@ -335,6 +363,12 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         metric_lib['inun'], confuGrid_fp = self.run_vali_inun(true_inun_fp=true_inun_rlay_fp, pred_inun_fp=pred_wse_fp, **skwargs)        
         meta_lib['inun_metrics'] = metric_lib['inun']
         fp_d['confuGrid_fp'] = confuGrid_fp
+        
+        #=======================================================================
+        # sample with points
+        #=======================================================================
+        if not sample_pts_fp is None:
+            fp_d['confuSamps_fp'] = self.run_vali_confuSamps(confuGrid_fp, sample_pts_fp, **skwargs)
         #=======================================================================
         # wrap-----
         #=======================================================================
