@@ -59,6 +59,7 @@ def ahr_aoi08_r32_0303_30(**kwargs):
             true_wse_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif',
             true_inun_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\inun\inun_anschlaglinie_HW_7_21_220223_aoi09_0303.geojson',
             sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+            hwm_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\hwm\NWR_ahr11_hwm_20220113b_fix_aoi09.geojson',
             ),        
         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
