@@ -263,7 +263,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         if (sample_pts_fp!=None) or (hwm_pts_fp!=None):
             #predicted
-            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=tmp_dir)
+            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=out_dir)
             rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
             
             self.pred_wd_fp=pred_wd_fp
@@ -333,7 +333,9 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         meta_lib['fps'] = dict(
             dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, 
             true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, true_inun_rlay_fp=true_inun_rlay_fp,
-            sample_pts_fp=sample_pts_fp, confuGrid_fp=confuGrid_fp)
+            sample_pts_fp=sample_pts_fp, confuGrid_fp=confuGrid_fp,
+            true_wd_fp=true_wd_fp,pred_wd_fp=pred_wd_fp,hwm_pts_fp=hwm_pts_fp,
+            )
        
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)
