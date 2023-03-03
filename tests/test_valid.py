@@ -102,7 +102,7 @@ def test_run_vali_pts(true_wd_fp, pred_wd_fp, sample_pts_fp, ses):
     ses.run_vali_pts(sample_pts_fp, true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp)
 
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('pred_wd_fp, hwm_pts_fp', [
     (td1_wd1_rlay3_fp, td1['hwm_pts_fp'])
     ]) 
@@ -120,18 +120,18 @@ def test_run_vali_inun(true_inun_fp, pred_inun_fp, ses):
     ses.run_vali_inun(true_inun_fp=true_inun_fp, pred_inun_fp=pred_inun_fp)
     
 
-@pytest.mark.parametrize('pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp', [
-    
-    (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp']),
-     (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'], td1['dem1_rlay_fp']), 
-     (wse1_rlay3_fp, wse1_rlayV_fp, None, None, dem1_rlay_fp),   
+@pytest.mark.dev
+@pytest.mark.parametrize('pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp, hwm_pts_fp', [    
+    (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['dem1_rlay_fp'], td1['hwm_pts_fp']),
+     (td1['wse1_rlay3_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'], td1['dem1_rlay_fp'], td1['hwm_pts_fp']), 
+     (wse1_rlay3_fp, wse1_rlayV_fp, None, None, dem1_rlay_fp, None),   
  
-    (wse1_rlay3_fp, wse1_rlayV_fp, inun_poly_fp, None, dem1_rlay_fp),
+    (wse1_rlay3_fp, wse1_rlayV_fp, inun_poly_fp, None, dem1_rlay_fp, None),
     ]) 
-def test_run_vali(pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp,
+def test_run_vali(pred_wse_fp, true_wse_fp, true_inun_fp, sample_pts_fp, dem_fp,hwm_pts_fp,
                    ses):
     ses.run_vali(pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp,
-                 true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp)
+                 true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, dem_fp=dem_fp, hwm_pts_fp=hwm_pts_fp)
 
  
     

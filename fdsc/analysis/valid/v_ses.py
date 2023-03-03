@@ -183,7 +183,8 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
                  pred_wse_fp=None, 
                  true_wse_fp=None,
                  true_inun_fp=None,
-                 sample_pts_fp=None, 
+                 sample_pts_fp=None,
+                 hwm_pts_fp=None,
                  dem_fp=None,
                  write_meta=True,
                  **kwargs):
@@ -256,9 +257,20 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
                                   bbox=sgeo.box(*pd['bounds']), crs=pd['crs'])
                 
                 return ofp
+            
+        #=======================================================================
+        # get depths
+        #=======================================================================
+        if (sample_pts_fp!=None) or (hwm_pts_fp!=None):
+            #predicted
+            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=tmp_dir)
+            rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
+            
+            self.pred_wd_fp=pred_wd_fp
+            
         
         #=======================================================================
-        # water depths----
+        # WD samples between grids----
         #======================================================================= 
         if not sample_pts_fp is None:          
             log.info(f'computing WD performance at points: \n    {sample_pts_fp}')
@@ -272,13 +284,6 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             true_wd_fp = get_depth(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
             rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
             self.true_wd_fp=true_wd_fp
-            
-            #predicted
-            pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=tmp_dir)
-            rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
-            
-            self.pred_wd_fp=pred_wd_fp
-        
  
             #===================================================================
             # run
@@ -286,10 +291,18 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             metric_lib['pts'], meta_lib['pts'] = self.run_vali_pts(sample_pts_fp,
                                         true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp, 
                                         **skwargs)
+            
+        #=======================================================================
+        # HWMs--------
+        #=======================================================================
+        if not hwm_pts_fp is None:
+            log.info(f'computing performance against HWMs ({os.path.basename(hwm_pts_fp)})')
+            
+            metric_lib['hwm'], meta_lib['hwm'] = self.run_vali_hwm(pred_wd_fp, hwm_pts_fp, **skwargs)
  
         
         #=======================================================================
-        # inundatdion--------
+        # inundatdion extents--------
         #=======================================================================
  
         #=======================================================================
