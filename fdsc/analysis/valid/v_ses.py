@@ -26,13 +26,83 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         if run_name is None:
             run_name = 'vali_v1'
         super().__init__(run_name=run_name, **kwargs)
+        
+        
+    def run_vali_inun(self,
+               true_inun_fp=None,
+                 pred_inun_fp=None,
+                 **kwargs):
+        
+        """run inundation validation sequence"""
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('vInun', subdir=True, **kwargs)
+ 
+        skwargs = dict(logger=log)
+ 
+        #=======================================================================
+        # load
+        #=======================================================================
+        if not true_inun_fp is None:
+            self._load_mask_true(true_inun_fp) 
+ 
+        true_inun_fp = self.true_inun_fp
+            
+        if not pred_inun_fp is None: 
+            self._load_mask_pred(pred_inun_fp)
+ 
+        pred_inun_fp = self.pred_inun_fp            
+ 
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        true_mar, pred_mar = self.true_mar, self.pred_mar
+ 
+        
+        # data difference check
+        if (true_mar == pred_mar).all():
+            raise IOError('passed identical grids')
+ 
+        
+        #=======================================================================
+        # grid metrics
+        #=======================================================================        
+        shape, size = true_mar.shape, true_mar.size
+        meta_d = {**{'shape':str(shape), 'size':size, 'true_inun_fp':true_inun_fp, 'pred_inun_fp':pred_inun_fp},
+                            **copy.deepcopy(self.stats_d)}
+        
+        #=======================================================================
+        # inundation metrics-------
+        #=======================================================================
+        log.info(f'computing inundation metrics on %s ({size})' % str(shape))
+        
+        # confusion_ser = self._confusion(**skwargs)
+        inun_metrics = self.get_inundation_all(**skwargs)
+        
+        # confusion grid
+        confusion_grid_ar = self.get_confusion_grid(**skwargs)
+        
+        confuGrid_fp = self.write_array(confusion_grid_ar, out_dir=out_dir,resname=self._get_resname(dkey='confuGrid'))
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        
+        log.info(f'finished w/ \n    {inun_metrics}')
+        
+        return inun_metrics, confuGrid_fp, meta_d
+        
+ 
+ 
 
     def run_vali_pts(self, sample_pts_fp,
-                            true_fp=None,
-                           pred_fp=None,
+                           true_wd_fp=None,
+                           pred_wd_fp=None,
                            **kwargs):
-        """validation on poitns pipeline
-        assumes rasters are depth rasters"""
+        """validation on poitns pipeline"""
         #=======================================================================
         # defaults
         #=======================================================================
@@ -42,11 +112,11 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         # #sample points
         #=======================================================================
-        gdf = self.get_samples(true_fp=true_fp, pred_fp=pred_fp, sample_pts_fp=sample_pts_fp, **skwargs)
+        gdf = self.get_samples(true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp, sample_pts_fp=sample_pts_fp, **skwargs)
         
         # write
         meta_d = {'sample_pts_fp':sample_pts_fp, 'cnt':len(gdf)}
-        # ofpi = self._get_ofp(out_dir=out_dir, dkey='samples', ext='.geojson')
+ 
         gdf.to_file(ofp, crs=self.crs)
         meta_d['samples_fp'] = ofp
         log.info(f'wrote {len(gdf)} to \n    {ofp}')
