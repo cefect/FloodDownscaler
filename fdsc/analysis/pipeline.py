@@ -31,6 +31,14 @@ def now():
 # class--------
 #===============================================================================
 class PipeSession(Dsc_Session, ValidateSession):
+    
+    def __init__(self,
+                 run_name=None,
+                 **kwargs):
+ 
+        if run_name is None:
+            run_name = 'pipe'
+        super().__init__(run_name=run_name, **kwargs)
 
     def clip_set(self, raster_fp_d, aoi_fp=None, bbox=None, crs=None,
                  sfx='clip', **kwargs):
@@ -245,7 +253,7 @@ def run_pipeline_multi(
                      'Schumann14': {},
                      },
         
-        logger=None, out_dir=None,        
+        logger=None,   
  
         **kwargs):
     """run the pipeline on a collection of methods
@@ -275,11 +283,11 @@ def run_pipeline_multi(
         # run on session
         #=======================================================================
         """want a clean session for each method"""
-        with PipeSession(logger=logger, obj_name=name, out_dir=out_dir, **kwargs) as ses:            
+        with PipeSession(logger=logger, run_name=name, **kwargs) as ses:            
             #===================================================================
             # defaults
             #===================================================================            
-            skwargs = dict(out_dir=os.path.join(ses.out_dir, name), logger=ses.logger.getChild(name))            
+            skwargs = dict(out_dir=ses.out_dir, logger=ses.logger.getChild(name))            
             #===================================================================
             # run
             #===================================================================
@@ -291,7 +299,7 @@ def run_pipeline_multi(
             #===================================================================
             # passthrough
             #===================================================================
-            out_dir=ses.out_dir
+
             logger = ses.logger
              
     
