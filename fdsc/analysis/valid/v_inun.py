@@ -198,7 +198,7 @@ class ValidateMask(RioWrkr):
         
         if confusion_codes is None: confusion_codes = self.confusion_codes
  
-        
+        #build a confusion map (using the int codes)
         res_ar = get_confusion_cat(true_arB, pred_arB, confusion_codes=confusion_codes)
         
         #=======================================================================
@@ -217,6 +217,9 @@ class ValidateMask(RioWrkr):
             # join the values from sklearn calcs
             df3 = df2.join(cf_ser.rename('sklearn_counts').reset_index().rename(columns={'index':'codes'}).set_index('codes'),
                      on='codes')
+            
+            #compare
+            assert df3['grid_counts'].sum()==df3['sklearn_counts'].sum()
             
             compare_bx = df3['grid_counts'] == df3['sklearn_counts']
             if not compare_bx.all():

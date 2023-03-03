@@ -231,45 +231,65 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         log.info(f'finished in {now()-start} at \n    {out_dir}')
             
-        return meta_fp, log
+        return meta_fp
  
 def run_pipeline_multi(
         
           wse2_fp=None, 
           dem1_fp=None,
-          inun_fp=None,
-        method_l=[
-                    'CostGrow',
-                    'Basic', 
-                    'SimpleFilter',
-                    'Schumann14',
-                    ],
+          vali_kwargs=dict(),
+        method_pars={'CostGrow': {}, 
+                     'Basic': {}, 
+                     'SimpleFilter': {}, 
+                     'BufferGrowLoop': {}, 
+                     'Schumann14': {}},
         
+        logger=None, out_dir=None,        
  
         **kwargs):
-    """run the pipeline on each method
+    """run the pipeline on a collection of methods
     
-    TODO: we should move both these onto the class
-        we have a confusing extra layer now in the strucrue
-        proj_name
-            method (run_name)
-                date
+    Pars
+    ------
+    method_pars: dict
+        method name: kwargs
                 
     """
     
-    logger=None
+ 
     res_d = dict()
+ 
     #===========================================================================
     # loop onmethods
-    #===========================================================================
-    for method in method_l:
-        assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}' 
-        
+    #===========================================================================        
+    for method, mkwargs in method_pars.items():
+        assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}'
+        name = nicknames_d[method] 
         print(f'\n\nMETHOD={method}\n\n')
-        res_d[nicknames_d[method]], logger= run_dsc_vali(wse2_fp, dem1_fp,        
-                            dsc_kwargs=dict(method=method),
-                            run_name=nicknames_d[method], logger=logger,
-                            **kwargs)  
- 
+            
+        #=======================================================================
+        # run on session
+        #=======================================================================
+        """want a clean session for each method"""
+        with PipeSession(logger=logger, obj_name=name, out_dir=out_dir, **kwargs) as ses:            
+            #===================================================================
+            # defaults
+            #===================================================================            
+            skwargs = dict(out_dir=os.path.join(ses.out_dir, name), logger=ses.logger.getChild(name))            
+            #===================================================================
+            # run
+            #===================================================================
+            res_d[method] = ses.run_dsc_vali(wse2_fp, dem1_fp,
+                                dsc_kwargs=dict(method=method, rkwargs=mkwargs),
+                                vali_kwargs=vali_kwargs,
+                                **skwargs) 
+            
+            #===================================================================
+            # passthrough
+            #===================================================================
+            out_dir=ses.out_dir
+            logger = ses.logger
+             
     
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
+    return res_d
