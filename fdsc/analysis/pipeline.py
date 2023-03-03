@@ -21,7 +21,7 @@ from hp.rio import (
 
 
 from fdsc.scripts.control import Dsc_Session, nicknames_d
-from fdsc.analysis.valid import ValidateSession
+from fdsc.analysis.valid.v_ses import ValidateSession
 
 
 def now():
@@ -103,50 +103,36 @@ class PipeSession(Dsc_Session, ValidateSession):
         
         return ofp, meta_d
 
-def run_dsc_vali(
-        wse2_fp,
-        dem1_fp,
-        wse1V_fp=None,
- 
-        dsc_kwargs=dict(method = 'CostGrow'),
-        vali_kwargs=dict(), 
-        **kwargs
-        ):
-    """generate downscale then compute metrics (one option)
-    
-    Parameters
-    ------------
-    wse1_V_fp: str
-        filepath to wse1 raster (for validation)
-        
-    kwargs: dict
-        catchAll... including any method-specific parameters
-    """
-    
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    with PipeSession(logfile_duplicate=False, dem_fp=dem1_fp, **kwargs) as ses:
-        start = now()
-        log = ses.logger
-        meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
-        skwargs = dict(out_dir=ses.out_dir, tmp_dir=ses.tmp_dir)
-        
-        #=======================================================================
-        # polygonize
-        #=======================================================================
-        
-        raise IOError('stopped here.')
-    """TODO:
-    use separate inputs for depths vs. inundation validation
-    promote this to a method of PipeSession
-    add rasterization of inundation polygon (using DEM atttributes).
-    """
-    
-        if not is_raster_file(wse1V_fp):
-            irlay_fp = self._rasterize_inundation(wse1V_fp,
-                                                  )
+    def run_dsc_vali(self,
+            wse2_fp,
+            dem1_fp,
             
+            aoi_fp=None,
+            
+            dsc_kwargs=dict(method = 'CostGrow'),
+            vali_kwargs=dict(), 
+            **kwargs
+            ):
+        """generate downscale then compute metrics (one method) 
+        
+        Parameters
+        ------------
+ 
+            
+        kwargs: dict
+            catchAll... including any method-specific parameters
+        """
+        
+        #===========================================================================
+        # defaults
+        #===========================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rdv', subdir=False, **kwargs)
+        start = now()
+        
+        if aoi_fp is None: aoi_fp=self.aoi_fp
+ 
+        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp}, **self._get_init_pars()}}
+        skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)            
         
         #=======================================================================
         # precheck
@@ -157,8 +143,8 @@ def run_dsc_vali(
         #=======================================================================
         # helpers
         #=======================================================================
-        def write(obj, sfx):
-            ofpi = ses._get_ofp(out_dir=ses.out_dir, dkey=sfx, ext='.pkl')
+        def write_pick(obj, sfx):
+            ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
             with open(ofpi,  'wb') as f:
                 pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
             log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
@@ -167,47 +153,48 @@ def run_dsc_vali(
         #=======================================================================
         # prelims
         #=======================================================================
-        downscale = ses.get_downscale(wse2_fp, dem1_fp)
+        downscale = self.get_downscale(wse2_fp, dem1_fp)
         meta_lib['smry']['downscale'] = downscale
         dsc_kwargs['downscale'] = downscale
         log.info(f'downscale={downscale}')
         #=======================================================================
         # clip raw rasters
         #=======================================================================
-        fp_d = {'wse2':wse2_fp, 'dem1':dem1_fp, 'wse1V': wse1V_fp}        
-        if not ses.aoi_fp is None:
-            assert not wse1V_fp is None, 'not implemented'             
-            clip_fp_d = ses.clip_set(fp_d)            
+        fp_d = {'wse2':wse2_fp, 'dem1':dem1_fp}        
+        if not aoi_fp is None:            
+            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, **skwargs)            
             d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
         else:
             d = fp_d
         
-        wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
+        wse2_fp, dem1_fp = d['wse2'], d['dem1']
         meta_lib['smry'].update(d)  #add cropped layers to summary
         
         #=======================================================================
         # downscale------
         #=======================================================================
-        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True,
+        wse1_fp, meta_lib['dsc'] = self.run_dsc(wse2_fp,dem1_fp,write_meta=True,
                                                #out_dir=os.path.join(ses.out_dir, 'dsc'), 
-                                               ofp=ses._get_ofp('dsc'), **dsc_kwargs)
+                                               ofp=self._get_ofp('dsc'), **dsc_kwargs)
  
         meta_lib['smry']['wse1'] = wse1_fp #promoting key results to the summary page
+        
         #=======================================================================
         # validate-------
         #=======================================================================
-        metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, dem_fp=dem1_fp, write_meta=True, 
+        metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
+                                                     write_meta=True, 
                                                     #out_dir=os.path.join(ses.out_dir, 'vali'), 
                                                     **vali_kwargs)
         
  
-        meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')
+        meta_lib['smry']['valiMetrics_fp'] = write_pick(metric_lib, 'valiMetrics')
         
         #=======================================================================
         # get depths-------
         #=======================================================================
         """same for all algos... building for consistency"""
-        dep2_fp, meta_lib['dep2'] = ses.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
+        dep2_fp, meta_lib['dep2'] = self.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
         
         meta_lib['smry']['dep2'] = dep2_fp #promoting key results to the summary page
 
@@ -235,16 +222,16 @@ def run_dsc_vali(
                 md[k0]=d0m
                 
         #write 
-        _  = ses._write_meta(md, logger=log)
-        meta_fp = write(meta_lib, 'meta_lib')
+        _  = self._write_meta(md, logger=log)
+        meta_fp = write_pick(meta_lib, 'meta_lib')
 
         
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info(f'finished in {now()-start} at \n    {ses.out_dir}')
-        
-    return meta_fp, log
+        log.info(f'finished in {now()-start} at \n    {out_dir}')
+            
+        return meta_fp, log
  
 def run_pipeline_multi(
         

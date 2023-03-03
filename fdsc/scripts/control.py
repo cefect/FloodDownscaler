@@ -190,6 +190,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             method='CostGrow',
             downscale=None,
             write_meta=True,
+            rkwargs=dict(),
                 **kwargs):
         """run a downsampling pipeline
         
@@ -241,7 +242,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         f = self.run_dsc_handle_d[method]
         
-        wse1_fp, d = f(wse_fp=wse2_fp, dem_fp=dem1_fp, **skwargs)
+        wse1_fp, d = f(wse_fp=wse2_fp, dem_fp=dem1_fp, **rkwargs, **skwargs)
         #=======================================================================
         # try:
         #     wse1_fp, meta_lib = f(wse_fp=wse2_fp, dem_fp=dem1_fp, **skwargs)
@@ -250,38 +251,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         meta_lib.update(d)
 
-        
-        
-     #==========================================================================
-     #    if not method in ['Schumann14', 'none']: #2 phase
-     #        #=======================================================================
-     #        # wet partials
-     #        #=======================================================================                
-     #        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
-     #                                                            downscale=downscale,
-     #                                                            **skwargs)
-     # 
-     #        #=======================================================================
-     #        # dry partials
-     #        #=======================================================================
-     #        wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp,
-     #                                                dryPartial_method=method,
-     #                                                **skwargs)
-     #    
-     #    elif method=='Schumann14':
-     #            wse1_dp_fp, md1 = self.run_schu14(wse2_fp, dem1_fp, downscale=downscale, **skwargs)
-     #            
-     #            meta_lib.update(md1)
-     #            
-     #    elif method=='none':            
-     #        wse1_dp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
-     #                                                            downscale=downscale,
-     #                                                            dem_filter=False,
-     #                                                            **skwargs)
-     #    
-     #    else:
-     #        raise KeyError(method)
-     #==========================================================================
+ 
         
         #=======================================================================
         # check
@@ -308,10 +278,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
-
-
-
-
+ 
 def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,

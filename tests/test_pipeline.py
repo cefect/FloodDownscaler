@@ -14,7 +14,7 @@ from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default, get_aoi_fp, par_algoMethodKwargs
     )
 
-from fdsc.analysis.pipeline import run_dsc_vali
+ 
 from fdsc.analysis.pipeline import PipeSession as Session
 
 from hp.tests.tools.rasters import get_poly_fp_from_rlay
@@ -75,19 +75,24 @@ def test_clip_set(raster_fp_d, aoi_fp,
 
 
 @pytest.mark.dev
-@pytest.mark.parametrize('dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp', [
-    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp, None),
-    (dem1_rlay_fp, wse2_rlay_fp, inun_poly_fp, toy_aoi_fp, None),
-    #(td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'], None)
+@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp', [
+
+    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'])
  
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
-def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp,
-              method, kwargs,
-              tmp_path, logger):    
-    run_dsc_vali(wse2_fp, dem1_fp, 
-                 wse1V_fp = wse1V_fp, aoi_fp=aoi_fp, 
-                 out_dir=tmp_path, run_name='test',logger=logger,
-                 dsc_kwargs=dict(method = method),
-                 vali_kwargs=dict(sample_pts_fp=sample_pts_fp),
-                 **kwargs)
+def test_runr(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp,
+              method, kwargs, #from par_algoMethodKwargs
+              wrkr):    
+    wrkr.run_dsc_vali(wse2_fp, dem1_fp, 
+                  
+                 aoi_fp=aoi_fp, 
+ 
+                 dsc_kwargs=dict(method = method, rkwargs = kwargs),
+                 vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
+                 )
+    
+    
+    
+    

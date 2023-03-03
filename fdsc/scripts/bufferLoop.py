@@ -37,6 +37,7 @@ class BufferGrowLoop(WetPartials):
         super().__init__(run_dsc_handle_d=run_dsc_handle_d, **kwargs)
     
     def run_bufferGrowLoop(self, wse_fp=None, dem_fp=None,
+                           loop_range=None,
                               **kwargs):
         """run CostGrow pipeline
         """
@@ -56,7 +57,8 @@ class BufferGrowLoop(WetPartials):
         #=======================================================================
         # p2: dry partials
         #=======================================================================
-        wse1_dp_fp, meta_lib['p2_DP'] = self.get_bufferGrowLoop_DP(wse1_wp_fp, dem_fp, ofp=ofp, **skwargs)
+        wse1_dp_fp, meta_lib['p2_DP'] = self.get_bufferGrowLoop_DP(wse1_wp_fp, dem_fp, ofp=ofp, 
+                                                                   loop_range=loop_range, **skwargs)
         
         return wse1_dp_fp, meta_lib
         

@@ -5,9 +5,10 @@ Created on Mar. 3, 2023
 '''
 import logging, os, copy, datetime, pickle
 import numpy as np
+import shapely.geometry as sgeo
 from hp.rio import (
     RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
-    write_array2,get_write_kwargs, rlay_ar_apply, get_meta
+    write_array2,get_write_kwargs, rlay_ar_apply, get_meta, get_ds_attr, write_clip
     )
 
 from hp.gpd import (
@@ -56,8 +57,6 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             
         if not pred_inun_fp is None: 
             self._load_mask_pred(pred_inun_fp)
- 
-            
  
         mar = self.true_mar
         #=======================================================================
@@ -177,25 +176,46 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         assert isinstance(dem_fp, str), type(dem_fp)
         rlay_ar_apply(dem_fp, assert_dem_ar)
         
-        meta_lib['grid'] = get_meta(dem_fp)
+        
         
         #pred
         if pred_wse_fp is None:
             raise NotImplementedError('need to passe a wse')
+    
+        meta_lib['grid'] = get_meta(pred_wse_fp)
         
         rlay_ar_apply(pred_wse_fp, assert_wse_ar)
+        
+        assert_spatial_equal(dem_fp, pred_wse_fp)
+        
+        #helper func
+        def clip_rlay(rlay_fp):
+            """clip the raster to the predicted bounds if necessary"""
+            pd = meta_lib['grid']
+            ibounds = get_ds_attr(rlay_fp, 'bounds')
+            
+            if ibounds == pd['bounds']:
+                return rlay_fp
+            else:
+                ofp, stats_d = write_clip(rlay_fp,
+                                  ofp=os.path.join(tmp_dir, os.path.basename(rlay_fp).replace('.tif', '_clip.tif')), 
+                                  bbox=sgeo.box(*pd['bounds']), crs=pd['crs'])
+                
+                return ofp
         
         #=======================================================================
         # water depths----
         #======================================================================= 
         if not sample_pts_fp is None:          
             log.info(f'computing WD performance at points: \n    {sample_pts_fp}')
+ 
             #===================================================================
             # #build depths arrays
             #===================================================================
             #true
             assert not true_wse_fp is None
-            true_wd_fp = get_depth(dem_fp, true_wse_fp, out_dir=tmp_dir)
+                        
+            true_wd_fp = get_depth(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
             rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
             self.true_wd_fp=true_wd_fp
             
@@ -223,7 +243,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         #=======================================================================
         if true_inun_fp is None:
             log.info('using \'true_wse_fp\' for inundation validation')
-            true_inun_fp = true_wse_fp
+            true_inun_fp = clip_rlay(true_wse_fp)
             
         #rasterize
         if not is_raster_file(true_inun_fp):
@@ -247,8 +267,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, 
             true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, true_inun_rlay_fp=true_inun_rlay_fp,
             sample_pts_fp=sample_pts_fp, confuGrid_fp=confuGrid_fp)
-        
-                
+       
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)
         
