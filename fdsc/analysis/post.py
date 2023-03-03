@@ -31,7 +31,7 @@ from hp.gpd import get_samples
 
 
  
-from fdsc.analysis.valid import ValidateSession
+from fdsc.analysis.valid.v_ses import ValidateSession
 from fdsc.base import nicknames_d
 
 nicknames_d['Hydrodynamic']='vali'
@@ -1194,7 +1194,10 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
         log.info(f'loaded for {len(run_lib)} runs\n    {run_lib.keys()}')
         
-        #print(pprint.pformat(run_lib['nodp'], width=30, indent=0.3, compact=True, sort_dicts =False))
+        #print contents
+        k1=list(run_lib.keys())[0]
+        print(f'\nfor {k1}')
+        print(pprint.pformat(run_lib[k1], width=30, indent=0.3, compact=True, sort_dicts =False))
         
         self.run_lib = copy.deepcopy(run_lib)
         
@@ -1288,31 +1291,26 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
- #==============================================================================
- #        gdf = ses.load_depth_samples(run_lib, hwm_fp, 
- #                                     samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
- #                                     )
- # 
- #        
- #        ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
- #        
- #        plt.close()
- #==============================================================================
- 
+        #=======================================================================
+        # gdf = ses.load_depth_samples(run_lib, hwm_fp, 
+        #                              samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
+        #                              )  
+        #  
+        # ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
+        #=======================================================================
+  
         
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
- #==============================================================================
- #        #get rlays
- #        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
- #        
- #        #plot them
- #        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, inun_fp=inun_fp, **rlay_mat_kwargs)
- #        
- # 
- #        plt.close()
- #==============================================================================
+        #get rlays
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+         
+        #plot them
+        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, inun_fp=inun_fp, **rlay_mat_kwargs)
+         
+  
+        plt.close()
         
 
  

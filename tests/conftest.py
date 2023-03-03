@@ -39,9 +39,11 @@ use:
 par_algoMethodKwargs = ('method, kwargs', [
     ('CostGrow', dict()),      
     ('Basic', dict()),
-    ('SimpleFilter', dict()),
-    ('BufferGrowLoop', dict(loop_range=range(2))), 
-    ('Schumann14', dict(buffer_size=float(2/3))),    
+    #===========================================================================
+    # ('SimpleFilter', dict()),
+    # ('BufferGrowLoop', dict(loop_range=range(2))), 
+    # ('Schumann14', dict(buffer_size=float(2/3))),    
+    #===========================================================================
                            ])
 
 

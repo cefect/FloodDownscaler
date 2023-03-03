@@ -5,6 +5,10 @@ Created on Jan. 9, 2023
 
 data analysis 
 '''
+
+env_type='journal'
+
+
 import os
 import numpy as np
 from fdsc.analysis.post import basic_post_pipeline
@@ -14,19 +18,24 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type='journal'
+
 
 
 cm = 1/2.54
-usetex=True
+
+if env_type=='journal':    
+    usetex=True
+elif env_type=='draft':
+    usetex=False
+elif env_type=='present':
+    usetex=False
+else:
+    raise KeyError(env_type)
+
+
 if usetex:
     os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
-    output_format='pdf'
-    add_stamp=False
-else:
-    output_format='svg'
-    add_stamp=True
-    
+ 
   
 import matplotlib
 #matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
@@ -36,13 +45,8 @@ import matplotlib.pyplot as plt
 #set teh styles
 plt.style.use('default')
 
-
-#===============================================================================
-# journal style
-#===============================================================================
-if env_type=='journal':
-    
-    #font
+def set_doc_style():
+ 
     font_size=8
     matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
      
@@ -58,15 +62,30 @@ if env_type=='journal':
         'text.usetex':usetex,
         }.items():
             matplotlib.rcParams[k] = v
-        
+
+#===============================================================================
+# journal style
+#===============================================================================
+if env_type=='journal':
+    set_doc_style()
+    output_format='pdf'
+    add_stamp=False            
+#===============================================================================
+# draft
+#===============================================================================
+elif env_type=='draft':
+    set_doc_style()
+    output_format='svg'
+    add_stamp=True        
 #===============================================================================
 # presentation style    
 #===============================================================================
 elif env_type=='present':
     output_format='png'
-    #font
+    add_stamp=True
+ 
     font_size=12
-    #matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : 8})
+ 
     matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
      
      
@@ -108,14 +127,22 @@ ahr_aoi08_r32_0130_d = {
              'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
              'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
              }
+
+ahr_aoi08_r32_0303_d =     {
+    'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\cgs\\20230303\\ahr_aoi08_0303_cgs_0303_meta_lib.pkl',
+ 'Basic': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmp\\20230303\\ahr_aoi08_0303_rsmp_0303_meta_lib.pkl',
+ 'SimpleFilter': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmpF\\20230303\\ahr_aoi08_0303_rsmpF_0303_meta_lib.pkl',
+ 'Schumann14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\s14\\20230303\\ahr_aoi08_0303_s14_0303_meta_lib.pkl'}
     
-def ahr_aoi08_r32_0130_30(**kwargs):
-    return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
-        hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
-          
-        run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
-        **kwargs)
+#===============================================================================
+# def ahr_aoi08_r32_0130_30(**kwargs):
+#     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
+#         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
+#         hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
+#           
+#         run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
+#         **kwargs)
+#===============================================================================
     
 
 def ahr_aoi08_r32_0130_30_present(**kwargs):
@@ -136,6 +163,15 @@ def ahr_aoi08_r32_0130_30_present(**kwargs):
             col_keys = ['raw_hist', 'corr_scatter'],add_subfigLabel=False,transparent=False,
             figsize=(24*cm, 16*cm),
             ),
+        **kwargs)
+    
+
+def ahr_aoi08_r32_0130_30(**kwargs):
+    return basic_post_pipeline(ahr_aoi08_r32_0303_d,
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
+        hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
+          
+        run_name='post_0303',proj_name='ahr_aoi08_0303',output_format=output_format,add_stamp=add_stamp,
         **kwargs)
 
 def ahr11_rim0201_r32_0203(**kwargs):

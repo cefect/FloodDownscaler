@@ -77,12 +77,12 @@ def test_clip_set(raster_fp_d, aoi_fp,
  
 @pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp', [
 
-    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
+    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
     (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'])
  
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
-def test_runr(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp,
+def test_run_dsc_vali(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp,
               method, kwargs, #from par_algoMethodKwargs
               wrkr):    
     wrkr.run_dsc_vali(wse2_fp, dem1_fp, 
@@ -92,8 +92,25 @@ def test_runr(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp
                  dsc_kwargs=dict(method = method, rkwargs = kwargs),
                  vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
                  )
-    
+
 @pytest.mark.dev
+@pytest.mark.parametrize('dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp', [
+
+    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['inun_vlay_fp'], None, td1['aoi_fp']),
+    (td1['dem1_rlay_fp'], td1['wse1_rlayV_fp'],  td1['inun_vlay_fp'],None, td1['aoi_fp'])
+ 
+    ])
+def test_run_hyd_vali(dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp, 
+              wrkr):    
+    
+    wrkr.run_hyd_vali(wse_fp, dem1_fp, 
+                  
+                 aoi_fp=aoi_fp, 
+ 
+                 vali_kwargs=dict(true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
+                 )
+    
 @pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp', [
 
     (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),

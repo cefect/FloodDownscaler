@@ -111,6 +111,29 @@ class PipeSession(Dsc_Session, ValidateSession):
         
         return ofp, meta_d
 
+
+    def _wrap_meta(self, meta_lib, **kwargs):
+        tdelta = (now() - meta_lib['smry']['start']).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
+        #collapse and promote
+        md = dict()
+        for k0, d0 in meta_lib.items():
+            d0m = dict()
+            for k1, d1 in d0.items():
+                #promte contents
+                if isinstance(d1, dict):
+                    md[k0 + '_' + k1] = d1
+                else:
+                    d0m[k1] = d1
+            
+            if len(d0m) > 0:
+                md[k0] = d0m
+        
+    #write
+        _ = self._write_meta(md, **kwargs)
+        
+        return meta_lib
+
     def run_dsc_vali(self,
             wse2_fp,
             dem1_fp,
@@ -135,11 +158,10 @@ class PipeSession(Dsc_Session, ValidateSession):
         # defaults
         #===========================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rdv', subdir=False, **kwargs)
-        start = now()
+ 
+        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
         
         if aoi_fp is None: aoi_fp=self.aoi_fp
- 
-        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp}, **self._get_init_pars()}}
         skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)            
         
         #=======================================================================
@@ -151,12 +173,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         # helpers
         #=======================================================================
-        def write_pick(obj, sfx):
-            ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
-            with open(ofpi,  'wb') as f:
-                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-            log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
-            return ofpi
+        write_pick = lambda obj, dkey: self.write_pick(obj, dkey, out_dir=out_dir, log=log)
         
         #=======================================================================
         # prelims
@@ -209,37 +226,122 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         # meta
         #=======================================================================
-        tdelta = (now()-start).total_seconds()
-        meta_lib['smry']['tdelta'] = tdelta
-        
- 
-        #collapse and promote
-        md=dict()
-        for k0, d0 in meta_lib.items():
-            
-            d0m = dict()
-            for k1, d1 in d0.items():
-               
-                #promte contents
-                if isinstance(d1, dict):
-                    md[k0+'_'+k1] = d1
-                else:
-                    d0m[k1]=d1
-                    
-            if len(d0m)>0:
-                md[k0]=d0m
-                
-        #write 
-        _  = self._write_meta(md, logger=log)
-        meta_fp = write_pick(meta_lib, 'meta_lib')
+        meta_lib = self._wrap_meta(meta_lib, logger=log)
 
-        
+        meta_fp = write_pick(meta_lib, 'meta_lib')
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info(f'finished in {now()-start} at \n    {out_dir}')
+        log.info(f'finished in %s at \n    {out_dir}'%meta_lib['smry']['tdelta'])
             
         return meta_fp
+    
+    def run_hyd_vali(self,
+            wse_fp,
+            dem1_fp,
+            
+            aoi_fp=None,
+            
+ 
+            vali_kwargs=dict(), 
+            **kwargs
+            ):
+        """validation and depths building pipeline for hydro rasters
+        
+        Parameters
+        ------------
+ 
+            
+        kwargs: dict
+            catchAll... including any method-specific parameters
+        """
+        
+        #===========================================================================
+        # defaults
+        #===========================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rhv', subdir=False, **kwargs)
+ 
+        
+        if aoi_fp is None: aoi_fp=self.aoi_fp
+ 
+        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
+        skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)
+        
+        #=======================================================================
+        # helpers
+        #=======================================================================
+        write_pick = lambda obj, dkey: self.write_pick(obj, dkey, out_dir=out_dir, log=log)
+        
+ 
+        
+        #=======================================================================
+        # clip raw rasters
+        #=======================================================================
+        fp_d = {'wse':wse_fp, 'dem1':dem1_fp}        
+        if not aoi_fp is None:            
+            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, **skwargs)            
+            d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
+        else:
+            d = fp_d
+        
+        wse_fp, dem1_fp = d['wse'], d['dem1']
+        meta_lib['smry'].update(d)  #add cropped layers to summary
+        
+        #=======================================================================
+        # rescale
+        #=======================================================================
+ 
+        downscale = self.get_resolution_ratio(wse_fp, dem1_fp)
+        
+        if not downscale==1: 
+            wse1_fp = write_resample(wse_fp, scale=downscale, resampling=Resampling.nearest, out_dir=out_dir)
+        else:
+            wse1_fp=wse_fp
+            
+        
+        
+        #=======================================================================
+        # validate-------
+        #=======================================================================
+        metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
+                                                     write_meta=True,  
+                                                    **vali_kwargs)
+        
+ 
+        meta_lib['smry']['valiMetrics_fp'] = write_pick(metric_lib, 'valiMetrics')
+        
+        #=======================================================================
+        # get depths-------
+        #=======================================================================
+        #=======================================================================
+        # """same for all algos... building for consistency"""
+        # dep2_fp, meta_lib['dep2'] = self.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
+        # 
+        # meta_lib['smry']['dep2'] = dep2_fp #promoting key results to the summary page
+        #=======================================================================
+        
+        #=======================================================================
+        # meta
+        #=======================================================================
+        meta_lib = self._wrap_meta(meta_lib, logger=log)
+
+        meta_fp = write_pick(meta_lib, 'meta_lib')
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished in %s at \n    {out_dir}'%meta_lib['smry']['tdelta'])
+            
+        return meta_fp
+        
+          
+        
+    def write_pick(self, obj, sfx, out_dir=None, log=None):
+        ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
+        with open(ofpi,  'wb') as f:
+            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
+        return ofpi
+         
  
 def run_pipeline_multi(
         
@@ -253,7 +355,10 @@ def run_pipeline_multi(
                      'Schumann14': {},
                      },
         
-        logger=None,   
+        validate_hyd=True,
+ 
+        logger=None,
+           
  
         **kwargs):
     """run the pipeline on a collection of methods
@@ -265,6 +370,9 @@ def run_pipeline_multi(
         
     vali_kwargs: dict
         kwargs for validation. see fdsc.analysis.valid.v_ses.ValidateSession.run_vali()
+        
+    validate_hyd: bool
+        whether to validate the hyd wse rasters also
                 
     """
     
@@ -299,8 +407,45 @@ def run_pipeline_multi(
             #===================================================================
             # passthrough
             #===================================================================
-
+            downscale = ses.downscale
             logger = ses.logger
+            
+    #===========================================================================
+    # validate hydrodyn rasetrs
+    #===========================================================================
+    if validate_hyd:        
+        
+        #extract kwargs of interest
+        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp']}
+        
+        #collect rasters
+        for wseName, wse_fp in {'wse2':wse2_fp, 'wse1':vali_kwargs['true_wse_fp']}.items():
+            print(f'\n\n HYDRO VALI on {wseName}\n\n')
+            meta_lib ={'smry':{'name':wseName, 'wse_fp':wse_fp}}
+            with PipeSession(logger=logger, run_name=wseName+'_vali', **kwargs) as ses:
+                
+                #resample the coarse
+
+        
+                #run the validation                
+                skwargs = dict(out_dir=ses.out_dir, logger=ses.logger.getChild(wseName)) 
+                metric_lib, meta_lib['vali'] = ses.run_vali(pred_wse_fp=wse_fp1, dem_fp=dem1_fp,**vali_kwargs2, **skwargs) 
+                
+                #write
+ 
+                ofpi = ses._get_ofp(out_dir=ses.out_dir, dkey='valiMetrics', ext='.pkl')
+                with open(ofpi,  'wb') as f:
+                    pickle.dump(metric_lib, f, pickle.HIGHEST_PROTOCOL)
+                    
+                meta_lib['smry']['valiMetrics_fp'] = ofpi
+ 
+ 
+                
+ 
+        
+        
+            
+    
              
     
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))

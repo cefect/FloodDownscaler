@@ -56,6 +56,15 @@ class Dsc_basic(object):
     
     
  
+
+    def get_resolution_ratio(self, 
+                             fp1, #high res
+                             fp2, #low res
+                             ):
+        s1 = get_ds_attr(fp1, 'res')[0]
+        s2 = get_ds_attr(fp2, 'res')[0]
+        return s1 / s2
+
     def get_downscale(self, fp1, fp2, **kwargs):
         """compute the scale difference between two layers
         
@@ -67,15 +76,11 @@ class Dsc_basic(object):
             hi-res (fine)
         """
         
-        if self.downscale is None:
-            s1 = get_ds_attr(fp1, 'res')[0]
-            s2 = get_ds_attr(fp2, 'res')[0]
+        if self.downscale is None:          
             
-            assert s1 > s2
+            self.downscale = self.get_resolution_ratio(fp1, fp2)
             
-            self.downscale = s1 / s2
-            
-        
+        assert self.downscale>=1.0
         return self.downscale
     
     def get_wse_dem_filter(self, wse_fp, dem_fp,  **kwargs):
