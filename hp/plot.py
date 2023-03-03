@@ -679,6 +679,7 @@ class Plotr(object):
         except Exception as e:
             raise IOError('failed to write figure to file w/ \n    %s'%e)
         
+        plt.close()
         return ofp
     
 def hide_text(ax):
