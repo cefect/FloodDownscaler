@@ -1636,6 +1636,7 @@ def basic_post_pipeline(meta_fp_d,
  
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
+                      hwm3_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
                       **kwargs):
     """main runner for generating plots"""    
@@ -1646,17 +1647,17 @@ def basic_post_pipeline(meta_fp_d,
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
         
-        #ses.collect_runtimes(run_lib)
+        ses.collect_runtimes(run_lib)
         
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
         fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
         gdf = ses.concat_HWMs(fp_lib,
-                        pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\post_0303\20230304\ahr_aoi08_0303_post_0303_0304_concat_HWMs.pkl',
+ 
                         )
-        ses.plot_HWM_3x3(gdf, metric_lib=metric_lib)
-        return
+        res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+ 
         #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
@@ -1670,13 +1671,11 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
-        #=======================================================================
-        # #get rlays
-        # rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
-        #  
-        # #plot them
-        # res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
-        #=======================================================================
+        #get rlays
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+          
+        #plot them
+        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
          
  
  
@@ -1685,18 +1684,20 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # sample metrics
         #=======================================================================
-        ses.logger.info('\n\nSAMPLES\n\n')
-        try: 
-            del run_lib['nodp'] #clear this
-        except: pass
-        
-        df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
-        
-        """switched to plotting all trues per simulation"""
- 
-        df_wet=df
-
-        res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
+#===============================================================================
+#         ses.logger.info('\n\nSAMPLES\n\n')
+#         try: 
+#             del run_lib['nodp'] #clear this
+#         except: pass
+#         
+#         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
+#         
+#         """switched to plotting all trues per simulation"""
+#  
+#         df_wet=df
+# 
+#         res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
+#===============================================================================
         
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
     return res_d
