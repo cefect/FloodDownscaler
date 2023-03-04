@@ -96,7 +96,7 @@ def ses(tmp_path, write, logger, test_name,
  
 @pytest.mark.parametrize('true_wd_fp, pred_wd_fp, sample_pts_fp', [
     td1_wd_fps,
-    toy_wd_fps,
+    #toy_wd_fps, #no points
     ]) 
 def test_run_vali_pts(true_wd_fp, pred_wd_fp, sample_pts_fp, ses):
     ses.run_vali_pts(sample_pts_fp, true_wd_fp=true_wd_fp, pred_wd_fp=pred_wd_fp)

@@ -38,6 +38,7 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
     pts_gdf = None
     sample_pts_fp = None
     dem_fp = None
+    pts_gser = None
     
     def __init__(self,
                  true_wd_fp=None,
@@ -164,7 +165,8 @@ class ValidatePoints(RioWrkr, GeoPandasWrkr):
             
         if gser is None:
             gser = self.pts_gser
- 
+            
+        assert not gser is None
         #=======================================================================
         # sample each
         #=======================================================================
