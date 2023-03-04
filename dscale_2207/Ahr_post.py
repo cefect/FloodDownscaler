@@ -44,13 +44,13 @@ def set_doc_style():
     matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
      
     for k,v in {
-        'axes.titlesize':10,
-        'axes.labelsize':10,
-        'xtick.labelsize':8,
-        'ytick.labelsize':8,
-        'figure.titlesize':12,
+        'axes.titlesize':font_size,
+        'axes.labelsize':font_size,
+        'xtick.labelsize':font_size,
+        'ytick.labelsize':font_size,
+        'figure.titlesize':font_size+2,
         'figure.autolayout':False,
-        'figure.figsize':(17*cm,19*cm),
+        'figure.figsize':(14*cm,19*cm),#typical textsize for AGU
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():

@@ -957,7 +957,11 @@ class Plot_HWMS(object):
         rmse = math.sqrt(np.square(xar - yar).mean())
         x_vals = np.array(xlim)
         y_vals = intercept + slope * x_vals
-        meta_d = dict(pearson=pearson, pval=pval, rvalue=rvalue, pvalue=pvalue, stderr=stderr, rmse=rmse)
+        meta_d = dict(pearson=pearson, 
+                      #pval=pval, 
+                      rvalue=rvalue, 
+                      #pvalue=pvalue, 
+                      stderr=stderr, rmse=rmse)
  
  
         #===================================================================
@@ -1093,6 +1097,7 @@ class Plot_HWMS(object):
                  figsize=None,
                  transparent=False,
                  style_d = {},
+                 style_default_d=dict(marker='o', fillstyle='none', alpha=0.8),
                  color_d=None,
  
                  xlim=None,
@@ -1104,7 +1109,7 @@ class Plot_HWMS(object):
         # defaults
         #=======================================================================
         if output_format is None: output_format=self.output_format
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.'+output_format, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM3', ext='.'+output_format, **kwargs)
         
         
         """
@@ -1134,7 +1139,7 @@ class Plot_HWMS(object):
                                 sharex='col',
                                 sharey='col',
                                 add_subfigLabel=True,
-                                figsize_scaler=3,
+                                figsize_scaler=(14/ncols)*cm,
                                 )
         
         #=======================================================================
@@ -1147,7 +1152,7 @@ class Plot_HWMS(object):
         #add any missing to the style d
         for k in mod_keys:
             if not k in style_d:
-                style_d[k] = dict(marker='x')
+                style_d[k] = style_default_d.copy()
                 
             if not 'color' in style_d[k]:
                 style_d[k]['color'] = color_d[k]
