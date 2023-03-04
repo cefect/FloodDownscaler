@@ -33,7 +33,7 @@ from hp.basic import get_dict_str
 
 import matplotlib
 import matplotlib.pyplot as plt
- 
+from matplotlib.colors import rgb2hex
 
 #===============================================================================
 # #===============================================================================
@@ -550,49 +550,14 @@ class Plotr(object):
         return fig, ax_d
             
  
-    def _get_color_d(self,
-                    ckey,
-                    cvals,
-                    colorMap=None,color_d=None,
+    def _build_color_d(self, keys,
+                       cmap = plt.cm.get_cmap(name='Set1')
+                       ):
+        """get a dict of key:hex-color from the list of keys and the colormap"""
+        
+        ik_d = dict(zip(keys, np.linspace(0, 1, len(keys))))
  
-                    ):
-        """retrieve color dict by key
-        
-        Parameters
-        ----------
-        ckey: str
-        
-        cvals: list
-            
- 
-        """
-        
-        
-        if color_d is None: 
-            #===================================================================
-            # from library           
-            #===================================================================
-            if ckey in self.color_lib:
-                color_d = self.color_lib[ckey]
-                
-            #===================================================================
-            # from map
-            #===================================================================
-            else:
-            
-                if colorMap is None: 
-                    colorMap = self.colorMap_d[ckey]
-                    
-                cmap = plt.cm.get_cmap(name=colorMap) 
-            
-                color_d = {k:matplotlib.colors.rgb2hex(cmap(ni)) for k, ni in dict(zip(cvals, np.linspace(0, 1, len(cvals)))).items()}
-        
- 
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        assert isinstance(color_d, dict)
-        for k,v in color_d.items(): assert isinstance(v, str)
+        color_d = {k:rgb2hex(cmap(ni)) for k, ni in ik_d.items()}
         return color_d
     
     #===========================================================================
