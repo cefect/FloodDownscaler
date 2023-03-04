@@ -13,7 +13,7 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'journal'
 cm = 1 / 2.54
 
 if env_type == 'journal': 

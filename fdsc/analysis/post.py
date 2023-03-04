@@ -42,6 +42,7 @@ cm = 1/2.54
 rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
 
 
+
 def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
 
@@ -930,6 +931,61 @@ class Plot_HWMS(object):
         return gdf
         
     
+
+    def _ax_hwm_scatter(self,
+                        ax, xar, yar,                         
+                        
+                        style_d=dict(),
+                         xlim=None,  
+                         max_val=None,
+                         rowk='',
+                         ):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if xlim is None: xlim=min(xar)
+        if max_val is None: max_val=max(xar)
+        #=======================================================================
+        # ploat
+        #=======================================================================
+        ax.plot(xar, yar, linestyle='none', **style_d)
+        #=======================================================================
+        # compute error
+        #=======================================================================
+        slope, intercept, rvalue, pvalue, stderr = scipy.stats.linregress(xar, yar)
+        pearson, pval = scipy.stats.pearsonr(xar, yar)
+        rmse = math.sqrt(np.square(xar - yar).mean())
+        x_vals = np.array(xlim)
+        y_vals = intercept + slope * x_vals
+        meta_d = dict(pearson=pearson, pval=pval, rvalue=rvalue, pvalue=pvalue, stderr=stderr, rmse=rmse)
+ 
+ 
+        #===================================================================
+        # plot correlation
+        #===================================================================
+        ax.plot(x_vals, y_vals, color=style_d['color'], linewidth=0.5)
+        #1:1 line
+        ax.plot([0.0, max_val * 1.1], [0.0, max_val * 1.1], color='black', label='1:1', linewidth=0.5, linestyle='dashed')
+        #===========================================================
+        # text
+        #===========================================================
+        md = {**{rowk:''}, **meta_d}
+        ax.text(0.98, 0.05, get_dict_str(md, num_format='{:.3f}'), 
+            transform=ax.transAxes, 
+            va='bottom', ha='right', 
+            #fontsize=font_size,
+            color='black', 
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0, alpha=0.5))
+        #=======================================================================
+        # post
+        #=======================================================================
+        #make square
+        ax.set_ylim(0, max_val)
+        ax.set_xlim(0, max_val)
+        ax.set_aspect('equal', adjustable='box')
+        
+        return meta_d
+
     def plot_HWM(self, gdf, metric_lib=None,
                  output_format=None,
                  figsize=None,
@@ -993,55 +1049,7 @@ class Plot_HWMS(object):
  
                     #scatter
                     xar, yar = true_ser.values, gdf[rowk].values
-                    ax.plot(xar, yar ,linestyle='none', **style_d[k])
-                    
-                    #=======================================================================
-                    # compute error
-                    #=======================================================================
-                    slope, intercept, rvalue, pvalue, stderr =  scipy.stats.linregress(xar, yar)
-                    
-                    pearson, pval = scipy.stats.pearsonr(xar, yar)
-                    
-                    rmse = math.sqrt(np.square(xar - yar).mean())
-                    
-                    x_vals = np.array(xlim)
-                    y_vals = intercept + slope * x_vals
-                    
-                    d = dict(pearson=pearson, pval=pval, rvalue=rvalue, pvalue=pvalue, stderr=stderr, rmse=rmse)
-                    meta_lib[k] = d
-                    #log.info(f'for {k} got \n    {d}')
-                    
-                    #===================================================================
-                    # plot correlation
-                    #===================================================================
-                    ax.plot(x_vals, y_vals, color=style_d[k]['color'], linewidth=0.5)
-                    
-                
-                    #1:1 line                    
-                    ax.plot([0.0, max_val*1.1], [0.0, max_val*1.1], color='black', label='1:1', linewidth=0.5, linestyle='dashed')
-                    
-                    #===========================================================
-                    # text
-                    #===========================================================
-                    md = {**{rowk:''}, **d}
-                    ax.text(0.98, 0.05, get_dict_str(md, num_format='{:.3f}'), 
-                            transform=ax.transAxes, 
-                                    va='bottom', ha='right', 
-                                    #fontsize=font_size, 
-                                    color='black',
-                                    bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                                    )
-                    
-                        
-                    
-                    #=======================================================================
-                    # post
-                    #=======================================================================
-                    #make square
-                    
-                    ax.set_ylim(0, max_val)
-                    ax.set_xlim(0, max_val)
-                    ax.set_aspect('equal', adjustable='box')
+                    self._ax_hwm_scatter(ax, xar, yar, style_d=style_d[rowk], xlim=xlim, max_val=max_val, rowk=rowk)
                     
                     
                     
@@ -1062,16 +1070,7 @@ class Plot_HWMS(object):
                         
                 #first col
                 if colk==col_keys[0]:
-                    
-                    #===========================================================
-                    # if rowk in rowLabels_d:
-                    #     rowlab = rowLabels_d[rowk]
-                    # else:
-                    #     rowlab = rowk
-                    #     
-                    # ax.set_ylabel(rowlab)
-                    #===========================================================
-                    
+ 
                     ax.set_ylabel('simulated max depth (m)')
                     
                     #last row
@@ -1085,7 +1084,126 @@ class Plot_HWMS(object):
         return self.output_fig(fig, logger=log, ofp=ofp, transparent=transparent)
                 
                    
-    
+
+
+
+    def plot_HWM_3x3(self, gdf, metric_lib=None,
+                     ncols=3,
+                 output_format=None,
+                 figsize=None,
+                 transparent=False,
+                 style_d = {},
+                 color_d=None,
+ 
+                 xlim=None,
+                 **kwargs):
+        
+        """matrix of scatter plots for performance against HWMs...3x3"""
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if output_format is None: output_format=self.output_format
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.'+output_format, **kwargs)
+        
+        
+        """
+        
+        """
+        #=======================================================================
+        # setup figure
+        #=======================================================================
+        #list of model values
+        mod_keys = gdf.drop(['true','geometry'], axis=1).columns.tolist()
+        
+
+        
+        #reshape into a frame
+        mat_df = pd.DataFrame(np.array(mod_keys).reshape(-1,ncols))
+        mat_df.columns = [f'c{e}' for e in mat_df.columns]
+        mat_df.index = [f'r{e}' for e in mat_df.index]        
+ 
+        row_keys = mat_df.index.tolist() 
+        col_keys = mat_df.columns.tolist()      
+        
+        
+        
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
+                                set_ax_title=False, figsize=figsize,
+                                constrained_layout=True,
+                                sharex='col',
+                                sharey='col',
+                                add_subfigLabel=True,
+                                figsize_scaler=3,
+                                )
+        
+        #=======================================================================
+        # setup style
+        #======================================================================= 
+        if color_d is  None: 
+            #color_d = self.sim_color_d.copy()
+            color_d = self._build_color_d(mod_keys, cmap = plt.cm.get_cmap(name='Dark2'))
+            
+        #add any missing to the style d
+        for k in mod_keys:
+            if not k in style_d:
+                style_d[k] = dict(marker='x')
+                
+            if not 'color' in style_d[k]:
+                style_d[k]['color'] = color_d[k]
+                
+        #=======================================================================
+        # data prep
+        #=======================================================================
+        true_ser = gdf['true']
+        
+        max_val = math.ceil(gdf.max().max())
+        if xlim is None:
+            xlim = (0, max_val)
+        #=======================================================================
+        # plot loop------
+        #=======================================================================
+        
+        meta_lib=dict()
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():                
+                
+                modk = mat_df.loc[rowk, colk] 
+                
+                log.info(f'plotting {rowk}x{colk} ({modk})')
+ 
+                #scatter
+                xar, yar = true_ser.values, gdf[modk].values
+                meta_lib[modk] = self._ax_hwm_scatter(ax, xar, yar, style_d=style_d[modk], xlim=xlim, max_val=max_val, rowk=modk)
+ 
+        #=======================================================================
+        # post
+        #=======================================================================
+        
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                
+                #first row
+                if rowk==row_keys[0]:
+                    #last columns
+                    if colk==col_keys[-1]:
+                        pass
+                        #ax.legend()
+                        
+                #first col
+                if colk==col_keys[0]:
+ 
+                    ax.set_ylabel('simulated max depth (m)')
+                    
+                #last row
+                if rowk==row_keys[-1]:
+                    ax.set_xlabel('observed HWM (m)')
+                    
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        return self.output_fig(fig, logger=log, ofp=ofp, transparent=transparent)
 
 class Plot_hyd_HWMS(Plot_HWMS):
     """plotting HWM error scatter for two simulations
@@ -1377,7 +1495,11 @@ class Plot_hyd_HWMS(Plot_HWMS):
 
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
                   Plotr, ValidateSession):
-    sim_color_d = {'vali':'black', 'nodp':'orange', 'cgs':'teal', 'bgl':'violet', 's14':'#24855d'}
+    
+    #see self._build_color_d(mod_keys)
+    sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
+    
+    
     confusion_color_d = {
             'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
             }
@@ -1510,7 +1632,8 @@ def basic_post_pipeline(meta_fp_d,
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
-                      **kwargs):    
+                      **kwargs):
+    """main runner for generating plots"""    
     
     res_d = dict()
     with PostSession(**kwargs) as ses:
@@ -1518,7 +1641,7 @@ def basic_post_pipeline(meta_fp_d,
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
         
-        ses.collect_runtimes(run_lib)
+        #ses.collect_runtimes(run_lib)
         
         #=======================================================================
         # HWM performance (all)
@@ -1527,7 +1650,7 @@ def basic_post_pipeline(meta_fp_d,
         gdf = ses.concat_HWMs(fp_lib,
                         pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\post_0303\20230304\ahr_aoi08_0303_post_0303_0304_concat_HWMs.pkl',
                         )
-        ses.plot_HWM(gdf, metric_lib=metric_lib)
+        ses.plot_HWM_3x3(gdf, metric_lib=metric_lib)
         return
         #=======================================================================
         # hydrodyn HWM performance
