@@ -39,6 +39,8 @@ cm = 1/2.54
  
 #nicknames_d2 = {v:k for k,v in nicknames_d.items()}
 
+rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+
 
 def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
@@ -399,6 +401,23 @@ class Plot_rlays_wrkr(object):
                     #     'confuGrid_fp':'confusion'
                     #     }[colk])
                     #===========================================================
+                    
+                #special annotations
+                if (rowk==row_keys[1]) and (colk==col_keys[-1]):
+ 
+                    #add an arrow at this location
+                    xy_loc = (0.66, 0.55)
+                    
+                    ax.annotate('', 
+                                xy=xy_loc,  xycoords='axes fraction',
+                                xytext=(xy_loc[0], xy_loc[1]+0.3),textcoords='axes fraction',
+                                arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.5),
+                                )
+                    
+                    log.debug(f'added arrow at {xy_loc}')
+                    """
+                    plt.show()
+                    """
  
                     
         #=======================================================================
@@ -824,8 +843,251 @@ class Plot_samples_wrkr(object):
         
         
         return predict, {'rvalue':lm.rvalue, 'slope':lm.slope, 'intercept':lm.intercept}
+    
+class Plot_HWMS(object):
+    """plotter for HWM analysis"""
+    
+    def collect_HWM_data(self, run_lib, **kwargs):
+        """collect the filepaths from the run_lib"""
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_hyd_fps', **kwargs)
+        
+        fp_lib={k:dict() for k in run_lib.keys()} 
+        metric_lib = fp_lib.copy()
+        #=======================================================================
+        # get HEM samples for each
+        #======================================================================= 
+        for k0, d0 in run_lib.items(): #simulation name
+            try:
+                fp_lib[k0] = d0['vali']['fps']['hwm_samples_fp']
+            except:
+                log.warning(f'no \'hwm_samples_fp\' in {k0}...skipping')
+                
+        #=======================================================================
+        # get metrics
+        #=======================================================================
+        
+        for k0, d0 in run_lib.items(): #simulation name
+            di = d0['vali']['hwm']
+            di = {k:v for k,v in di.items() if not k.endswith('_fp')} #remove files
+            metric_lib[k0] = di
+ 
+ 
+ 
+        log.info('got fp_lib:\n%s ' % (dstr(fp_lib) ))
+        
+        self.fp_lib = fp_lib
+        return fp_lib, metric_lib
+    
+    def concat_HWMs(self, fp_lib, write=True,
+                    pick_fp=None,
+                    **kwargs):
+        """merge all the gpd files into 1"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('concat_HWMs', ext='.pkl', **kwargs)
+        
+        log.info(f'on {len(fp_lib)}')
+        
+        d = dict()
+        
+        #=======================================================================
+        # build from collection
+        #=======================================================================
+        if pick_fp is None:
+            #=======================================================================
+            # load each sample
+            #=======================================================================
+            for k,fp in fp_lib.items():
+                gdfi = gpd.read_file(fp)
+                d[k] = gdfi['pred']
+                
+            #=======================================================================
+            # assebmel
+            #=======================================================================
+            gdf = pd.concat(d, axis=1)
+            gdf = gdfi['true'].to_frame().join(gdf).set_geometry(gdfi.geometry)
+            
+            assert len(gdf.columns)==len(fp_lib)+2 #true and geom
+            
+            log.info(f'assembed into {str(gdf.shape)}')
+            
+            #=======================================================================
+            # write
+            #=======================================================================
+     
+            if write:
+                gdf.to_pickle(ofp)                
+                log.info(f'wrote {str(gdf.shape)} to \n    {ofp}')
+                
+        #=======================================================================
+        # pre-compiled
+        #=======================================================================
+        else:
+            log.warning(f'loading from \n    {pick_fp}')
+            with open(pick_fp, 'rb') as f:
+                gdf = pickle.load(f)
+            
+        
+        return gdf
+        
+    
+    def plot_HWM(self, gdf, metric_lib=None,
+                 output_format=None,
+                 figsize=None,
+                 transparent=False,
+                 style_d = {
+                          'WSE1':dict(color='#996633', label='fine (s1)', marker='x'),
+                          'WSE2':dict(color='#9900cc', label='coarse (s2)', marker='o', fillstyle='none')
+                                 },
+                 
+                 xlim=None,
+                 **kwargs):
+        
+        """matrix of scatter plots for performance against HWMs"""
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if output_format is None: output_format=self.output_format
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM', ext='.'+output_format, **kwargs)
+        
+        
+        #=======================================================================
+        # setup figure
+        #=======================================================================
+        row_keys = gdf.drop(['true','geometry'], axis=1).columns.tolist() #['CostGrow', 'Basic', 'SimpleFilter', 'Schumann14', 'WSE2', 'WSE1']
+        
+        col_keys = ['scatter']
+        
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
+                                set_ax_title=False, figsize=figsize,
+                                constrained_layout=True,
+                                sharex='col',
+                                sharey='col',
+                                add_subfigLabel=True,
+                                figsize_scaler=3,
+                                )
+        
+        #add any missing to the style d
+        for k in row_keys:
+            if not k in style_d:
+                style_d[k] = dict()
+                
+        #=======================================================================
+        # data prep
+        #=======================================================================
+        true_ser = gdf['true']
+        
+        max_val = math.ceil(gdf.max().max())
+        if xlim is None:
+            xlim = (0, max_val)
+        #=======================================================================
+        # plot loop------
+        #=======================================================================
+        
+        meta_lib=dict()
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                log.info(f'plotting {rowk}x{colk}')
+                
+                if colk=='scatter': 
+ 
+                    #scatter
+                    xar, yar = true_ser.values, gdf[rowk].values
+                    ax.plot(xar, yar ,linestyle='none', **style_d[k])
+                    
+                    #=======================================================================
+                    # compute error
+                    #=======================================================================
+                    slope, intercept, rvalue, pvalue, stderr =  scipy.stats.linregress(xar, yar)
+                    
+                    pearson, pval = scipy.stats.pearsonr(xar, yar)
+                    
+                    rmse = math.sqrt(np.square(xar - yar).mean())
+                    
+                    x_vals = np.array(xlim)
+                    y_vals = intercept + slope * x_vals
+                    
+                    d = dict(pearson=pearson, pval=pval, rvalue=rvalue, pvalue=pvalue, stderr=stderr, rmse=rmse)
+                    meta_lib[k] = d
+                    #log.info(f'for {k} got \n    {d}')
+                    
+                    #===================================================================
+                    # plot correlation
+                    #===================================================================
+                    ax.plot(x_vals, y_vals, color=style_d[k]['color'], linewidth=0.5)
+                    
+                
+                    #1:1 line                    
+                    ax.plot([0.0, max_val*1.1], [0.0, max_val*1.1], color='black', label='1:1', linewidth=0.5, linestyle='dashed')
+                    
+                    #===========================================================
+                    # text
+                    #===========================================================
+                    md = {**{rowk:''}, **d}
+                    ax.text(0.98, 0.05, get_dict_str(md, num_format='{:.3f}'), 
+                            transform=ax.transAxes, 
+                                    va='bottom', ha='right', 
+                                    #fontsize=font_size, 
+                                    color='black',
+                                    bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                    )
+                    
+                        
+                    
+                    #=======================================================================
+                    # post
+                    #=======================================================================
+                    #make square
+                    
+                    ax.set_ylim(0, max_val)
+                    ax.set_xlim(0, max_val)
+                    ax.set_aspect('equal', adjustable='box')
+                    
+                    
+                    
+                    
+        #=======================================================================
+        # post
+        #=======================================================================
+        
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                
+                #first row
+                if rowk==row_keys[0]:
+                    #last columns
+                    if colk==col_keys[-1]:
+                        pass
+                        #ax.legend()
+                        
+                #first col
+                if colk==col_keys[0]:
+                    
+                    #===========================================================
+                    # if rowk in rowLabels_d:
+                    #     rowlab = rowLabels_d[rowk]
+                    # else:
+                    #     rowlab = rowk
+                    #     
+                    # ax.set_ylabel(rowlab)
+                    #===========================================================
+                    
+                    ax.set_ylabel('simulated max depth (m)')
+                    
+                    #last row
+                    if rowk==row_keys[-1]:
+                        ax.set_xlabel('observed HWM (m)')
+                    
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        return self.output_fig(fig, logger=log, ofp=ofp, transparent=transparent)
+                
+                   
+    
 
-class Plot_hyd_HWMS(object):
+class Plot_hyd_HWMS(Plot_HWMS):
     """plotting HWM error scatter for two simulations
     
     largely copied from ceLF.scrips.validate
@@ -861,8 +1123,7 @@ class Plot_hyd_HWMS(object):
             
             #write for dev
             if write:
-                gdf.to_pickle(ofp)
-                
+                gdf.to_pickle(ofp)                
                 log.info(f'wrote {str(gdf.shape)} to \n    {ofp}')
             
         #=======================================================================
@@ -880,51 +1141,7 @@ class Plot_hyd_HWMS(object):
         
         return gdf
         
-    def collect_hyd_fps(self, run_lib, **kwargs):
-        """collect the filepaths from the run_lib"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_rlay_fps', **kwargs)
-        
-        fp_lib={k:dict() for k in run_lib.keys()}
- 
-        
-        #=======================================================================
-        # pull for each
-        #=======================================================================
-        dem_fp, dep2=None, None
-        for k0, d0 in run_lib.items(): #simulation name
-            for k1, d1 in d0.items(): #cat0
-                for k2, d2 in d1.items():
-                    if k1=='smry':
-                        if k2 in [
-                            #'wse1', 'wse2', 
-                            'dep2']:
-                            if dep2 is None: dep2=d2 #name is misleading... this is just an input
-                        elif k2 in ['dem1']:
-                            dem_fp = d2                    
-                        
-                    elif k1=='vali':
- 
-                        if k2=='grid':
-                            for k3, v3 in d2.items():
-                                if k3=='dep1':
-                                    fp_lib[k0][k3]=v3
-                                elif k3=='true_dep_fp':
-                                    dep1V = v3
- 
-                    else:
-                        pass
- 
-        #=======================================================================
-        # get validation
-        #=======================================================================
-        fp_lib = {'dep1':dep1V, 
-                  #'dem1':dem_fp, 
-                  'dep2':dep2}
- 
-        log.info('got fp_lib:\n%s ' % (dstr(fp_lib) ))
-        
-        self.fp_lib = fp_lib
-        return fp_lib 
+
     
     def plot_hyd_hwm(self,
                       gdf_raw,  
@@ -1279,13 +1496,20 @@ def basic_post_pipeline(meta_fp_d,
         
         
         #=======================================================================
+        # HWM performance (all)
+        #=======================================================================
+        fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
+        gdf = ses.concat_HWMs(fp_lib,
+                        pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\post_0303\20230304\ahr_aoi08_0303_post_0303_0304_concat_HWMs.pkl',
+                        )
+        ses.plot_HWM(gdf, metric_lib=metric_lib)
+        return
+        #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
         #=======================================================================
-        # gdf = ses.load_depth_samples(run_lib, hwm_fp, 
-        #                              samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
-        #                              )  
-        #  
+        # ses.collect_hyd_fps(run_lib) 
+        #   
         # ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
         #=======================================================================
   
@@ -1293,14 +1517,16 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
-        #get rlays
-        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
-         
-        #plot them
-        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #=======================================================================
+        # #get rlays
+        # rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        #  
+        # #plot them
+        # res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #=======================================================================
          
  
-        return
+ 
 
  
         #=======================================================================
