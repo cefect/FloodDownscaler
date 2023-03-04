@@ -254,6 +254,9 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         skwargs = dict(logger=log, out_dir=out_dir)
         fp_d = dict(dem_fp=dem_fp, pred_wse_fp=pred_wse_fp, true_wse_fp=true_wse_fp, 
                     true_inun_fp=true_inun_fp,  hwm_pts_fp=hwm_pts_fp) #for reporting
+        
+        log.info(f'running validation on \n    %s'%(
+            {k:os.path.basename(v) for k,v in fp_d.items() if not v is None}))
         #=======================================================================
         # common prep
         #=======================================================================

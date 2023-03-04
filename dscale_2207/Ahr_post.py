@@ -131,12 +131,12 @@ ahr_aoi08_r32_0130_d = {
              'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
              }
 
-ahr_aoi08_r32_0303_d ={'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\cgs\\20230303\\ahr_aoi08_0303_cgs_0303_meta_lib.pkl',
- 'Basic': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmp\\20230303\\ahr_aoi08_0303_rsmp_0303_meta_lib.pkl',
- 'SimpleFilter': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmpF\\20230303\\ahr_aoi08_0303_rsmpF_0303_meta_lib.pkl',
- 'Schumann14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\s14\\20230303\\ahr_aoi08_0303_s14_0303_meta_lib.pkl',
- 'WSE2': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\WSE2_vali\\20230303\\ahr_aoi08_0303_WSE2_vali_0303_meta_lib.pkl',
- 'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\WSE1_vali\\20230303\\ahr_aoi08_0303_WSE1_vali_0303_meta_lib.pkl'}
+ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\cgs\\20230304\\ahr_aoi08_0303_cgs_0304_meta_lib.pkl',
+ 'Basic': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmp\\20230304\\ahr_aoi08_0303_rsmp_0304_meta_lib.pkl',
+ 'SimpleFilter': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmpF\\20230304\\ahr_aoi08_0303_rsmpF_0304_meta_lib.pkl',
+ 'Schumann14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\s14\\20230304\\ahr_aoi08_0303_s14_0304_meta_lib.pkl',
+ 'WSE2': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse2_vali\\20230304\\ahr_aoi08_0303_wse2_vali_0304_meta_lib.pkl',
+ 'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse1_vali\\20230304\\ahr_aoi08_0303_wse1_vali_0304_meta_lib.pkl'}
     
 #===============================================================================
 # def ahr_aoi08_r32_0130_30(**kwargs):
@@ -172,9 +172,7 @@ def ahr_aoi08_r32_0130_30_present(**kwargs):
 
 def ahr_aoi08_r32_0130_30(**kwargs):
     return runr(ahr_aoi08_r32_0303_d,
-        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
  
-          
         run_name='post_0303',proj_name='ahr_aoi08_0303',output_format=output_format,add_stamp=add_stamp,
         **kwargs)
 

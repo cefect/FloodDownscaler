@@ -157,7 +157,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         #===========================================================================
         # defaults
         #===========================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rdv', subdir=False, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rPipe', subdir=False, **kwargs)
  
         meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
         
@@ -200,7 +200,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         wse1_fp, meta_lib['dsc'] = self.run_dsc(wse2_fp,dem1_fp,write_meta=True,
                                                #out_dir=os.path.join(ses.out_dir, 'dsc'), 
-                                               ofp=self._get_ofp('dsc'), **dsc_kwargs)
+                                               ofp=self._get_ofp('dsc'),logger=log, **dsc_kwargs)
  
         meta_lib['smry']['wse1'] = wse1_fp #promoting key results to the summary page
         
@@ -208,7 +208,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         # validate-------
         #=======================================================================
         metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
-                                                     write_meta=True, 
+                                                     write_meta=True, logger=log,
                                                     #out_dir=os.path.join(ses.out_dir, 'vali'), 
                                                     **vali_kwargs)
         
@@ -266,7 +266,7 @@ class PipeSession(Dsc_Session, ValidateSession):
  
         meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
         skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)
-        
+        log.info(f'validating \'{os.path.basename(wse_fp)}\'')
         #=======================================================================
         # helpers
         #=======================================================================
@@ -279,7 +279,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         #=======================================================================
         fp_d = {'wse':wse_fp, 'dem1':dem1_fp}        
         if not aoi_fp is None:            
-            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, **skwargs)            
+            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, logger=log, **skwargs)            
             d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
         else:
             d = fp_d
@@ -293,18 +293,16 @@ class PipeSession(Dsc_Session, ValidateSession):
  
         downscale = self.get_resolution_ratio(wse_fp, dem1_fp)
         
-        if not downscale==1: 
+        if not downscale == 1: 
             wse1_fp = write_resample(wse_fp, scale=downscale, resampling=Resampling.nearest, out_dir=out_dir)
         else:
-            wse1_fp=wse_fp
-            
-        
+            wse1_fp = wse_fp
         
         #=======================================================================
         # validate-------
         #=======================================================================
         metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
-                                                     write_meta=True,  
+                                                     write_meta=True,  logger=log,
                                                     **vali_kwargs)
         
  
@@ -416,17 +414,18 @@ def run_pipeline_multi(
     if validate_hyd:        
         
         #extract kwargs of interest
-        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp']}
+        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp', 'hwm_pts_fp']}
         
         #=======================================================================
         # run on each hydro result
         #=======================================================================
-        for wseName, wse_fp in {'WSE2':wse2_fp, 'WSE1':vali_kwargs['true_wse_fp']}.items():
-            print(f'\n\n HYDRO VALI on {wseName}\n\n')
+        for name, wse_fp in {'WSE2':wse2_fp, 'WSE1':vali_kwargs['true_wse_fp']}.items():
+            print(f'\n\n HYDRO VALI on {name}\n\n')
  
-            with PipeSession(logger=logger, run_name=wseName.lower()+'_vali', **kwargs) as ses:
+            with PipeSession(logger=logger, run_name=name.lower()+'_vali', **kwargs) as ses:
+                skwargs = dict(out_dir=ses.out_dir, logger=ses.logger.getChild(name)) 
                 
-                res_d[wseName] = ses.run_hyd_vali(wse_fp, dem1_fp,vali_kwargs=vali_kwargs2)
+                res_d[name] = ses.run_hyd_vali(wse_fp, dem1_fp,vali_kwargs=vali_kwargs2, **skwargs)
  
  
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
