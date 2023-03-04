@@ -64,24 +64,43 @@ def ahr_aoi08_r32_0303_30(**kwargs):
         aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
     
-def ahr11_rim0201_r32_0203(**kwargs):
-    """Heiko's RIM2D Feb 2023 run.
-    r32 is low
-    r4 has houses removed... so we get lots of FP assets
-        use buffered polygons instead?
-        ask for a run with r04 houses burned?
-        use r32 w/ houses burned"""
-    return runr(proj_name='ahr11_0203',
-        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r32_flood2021_nohouses_max_wse_0204.tif',
-        dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\terrain\aoi11_0129\r04\dem005_r04_aoi11_0129.tif',
-        wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r04_flood2021_reconstructed_max_wse_0203.tif',
-        sample_pts_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\bldgs\osm_buildings_aoi07_1114_poly_a50_c240_pts.geojson',
-        aoi_fp=r'L:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi11b_20230204.geojson',        
+#===============================================================================
+# def ahr11_rim0201_r32_0203(**kwargs):
+#     """Heiko's RIM2D Feb 2023 run.
+#     r32 is low
+#     r4 has houses removed... so we get lots of FP assets
+#         use buffered polygons instead?
+#         ask for a run with r04 houses burned?
+#         use r32 w/ houses burned"""
+#     return runr(proj_name='ahr11_0203',
+#         wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r32_flood2021_nohouses_max_wse_0204.tif',
+#         dem1_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\terrain\aoi11_0129\r04\dem005_r04_aoi11_0129.tif',
+#         wse1V_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi11\fdsc\Altenahr-Sinzig_r04_flood2021_reconstructed_max_wse_0203.tif',
+#         sample_pts_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\bldgs\osm_buildings_aoi07_1114_poly_a50_c240_pts.geojson',
+#         aoi_fp=r'L:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi11b_20230204.geojson',        
+#         **kwargs)
+#===============================================================================
+    
+def ahr11_rim0206_r32_0304(**kwargs):
+    """Heiko's RIM2D Feb 02 run (w/ some updates on Feb 06)
+    
+    neither have houses burned out
+    """
+    return runr(proj_name='ahr11_rim0206_r32_0304',
+        wse2_fp=r'l:\10_IO\2207_dscale\ins\ahr\rim2d_0206\Altenahr-Sinzig_r32_flood2021_nohouses_wd_max_wse.tif',
+        dem1_fp=r'l:\10_IO\2207_dscale\ins\ahr\rim2d_0206\Altenahr-Sinzig_r04_DEM.tif',
+        vali_kwargs=dict(
+            true_wse_fp=r'l:\10_IO\2207_dscale\ins\ahr\rim2d_0206\Altenahr-Sinzig_r04_flood2021_reconstructed_theta05_nohouses_wd_max_wse.tif',
+            true_inun_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\inun\inun_anschlaglinie_HW_7_21_220223_aoi09_0303.geojson',
+            sample_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson',
+            hwm_pts_fp=r'l:\10_IO\2207_dscale\ins\ahr\aoi08\hwm\NWR_ahr11_hwm_20220113b_fix_aoi09.geojson',
+            ),        
+        aoi_fp=r'l:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi09_1221_r32.geojson',        
         **kwargs)
     
 if __name__=='__main__':
-    ahr_aoi08_r32_0303_30(
-        )
+    #ahr_aoi08_r32_0303_30()
+    ahr11_rim0206_r32_0304()
     
     #===========================================================================
     # ahr11_rim0201_r32_0203(method_l=[
