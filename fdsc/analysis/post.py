@@ -1407,9 +1407,17 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
         self.run_lib = copy.deepcopy(run_lib)
         
-        #get teh summary d
+        #=======================================================================
+        # #get teh summary d
+        #=======================================================================
         
         smry_d = {k:v['smry'] for k,v in run_lib.items()}
+        #print(f'\nSUMMARY:')
+        #print(pprint.pformat(smry_d, width=30, indent=0.3, compact=True, sort_dicts =False))
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        
         return run_lib, smry_d    
         
         
@@ -1468,17 +1476,33 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
         return dx
     
-    #===========================================================================
-    # def get_rlay_fps(self, run_lib=None, **kwargs):
-    #     """get the results rasters from the run_lib"""
-    #     log, tmp_dir, out_dir, ofp, resname = self._func_setup('get_rlay_fps', **kwargs) 
-    #     if run_lib is None: run_lib=self.run_lib
-    #     
-    #     log.info(f'on {run_lib.keys()}')
-    # 
-    #     run_lib['nodp']['smry'].keys()
-    #     
-    #===========================================================================
+    def collect_runtimes(self, run_lib, **kwargs):
+        """log runtimes for each"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('runtimes', **kwargs) 
+        
+        res_lib={k:dict() for k in run_lib.keys()} 
+        for k0, d0 in run_lib.items():
+            try:
+                res_lib[k0] = d0['dsc']['smry']['tdelta']
+            except:
+                del res_lib[k0]
+                log.warning(f'no key on {k0}...skipping')
+                
+        #=======================================================================
+        # convert to minutes
+        #=======================================================================
+        convert_d = {k:v/1 for k,v in res_lib.items()}
+        dstr = pprint.pformat(convert_d, width=30, indent=0.3, compact=True, sort_dicts =False)
+        
+        log.info(f'collected runtimes for {len(res_lib)} (in seconds): \n{dstr}')
+        
+        return res_lib
+                
+        
+            
+        
+        
         
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
@@ -1494,6 +1518,7 @@ def basic_post_pipeline(meta_fp_d,
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
         
+        ses.collect_runtimes(run_lib)
         
         #=======================================================================
         # HWM performance (all)
