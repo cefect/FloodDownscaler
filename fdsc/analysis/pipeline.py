@@ -16,12 +16,12 @@ from definitions import wrk_dir, src_name
 
 from hp.basic import today_str
 from hp.rio import (
-    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,
+    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,is_raster_file,
     )
 
 
 from fdsc.scripts.control import Dsc_Session, nicknames_d
-from fdsc.analysis.valid import ValidateSession
+from fdsc.analysis.valid.v_ses import ValidateSession
 
 
 def now():
@@ -31,6 +31,14 @@ def now():
 # class--------
 #===============================================================================
 class PipeSession(Dsc_Session, ValidateSession):
+    
+    def __init__(self,
+                 run_name=None,
+                 **kwargs):
+ 
+        if run_name is None:
+            run_name = 'pipe'
+        super().__init__(run_name=run_name, **kwargs)
 
     def clip_set(self, raster_fp_d, aoi_fp=None, bbox=None, crs=None,
                  sfx='clip', **kwargs):
@@ -103,169 +111,323 @@ class PipeSession(Dsc_Session, ValidateSession):
         
         return ofp, meta_d
 
-def run_dsc_vali(
-        wse2_fp,
-        dem1_fp,
-        wse1V_fp=None,
-        dsc_kwargs=dict(method = 'costGrowSimple'),
-        vali_kwargs=dict(), 
-        **kwargs
-        ):
-    """generate downscale then compute metrics (one option)
-    
-    Parameters
-    ------------
-    wse1_V_fp: str
-        filepath to wse1 raster (for validation)
+
+    def _wrap_meta(self, meta_lib, **kwargs):
+        tdelta = (now() - meta_lib['smry']['start']).total_seconds()
+        meta_lib['smry']['tdelta'] = tdelta
+        #collapse and promote
+        md = dict()
+        for k0, d0 in meta_lib.items():
+            d0m = dict()
+            for k1, d1 in d0.items():
+                #promte contents
+                if isinstance(d1, dict):
+                    md[k0 + '_' + k1] = d1
+                else:
+                    d0m[k1] = d1
+            
+            if len(d0m) > 0:
+                md[k0] = d0m
         
-    kwargs: dict
-        catchAll... including any method-specific parameters
-    """
-    
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    with PipeSession(logfile_duplicate=False, dem_fp=dem1_fp, **kwargs) as ses:
-        start = now()
-        log = ses.logger
-        meta_lib = {'smry':{**{'today':ses.today_str}, **ses._get_init_pars()}}
-        skwargs = dict(out_dir=ses.out_dir, tmp_dir=ses.tmp_dir)
+    #write
+        _ = self._write_meta(md, **kwargs)
+        
+        return meta_lib
+
+    def run_dsc_vali(self,
+            wse2_fp,
+            dem1_fp,
+            
+            aoi_fp=None,
+            
+            dsc_kwargs=dict(method = 'CostGrow'),
+            vali_kwargs=dict(), 
+            **kwargs
+            ):
+        """generate downscale then compute metrics (one method) 
+        
+        Parameters
+        ------------
+ 
+            
+        kwargs: dict
+            catchAll... including any method-specific parameters
+        """
+        
+        #===========================================================================
+        # defaults
+        #===========================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rdv', subdir=False, **kwargs)
+ 
+        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
+        
+        if aoi_fp is None: aoi_fp=self.aoi_fp
+        skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)            
+        
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_spatial_equal(dem1_fp, wse1V_fp, msg='DEM and validation')
+        #assert_spatial_equal(dem1_fp, wse1V_fp, msg='DEM and validation')
         assert_extent_equal(dem1_fp, wse2_fp, msg='DEM and WSE')
         
         #=======================================================================
         # helpers
         #=======================================================================
-        def write(obj, sfx):
-            ofpi = ses._get_ofp(out_dir=ses.out_dir, dkey=sfx, ext='.pkl')
-            with open(ofpi,  'wb') as f:
-                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-            log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
-            return ofpi
+        write_pick = lambda obj, dkey: self.write_pick(obj, dkey, out_dir=out_dir, log=log)
         
         #=======================================================================
         # prelims
         #=======================================================================
-        downscale = ses.get_downscale(wse2_fp, dem1_fp)
+        downscale = self.get_downscale(wse2_fp, dem1_fp)
         meta_lib['smry']['downscale'] = downscale
         dsc_kwargs['downscale'] = downscale
         log.info(f'downscale={downscale}')
         #=======================================================================
         # clip raw rasters
         #=======================================================================
-        fp_d = {'wse2':wse2_fp, 'dem1':dem1_fp, 'wse1V': wse1V_fp}        
-        if not ses.aoi_fp is None:
-            assert not wse1V_fp is None, 'not implemented'             
-            clip_fp_d = ses.clip_set(fp_d)            
+        fp_d = {'wse2':wse2_fp, 'dem1':dem1_fp}        
+        if not aoi_fp is None:            
+            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, **skwargs)            
             d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
         else:
             d = fp_d
         
-        wse2_fp, dem1_fp, wse1V_fp = d['wse2'], d['dem1'], d['wse1V']
+        wse2_fp, dem1_fp = d['wse2'], d['dem1']
         meta_lib['smry'].update(d)  #add cropped layers to summary
         
         #=======================================================================
         # downscale------
         #=======================================================================
-        wse1_fp, meta_lib['dsc'] = ses.run_dsc(wse2_fp,dem1_fp,write_meta=True,
+        wse1_fp, meta_lib['dsc'] = self.run_dsc(wse2_fp,dem1_fp,write_meta=True,
                                                #out_dir=os.path.join(ses.out_dir, 'dsc'), 
-                                               ofp=ses._get_ofp('dsc'), **dsc_kwargs)
+                                               ofp=self._get_ofp('dsc'), **dsc_kwargs)
  
         meta_lib['smry']['wse1'] = wse1_fp #promoting key results to the summary page
+        
         #=======================================================================
         # validate-------
         #=======================================================================
-        metric_lib, meta_lib['vali'] = ses.run_vali(true_fp=wse1V_fp, pred_fp=wse1_fp, dem_fp=dem1_fp, write_meta=True, 
+        metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
+                                                     write_meta=True, 
                                                     #out_dir=os.path.join(ses.out_dir, 'vali'), 
                                                     **vali_kwargs)
         
  
-        meta_lib['smry']['valiMetrics_fp'] = write(metric_lib, 'valiMetrics')
+        meta_lib['smry']['valiMetrics_fp'] = write_pick(metric_lib, 'valiMetrics')
         
         #=======================================================================
         # get depths-------
         #=======================================================================
         """same for all algos... building for consistency"""
-        dep2_fp, meta_lib['dep2'] = ses.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
+        dep2_fp, meta_lib['dep2'] = self.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
         
         meta_lib['smry']['dep2'] = dep2_fp #promoting key results to the summary page
 
         #=======================================================================
         # meta
         #=======================================================================
-        tdelta = (now()-start).total_seconds()
-        meta_lib['smry']['tdelta'] = tdelta
-        
-        
-        print(meta_lib.keys())
-        #collapse and promote
-        md=dict()
-        for k0, d0 in meta_lib.items():
-            
-            d0m = dict()
-            for k1, d1 in d0.items():
-               
-                #promte contents
-                if isinstance(d1, dict):
-                    md[k0+'_'+k1] = d1
-                else:
-                    d0m[k1]=d1
-                    
-            if len(d0m)>0:
-                md[k0]=d0m
-                
-        #write 
-        _  = ses._write_meta(md, logger=log)
-        meta_fp = write(meta_lib, 'meta_lib')
+        meta_lib = self._wrap_meta(meta_lib, logger=log)
 
-        
+        meta_fp = write_pick(meta_lib, 'meta_lib')
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info(f'finished in {now()-start} at \n    {ses.out_dir}')
+        log.info(f'finished in %s at \n    {out_dir}'%meta_lib['smry']['tdelta'])
+            
+        return meta_fp
+    
+    def run_hyd_vali(self,
+            wse_fp,
+            dem1_fp,
+            
+            aoi_fp=None,
+            
+ 
+            vali_kwargs=dict(), 
+            **kwargs
+            ):
+        """validation and depths building pipeline for hydro rasters
         
-    return meta_fp, log
+        Parameters
+        ------------
+ 
+            
+        kwargs: dict
+            catchAll... including any method-specific parameters
+        """
+        
+        #===========================================================================
+        # defaults
+        #===========================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rhv', subdir=False, **kwargs)
+ 
+        
+        if aoi_fp is None: aoi_fp=self.aoi_fp
+ 
+        meta_lib = {'smry':{**{'today':self.today_str, 'aoi_fp':aoi_fp, 'start':now()}, **self._get_init_pars()}}
+        skwargs = dict(out_dir=out_dir, tmp_dir=tmp_dir)
+        
+        #=======================================================================
+        # helpers
+        #=======================================================================
+        write_pick = lambda obj, dkey: self.write_pick(obj, dkey, out_dir=out_dir, log=log)
+        
+ 
+        
+        #=======================================================================
+        # clip raw rasters
+        #=======================================================================
+        fp_d = {'wse':wse_fp, 'dem1':dem1_fp}        
+        if not aoi_fp is None:            
+            clip_fp_d = self.clip_set(fp_d, aoi_fp=aoi_fp, **skwargs)            
+            d = {k:v['clip_fp'] for k,v in clip_fp_d.items()}            
+        else:
+            d = fp_d
+        
+        wse_fp, dem1_fp = d['wse'], d['dem1']
+        meta_lib['smry'].update(d)  #add cropped layers to summary
+        
+        #=======================================================================
+        # rescale
+        #=======================================================================
+ 
+        downscale = self.get_resolution_ratio(wse_fp, dem1_fp)
+        
+        if not downscale==1: 
+            wse1_fp = write_resample(wse_fp, scale=downscale, resampling=Resampling.nearest, out_dir=out_dir)
+        else:
+            wse1_fp=wse_fp
+            
+        
+        
+        #=======================================================================
+        # validate-------
+        #=======================================================================
+        metric_lib, meta_lib['vali'] = self.run_vali(pred_wse_fp=wse1_fp, dem_fp=dem1_fp,  
+                                                     write_meta=True,  
+                                                    **vali_kwargs)
+        
+ 
+        meta_lib['smry']['valiMetrics_fp'] = write_pick(metric_lib, 'valiMetrics')
+        
+        #=======================================================================
+        # get depths-------
+        #=======================================================================
+        #=======================================================================
+        # """same for all algos... building for consistency"""
+        # dep2_fp, meta_lib['dep2'] = self.get_depths_coarse(wse2_fp, dem1_fp, downscale=downscale,**skwargs)
+        # 
+        # meta_lib['smry']['dep2'] = dep2_fp #promoting key results to the summary page
+        #=======================================================================
+        
+        #=======================================================================
+        # meta
+        #=======================================================================
+        meta_lib = self._wrap_meta(meta_lib, logger=log)
+
+        meta_fp = write_pick(meta_lib, 'meta_lib')
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished in %s at \n    {out_dir}'%meta_lib['smry']['tdelta'])
+            
+        return meta_fp
+        
+          
+        
+    def write_pick(self, obj, sfx, out_dir=None, log=None):
+        ofpi = self._get_ofp(out_dir=out_dir, dkey=sfx, ext='.pkl')
+        with open(ofpi,  'wb') as f:
+            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        log.info(f'wrote \'{sfx}\' {type(obj)} to \n    {ofpi}')
+        return ofpi
+         
  
 def run_pipeline_multi(
         
           wse2_fp=None, 
           dem1_fp=None,
-        method_l=[
-                    #'bufferGrowLoop',
-                    'costGrowSimple',
-                    'schumann14', 
-                    'none',
-                    'wetPartialsOnly',
-                    ],
+          vali_kwargs=dict(),
+        method_pars={'CostGrow': {}, 
+                     'Basic': {}, 
+                     'SimpleFilter': {}, 
+                     'BufferGrowLoop': {}, 
+                     'Schumann14': {},
+                     },
         
+        validate_hyd=True,
+ 
+        logger=None,
+           
  
         **kwargs):
-    """run the pipeline on each method
+    """run the pipeline on a collection of methods
     
-    TODO: we should move both these onto the class
-        we have a confusing extra layer now in the strucrue
-        proj_name
-            method (run_name)
-                date
+    Pars
+    ------
+    method_pars: dict
+        method name: kwargs
+        
+    vali_kwargs: dict
+        kwargs for validation. see fdsc.analysis.valid.v_ses.ValidateSession.run_vali()
+        
+    validate_hyd: bool
+        whether to validate the hyd wse rasters also
                 
     """
     
-    logger=None
+ 
     res_d = dict()
+ 
     #===========================================================================
     # loop onmethods
-    #===========================================================================
-    for method in method_l:
-        assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}' 
-        
+    #===========================================================================        
+    for method, mkwargs in method_pars.items():
+        assert method in nicknames_d, f'method {method} not recognized\n    {list(nicknames_d.keys())}'
+        name = nicknames_d[method] 
         print(f'\n\nMETHOD={method}\n\n')
-        res_d[nicknames_d[method]], logger= run_dsc_vali(wse2_fp, dem1_fp,        
-                            dsc_kwargs=dict(method=method),
-                            run_name=nicknames_d[method], logger=logger,
-                            **kwargs)  
+            
+        #=======================================================================
+        # run on session
+        #=======================================================================
+        """want a clean session for each method"""
+        with PipeSession(logger=logger, run_name=name, **kwargs) as ses:            
+            #===================================================================
+            # defaults
+            #===================================================================            
+            skwargs = dict(out_dir=ses.out_dir, logger=ses.logger.getChild(name))            
+            #===================================================================
+            # run
+            #===================================================================
+            res_d[method] = ses.run_dsc_vali(wse2_fp, dem1_fp,
+                                dsc_kwargs=dict(method=method, rkwargs=mkwargs),
+                                vali_kwargs=vali_kwargs,
+                                **skwargs) 
+            
+            #===================================================================
+            # passthrough
+            #===================================================================
  
-    
+            logger = ses.logger
+            
+    #===========================================================================
+    # validate hydrodyn rasetrs
+    #===========================================================================
+    if validate_hyd:        
+        
+        #extract kwargs of interest
+        vali_kwargs2 = {k:v for k,v in vali_kwargs.items() if k in ['true_inun_fp', 'sample_pts_fp']}
+        
+        #=======================================================================
+        # run on each hydro result
+        #=======================================================================
+        for wseName, wse_fp in {'WSE2':wse2_fp, 'WSE1':vali_kwargs['true_wse_fp']}.items():
+            print(f'\n\n HYDRO VALI on {wseName}\n\n')
+ 
+            with PipeSession(logger=logger, run_name=wseName.lower()+'_vali', **kwargs) as ses:
+                
+                res_d[wseName] = ses.run_hyd_vali(wse_fp, dem1_fp,vali_kwargs=vali_kwargs2)
+ 
+ 
     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
+    return res_d

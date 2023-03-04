@@ -34,6 +34,7 @@ from hp.gpd import (
 
 from fdsc.base import Dsc_basic, now, assert_partial_wet
 
+methodName = 'Schumann14'
 
 class Schuman14(Dsc_basic):
     buffer_size=None
@@ -42,6 +43,7 @@ class Schuman14(Dsc_basic):
                  buffer_size=1.5,
                  n_jobs=6,
                  r2p_backend='gr',
+                 run_dsc_handle_d=dict(),
                  **kwargs):
         """
         Parameters
@@ -57,15 +59,18 @@ class Schuman14(Dsc_basic):
         
         if r2p_backend=='gr':
             assert_georasters()
+            
+        run_dsc_handle_d[methodName] = self.run_schu14 
         
-        super().__init__(**kwargs)
+        super().__init__(run_dsc_handle_d=run_dsc_handle_d, **kwargs)
     
-    def run_schu14(self, wse2_fp, dem_fp,
+    def run_schu14(self, wse_fp=None, dem_fp=None,
                    resampling=Resampling.nearest,
                    buffer_size=None,
                    gridcells=True,
-                   downscale=None,
+ 
                    r2p_backend=None,
+                   downscale=None,
                    **kwargs):
         """run python port of schuman 2014's downscaling
         
@@ -92,18 +97,21 @@ class Schuman14(Dsc_basic):
         start = now()        
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('schu14', subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        assert_extent_equal(wse2_fp, dem_fp)
+        assert_extent_equal(wse_fp, dem_fp)
         
         
         
         if buffer_size is None: buffer_size=self.buffer_size
         if downscale is None:
-            downscale = self.get_downscale(wse2_fp, dem_fp)
+            downscale = self.downscale
+            
+        if downscale is None:
+            downscale = self.get_downscale(wse_fp, dem_fp, **skwargs)
         
         meta_lib = {'smry':{
-            'downscale':downscale, 'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
+            'downscale':downscale, 'wse2_fp':os.path.basename(wse_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
         
-        log.info(f'downscaling \'{os.path.basename(wse2_fp)}\' by {downscale} with buffer of {buffer_size:.3f}')
+        log.info(f'downscaling \'{os.path.basename(wse_fp)}\' by {downscale} with buffer of {buffer_size:.3f}')
         #=======================================================================
         # get simple downscalled inundation
         #=======================================================================
@@ -113,7 +121,7 @@ class Schuman14(Dsc_basic):
         
         knn search goes from the coarse WSE, so the resample method doesn't matter much here
         """
-        wse1_rsmp_fp = write_resample(wse2_fp, resampling=resampling,
+        wse1_rsmp_fp = write_resample(wse_fp, resampling=resampling,
                        scale=downscale,
                        ofp=self._get_ofp(dkey='wse1_resamp', out_dir=tmp_dir, ext='.tif'),
                        )
@@ -138,7 +146,7 @@ class Schuman14(Dsc_basic):
         #=======================================================================
         # populate valid WSE within the search zone (on the DEM)
         #=======================================================================
-        wse1_filld_fp, meta_lib['knnF'] = self.get_knnFill(wse2_fp, demF_fp,r2p_backend=r2p_backend, **skwargs)
+        wse1_filld_fp, meta_lib['knnF'] = self.get_knnFill(wse_fp, demF_fp,r2p_backend=r2p_backend, **skwargs)
         
         #=======================================================================
         # merge

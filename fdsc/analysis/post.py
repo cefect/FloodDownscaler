@@ -31,13 +31,14 @@ from hp.gpd import get_samples
 
 
  
-from fdsc.analysis.valid import ValidateSession
+from fdsc.analysis.valid.v_ses import ValidateSession
 from fdsc.base import nicknames_d
 
-nicknames_d['Hydrodynamic']='vali'
+#nicknames_d['Hydrodynamic (s1)']='WSE1'
 cm = 1/2.54
  
-nicknames_d2 = {v:k for k,v in nicknames_d.items()}
+#nicknames_d2 = {v:k for k,v in nicknames_d.items()}
+
 
 def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
@@ -50,54 +51,35 @@ class Plot_rlays_wrkr(object):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('collect_rlay_fps', **kwargs)
         
         fp_lib={k:dict() for k in run_lib.keys()}
-        metric_lib = {k:dict() for k in run_lib.keys()}
+        metric_lib = fp_lib.copy()
         
+ 
         #=======================================================================
-        # pull for each
+        # grid filepaths
         #=======================================================================
-        dem_fp, dep2=None, None
+ 
         for k0, d0 in run_lib.items(): #simulation name
-            for k1, d1 in d0.items(): #cat0
-                for k2, d2 in d1.items():
-                    if k1=='smry':
-                        if k2 in [
-                            #'wse1', 'wse2', 
-                            'dep2']:
-                            if dep2 is None: dep2=d2
-                        elif k2 in ['dem1']:
-                            dem_fp = d2                    
-                        
-                    elif k1=='vali':
-                        if k2=='inun':
-                            for k3, v3 in d2.items():
-                                if k3=='confuGrid_fp':
-                                    fp_lib[k0][k3]=v3
-                                else:
-                                    metric_lib[k0][k3]=v3
-                        elif k2=='grid':
-                            for k3, v3 in d2.items():
-                                if k3=='dep1':
-                                    fp_lib[k0][k3]=v3
-                                elif k3=='true_dep_fp':
-                                    dep1V = v3
-                        
-                        #get the sample points layer
-                        elif k2=='samp':
-                            for k3, v3 in d2.items():
-                                if k3=='samples_fp':
-                                    fp_lib[k0][k3]=v3
-                            
-                    else:
-                        pass
  
-        #=======================================================================
-        # get validation
-        #=======================================================================
-        fp_lib = {**{'vali':{'dep1':dep1V, 'dem1':dem_fp, 'dep2':dep2}}, **fp_lib} #order matters
- 
-        log.info('got fp_lib:\n%s\n\nmetric_lib:\n%s' % (dstr(fp_lib), dstr(metric_lib)))
+            fp_d = d0['vali']['fps']            
+            
+            #clean
+            fp_lib[k0] = {k.replace('_fp', ''):d for k,d in fp_d.items() if not d is None}
+            
+        log.info(f'collected filepaths on {len(fp_lib)} sims\n%s'%dstr(fp_lib))
         
-        self.fp_lib = fp_lib
+        #=======================================================================
+        # metrics
+        #=======================================================================
+        for k0, d0 in run_lib.items(): #simulation name
+            with open(d0['smry']['valiMetrics_fp'], 'rb') as f:
+                valiMetrics_d = pickle.load(f)
+                assert isinstance(valiMetrics_d, dict)
+                
+            metric_lib[k0]=valiMetrics_d['inun']
+            
+        log.info(f'collected inundation metrics on {len(metric_lib)} sims')#\n%s'%dstr(metric_lib))
+ 
+        self.fp_lib=fp_lib
         return fp_lib, metric_lib
 
 
@@ -111,6 +93,7 @@ class Plot_rlays_wrkr(object):
                       font_size=None,
                       confusion_color_d=None,
                       output_format=None,
+                      rowLabels_d = {'WSE1':'Hydrodyn. (s1)'},
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -120,6 +103,11 @@ class Plot_rlays_wrkr(object):
             methods
         columns
             depthRaster r2, depthRaster r1, confusionRaster
+            
+        Pars
+        --------
+        fp_lib: dict
+            {row key i.e. method name: {gridName: filepath}}
         """
         #=======================================================================
         # defaults
@@ -137,28 +125,30 @@ class Plot_rlays_wrkr(object):
         cc_d = self.confusion_codes.copy()
         
         #spatial meta from dem for working with points
-        self.rmeta_d = get_meta(fp_lib['vali']['dem1']) 
+        self.rmeta_d = get_meta(fp_lib['WSE1']['dem']) 
  
         #=======================================================================
         # setup figure
         #=======================================================================
         if row_keys is None:
-            row_keys = ['vali', 'none', 'nodp','s14', 'cgs' ] #list(fp_lib.keys())
+            row_keys = ['WSE1', 'Basic', 'SimpleFilter', 'CostGrow', 'Schumann14'] #list(fp_lib.keys())
+            
+        assert set(row_keys).difference(fp_lib.keys())==set()
             
         if col_keys is None:
             col_keys = ['c2', 'c3']
-        
-        #grid_lib={k:dict() for k in row_keys}
+ 
         grid_lib=dict()
         
+        #specify the axis key for each row
         for rowk in row_keys:
-            if rowk=='vali':
-                col_d = {'c1':None, 'c2':'dep1', 'c3':'dep2'}
-            else:
-                col_d = {'c1':'pie', 'c2':'dep1', 'c3':'confuGrid_fp'}
- 
-                
-            grid_lib[rowk] = col_d             
+            #===================================================================
+            # if rowk=='vali':
+            #     col_d = {'c1':None, 'c2':'dep1', 'c3':'dep2'}
+            # else:
+            #     col_d = {'c1':'pie', 'c2':'dep1', 'c3':'confuGrid_fp'}
+            #===================================================================                
+            grid_lib[rowk] = {'c2':'pred_wd', 'c3':'confuGrid'}             
                 
         log.info('on %s'%dstr(grid_lib))
  
@@ -172,8 +162,7 @@ class Plot_rlays_wrkr(object):
         
         #=======================================================================
         # colormap
-        #=======================================================================
-        
+        #=======================================================================        
         
         #get rastetr val to color conversion for confusion grid
         cval_d = {v:confusion_color_d[k] for k,v in cc_d.items()}        
@@ -197,7 +186,8 @@ class Plot_rlays_wrkr(object):
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
                 gridk = grid_lib[rowk][colk]
-                aname = nicknames_d2[rowk]                
+                #aname = nicknames_d2[rowk]
+                aname=rowk                
                 log.debug(f'plot loop for {rowk}.{colk}.{gridk} ({aname})')
                 
  
@@ -206,13 +196,12 @@ class Plot_rlays_wrkr(object):
                 #===============================================================
                 if gridk is None:
                     ax.set_axis_off()
-                    hide_text(ax)
- 
+                    hide_text(ax) 
                     continue
                 #===============================================================
-                # raster plot
+                # raster plot-----
                 #===============================================================
-                elif not gridk=='pie':
+                if gridk in ['pred_wd', 'confuGrid']:
                     assert rowk in fp_lib, rowk
                     assert gridk in fp_lib[rowk], f'missing data file for {rowk}.{colk}.{gridk} ({aname})'
                     fp = fp_lib[rowk][gridk]
@@ -224,13 +213,13 @@ class Plot_rlays_wrkr(object):
                         #===========================================================
                         # #apply masks
                         #===========================================================
-                        if 'dep' in gridk:
+                        if ('dep' in gridk) or ('wd' in gridk):
                             assert np.any(ar_raw==0), 'depth grid has no zeros ' + rowk
                             ar = np.where(ar_raw==0, np.nan, ar_raw)
                         elif 'confuGrid' in gridk:
                             #mask out true negatives
                             ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
-                        elif 'dem1' ==gridk:
+                        elif 'dem' ==gridk:
                             ar = np.where(ar_raw<130, ar_raw, np.nan)
                             print(ar_raw.max())
                         else:
@@ -239,13 +228,13 @@ class Plot_rlays_wrkr(object):
                         #===========================================================
                         # #get styles by key
                         #===========================================================
-                        if 'confuGrid_fp' ==gridk:
+                        if 'confuGrid' ==gridk:
                             cmap=confuGrid_cmap
                             norm=confuGrid_norm
                         elif gridk=='dem1':
                             cmap='plasma'
                             norm=None
-                        elif 'dep' in gridk:
+                        elif ('dep' in gridk) or ('wd' in gridk):
                             cmap='viridis_r'
                             norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
                         else:
@@ -262,12 +251,13 @@ class Plot_rlays_wrkr(object):
                         #ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
                         
                         #=======================================================
-                        # asset sample plot
+                        # asset samples-------
                         #=======================================================
-                        if colk =='c2' and 'samples_fp' in fp_lib[rowk]:                           
+                        if colk =='c2':# and 'pts_samples' in fp_lib[rowk]:
+                            assert 'confuSamps' in fp_lib[rowk], f'{rowk} missing confuSamps'                                                        
  
                             #load
-                            gdf = self._load_gdf(rowk)
+                            gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'])
                             
                             #drop Trues 
                             gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
@@ -282,7 +272,7 @@ class Plot_rlays_wrkr(object):
                             
                             #pie chart                            
                             # Add a subplot to the lower right quadrant 
-                            self._add_pie(ax, rowk)
+                            self._add_pie(ax, rowk, total_ser = gdf['confusion'].value_counts())
                         
  
                         #===========================================================
@@ -293,7 +283,7 @@ class Plot_rlays_wrkr(object):
                         ax.get_yaxis().set_ticks([])
                         
                         #add text
-                        if gridk=='confuGrid_fp' and isinstance(metric_lib, dict):
+                        if gridk=='confuGrid' and isinstance(metric_lib, dict):
                             md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
                             #md = {**{rowk:''}, **md} 
                             ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
@@ -313,10 +303,7 @@ class Plot_rlays_wrkr(object):
                 #===============================================================
                 elif gridk=='pie':
                     pass
-                    #
-                    
-                    
-                        
+ 
  
         #=======================================================================
         # colorbar-------
@@ -329,11 +316,9 @@ class Plot_rlays_wrkr(object):
                                
                 gridk = grid_lib[rowk][colk]
                 
-                if gridk is None:
-                    gridk='dem1'
-                
+ 
                             
-                if 'dep' in gridk:
+                if ('dep' in gridk) or ('wd' in gridk):
                     spacing='proportional'
                     label='WSH (m)'
                     fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
@@ -349,7 +334,7 @@ class Plot_rlays_wrkr(object):
                     #cax=cax_bot
                     location='bottom'
                     
-                elif 'dem1'==gridk:
+                elif 'dem' in gridk:
                     spacing='proportional'
                     label='DEM (masl)'
                     fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
@@ -397,9 +382,12 @@ class Plot_rlays_wrkr(object):
                 
                 #first col
                 if colk==col_keys[0]:
-                    ax.set_ylabel(nicknames_d2[rowk], 
-                                  #fontsize=6,
-                                  )
+                    if rowk in rowLabels_d:
+                        rowlab = rowLabels_d[rowk]
+                    else:
+                        rowlab = rowk
+                        
+                    ax.set_ylabel(rowlab)
  
                 #first row
                 if rowk==row_keys[0]:
@@ -419,7 +407,7 @@ class Plot_rlays_wrkr(object):
         log.info('finished')
         return self.output_fig(fig, ofp=ofp, logger=log, dpi=600, transparent=transparent)
     
-    def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None):
+    def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None, confusion_codes=None):
         """convenienve to retrieve pre-loaded or load points"""
         #=======================================================================
         # defaults
@@ -427,7 +415,10 @@ class Plot_rlays_wrkr(object):
         if rmeta_d is None: rmeta_d=self.rmeta_d.copy()
         
         if samples_fp is None:
-            samples_fp = self.fp_lib[dkey]['samples_fp']
+            samples_fp = self.fp_lib[dkey]['pts_samples']
+            
+        if confusion_codes is None:
+            confusion_codes = self.confusion_codes.copy()
         
         #=======================================================================
         # preloaded
@@ -439,23 +430,20 @@ class Plot_rlays_wrkr(object):
         # load
         #=======================================================================
         else:        
-            gdf = gpd.read_file(samples_fp, bbox=rmeta_d['bounds'])
+            gdf = gpd.read_file(samples_fp, bbox=rmeta_d['bounds']).rename(
+                columns={'confusion':'code'})
             
-            #compute wet-dry confusion
-            """TODO: move this to valid.py"""
-            
-            gdf['confusion'] = get_confusion_cat(gdf['true']>0.0, gdf['pred']>0.0)
-            
-
-
+            gdf['confusion'] = gdf['code'].replace({v:k for k,v in confusion_codes.items()})
+ 
         #=======================================================================
         # check
         #=======================================================================
         assert gdf.crs == rmeta_d['crs']
         
-        return gdf 
+        return gdf.drop(['code', 'geometry'], axis=1).set_geometry(gdf.geometry)
 
-    def _add_pie(self, ax, rowk, 
+    def _add_pie(self, ax, rowk,
+                 total_ser=None,
                  font_size=None, 
                  confusion_color_d=None,
                  legend=True,
@@ -482,8 +470,9 @@ class Plot_rlays_wrkr(object):
         #=======================================================================
         # #load data
         #=======================================================================
-        gdf = self._load_gdf(rowk)
-        total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
+        if total_ser is None:
+            gdf = self._load_gdf(rowk)
+            total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
         
         colors_l = [confusion_color_d[k] for k in total_ser.index]
         
@@ -1194,7 +1183,10 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
         log.info(f'loaded for {len(run_lib)} runs\n    {run_lib.keys()}')
         
-        #print(pprint.pformat(run_lib['nodp'], width=30, indent=0.3, compact=True, sort_dicts =False))
+        #print contents
+        k1=list(run_lib.keys())[0]
+        print(f'\nfor {k1}')
+        print(pprint.pformat(run_lib[k1], width=30, indent=0.3, compact=True, sort_dicts =False))
         
         self.run_lib = copy.deepcopy(run_lib)
         
@@ -1214,9 +1206,11 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
             with open(fp, 'rb') as f:
                 data = pickle.load(f)
                 assert isinstance(data, dict)
-        #consistency check
+                
+                """not forcing this any more (hydro validations are keyed differently)
+                #consistency check
                 if not data_j is None:
-                    assert set(data_j.keys()).symmetric_difference(data.keys()) == set()
+                    assert set(data_j.keys()).symmetric_difference(data.keys()) == set()"""
                 #store
                 #res_d[k] = pd.DataFrame.from_dict(data)
                 res_d[k] = data
@@ -1271,8 +1265,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
-                      hwm_fp=None,
-                      inun_fp=None,
+ 
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
@@ -1288,32 +1281,26 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
- #==============================================================================
- #        gdf = ses.load_depth_samples(run_lib, hwm_fp, 
- #                                     samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
- #                                     )
- # 
- #        
- #        ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
- #        
- #        plt.close()
- #==============================================================================
- 
+        #=======================================================================
+        # gdf = ses.load_depth_samples(run_lib, hwm_fp, 
+        #                              samp_fp = r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\post_0206\20230302\ahr_aoi08_0130_post_0206_0302_load_dsamps.pkl'
+        #                              )  
+        #  
+        # ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
+        #=======================================================================
+  
         
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
- #==============================================================================
- #        #get rlays
- #        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
- #        
- #        #plot them
- #        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, inun_fp=inun_fp, **rlay_mat_kwargs)
- #        
- # 
- #        plt.close()
- #==============================================================================
-        
+        #get rlays
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+         
+        #plot them
+        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+         
+ 
+        return
 
  
         #=======================================================================

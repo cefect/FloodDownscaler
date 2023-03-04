@@ -3,30 +3,32 @@ Created on Jan. 9, 2023
 
 @author: cefect
 
-data analysis 
+data analysis for Ahr results
 '''
+
 import os
 import numpy as np
 from fdsc.analysis.post import basic_post_pipeline
 
- 
-
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type='journal'
+env_type = 'journal'
+cm = 1 / 2.54
+
+if env_type == 'journal': 
+    usetex = True
+elif env_type == 'draft':
+    usetex = False
+elif env_type == 'present':
+    usetex = False
+else:
+    raise KeyError(env_type)
 
 
-cm = 1/2.54
-usetex=True
 if usetex:
     os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
-    output_format='pdf'
-    add_stamp=False
-else:
-    output_format='svg'
-    add_stamp=True
-    
+ 
   
 import matplotlib
 #matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
@@ -36,13 +38,8 @@ import matplotlib.pyplot as plt
 #set teh styles
 plt.style.use('default')
 
-
-#===============================================================================
-# journal style
-#===============================================================================
-if env_type=='journal':
-    
-    #font
+def set_doc_style():
+ 
     font_size=8
     matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
      
@@ -58,15 +55,30 @@ if env_type=='journal':
         'text.usetex':usetex,
         }.items():
             matplotlib.rcParams[k] = v
-        
+
+#===============================================================================
+# journal style
+#===============================================================================
+if env_type=='journal':
+    set_doc_style()
+    output_format='pdf'
+    add_stamp=False            
+#===============================================================================
+# draft
+#===============================================================================
+elif env_type=='draft':
+    set_doc_style()
+    output_format='svg'
+    add_stamp=True        
 #===============================================================================
 # presentation style    
 #===============================================================================
 elif env_type=='present':
     output_format='png'
-    #font
+    add_stamp=True
+ 
     font_size=12
-    #matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : 8})
+ 
     matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
      
      
@@ -89,6 +101,16 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 # funcs----------
 #===============================================================================
+def runr(meta_fp_d, rlay_mat_kwargs=dict(),
+         **kwargs):
+    
+    #environment setup
+    if env_type=='draft':
+        rlay_mat_kwargs['output_format']='png'
+        
+    return basic_post_pipeline(meta_fp_d, rlay_mat_kwargs=rlay_mat_kwargs, **kwargs)
+    
+
 def aoi08_r32_1215_53(**kwargs):
     return basic_post_pipeline(
         {
@@ -108,14 +130,23 @@ ahr_aoi08_r32_0130_d = {
              'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
              'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
              }
+
+ahr_aoi08_r32_0303_d ={'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\cgs\\20230303\\ahr_aoi08_0303_cgs_0303_meta_lib.pkl',
+ 'Basic': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmp\\20230303\\ahr_aoi08_0303_rsmp_0303_meta_lib.pkl',
+ 'SimpleFilter': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmpF\\20230303\\ahr_aoi08_0303_rsmpF_0303_meta_lib.pkl',
+ 'Schumann14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\s14\\20230303\\ahr_aoi08_0303_s14_0303_meta_lib.pkl',
+ 'WSE2': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\WSE2_vali\\20230303\\ahr_aoi08_0303_WSE2_vali_0303_meta_lib.pkl',
+ 'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\WSE1_vali\\20230303\\ahr_aoi08_0303_WSE1_vali_0303_meta_lib.pkl'}
     
-def ahr_aoi08_r32_0130_30(**kwargs):
-    return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
-        hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
-        inun_fp=r'L:\02_WORK\NRC\202110_Ahr\01_GEN\01_INOUT\2022 01 13 - Heiko - 2021 data\Ahr_Überflutungsflächen_HW07-2021_LfU712_2021_07_14.shp',   
-        run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
-        **kwargs)
+#===============================================================================
+# def ahr_aoi08_r32_0130_30(**kwargs):
+#     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
+#         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
+#         hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
+#           
+#         run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
+#         **kwargs)
+#===============================================================================
     
 
 def ahr_aoi08_r32_0130_30_present(**kwargs):
@@ -137,9 +168,18 @@ def ahr_aoi08_r32_0130_30_present(**kwargs):
             figsize=(24*cm, 16*cm),
             ),
         **kwargs)
+    
+
+def ahr_aoi08_r32_0130_30(**kwargs):
+    return runr(ahr_aoi08_r32_0303_d,
+        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
+ 
+          
+        run_name='post_0303',proj_name='ahr_aoi08_0303',output_format=output_format,add_stamp=add_stamp,
+        **kwargs)
 
 def ahr11_rim0201_r32_0203(**kwargs):
-    return basic_post_pipeline(
+    return runr(
             {
                 'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr11_0203\\cgs\\20230204\\ahr11_0203_cgs_0204_meta_lib.pkl',
                  'none': 'L:\\10_IO\\fdsc\\outs\\ahr11_0203\\none\\20230204\\ahr11_0203_none_0204_meta_lib.pkl',
