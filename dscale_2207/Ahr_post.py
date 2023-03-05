@@ -13,7 +13,7 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'present'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -74,7 +74,7 @@ elif env_type=='draft':
 # presentation style    
 #===============================================================================
 elif env_type=='present':
-    output_format='png'
+    output_format='svg'
     add_stamp=True
  
     font_size=12
@@ -89,7 +89,7 @@ elif env_type=='present':
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+4,
         'figure.autolayout':False,
-        'figure.figsize':(20*cm,14*cm),
+        'figure.figsize':(19*cm,34*cm), #GFZ template slide size
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -103,9 +103,10 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 def runr(meta_fp_d, rlay_mat_kwargs=dict(),
          **kwargs):
+    """environment defaults for runner"""
     
     #environment setup
-    if env_type=='draft':
+    if env_type in ['draft', 'present']:
         rlay_mat_kwargs['output_format']='png'
         
     return basic_post_pipeline(meta_fp_d, rlay_mat_kwargs=rlay_mat_kwargs, 
@@ -126,26 +127,26 @@ ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\c
  'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse1_vali\\20230304\\ahr_aoi08_0303_wse1_vali_0304_meta_lib.pkl'}
     
  
-    
+present_mod_keys = ['Basic', 'Schumann14', 'CostGrow', 'WSE1']
+present_rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'Basic':'Hydrodyn. (s2)'}
+ 
 
 def ahr_aoi08_0303_present(**kwargs):
-    return basic_post_pipeline(ahr_aoi08_r32_0303_d,
-        #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
+    return runr(ahr_aoi08_r32_0303_d,
+ 
         run_name='present',proj_name='ahr_aoi08_0303',
-        rlay_mat_kwargs=dict(
-            #row_keys = ['vali', 'none', 's14','cgs' ],
-            #col_keys = ['c2', 'c3'],
-            
-            #pieplots only
-            row_keys = ['s14','cgs' ],
-            col_keys = ['c1'],
-            
-            add_subfigLabel=False, 
-            transparent=False, figsize=(8*cm,12*cm)),
-        samples_mat_kwargs=dict(
-            col_keys = ['raw_hist', 'corr_scatter'],add_subfigLabel=False,transparent=False,
-            figsize=(24*cm, 16*cm),
+        hwm3_kwargs=dict(
+            mod_keys = present_mod_keys,rowLabels_d = present_rowLabels_d,
+            ncols=2,total_fig_width=19,metaKeys_l=['rmse'],
             ),
+        
+        rlay_mat_kwargs=dict(
+            row_keys=present_mod_keys,rowLabels_d = present_rowLabels_d,
+            
+            add_subfigLabel=False, transparent=False, figsize=(20*cm,18*cm),
+            pie_legend=False,arrow1=False,
+            ),
+ 
         **kwargs)
     
 
@@ -181,11 +182,14 @@ def ahr11_rim0206_0304(**kwargs):
         **kwargs)
     
 if __name__=='__main__':
-    #ahr11_rim0201_r32_0203()
+ 
     
     #ahr_aoi08_0303()
+    ahr_aoi08_0303_present(
+        hwm_pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\present\20230305\ahr_aoi08_0303_present_0305_concat_HWMs.pkl'
+        )
     
-    ahr11_rim0206_0304()
+    #ahr11_rim0206_0304()
    
  
     print('done')
