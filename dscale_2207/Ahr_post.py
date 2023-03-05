@@ -113,25 +113,10 @@ def runr(meta_fp_d, rlay_mat_kwargs=dict(),
                                **kwargs)
     
 
-def aoi08_r32_1215_53(**kwargs):
-    return basic_post_pipeline(
-        {
-        'nodp':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_nodp\20230113\ahr_aoi08_121553_nodp_0113_meta_lib.pkl',
-        'cgs':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_cgs\20230113\ahr_aoi08_121553_cgs_0113_meta_lib.pkl',
-        'bgl':r'l:\10_IO\fdsc\outs\ahr_aoi08\121553_bgl\20230119\ahr_aoi08_121553_bgl_0119_meta_lib.pkl',
-        's14':r'L:\10_IO\fdsc\outs\ahr_aoi08\121553_s14\20230130\ahr_aoi08_121553_s14_0130_meta_lib.pkl',
-        },
-        sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08\post_0124\20230124\ahr_aoi08_post_0124_0124_collect_samples_data.pkl',   
-        run_name='post_0124',proj_name='ahr_aoi08',
-        **kwargs)
+ 
 
 #results data (for present and non-present functions)
-ahr_aoi08_r32_0130_d = {
-            'cgs': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\cgs\\20230205\\ahr_aoi08_0130_cgs_0205_meta_lib.pkl',
-             's14': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\s14\\20230205\\ahr_aoi08_0130_s14_0205_meta_lib.pkl',
-             'none': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\none\\20230205\\ahr_aoi08_0130_none_0205_meta_lib.pkl',
-             'nodp': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0130\\nodp\\20230205\\ahr_aoi08_0130_nodp_0205_meta_lib.pkl',
-             }
+ 
 
 ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\cgs\\20230304\\ahr_aoi08_0303_cgs_0304_meta_lib.pkl',
  'Basic': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\rsmp\\20230304\\ahr_aoi08_0303_rsmp_0304_meta_lib.pkl',
@@ -140,21 +125,13 @@ ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\c
  'WSE2': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse2_vali\\20230304\\ahr_aoi08_0303_wse2_vali_0304_meta_lib.pkl',
  'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse1_vali\\20230304\\ahr_aoi08_0303_wse1_vali_0304_meta_lib.pkl'}
     
-#===============================================================================
-# def ahr_aoi08_r32_0130_30(**kwargs):
-#     return basic_post_pipeline(ahr_aoi08_r32_0130_d,
-#         sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',
-#         hwm_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\calibrate\hwms\NWR_ahr11_hwm_20220113b_fix.geojson',
-#           
-#         run_name='post_0206',proj_name='ahr_aoi08_0130',output_format=output_format,add_stamp=add_stamp,
-#         **kwargs)
-#===============================================================================
+ 
     
 
-def ahr_aoi08_r32_0130_30_present(**kwargs):
-    return basic_post_pipeline(ahr_aoi08_r32_0130_d,
+def ahr_aoi08_0303_present(**kwargs):
+    return basic_post_pipeline(ahr_aoi08_r32_0303_d,
         #sample_dx_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0130\p0130\20230205\ahr_aoi08_0130_p0130_0205_collect_samples_data.pkl',   
-        run_name='present',proj_name='ahr_aoi08_0130',
+        run_name='present',proj_name='ahr_aoi08_0303',
         rlay_mat_kwargs=dict(
             #row_keys = ['vali', 'none', 's14','cgs' ],
             #col_keys = ['c2', 'c3'],
@@ -172,7 +149,7 @@ def ahr_aoi08_r32_0130_30_present(**kwargs):
         **kwargs)
     
 
-def ahr_aoi08_r32_0130_30(**kwargs):
+def ahr_aoi08_0303(**kwargs):
     return runr(ahr_aoi08_r32_0303_d, 
         run_name='post_0303',proj_name='ahr_aoi08_0303',
         **kwargs)
@@ -206,7 +183,7 @@ def ahr11_rim0206_0304(**kwargs):
 if __name__=='__main__':
     #ahr11_rim0201_r32_0203()
     
-    #ahr_aoi08_r32_0130_30()
+    #ahr_aoi08_0303()
     
     ahr11_rim0206_0304()
    
