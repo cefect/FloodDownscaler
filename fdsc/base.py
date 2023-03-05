@@ -16,21 +16,55 @@ from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, assert_masked_ar
     )
 
-nicknames_d = {'costGrow':'cgs', 
-               'basicBilinear':'none',
-               'simpleFilter':'nodp', 
-               'bufferGrowLoop':'bgl', 
-               'schumann14':'s14'}
+nicknames_d = {'CostGrow':'cgs', 
+               'Basic':'rsmp',
+               'SimpleFilter':'rsmpF', #basic + DEM filter
+               'BufferGrowLoop':'bgl', 
+               'Schumann14':'s14'}
 
 def now():
     return datetime.datetime.now()
 
 
 class Dsc_basic(object):
+    """methods shared by all downscaler classes"""
     
     downscale=None
-
+    
+    def __init__(self,
+                 run_dsc_handle_d=dict(), 
+                 **kwargs):
+        """
+        Parameters
+        ----------
+        run_dsc_handle_d: dict
+            {methodName: callable function (takes kwargs)}
+            
+        """
+        #=======================================================================
+        # set caller funcs
+        #=======================================================================
+        miss_s = set(run_dsc_handle_d.keys()).difference(nicknames_d.keys())
+        assert miss_s==set(), miss_s
  
+        self.run_dsc_handle_d=run_dsc_handle_d
+        
+        #=======================================================================
+        # init
+        #=======================================================================
+        super().__init__(**kwargs)
+    
+    
+ 
+
+    def get_resolution_ratio(self, 
+                             fp1, #high res
+                             fp2, #low res
+                             ):
+        s1 = get_ds_attr(fp1, 'res')[0]
+        s2 = get_ds_attr(fp2, 'res')[0]
+        return s1 / s2
+
     def get_downscale(self, fp1, fp2, **kwargs):
         """compute the scale difference between two layers
         
@@ -42,15 +76,11 @@ class Dsc_basic(object):
             hi-res (fine)
         """
         
-        if self.downscale is None:
-            s1 = get_ds_attr(fp1, 'res')[0]
-            s2 = get_ds_attr(fp2, 'res')[0]
+        if self.downscale is None:          
             
-            assert s1 > s2
+            self.downscale = self.get_resolution_ratio(fp1, fp2)
             
-            self.downscale = s1 / s2
-            
-        
+        assert self.downscale>=1.0
         return self.downscale
     
     def get_wse_dem_filter(self, wse_fp, dem_fp,  **kwargs):
@@ -163,6 +193,22 @@ def assert_wse_ar(ar, msg=''):
     assert_masked_ar(ar, msg=msg)    
     assert_partial_wet(ar.mask, msg=msg)
     
+    
+def assert_wd_ar(ar, msg=''):
+    """check the array satisfies expectations for a WD array"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    
+    assert_masked_ar(ar, msg=msg)
+    
+    if not np.all(np.invert(ar.mask)):
+        raise AssertionError(msg+': some masked values')
+    
+    if not np.min(ar)==0.0:
+        raise AssertionError(msg+': non-zero minimum') 
+    
+    if not np.max(ar)>0.0:
+        raise AssertionError(msg+': zero maximum') 
     
     
     

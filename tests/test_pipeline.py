@@ -14,8 +14,10 @@ from tests.conftest import (
       proj_lib, get_rlay_fp, crs_default, get_aoi_fp, par_algoMethodKwargs
     )
 
-from fdsc.analysis.pipeline import run_dsc_vali
+from fdsc.analysis.pipeline import run_pipeline_multi
 from fdsc.analysis.pipeline import PipeSession as Session
+
+from hp.tests.tools.rasters import get_poly_fp_from_rlay
 #===============================================================================
 # test data
 #===============================================================================
@@ -26,6 +28,7 @@ dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1')
 wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
 wse1_rlayV_fp = get_rlay_fp(wse1_arV, 'wse1V')
 toy_aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
+inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
 
 #===============================================================================
 # fixtures------------
@@ -71,18 +74,62 @@ def test_clip_set(raster_fp_d, aoi_fp,
     wrkr.clip_set(raster_fp_d, aoi_fp=aoi_fp)
 
 
-@pytest.mark.dev
-@pytest.mark.parametrize('dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp', [
-    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, toy_aoi_fp, None),
-    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], None, td1['sample_pts_fp'])
+ 
+@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp', [
+
+    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'])
+ 
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
-def test_runr(dem1_fp, wse2_fp, wse1V_fp, aoi_fp, sample_pts_fp,
-              method, kwargs,
-              tmp_path, logger):    
-    run_dsc_vali(wse2_fp, dem1_fp, 
-                 wse1V_fp = wse1V_fp, aoi_fp=aoi_fp, 
-                 out_dir=tmp_path, run_name='test',logger=logger,
-                 dsc_kwargs=dict(method = method),
-                 vali_kwargs=dict(sample_pts_fp=sample_pts_fp),
-                 **kwargs)
+def test_run_dsc_vali(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp,
+              method, kwargs, #from par_algoMethodKwargs
+              wrkr):    
+    wrkr.run_dsc_vali(wse2_fp, dem1_fp, 
+                  
+                 aoi_fp=aoi_fp, 
+ 
+                 dsc_kwargs=dict(method = method, rkwargs = kwargs),
+                 vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
+                 )
+
+
+@pytest.mark.parametrize('dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp', [
+
+    #(dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['inun_vlay_fp'], None, td1['aoi_fp']),
+    (td1['dem1_rlay_fp'], td1['wse1_rlayV_fp'],  td1['inun_vlay_fp'],None, td1['aoi_fp'])
+ 
+    ])
+def test_run_hyd_vali(dem1_fp, wse_fp,  true_inun_fp, sample_pts_fp, aoi_fp, 
+              wrkr):    
+    
+    wrkr.run_hyd_vali(wse_fp, dem1_fp, 
+                  
+                 aoi_fp=aoi_fp, 
+ 
+                 vali_kwargs=dict(true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp),
+                 )
+
+@pytest.mark.dev
+@pytest.mark.parametrize('dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd, hwm_pts_fp', [
+
+    (dem1_rlay_fp, wse2_rlay_fp, wse1_rlayV_fp, inun_poly_fp, None,  None, False, None),
+    (td1['dem1_rlay_fp'], td1['wse2_rlay_fp'], td1['wse1_rlayV_fp'], td1['inun_vlay_fp'], td1['sample_pts_fp'], td1['aoi_fp'], True,  td1['hwm_pts_fp'])
+ 
+    ])
+
+def test_runr_multi(dem1_fp, wse2_fp, true_wse_fp, true_inun_fp, sample_pts_fp, aoi_fp, validate_hyd, hwm_pts_fp,
+                    tmp_path, logger):
+    
+    method_pars = {e[0]:e[1] for e in par_algoMethodKwargs[1]}
+    
+        
+    run_pipeline_multi(wse2_fp, dem1_fp,                  
+                 aoi_fp=aoi_fp, 
+                 method_pars=method_pars,
+                 validate_hyd=validate_hyd,
+                 vali_kwargs=dict(true_wse_fp=true_wse_fp, true_inun_fp=true_inun_fp, sample_pts_fp=sample_pts_fp, hwm_pts_fp=hwm_pts_fp),
+                 out_dir=tmp_path,tmp_dir=os.path.join(tmp_path, 'tmp_dir'),logger=logger,logfile_duplicate=False,
+                 )
+    

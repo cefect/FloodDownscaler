@@ -25,14 +25,16 @@ from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.simple import CostGrowSimple, BufferGrowLoop
+from fdsc.scripts.simple import BasicDSC
 from fdsc.scripts.schu14 import Schuman14
+from fdsc.scripts.costGrow import CostGrow
+from fdsc.scripts.bufferLoop import BufferGrowLoop
 
 
 
 
 
-class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
+class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         RioSession, Master_Session, WBT_worker):
       
     #===========================================================================
@@ -105,96 +107,90 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         #=======================================================================
         # wrap
         #=======================================================================
-        # get rlay write kwargs for this session
-        # rlay_kwargs = get_write_kwargs(dem_stats, driver='GTiff', compress='LZW', masked=False)        
+     
       
         self.s2, self.s1, self.downscale = s2, s1, downscale 
         return wse2_ar, dem1_ar, wse_stats, dem_stats
     
-
-
-    #===========================================================================
-    # PHASE1---------
-    #===========================================================================
-
-
-    #===========================================================================
-    # PHASE2-----------------
-    #===========================================================================
-    def p2_dryPartials(self, wse1_fp, dem1_fp,
-                       dryPartial_method='wetPartialsOnly',
-                       write_meta=True,
-                       run_kwargs=dict(),
-                       **kwargs):
-        """downscale in drypartial zones        
-        should develop a few options here
-        
-        Parameters
-        ----------
-        dryPartial_method: str
-            method to apply
-            
-        run_kwargs: dict
-            pass kwargs to the run caller. used for testing.
-        
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
-        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-        start = now()
-        assert_spatial_equal(wse1_fp, dem1_fp)
-        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
-            
-        sn = nicknames_d[dryPartial_method]  # short name
-        #=======================================================================
-        # by method
-        #=======================================================================
-        if dryPartial_method == 'wetPartialsOnly':
-            assert len(run_kwargs)==0
-            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
-            wse1_dp_fp = ofp
-            d = {'wetPartialsOnly':'none'}  # dummy placeholder
  
-        elif dryPartial_method == 'costGrowSimple': 
-            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
-            
-        elif dryPartial_method == 'bufferGrowLoop':
-            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
-            
-        else:
-            raise KeyError(dryPartial_method)
  
-        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
-        #=======================================================================
-        # check
-        #=======================================================================
-        if __debug__:
-            assert_spatial_equal(wse1_fp, wse1_dp_fp)
-            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
-        
-        #=======================================================================
-        # wrap
-        #=======================================================================
-        tdelta = (now() - start).total_seconds()
-        meta_lib['smry']['tdelta'] = tdelta
-        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
-        log.info(f'finished in {tdelta:.2f} secs')
-        
-        if write_meta:
-            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
+ #==============================================================================
+ #    def p2_dryPartials(self, wse1_fp, dem1_fp,
+ #                       dryPartial_method='SimpleFilter',
+ #                       write_meta=True,
+ #                       run_kwargs=dict(),
+ #                       **kwargs):
+ #        """downscale in drypartial zones        
+ #        should develop a few options here
+ #        
+ #        Parameters
  
-        return wse1_dp_fp, meta_lib
+ #        dryPartial_method: str
+ #            method to apply
+ #            
+ #        run_kwargs: dict
+ #            pass kwargs to the run caller. used for testing.
+ #        
+ #        """
+ #        
+ #        #=======================================================================
+ #        # defaults
+ #        #=======================================================================
+ #        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
+ #        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
+ #        start = now()
+ #        assert_spatial_equal(wse1_fp, dem1_fp)
+ #        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
+ #            
+ #        sn = nicknames_d[dryPartial_method]  # short name
+ #        #=======================================================================
+ #        # by method
+ #        #=======================================================================
+ #        if dryPartial_method == 'SimpleFilter':
+ #            assert len(run_kwargs)==0
+ #            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
+ #            wse1_dp_fp = ofp
+ #            d = {'SimpleFilter':'none'}  # dummy placeholder
+ # 
+ #        elif dryPartial_method == 'CostGrow': 
+ #            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
+ #            
+ #        elif dryPartial_method == 'bufferGrowLoop':
+ #            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
+ #            
+ #        else:
+ #            raise KeyError(dryPartial_method)
+ # 
+ #        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
+ #        #=======================================================================
+ #        # check
+ #        #=======================================================================
+ #        if __debug__:
+ #            assert_spatial_equal(wse1_fp, wse1_dp_fp)
+ #            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
+ #        
+ #        #=======================================================================
+ #        # wrap
+ #        #=======================================================================
+ #        tdelta = (now() - start).total_seconds()
+ #        meta_lib['smry']['tdelta'] = tdelta
+ #        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
+ #        log.info(f'finished in {tdelta:.2f} secs')
+ #        
+ #        if write_meta:
+ #            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
+ # 
+ #        return wse1_dp_fp, meta_lib
+ #==============================================================================
 
     def run_dsc(self,
             wse2_fp,
             dem1_fp,
  
-            method='costGrowSimple',
+            method='CostGrow',
             downscale=None,
             write_meta=True,
+            rkwargs=dict(),
                 **kwargs):
         """run a downsampling pipeline
         
@@ -219,7 +215,11 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         # defaults
         #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True, **kwargs)
-        meta_lib = {'smry':{**{'today':self.today_str, 'method':method}, **self._get_init_pars()}}
+ 
+        
+        meta_lib = {'smry':{**{'today':self.today_str, 'method':method, 'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem1_fp, 'ofp':ofp}, 
+                            **self._get_init_pars()}}
+        
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         start = now()
         assert_extent_equal(wse2_fp, dem1_fp)
@@ -235,47 +235,35 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         if downscale is None:
             downscale = self.get_downscale(wse2_fp, dem1_fp)
         
+        self.downscale=downscale
+        meta_lib['smry']['downscale']=downscale
         #=======================================================================
         # run algo
         #=======================================================================
-        if not method in ['schumann14', 'none']: #2 phase
-            #=======================================================================
-            # wet partials
-            #=======================================================================                
-            wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
-                                                                downscale=downscale,
-                                                                **skwargs)
-     
-            #=======================================================================
-            # dry partials
-            #=======================================================================
-            wse1_dp_fp, meta_lib['p2_DP'] = self.p2_dryPartials(wse1_wp_fp, dem1_fp,
-                                                    dryPartial_method=method,
-                                                    **skwargs)
+        f = self.run_dsc_handle_d[method]
         
-        elif method=='schumann14':
-                wse1_dp_fp, md1 = self.run_schu14(wse2_fp, dem1_fp, downscale=downscale, **skwargs)
-                
-                meta_lib.update(md1)
-                
-        elif method=='none':            
-            wse1_dp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse2_fp, dem1_fp, 
-                                                                downscale=downscale,
-                                                                dem_filter=False,
-                                                                **skwargs)
-        
-        else:
-            raise KeyError(method)
+        wse1_fp, d = f(wse_fp=wse2_fp, dem_fp=dem1_fp, **rkwargs, **skwargs)
+        #=======================================================================
+        # try:
+        #     wse1_fp, meta_lib = f(wse_fp=wse2_fp, dem_fp=dem1_fp, **skwargs)
+        # except Exception as e:
+        #     raise IOError(f'failed to execute algo \'{method}\' method \'{f.__name__}\' w/ \n    {e}')
+        #=======================================================================
+        meta_lib.update(d)
+
+ 
         
         #=======================================================================
         # check
         #=======================================================================
-        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
+        if __debug__:
+            assert_spatial_equal(wse1_fp, dem1_fp)            
+            rlay_ar_apply(wse1_fp, assert_wse_ar, masked=True)
         #=======================================================================
         # wrap
         #=======================================================================
         # copy tover to the main result
-        rshutil.copy(wse1_dp_fp, ofp)
+        rshutil.copy(wse1_fp, ofp)
         
         tdelta = (now() - start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
@@ -283,22 +271,19 @@ class Dsc_Session(CostGrowSimple, BufferGrowLoop, Schuman14,
         if write_meta:
             self._write_meta(meta_lib, logger=log, out_dir=out_dir)
             
-        log.info(f'finished on\n    {ofp}')
+        log.info(f'finished \'{method}\' in {tdelta} on\n    {ofp}')
         
         return ofp, meta_lib
     
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
-
-
-
-
+ 
 def run_downscale(
         wse2_rlay_fp,
         dem1_rlay_fp,
         aoi_fp=None,
-        method='costGrowSimple',
+        method='CostGrow',
         **kwargs):
     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
     
@@ -312,6 +297,6 @@ def run_downscale(
     """
     
     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        wse1_dp_fp = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, method=method)
+        wse1_dp_fp, meta_d = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, method=method)
         
-    return wse1_dp_fp
+    return wse1_dp_fp, meta_d
