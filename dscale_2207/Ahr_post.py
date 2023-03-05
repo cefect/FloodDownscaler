@@ -74,7 +74,7 @@ elif env_type=='draft':
 # presentation style    
 #===============================================================================
 elif env_type=='present':
-    output_format='png'
+    output_format='svg'
     add_stamp=True
  
     font_size=12
@@ -89,7 +89,7 @@ elif env_type=='present':
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+4,
         'figure.autolayout':False,
-        'figure.figsize':(20*cm,14*cm),
+        'figure.figsize':(19*cm,34*cm), #GFZ template slide size
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -127,18 +127,21 @@ ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\c
  'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse1_vali\\20230304\\ahr_aoi08_0303_wse1_vali_0304_meta_lib.pkl'}
     
  
-    
+present_mod_keys = ['Basic', 'Schumann14', 'CostGrow', 'WSE1']
+present_rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'Basic':'Hydrodyn. (s2)'}
+ 
 
 def ahr_aoi08_0303_present(**kwargs):
     return runr(ahr_aoi08_r32_0303_d,
  
         run_name='present',proj_name='ahr_aoi08_0303',
-        hwm3_kwargs=dict(),
+        hwm3_kwargs=dict(
+            mod_keys = present_mod_keys,rowLabels_d = present_rowLabels_d,
+            ncols=2,total_fig_width=19,metaKeys_l=['rmse'],
+            ),
         
         rlay_mat_kwargs=dict(
-            row_keys=['Basic', 'Schumann14', 'CostGrow', 'WSE1'],
-            
-            rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'Basic':'Hydrodyn. (s2)'},
+            row_keys=present_mod_keys,rowLabels_d = present_rowLabels_d,
             
             add_subfigLabel=False, transparent=False, figsize=(20*cm,18*cm),
             pie_legend=False,arrow1=False,

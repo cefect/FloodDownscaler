@@ -39,7 +39,7 @@ cm = 1/2.54
  
 #nicknames_d2 = {v:k for k,v in nicknames_d.items()}
 
-rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+
 
 
 
@@ -96,7 +96,7 @@ class Plot_rlays_wrkr(object):
                       font_size=None,
                       confusion_color_d=None,
                       output_format=None,
-                      rowLabels_d = {'WSE1':'Hydrodyn. (s1)'},
+                      rowLabels_d = None,
                       pie_legend=True,arrow1=True,
  
             **kwargs):
@@ -125,6 +125,9 @@ class Plot_rlays_wrkr(object):
             font_size=matplotlib.rcParams['font.size']
         if confusion_color_d is None:
             confusion_color_d=self.confusion_color_d.copy()
+            
+        if rowLabels_d is None:
+            rowLabels_d=self.rowLabels_d
         
         cc_d = self.confusion_codes.copy()
         
@@ -928,13 +931,26 @@ class Plot_HWMS(object):
                         style_d=dict(),
                          xlim=None,  
                          max_val=None,
-                         rowk='',
+                         metaLabel=None,
+                         metaKeys_l = None,
                          ):
+        """add a scatter for HWMs
+        
+        Pars
+        -----------
+        metaLabel: str, default none
+            label to add at head of meta text
+            
+        metaKeys_l: list
+            list of metrics to ionclude in meta text
+        """
+            
         #=======================================================================
         # defaults
         #=======================================================================
         if xlim is None: xlim=min(xar)
         if max_val is None: max_val=max(xar)
+        if metaKeys_l is None: metaKeys_l = ['pearson', 'rvalue', 'stderr', 'rmse']
         #=======================================================================
         # ploat
         #=======================================================================
@@ -947,12 +963,11 @@ class Plot_HWMS(object):
         rmse = math.sqrt(np.square(xar - yar).mean())
         x_vals = np.array(xlim)
         y_vals = intercept + slope * x_vals
-        meta_d = dict(pearson=pearson, 
-                      #pval=pval, 
-                      rvalue=rvalue, 
-                      #pvalue=pvalue, 
-                      stderr=stderr, rmse=rmse)
- 
+        
+        #collect meta metrics
+        meta_all_d = dict(pearson=pearson,pval=pval,rvalue=rvalue,pvalue=pvalue,stderr=stderr, rmse=rmse)
+        assert set(metaKeys_l).difference(meta_all_d.keys())==set(), 'requested some bad keys'
+        meta_d = {k:v for k,v in meta_all_d.items() if k in metaKeys_l} #filter to request
  
         #===================================================================
         # plot correlation
@@ -963,7 +978,12 @@ class Plot_HWMS(object):
         #===========================================================
         # text
         #===========================================================
-        md = {**{rowk:''}, **meta_d}
+        if not metaLabel is None:
+            md = {**{metaLabel:''}, **meta_d}
+        else:
+            md = meta_d
+            
+            
         ax.text(0.98, 0.05, get_dict_str(md, num_format='{:.3f}'), 
             transform=ax.transAxes, 
             va='bottom', ha='right', 
@@ -1084,16 +1104,17 @@ class Plot_HWMS(object):
     def plot_HWM_3x3(self, gdf, metric_lib=None,
                      ncols=3,
                  output_format=None,
-                 figsize=None,
+                 figsize=None, total_fig_width=14,
                  transparent=False,
                  style_d = {},
-                 style_default_d=dict(marker='o', fillstyle='none', alpha=0.8),
+                 style_default_d=dict(marker='x', fillstyle='none', alpha=0.8),
                  color_d=None,
- 
+                 mod_keys=None,
+                 rowLabels_d=None,metaKeys_l=None,
                  xlim=None,
                  **kwargs):
         
-        """matrix of scatter plots for performance against HWMs...3x3"""
+        """matrix of scatter plots for performance against HWMs...by column count"""
         
         #=======================================================================
         # defaults
@@ -1101,16 +1122,22 @@ class Plot_HWMS(object):
         if output_format is None: output_format=self.output_format
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('pHWM3', ext='.'+output_format, **kwargs)
         
+        #list of model values
+        if mod_keys is None:
+            mod_keys = gdf.drop(['true','geometry'], axis=1).columns.tolist()
         
-        """
+        assert set(mod_keys).difference(gdf.columns)==set()
         
-        """
+        if rowLabels_d is None:
+            rowLabels_d=self.rowLabels_d
+            
+        if color_d is  None: 
+            #color_d = self.sim_color_d.copy()
+            color_d = self._build_color_d(mod_keys, cmap = plt.cm.get_cmap(name='Dark2'))
+ 
         #=======================================================================
         # setup figure
         #=======================================================================
-        #list of model values
-        mod_keys = gdf.drop(['true','geometry'], axis=1).columns.tolist()
-        
 
         
         #reshape into a frame
@@ -1121,23 +1148,29 @@ class Plot_HWMS(object):
         row_keys = mat_df.index.tolist() 
         col_keys = mat_df.columns.tolist()      
         
+        #figure size
+        if figsize is None:
+            figsize_scaler=(total_fig_width/ncols)*cm
+        else:
+            assert ncols is None
+            assert total_fig_width is None
+            figsize_scaler=None
+            
         
         
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
                                 set_ax_title=False, figsize=figsize,
                                 constrained_layout=True,
-                                sharex='col',
-                                sharey='col',
+                                sharex='all',
+                                sharey='all',
                                 add_subfigLabel=True,
-                                figsize_scaler=(14/ncols)*cm,
+                                figsize_scaler=figsize_scaler,
                                 )
         
         #=======================================================================
         # setup style
         #======================================================================= 
-        if color_d is  None: 
-            #color_d = self.sim_color_d.copy()
-            color_d = self._build_color_d(mod_keys, cmap = plt.cm.get_cmap(name='Dark2'))
+
             
         #add any missing to the style d
         for k in mod_keys:
@@ -1162,14 +1195,28 @@ class Plot_HWMS(object):
         meta_lib=dict()
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
-                
+                #===============================================================
+                # setup
+                #===============================================================
                 modk = mat_df.loc[rowk, colk] 
                 
                 log.info(f'plotting {rowk}x{colk} ({modk})')
+                
+                #get labels
+                if modk in rowLabels_d:
+                    metaLabel = rowLabels_d[modk]
+                else:
+                    metaLabel=modk
  
-                #scatter
+                #get data
                 xar, yar = true_ser.values, gdf[modk].values
-                meta_lib[modk] = self._ax_hwm_scatter(ax, xar, yar, style_d=style_d[modk], xlim=xlim, max_val=max_val, rowk=modk)
+                #===============================================================
+                # #scatter
+                #===============================================================
+                
+                meta_lib[modk] = self._ax_hwm_scatter(ax, xar, yar, style_d=style_d[modk], 
+                                                      xlim=xlim, max_val=max_val, metaLabel=metaLabel,
+                                                      metaKeys_l=metaKeys_l)
  
         #=======================================================================
         # post
@@ -1490,6 +1537,7 @@ class Plot_hyd_HWMS(Plot_HWMS):
 
 class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
                   Plotr, ValidateSession):
+    "Session for analysis on multiple downscale results and their validation metrics"
     
     #see self._build_color_d(mod_keys)
     sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
@@ -1498,7 +1546,11 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
     confusion_color_d = {
             'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
             }
-    "Session for analysis on multiple downscale results and their validation metrics"
+    
+    rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+    
+    
+    
     def __init__(self, 
                  run_name = None,
                  **kwargs):
@@ -1643,11 +1695,9 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
-        #=======================================================================
-        # fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
-        # gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
-        # res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
-        #=======================================================================
+        fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
+        gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
+        res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
  
         #=======================================================================
         # hydrodyn HWM performance
@@ -1662,11 +1712,13 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
-        #get rlays
-        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
-          
-        #plot them
-        res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #=======================================================================
+        # #get rlays
+        # rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        #   
+        # #plot them
+        # res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #=======================================================================
          
  
  
