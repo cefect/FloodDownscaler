@@ -97,6 +97,7 @@ class Plot_rlays_wrkr(object):
                       confusion_color_d=None,
                       output_format=None,
                       rowLabels_d = {'WSE1':'Hydrodyn. (s1)'},
+                      pie_legend=True,arrow1=True,
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -145,12 +146,7 @@ class Plot_rlays_wrkr(object):
         
         #specify the axis key for each row
         for rowk in row_keys:
-            #===================================================================
-            # if rowk=='vali':
-            #     col_d = {'c1':None, 'c2':'dep1', 'c3':'dep2'}
-            # else:
-            #     col_d = {'c1':'pie', 'c2':'dep1', 'c3':'confuGrid_fp'}
-            #===================================================================                
+               
             grid_lib[rowk] = {'c2':'pred_wd', 'c3':'confuGrid'}             
                 
         log.info('on %s'%dstr(grid_lib))
@@ -253,60 +249,56 @@ class Plot_rlays_wrkr(object):
                         
                         #ax_img=ax.imshow(ar, cmap=cmap, interpolation='nearest', norm=norm, aspect='equal')
                         
-                        #=======================================================
-                        # asset samples-------
-                        #=======================================================
-                        if colk =='c2':# and 'pts_samples' in fp_lib[rowk]:
-                            assert 'confuSamps' in fp_lib[rowk], f'{rowk} missing confuSamps'                                                        
- 
-                            #load
-                            gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'])
-                            
-                            #drop Trues 
-                            gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
-                            
-                            #map colors                            
-                            gdf1['conf_color'] = gdf1['confusion'].replace(cc_d)                            
-                            
-                            #plot
-                            _= gdf1.plot(column='conf_color', ax=ax, cmap=confuGrid_cmap, norm=confuGrid_norm,
-                                     markersize=.2, marker='.', #alpha=0.8,
-                                     )
-                            
-                            #pie chart                            
-                            # Add a subplot to the lower right quadrant 
-                            self._add_pie(ax, rowk, total_ser = gdf['confusion'].value_counts())
+                    #=======================================================
+                    # asset samples-------
+                    #=======================================================
+                    if colk =='c2':# and 'pts_samples' in fp_lib[rowk]:
+                        assert 'confuSamps' in fp_lib[rowk], f'{rowk} missing confuSamps'                                                        
+                    
+                        #load
+                        gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'])
                         
- 
-                        #===========================================================
-                        # post format
-                        #===========================================================
-                        #hide labels
-                        ax.get_xaxis().set_ticks([])
-                        ax.get_yaxis().set_ticks([])
+                        #drop Trues 
+                        gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
                         
-                        #add text
-                        if gridk=='confuGrid' and isinstance(metric_lib, dict):
-                            md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
-                            #md = {**{rowk:''}, **md} 
-                            ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
-                                    va='bottom', ha='right', fontsize=font_size, color='black',
-                                    bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                                    )
-                            
-                        #colorbar
-                        if not gridk in axImg_d:
-                            axImg_d[gridk]=[obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
-                            
+                        #map colors                            
+                        gdf1['conf_color'] = gdf1['confusion'].replace(cc_d)                            
                         
+                        #plot
+                        _= gdf1.plot(column='conf_color', ax=ax, cmap=confuGrid_cmap, norm=confuGrid_norm,
+                                 markersize=.2, marker='.', #alpha=0.8,
+                                 )
                         
+                        #pie chart                            
+                        # Add a subplot to the lower right quadrant 
+                        self._add_pie(ax, rowk, total_ser = gdf['confusion'].value_counts(), legend=pie_legend)
+                    
+                    
+                    #===========================================================
+                    # post format
+                    #===========================================================
+                    #hide labels
+                    ax.get_xaxis().set_ticks([])
+                    ax.get_yaxis().set_ticks([])
+                    
+                    #add text
+                    if gridk=='confuGrid' and isinstance(metric_lib, dict):
+                        md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
+                        #md = {**{rowk:''}, **md} 
+                        ax.text(0.98, 0.05, get_dict_str(md), transform=ax.transAxes, 
+                                va='bottom', ha='right', fontsize=font_size, color='black',
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                )
+                        
+                    # colorbar
+                    if not gridk in axImg_d:
+                        axImg_d[gridk] = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
                 
                 #===============================================================
                 # pie plot--------
                 #===============================================================
-                elif gridk=='pie':
+                elif gridk == 'pie':
                     pass
- 
  
         #=======================================================================
         # colorbar-------
@@ -405,20 +397,18 @@ class Plot_rlays_wrkr(object):
                     
                 #special annotations
                 if (rowk==row_keys[1]) and (colk==col_keys[-1]):
+                    if arrow1:
+                        #add an arrow at this location
+                        xy_loc = (0.66, 0.55)
+                        
+                        ax.annotate('', 
+                                    xy=xy_loc,  xycoords='axes fraction',
+                                    xytext=(xy_loc[0], xy_loc[1]+0.3),textcoords='axes fraction',
+                                    arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.5),
+                                    )
+                        
+                        log.debug(f'added arrow at {xy_loc}')
  
-                    #add an arrow at this location
-                    xy_loc = (0.66, 0.55)
-                    
-                    ax.annotate('', 
-                                xy=xy_loc,  xycoords='axes fraction',
-                                xytext=(xy_loc[0], xy_loc[1]+0.3),textcoords='axes fraction',
-                                arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.5),
-                                )
-                    
-                    log.debug(f'added arrow at {xy_loc}')
-                    """
-                    plt.show()
-                    """
  
                     
         #=======================================================================
@@ -1633,6 +1623,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
+                      hwm_pick_fp=None,
  
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
@@ -1647,16 +1638,16 @@ def basic_post_pipeline(meta_fp_d,
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
         
-        ses.collect_runtimes(run_lib)
+        #ses.collect_runtimes(run_lib)
         
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
-        fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
-        gdf = ses.concat_HWMs(fp_lib,
- 
-                        )
-        res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+        #=======================================================================
+        # fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
+        # gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
+        # res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+        #=======================================================================
  
         #=======================================================================
         # hydrodyn HWM performance
