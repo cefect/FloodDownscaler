@@ -34,7 +34,7 @@ from hp.basic import get_dict_str
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
-
+cm = 1 / 2.54
 #===============================================================================
 # #===============================================================================
 # # setup matplotlib
@@ -483,7 +483,14 @@ class Plotr(object):
                 if figsize_scaler is None:
                     figsize=matplotlib.rcParams['figure.figsize']
                 else:
+                    
                     figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
+                    
+                    #fancy diagnostic p rint
+                    fsize_cm = ('%.2f'%(e/cm) for e in figsize)                    
+                    log.info(f'got figsize={fsize_cm} from figsize_scaler={figsize_scaler:.2f} and col_cnt={len(col_keys)}')
+                    
+ 
                 
         
             fig = plt.figure(fig_id,
