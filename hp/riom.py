@@ -90,7 +90,7 @@ def write_array_mask(raw_ar, maskType='binary',
     
     see load_mask_array"""
     
-    assert_mask_ar(raw_ar)
+    assert_mask_ar(raw_ar, msg='expect a masked array')
     
     if maskType=='native':
         mask_raw_ar = ma.array(np.where(raw_ar, 0, 1),mask=raw_ar, fill_value=nodata)
@@ -157,7 +157,7 @@ def _get_ofp(raw_fp, dkey='mask', out_dir=None, ofp=None):
 #===============================================================================
 
 def assert_mask(rlay_fp,
-               
+               msg='',
                 **kwargs):
     """check the passed rlay is a mask-like raster"""
     #assertion setup
@@ -167,8 +167,12 @@ def assert_mask(rlay_fp,
 
     assert isinstance(rlay_fp, str)
     assert os.path.exists(rlay_fp)
+    
     #need to use the custom loader. this calls assert_mask_ar
-    load_mask_array(rlay_fp, **kwargs)
+    try:
+        load_mask_array(rlay_fp, **kwargs)
+    except Exception as e:
+        raise TypeError(f'{e}\n    not a mask: '+msg)
     #rlay_ar_apply(rlay, assert_mask_ar, masked=False, **kwargs)
     
 
@@ -206,10 +210,10 @@ def assert_mask_ar_raw(ar,  maskType='binary'):
  
     assert vals.symmetric_difference(evals)==set(), f'got unexpected values for maskType {maskType}\n    {vals}'
     
-def assert_mask_ar(ar):
+def assert_mask_ar(ar, msg=''):
     """check for processed array
     
     see load_mask_array
     """
-    assert not isinstance(ar, ma.MaskedArray) 
-    assert ar.dtype==np.dtype('bool')
+    assert not isinstance(ar, ma.MaskedArray), msg
+    assert ar.dtype==np.dtype('bool'), msg

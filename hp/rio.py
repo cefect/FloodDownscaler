@@ -3,7 +3,7 @@ Created on Aug. 7, 2022
 
 @author: cefect
 '''
-import os, warnings
+import os, warnings, tempfile
 import numpy as np
  
 import numpy.ma as ma
@@ -17,6 +17,7 @@ assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s
  
 import rasterio.merge
 import rasterio.io
+import rasterio.features
 from rasterio.plot import show
 from rasterio.enums import Resampling, Compression
 
@@ -676,54 +677,13 @@ class RioWrkr(Basic):
             return self.dataset_d[self.ref_name]
         else:
             return None
-        
-
  
-        
-class RioSession(RioWrkr):
-    aoi_fp=None
-    
-    def __init__(self, 
-                 #==============================================================
-                 # crs=CRS.from_user_input(25832),
-                 # bbox=
-                 #==============================================================
-                 crs=None, bbox=None, aoi_fp=None,
-                 
-                 #defaults
-                 
-                 
-                 **kwargs):
-        
-        """"
-        
-        Parameters
-        -----------
-        
-        bbox: shapely.polygon
-            bounds assumed to be on the same crs as the data
-            sgeo.box(0, 0, 100, 100),
-            
-        crs: <class 'pyproj.crs.crs.CRS'>
-            coordinate reference system
-        """
-        super().__init__(**kwargs)
-        
-        #=======================================================================
-        # set aoi
-        #=======================================================================
-        if not aoi_fp is None:            
-            assert crs is None
-            assert bbox is None
-            self._set_aoi(aoi_fp)
-            
-
     def __enter__(self):
         return self
     
     def __exit__(self,  *args,**kwargs):
         #print('RioWrkr.__exit__')
-        self._clear()
+        pass
         
 class RioSession(RioWrkr):
     aoi_fp=None
@@ -815,8 +775,11 @@ class RioSession(RioWrkr):
 # HELPERS----------
 #===============================================================================
 
-
-def write_array2(ar, ofp, **kwargs):
+ 
+def write_array2(ar, ofp, 
+                 count=1, width=None, height=None, nodata=-9999, dtype=None,
+                 **kwargs):
+ 
     """skinny writer"""
     #===========================================================================
     # precheck
@@ -825,9 +788,20 @@ def write_array2(ar, ofp, **kwargs):
     assert os.path.exists(os.path.dirname(ofp)), ofp
     
     #===========================================================================
+    # defaults
+    #===========================================================================
+    if width is None or height is None:
+        height, width  = ar.shape
+        
+    if dtype is None:
+        dtype=ar.dtype
+    
+    #===========================================================================
     # write
     #===========================================================================
-    with rio.open(ofp, 'w', **kwargs) as ds:
+    with rio.open(ofp, 'w', 
+                  count=count, width=width, height=height,nodata=nodata, dtype=dtype,
+                  **kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
             
@@ -990,8 +964,9 @@ def rlay_apply(rlay, func, **kwargs):
     
     return res
 
-def rlay_ar_apply(rlay, func, masked=False, **kwargs):
-
+ 
+def rlay_ar_apply(rlay, func, masked=True, **kwargs):
+ 
     """apply a func to an array
     
     takes a function like
@@ -1051,17 +1026,7 @@ def rlay_ar_apply(rlay, func, masked=False, **kwargs):
 #===============================================================================
     
     
-def is_divisible(rlay, divisor):
-    """check if the rlays dimensions are evenly divislbe by the divisor"""
-    assert isinstance(divisor, int)
-    
-    shape = rlay_apply(rlay, lambda x:x.shape)
-        
-    for dim in shape:
-        if dim%divisor!=0:
-            return False
 
-    return True
 
 def get_window(ds, bbox,
                 round_offsets=False,
@@ -1224,14 +1189,18 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-def get_depth(dem_fp, wse_fp, ofp=None):
+def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
     
     if ofp is None:
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        if not os.path.exists(out_dir):os.makedirs(out_dir)
+        
         fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
-        ofp = os.path.join(os.path.dirname(wse_fp),fname)
+        ofp = os.path.join(out_dir,fname)
     
     #===========================================================================
     # load
@@ -1241,7 +1210,7 @@ def get_depth(dem_fp, wse_fp, ofp=None):
     wse_ar = load_array(wse_fp, masked=True)
     
     #logic checks
-    assert not dem_ar.mask.any()
+    assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
     assert wse_ar.mask.any()
     assert not wse_ar.mask.all()
     
@@ -1321,13 +1290,18 @@ def write_resample(rlay_fp,
         # # resample data to target shape
         #===========================================================================
         with rasterio.open(rlay_fp, mode='r') as dataset:
+            
+            """
+            dataset.read(1, masked=False)
+            """
          
             out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
  
             
             data_rsmp = dataset.read(1,
                 out_shape=out_shape,
-                resampling=resampling
+                resampling=resampling,
+                masked=True,
                                     )
         
             # scale image transform
@@ -1347,6 +1321,7 @@ def write_resample(rlay_fp,
                     resampling=Resampling.nearest, #doesnt bleed
                 )""" 
             mar_raw = dataset.read_masks(1)
+            
             #downsample.disag. (zoom in)
             if scale>1.0:
                 #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
@@ -1603,8 +1578,66 @@ def write_mosaic(fp1, fp2, ofp=None):
         ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
         
     return ofp, stats_d
+
+
+def rlay_to_polygons(rlay_fp, convert_to_binary=True,
+                          ):
+    """
+    get shapely polygons for each clump in a raster
     
+    Parameters
+    -----------
+    convert_to_binary: bool, True
+        polygonize the mask (rather than groups of data values)
+        
+    """
     
+    #===========================================================================
+    # collect polygons
+    #===========================================================================
+    with rio.open(rlay_fp, mode='r') as src:
+        mar = src.read(1, masked=True)
+        
+        if convert_to_binary:
+            source = np.where(mar.mask, int(mar.fill_value),1)
+        else:
+            source = mar
+        #mask = image != src.nodata
+        d=dict()
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
+                                                  connectivity=8):
+            
+            d[val] = sgeo.shape(geom)
+            
+        #print(f'finished w/ {len(d)} polygon')
+        
+ 
+        
+    return d
+
+ 
+
+#===============================================================================
+# TESTS--------
+#===============================================================================
+def is_divisible(rlay, divisor):
+    """check if the rlays dimensions are evenly divislbe by the divisor"""
+    assert isinstance(divisor, int)
+    
+    shape = rlay_apply(rlay, lambda x:x.shape)
+        
+    for dim in shape:
+        if dim%divisor!=0:
+            return False
+
+    return True
+
+def is_raster_file(filepath):
+    """probably some more sophisticated way to do this... but I always use tifs"""
+    _, ext = os.path.splitext(filepath)
+    return ext in ['.tif']
+
+
 #===============================================================================
 # ASSERTIONS------
 #===============================================================================
@@ -1715,3 +1748,23 @@ def assert_ds_attribute_match(rlay,
         raise IOError('no check values passed')
  
 
+ 
+def assert_masked_ar(ar, msg=''):
+    """check the array satisfies expectations for a masked array
+    
+    NOTE: to call this on a raster filepath, wrap with rlay_ar_apply:
+        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
+    """
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    
+    if not isinstance(ar, ma.MaskedArray):
+        raise AssertionError(msg+'\n     bad type ' + str(type(ar)))
+    if not 'float' in ar.dtype.name:
+        raise AssertionError(msg+'\n     bad dtype ' + ar.dtype.name)
+    
+    #check there are no nulls on the data
+    if np.any(np.isnan(ar.filled())):
+        raise AssertionError(msg+f'\n    got {np.isnan(ar.data).sum()}/{ar.size} nulls outside of mask')
+        
+ 

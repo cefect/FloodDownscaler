@@ -12,12 +12,16 @@ import numpy as np
 from io import StringIO
 import shapely.geometry as sgeo
 import numpy.ma as ma
-from hp.rio import write_array
 import pandas as pd
+
+from hp.rio import write_array
+from hp.gpd import rlay_to_gdf
+
 
 nan, array = np.nan, np.array
 
 temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
+if not os.path.exists(temp_dir): os.makedirs(temp_dir)
 crs_default = CRS.from_user_input(25832)
 bbox_default = sgeo.box(0, 0, 100, 100)
 
@@ -56,3 +60,29 @@ def get_ar_from_str(ar_str, dtype=float):
 def get_wse_ar(ar_str, **kwargs):
     ar1 = get_ar_from_str(ar_str, **kwargs)
     return np.where(ar1==-9999, np.nan, ar1) #replace nans
+
+
+def get_rand_ar(shape, null_frac=0.1):
+    ar_raw = np.random.random(shape)
+    
+    #add nulls randomly
+    if null_frac>0:
+        c = int(math.ceil(ar_raw.size*null_frac))
+        ar_raw.ravel()[np.random.choice(ar_raw.size, c, replace=False)] = np.nan
+        assert np.any(np.isnan(ar_raw))
+        
+    return ar_raw
+
+def get_poly_fp_from_rlay(rlay_fp, convert_to_binary=True, ofp=None):
+    
+    #geto geoDataFrame
+    gdf = rlay_to_gdf(rlay_fp, convert_to_binary=convert_to_binary)
+    
+    #write
+    if ofp is None:
+        ofp = os.path.join(temp_dir, os.path.basename(rlay_fp).replace('.tif', '.gpkg'))
+    gdf.to_file(ofp)
+    
+    return ofp
+    
+    
