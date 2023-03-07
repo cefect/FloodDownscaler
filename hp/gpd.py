@@ -6,7 +6,9 @@ Created on Sep. 6, 2022
 geopandas
 '''
 
+ 
 import shapely, os, logging, datetime
+ 
 import shapely.geometry as sgeo
 import numpy as np
 import pandas as pd
@@ -16,8 +18,7 @@ from pyproj.crs import CRS
 
 import geopandas as gpd
 
-import concurrent.futures
-
+ 
 #set fiona logging level
 
 logging.getLogger("fiona.collection").setLevel(logging.WARNING)
@@ -25,9 +26,13 @@ logging.getLogger("fiona.ogrext").setLevel(logging.WARNING)
 logging.getLogger("fiona").setLevel(logging.WARNING)
 
  
+from hp.oop import Basic
+ 
+ 
 
 def now():
     return datetime.datetime.now()
+ 
  
 class GeoPandasWrkr(object):
     def __init__(self, 

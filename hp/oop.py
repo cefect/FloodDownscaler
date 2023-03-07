@@ -92,7 +92,7 @@ class Basic(object): #simple base class
                  #prec           = None,
                  overwrite      = None,  
                  relative       = None,  
-                 write          = None,
+                 write          = True,
                  
                  logger         = None,                 
                  ):
@@ -210,8 +210,10 @@ class Basic(object): #simple base class
             
         #self._install_info()
         self.init_pars=init_pars
+ 
         if not logger is None:
             self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
+ 
         
     def _get_init_pars(self):
         """only for simple atts... no containers"""
@@ -292,11 +294,13 @@ class Basic(object): #simple base class
         if ofp is None:
             ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
             
+ 
         #=======================================================================
         # if os.path.exists(ofp):
         #     log.warning('ofp exists... overwriting')
         #     os.remove(ofp)
         #=======================================================================
+ 
  
             
         return log, tmp_dir, out_dir, ofp, resname 

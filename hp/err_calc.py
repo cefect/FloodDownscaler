@@ -40,7 +40,6 @@ class ErrorCalcs(object):
         
         self.res_d = dict()
         
-        self.logger.info(f'on {len(pred_ser)}')
         
         self.data_retrieve_hndls = {
             'bias':         lambda **kwargs:self.get_bias(**kwargs),
@@ -65,7 +64,8 @@ class ErrorCalcs(object):
         log = logger.getChild('ret')
         
         drh_d = self.data_retrieve_hndls
- 
+
+        start = datetime.datetime.now()
         
         assert dkey in drh_d, dkey
         
@@ -206,15 +206,8 @@ class ErrorCalcs(object):
                       dkey='confusion',
                      wetdry=False,
                      normed=None, #normalize confusion values by total count
-                     labels=[True, False],
                      logger=None):
         """get a confusion matrix with nice labels
-        
-        
-        Parmaeters
-        ------------
-        wetdry: bool
-            treat 0 as negative and >0 as positive
         
         Returns
         -------------
@@ -237,29 +230,21 @@ class ErrorCalcs(object):
         #=======================================================================
         # prep data
         #=======================================================================
-        #convert to boolean
         if wetdry:
             assert np.array([['float' in e for e in [d.name for d in df_raw.dtypes]]]).all()
             
-            df1 = df_raw>0.0
+            df1 = pd.DataFrame('dry', index=df_raw.index, columns=df_raw.columns)
             
-            #===================================================================
-            # df1 = pd.DataFrame('dry', index=df_raw.index, columns=df_raw.columns)
-            # 
-            # df1[df_raw>0.0] = 'wet'
-            #===================================================================
+            df1[df_raw>0.0] = 'wet'
             
-            #labels = ['wet', 'dry']
- 
+            labels = ['wet', 'dry']
             
-        #=======================================================================
-        # else:
-        #     raise IOError('not impelemented')
-        #     df1 = df_raw.copy()
-        #     
-        #     labels=['pred', 'true']
-        #=======================================================================
-        assert (df1.dtypes=='bool').all()
+        else:
+            raise IOError('not impelemented')
+            df1 = df_raw.copy()
+            
+            labels=['pred', 'true']
+            
  
         #build matrix
         cm_ar = confusion_matrix(df1['true'], df1['pred'], labels=labels)
@@ -322,35 +307,4 @@ class ErrorCalcs(object):
         for k in copy.copy(list(self.__dict__.keys())):
             del self.__dict__[k]
  
-
-def get_confusion_cat(true_arB, pred_arB, 
-                      confusion_codes={'TP':'TP', 'TN':'TN', 'FP':'FP', 'FN':'FN'},
-                      ):
-    """compute the confusion code for each element
-    
-    Parameters
-    -----------
-    confusion_codes: dict
-        optional mapping for naming the 4 confusion categories
-    """
-    #start with dummy
-    res_ar = np.full(true_arB.shape, np.nan)
-    #true positives
-    res_ar = np.where(
-        np.logical_and(true_arB, pred_arB), 
-        confusion_codes['TP'], res_ar)
-    #true negatives
-    res_ar = np.where(
-        np.logical_and(np.invert(true_arB), np.invert(pred_arB)), 
-        confusion_codes['TN'], res_ar)
-    #false positives
-    res_ar = np.where(
-        np.logical_and(np.invert(true_arB), pred_arB), 
-        confusion_codes['FP'], res_ar)
-    #false negatives
-    res_ar = np.where(
-        np.logical_and(true_arB, np.invert(pred_arB)), 
-        confusion_codes['FN'], res_ar)
-    
-    
-    return res_ar        
+        
