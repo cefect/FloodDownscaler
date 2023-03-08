@@ -217,7 +217,7 @@ class Plot_rlay_raw(PostBase):
                           mod_keys=None,
                           aoi_fp=None,
                           
-                          output_format=None,rowLabels_d=None,
+                          output_format=None,rowLabels_d=None,add_subfigLabel=None,colorBar_bottom_height=0.15,
                           
                           fig_mat_kwargs=dict(figsize=None,ncols=3,total_fig_width=14),
                           **kwargs):
@@ -228,6 +228,10 @@ class Plot_rlay_raw(PostBase):
         gridk: str, default: 'pred_wse'
             which grid to plot
             
+        add_subfigLabel: bool
+            True: add journal sub-figure labelling (a0)
+            False: use the fancy labels
+            
         """
         #=======================================================================
         # defaults
@@ -236,6 +240,17 @@ class Plot_rlay_raw(PostBase):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
         
         
+        #subfigure labelling
+        """either add journal labelling (a0, etc.) or fancy label"""
+        if add_subfigLabel is None:
+            if 'add_subfigLabel' in  fig_mat_kwargs:
+                add_subfigLabel = fig_mat_kwargs.pop('add_subfigLabel')
+            else:
+                add_subfigLabel=self.add_subfigLabel
+        
+        fig_mat_kwargs['add_subfigLabel'] = add_subfigLabel
+            
+ 
         
         #list of model values
         if mod_keys is None:
@@ -268,11 +283,7 @@ class Plot_rlay_raw(PostBase):
                                             mod_keys,logger=log, 
                                             constrained_layout=False, 
                                             **fig_mat_kwargs)
-        """
-        self.figsize
-        plt.show()
-        self.font_size
-        """
+ 
         
         #=======================================================================
         # plot loop------
@@ -302,12 +313,13 @@ class Plot_rlay_raw(PostBase):
                 #===============================================================
                 # label
                 #===============================================================
-                ax.text(0.05, 0.95, 
-                            rowLabels_d[modk], 
-                            transform=ax.transAxes, va='top', ha='left',
-                            size=matplotlib.rcParams['axes.titlesize'],
-                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                            )
+                if not add_subfigLabel:
+                    ax.text(0.05, 0.95, 
+                                rowLabels_d[modk], 
+                                transform=ax.transAxes, va='top', ha='left',
+                                size=matplotlib.rcParams['axes.titlesize'],
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                                )
                     
                 #===============================================================
                 # wrap
@@ -327,7 +339,7 @@ class Plot_rlay_raw(PostBase):
         log.debug(f'adding colorbar')
         
         #make room
-        fig.subplots_adjust(bottom=0.1, wspace=0.05, top=0.999, hspace=0.05, left=0.05, right=0.95)
+        fig.subplots_adjust(bottom=colorBar_bottom_height, wspace=0.05, top=0.999, hspace=0.05, left=0.05, right=0.95)
         
         shared_kwargs = dict(orientation='horizontal',
                              extend='both', #pointed ends
@@ -338,9 +350,12 @@ class Plot_rlay_raw(PostBase):
         # #focal grid
         #=======================================================================
         #build the nex axes
-        left=0.1
-        bot_wid_height = (0.01, 0.8, 0.03)
-        cax = fig.add_axes([left, *bot_wid_height])
+        #=======================================================================
+        # left=0.1
+        # bot_wid_height = (0.01, 0.8, 0.03)
+        # cax = fig.add_axes([left, *bot_wid_height])
+        #=======================================================================
+        cax = fig.add_axes((0.1, 0.01, 0.8, 0.03)) #left, bottom, width, height
         
         
         _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
@@ -1395,7 +1410,8 @@ class Plot_HWMS(PostBase):
             figsize_scaler = None
             
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, 
-            set_ax_title=False, figsize=figsize, 
+            set_ax_title=False, 
+            figsize=figsize, 
             constrained_layout=constrained_layout, 
             sharex='all', 
             sharey='all', 
@@ -1979,27 +1995,25 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # hydrodyn HWM performance
         #=======================================================================
-        #=======================================================================
-        # ses.collect_hyd_fps(run_lib) 
-        #   
-        # ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
-        #=======================================================================
-  
+  #=============================================================================
+  #       ses.collect_hyd_fps(run_lib) 
+  #          
+  #       ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
+  # 
+  #=============================================================================
         
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
         #get rlays
-        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
-        
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)        
         res_d['rlay_res'] = ses.plot_rlay_res_mat(rlay_fp_lib, metric_lib=metric_lib, **rlay_res_kwargs)
         
-        
+        return
         #=======================================================================
         # INUNDATION PERFORMANCe
-        #=======================================================================
- 
-        #res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #======================================================================= 
+        res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
          
  
  

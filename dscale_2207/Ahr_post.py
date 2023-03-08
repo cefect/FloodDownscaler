@@ -13,7 +13,7 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'present'
+env_type = 'journal'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -81,7 +81,7 @@ elif env_type=='draft':
 elif env_type=='present': 
  
     env_kwargs=dict(
-        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=False
+        output_format='svg',add_stamp=True,add_subfigLabel=False,transparent=False
         )   
  
     font_size=12
@@ -143,7 +143,8 @@ def ahr_aoi08_0303_present(**kwargs):
         
         hwm3_kwargs=dict(
             mod_keys = present_mod_keys,rowLabels_d = present_rowLabels_d,
-            ncols=2,total_fig_width=19,metaKeys_l=['rmse'],
+            fig_mat_kwargs=dict(ncols=2,total_fig_width=19),
+            metaKeys_l=['rmse'],
             ),
         
         rlay_mat_kwargs=dict(
@@ -167,6 +168,7 @@ def ahr_aoi08_0303(**kwargs):
     return runr(ahr_aoi08_r32_0303_d, 
         ses_init_kwargs=dict(run_name='post_0303',proj_name='ahr_aoi08_0303'),
         rlay_res_kwargs=dict(aoi_fp=ahr_aoi_fp),
+ 
         **kwargs)
 
 #===============================================================================
@@ -198,8 +200,8 @@ def ahr11_rim0206_0304(**kwargs):
 if __name__=='__main__':
  
     
-    #ahr_aoi08_0303()
-    ahr_aoi08_0303_present()
+    ahr_aoi08_0303()
+    #ahr_aoi08_0303_present()
     
     #ahr11_rim0206_0304()
    
