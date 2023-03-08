@@ -46,8 +46,11 @@ cm = 1/2.54
 def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
 
-class Plot_rlays_wrkr(object):
-    gdf_d=dict() #container for preloading geopandas
+ 
+    
+
+class Plot_rlay_raw(Plotr):
+    """worker for plotting raw raster  results"""
     
     def collect_rlay_fps(self, run_lib, **kwargs):
         """collect the filepaths from the run_lib"""
@@ -80,14 +83,33 @@ class Plot_rlays_wrkr(object):
                 
             metric_lib[k0]=valiMetrics_d['inun']
             
-        log.info(f'collected inundation metrics on {len(metric_lib)} sims')#\n%s'%dstr(metric_lib))
+        log.info(f'collected inundation metrics on {len(metric_lib)} sims\n\n\n')#\n%s'%dstr(metric_lib))
  
         self.fp_lib=fp_lib
         return fp_lib, metric_lib
+    
+    def plot_rlay_res_mat(self,
+                          fp_lib, metric_lib=None,
+                          
+                          output_format=None,
+                          **kwargs):
+        """matrix plot of raster results"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if output_format is None: output_format=self.output_format
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
+        
+        log.info(f'on {list(fp_lib.keys())}')
+    
 
+class Plot_inun_peformance(Plot_rlay_raw):
+    """worker for plotting inundation performance of downscaling and hydro methods"""
+    gdf_d=dict() #container for preloading geopandas
+    
+ 
 
-
-    def plot_rlay_mat(self,
+    def plot_inun_perf_mat(self,
                       fp_lib, metric_lib=None,
                       figsize=None, #(12, 9),
                       row_keys=None,col_keys = None,
@@ -117,7 +139,7 @@ class Plot_rlays_wrkr(object):
         # defaults
         #=======================================================================
         if output_format is None: output_format=self.output_format
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('inunPer', ext='.'+output_format, **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
         
@@ -537,7 +559,7 @@ class Plot_rlays_wrkr(object):
         return  
 
         
-class Plot_samples_wrkr(object):
+class Plot_samples_wrkr(Plotr):
     
     def collect_samples_data(self, run_lib, 
                              sample_dx_fp=None,
@@ -608,9 +630,7 @@ class Plot_samples_wrkr(object):
         log.info(f'finished on {str(dx.shape)}')
  
         return dx, metric_lib
-        
-                        
-                        
+                   
     def plot_samples_mat(self, 
                          df_raw, metric_lib,
                          figsize=None,
@@ -838,7 +858,7 @@ class Plot_samples_wrkr(object):
         
         return predict, {'rvalue':lm.rvalue, 'slope':lm.slope, 'intercept':lm.intercept}
     
-class Plot_HWMS(object):
+class Plot_HWMS(Plotr):
     """plotter for HWM analysis"""
     
     def collect_HWM_data(self, run_lib, **kwargs):
@@ -1535,8 +1555,8 @@ class Plot_hyd_HWMS(Plot_HWMS):
  
  
 
-class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
-                  Plotr, ValidateSession):
+class PostSession(Plot_inun_peformance, Plot_samples_wrkr, Plot_hyd_HWMS,
+                   ValidateSession):
     "Session for analysis on multiple downscale results and their validation metrics"
     
     #see self._build_color_d(mod_keys)
@@ -1572,7 +1592,7 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
         #print contents
         k1=list(run_lib.keys())[0]
         print(f'\nfor {k1}')
-        print(pprint.pformat(run_lib[k1], width=30, indent=0.3, compact=True, sort_dicts =False))
+        #print(pprint.pformat(run_lib[k1], width=30, indent=0.3, compact=True, sort_dicts =False))
         
         self.run_lib = copy.deepcopy(run_lib)
         
@@ -1676,16 +1696,18 @@ class PostSession(Plot_rlays_wrkr, Plot_samples_wrkr, Plot_hyd_HWMS,
 def basic_post_pipeline(meta_fp_d, 
                       sample_dx_fp=None,
                       hwm_pick_fp=None,
- 
+                      
+                      ses_init_kwargs = dict(),
                       rlay_mat_kwargs= dict(),
                       samples_mat_kwargs=dict(),
                       hwm3_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
-                      **kwargs):
+                      rlay_res_kwargs=dict()
+                      ):
     """main runner for generating plots"""    
     
     res_d = dict()
-    with PostSession(**kwargs) as ses:
+    with PostSession(**ses_init_kwargs) as ses:
         
         #load the metadata from teh run
         run_lib, smry_d = ses.load_metas(meta_fp_d)
@@ -1695,9 +1717,11 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
-        fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
-        gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
-        res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+        #=======================================================================
+        # fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
+        # gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
+        # res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+        #=======================================================================
  
         #=======================================================================
         # hydrodyn HWM performance
@@ -1712,13 +1736,17 @@ def basic_post_pipeline(meta_fp_d,
         #=======================================================================
         # RASTER PLOTS
         #=======================================================================
+        #get rlays
+        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
+        
+        res_d['rlay_res'] = ses.plot_rlay_res_mat(rlay_fp_lib, metric_lib=metric_lib, **rlay_res_kwargs)
+        
+        
         #=======================================================================
-        # #get rlays
-        # rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)
-        #   
-        # #plot them
-        # res_d['rlay_mat'] = ses.plot_rlay_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        # INUNDATION PERFORMANCe
         #=======================================================================
+ 
+        #res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
          
  
  

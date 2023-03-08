@@ -61,21 +61,28 @@ def set_doc_style():
 #===============================================================================
 if env_type=='journal':
     set_doc_style()
-    output_format='pdf'
-    add_stamp=False            
+ 
+ 
+    env_kwargs=dict(
+        output_format='pdf',add_stamp=False,add_subfigLabel=True,transparent=True
+        )            
 #===============================================================================
 # draft
 #===============================================================================
 elif env_type=='draft':
-    set_doc_style()
-    output_format='svg'
-    add_stamp=True        
+    set_doc_style() 
+ 
+    env_kwargs=dict(
+        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=True
+        )          
 #===============================================================================
 # presentation style    
 #===============================================================================
-elif env_type=='present':
-    output_format='svg'
-    add_stamp=True
+elif env_type=='present': 
+ 
+    env_kwargs=dict(
+        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=True
+        )   
  
     font_size=12
  
@@ -101,17 +108,13 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 # funcs----------
 #===============================================================================
-def runr(meta_fp_d, rlay_mat_kwargs=dict(),
-         **kwargs):
-    """environment defaults for runner"""
-    
-    #environment setup
-    if env_type in ['draft', 'present']:
-        rlay_mat_kwargs['output_format']='png'
+def runr(meta_fp_d, rlay_mat_kwargs=dict(), ses_init_kwargs=dict(), **kwargs):
+    """environment defaults for runner""" 
         
-    return basic_post_pipeline(meta_fp_d, rlay_mat_kwargs=rlay_mat_kwargs, 
-                               output_format=output_format,add_stamp=add_stamp,
-                               **kwargs)
+    return basic_post_pipeline(meta_fp_d, 
+                               rlay_mat_kwargs=rlay_mat_kwargs,
+                               ses_init_kwargs={**ses_init_kwargs, **env_kwargs},
+                               )
     
 
  
@@ -134,7 +137,10 @@ present_rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'Basic':'Hydrodyn. (s2)'}
 def ahr_aoi08_0303_present(**kwargs):
     return runr(ahr_aoi08_r32_0303_d,
  
-        run_name='present',proj_name='ahr_aoi08_0303',
+        ses_init_kwargs = dict(
+            run_name='present',proj_name='ahr_aoi08_0303',
+            ),
+        
         hwm3_kwargs=dict(
             mod_keys = present_mod_keys,rowLabels_d = present_rowLabels_d,
             ncols=2,total_fig_width=19,metaKeys_l=['rmse'],
@@ -143,7 +149,7 @@ def ahr_aoi08_0303_present(**kwargs):
         rlay_mat_kwargs=dict(
             row_keys=present_mod_keys,rowLabels_d = present_rowLabels_d,
             
-            add_subfigLabel=False, transparent=False, figsize=(20*cm,18*cm),
+            add_subfigLabel=False,  figsize=(20*cm,18*cm),
             pie_legend=False,arrow1=False,
             ),
  
@@ -152,7 +158,7 @@ def ahr_aoi08_0303_present(**kwargs):
 
 def ahr_aoi08_0303(**kwargs):
     return runr(ahr_aoi08_r32_0303_d, 
-        run_name='post_0303',proj_name='ahr_aoi08_0303',
+        ses_init_kwargs=dict(run_name='post_0303',proj_name='ahr_aoi08_0303',)
         **kwargs)
 
 #===============================================================================
@@ -186,7 +192,7 @@ if __name__=='__main__':
     
     #ahr_aoi08_0303()
     ahr_aoi08_0303_present(
-        hwm_pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\present\20230305\ahr_aoi08_0303_present_0305_concat_HWMs.pkl'
+        #hwm_pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\present\20230305\ahr_aoi08_0303_present_0305_concat_HWMs.pkl'
         )
     
     #ahr11_rim0206_0304()
