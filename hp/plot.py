@@ -592,7 +592,7 @@ class Plotr(object):
                    
                    #figure write controls
                  fmt=None, 
-                  transparent=True, 
+                  transparent=None, 
                   dpi = 300,
                   logger=None,
                   **kwargs):
@@ -607,7 +607,7 @@ class Plotr(object):
         log = logger.getChild('output_fig')
         
         if add_stamp is None: add_stamp=self.add_stamp
-        
+        if transparent is None: transparent=self.transparent
         
         #=======================================================================
         # precheck
