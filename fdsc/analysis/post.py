@@ -170,7 +170,7 @@ class Plot_rlay_raw(PostBase):
         return location, fmt, label, spacing
 
 
-    def _ax_raster_show(self, ax, bbox, fp, gridk):
+    def _ax_raster_show(self, ax, bbox, fp, gridk, **kwargs):
         """add a styleized raster to the axis"""
         with rio.open(fp, mode='r') as ds:
             
@@ -179,8 +179,11 @@ class Plot_rlay_raw(PostBase):
             #===================================================================
             if bbox is None:
                 window = None
+                transform = ds.transform
             else:
                 window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+                #transform = rio.transform.from_bounds(*bbox.bounds, *window.shape)
+                transform = rio.windows.transform(window, ds.transform)
                 
             ar_raw = ds.read(1, window=window, masked=True)
             #===========================================================
@@ -209,7 +212,9 @@ class Plot_rlay_raw(PostBase):
         plt.show()
         """
  
-        return show(ar, transform=ds.transform, ax=ax, contour=False,interpolation='nearest',**show_kwargs)
+        return show(ar, 
+                    transform=transform, 
+                    ax=ax, contour=False,interpolation='nearest',**show_kwargs, **kwargs)
 
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
@@ -275,6 +280,12 @@ class Plot_rlay_raw(PostBase):
             bbox, crs=get_bbox_and_crs(aoi_fp)
             log.info(f'using aoi from \'{os.path.basename(aoi_fp)}\'')
             
+        
+        #spatial meta from dem for working with points
+        rmeta_d = get_meta(fp_lib[list(fp_lib.keys())[0]]['dem'])
+        
+        assert crs.to_epsg()==rmeta_d['crs'].to_epsg()
+            
         log.info(f'plotting {gridk} on {mod_keys}')
         #=======================================================================
         # setup figure
@@ -295,8 +306,7 @@ class Plot_rlay_raw(PostBase):
                 #===============================================================
                 # setup
                 #===============================================================
-                modk = mat_df.loc[rowk, colk]
-                
+                modk = mat_df.loc[rowk, colk]                
                 log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp_lib[modk][gridk]}')
                 
                 #===============================================================
@@ -308,18 +318,34 @@ class Plot_rlay_raw(PostBase):
                 
                 # focal raster
                 fp = fp_lib[modk][gridk]
-                self._ax_raster_show(ax, bbox, fp, gridk)
+                self._ax_raster_show(ax, bbox, fp, gridk, alpha=0.9)
                 
+                #inundation
+                inun_fp = fp_lib[modk]['true_inun']                
+                gdf = gpd.read_file(inun_fp)
+                assert gdf.geometry.crs==crs
+ 
+                #fill
+                gdf.clip(bbox.bounds).plot(ax=ax, 
+                                           facecolor='none', hatch='.', edgecolor='black', alpha=0.1,linewidth=0.0,label='obs. inundation'
+                                           )
+                #boundary
+                gdf.clip(bbox.bounds).plot(ax=ax, 
+                                   facecolor='none', edgecolor='black', linewidth=0.75, linestyle='dashed',
+                                   )
+                
+ 
+ 
                 #===============================================================
                 # label
                 #===============================================================
-                if not add_subfigLabel:
-                    ax.text(0.05, 0.95, 
-                                rowLabels_d[modk], 
-                                transform=ax.transAxes, va='top', ha='left',
-                                size=matplotlib.rcParams['axes.titlesize'],
-                                bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
-                                )
+ 
+                ax.text(0.95, 0.05, 
+                            rowLabels_d[modk], 
+                            transform=ax.transAxes, va='bottom', ha='right',
+                            size=matplotlib.rcParams['axes.titlesize'],
+                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                            )
                     
                 #===============================================================
                 # wrap
@@ -367,30 +393,19 @@ class Plot_rlay_raw(PostBase):
                                  **shared_kwargs)
         
         #=======================================================================
-        # dem
+        # post
         #=======================================================================
+        """nothing in the legend for some reason...."""
         #=======================================================================
-        # _, fmt, label, spacing = self._get_colorbar_pars_by_key('dem')
-        # 
-        # #build the nex axes
-        # left=left=+0.51
-        # cax = fig.add_axes([left,*bot_wid_height])
-        # 
-        # cbar = fig.colorbar(axImg_d['dem'],cax=cax, 
-        #                          label=label,format=fmt, spacing=spacing,
-        #                          **shared_kwargs)
-        # 
-        # log.debug('finished')
+        # for rowk, d0 in ax_d.items():
+        #     for colk, ax in d0.items():
+        #         
+        #         if rowk==row_keys[0]:
+        #             if colk==col_keys[-1]:
+        #                 ax.legend() 
         #=======================================================================
-        """
-        plt.show()
-        """
         
-        #=======================================================================
-        # def add_colorBar(AxesImage, figure):
-        #     #add the colorbar at the bottom of the figure, spanning the full figure, shifting all of the axes up slightly
-        #     figure.colorbar(AxesImage)
-        #=======================================================================
+ 
         
         return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
         
@@ -413,15 +428,15 @@ class Plot_inun_peformance(Plot_rlay_raw):
 
     def plot_inun_perf_mat(self,
                       fp_lib, metric_lib=None,
-                      figsize=None, #(12, 9),
-                      row_keys=None,col_keys = None,
-                      add_subfigLabel=True,
-                      transparent=True,
-                      font_size=None,
+ 
+                      row_keys=None,col_keys = None, 
+ 
                       confusion_color_d=None,
                       output_format=None,
                       rowLabels_d = None,
                       pie_legend=True,arrow1=True,
+                      box_fp=None,
+                      fig_mat_kwargs=dict(figsize=None),
  
             **kwargs):
         """matrix plot comparing methods for downscaling: rasters
@@ -436,6 +451,9 @@ class Plot_inun_peformance(Plot_rlay_raw):
         --------
         fp_lib: dict
             {row key i.e. method name: {gridName: filepath}}
+            
+        box_fp: str
+            optional filepath to add a black focus box to the plot
         """
         #=======================================================================
         # defaults
@@ -444,9 +462,8 @@ class Plot_inun_peformance(Plot_rlay_raw):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('inunPer', ext='.'+output_format, **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
-        
-        if font_size is None:
-            font_size=matplotlib.rcParams['font.size']
+ 
+        font_size=matplotlib.rcParams['font.size']
         if confusion_color_d is None:
             confusion_color_d=self.confusion_color_d.copy()
             
@@ -456,7 +473,17 @@ class Plot_inun_peformance(Plot_rlay_raw):
         cc_d = self.confusion_codes.copy()
         
         #spatial meta from dem for working with points
-        self.rmeta_d = get_meta(fp_lib['WSE1']['dem']) 
+        rmeta_d = get_meta(fp_lib['WSE1']['dem'])
+         
+        
+        #bounding box
+        if box_fp is None:
+            focus_bbox=None
+        else:
+            
+            focus_bbox, crs=get_bbox_and_crs(box_fp)
+            log.info(f'using aoi from \'{os.path.basename(box_fp)}\'')
+            assert crs == rmeta_d['crs']
  
         #=======================================================================
         # setup figure
@@ -479,10 +506,8 @@ class Plot_inun_peformance(Plot_rlay_raw):
         log.info('on %s'%dstr(grid_lib))
  
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
-                                        set_ax_title=False, figsize=figsize,
-                                        constrained_layout=True,
-                                        add_subfigLabel=add_subfigLabel,
-                                        )
+                                        set_ax_title=False, constrained_layout=True,
+                                        **fig_mat_kwargs)
         
  
         
@@ -507,6 +532,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
         #=======================================================================
         # plot loop------
         #=======================================================================
+        focus_poly = None
         axImg_d = dict() #container for objects for colorbar
         #dep1_yet=False
         for rowk, d0 in ax_d.items():
@@ -573,7 +599,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
                         assert 'confuSamps' in fp_lib[rowk], f'{rowk} missing confuSamps'                                                        
                     
                         #load
-                        gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'])
+                        gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'], rmeta_d=rmeta_d)
                         
                         #drop Trues 
                         gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
@@ -589,6 +615,21 @@ class Plot_inun_peformance(Plot_rlay_raw):
                         #pie chart                            
                         # Add a subplot to the lower right quadrant 
                         self._add_pie(ax, rowk, total_ser = gdf['confusion'].value_counts(), legend=pie_legend)
+                        
+                    #===========================================================
+                    # focus box--------
+                    #===========================================================
+                    if (colk=='c3') and (not focus_bbox is None) and (rowk==row_keys[0]): #first map only
+                        x, y = focus_bbox.exterior.coords.xy 
+                        polygon_points = [[x[i], y[i]] for i in range(len(x))]                        
+                                                            
+                        focus_poly=ax.add_patch(
+                            matplotlib.patches.Polygon(polygon_points, edgecolor='blue', facecolor='none', linewidth=1.0, linestyle='dashed')
+                            )
+                        
+                        ax.legend([focus_poly], ['detail'], loc='upper right')
+ 
+                        
                     
                     
                     #===========================================================
@@ -675,9 +716,6 @@ class Plot_inun_peformance(Plot_rlay_raw):
                         
                     ax.set_ylabel(rowlab)
  
-                #first row
-                if rowk==row_keys[0]:
-                    pass
                     #===========================================================
                     # ax.set_title({
                     #     'dep1':'WSH (r02)',
@@ -706,7 +744,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
         # wrap
         #=======================================================================
         log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600, transparent=transparent)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
     
     def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None, confusion_codes=None):
         """convenienve to retrieve pre-loaded or load points"""
@@ -1967,7 +2005,7 @@ def basic_post_pipeline(meta_fp_d,
                       hwm_pick_fp=None,
                       
                       ses_init_kwargs = dict(),
-                      rlay_mat_kwargs= dict(),
+                      inun_perf_kwargs= dict(),
                       samples_mat_kwargs=dict(),
                       hwm3_kwargs=dict(),
                       hyd_hwm_kwargs=dict(),
@@ -2009,11 +2047,11 @@ def basic_post_pipeline(meta_fp_d,
         rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)        
         res_d['rlay_res'] = ses.plot_rlay_res_mat(rlay_fp_lib, metric_lib=metric_lib, **rlay_res_kwargs)
         
-        return
+ 
         #=======================================================================
         # INUNDATION PERFORMANCe
         #======================================================================= 
-        res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **rlay_mat_kwargs)
+        #res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **inun_perf_kwargs)
          
  
  

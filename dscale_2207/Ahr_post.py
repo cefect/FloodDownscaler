@@ -108,11 +108,11 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 # funcs----------
 #===============================================================================
-def runr(meta_fp_d, rlay_mat_kwargs=dict(), ses_init_kwargs=dict(), **kwargs):
+def runr(meta_fp_d, inun_perf_kwargs=dict(), ses_init_kwargs=dict(), **kwargs):
     """environment defaults for runner""" 
         
     return basic_post_pipeline(meta_fp_d, 
-                               rlay_mat_kwargs=rlay_mat_kwargs,
+                               inun_perf_kwargs=inun_perf_kwargs,
                                ses_init_kwargs={**ses_init_kwargs, **env_kwargs},                               
                                **kwargs)
     
@@ -147,7 +147,7 @@ def ahr_aoi08_0303_present(**kwargs):
             metaKeys_l=['rmse'],
             ),
         
-        rlay_mat_kwargs=dict(
+        inun_perf_kwargs=dict(
             row_keys=present_mod_keys,rowLabels_d = present_rowLabels_d,
             
             add_subfigLabel=False,  figsize=(20*cm,18*cm),
@@ -167,8 +167,10 @@ def ahr_aoi08_0303(**kwargs):
  
     return runr(ahr_aoi08_r32_0303_d, 
         ses_init_kwargs=dict(run_name='post_0303',proj_name='ahr_aoi08_0303'),
-        rlay_res_kwargs=dict(aoi_fp=ahr_aoi_fp),
- 
+        rlay_res_kwargs=dict(aoi_fp=ahr_aoi_fp, 
+                             #output_format='png'
+                             ),
+        inun_perf_kwargs=dict(box_fp=ahr_aoi_fp), 
         **kwargs)
 
 #===============================================================================
