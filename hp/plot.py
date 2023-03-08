@@ -127,9 +127,17 @@ class Plotr(object):
     
   
     
-    def __init__(self, output_format='svg', add_stamp=True, **kwargs):
+    def __init__(self, 
+                 output_format='svg', 
+                 add_stamp=True, 
+                 transparent=True,
+                 add_subfigLabel=True,                 
+                 **kwargs):
+        
         self.output_format=output_format
         self.add_stamp=add_stamp
+        self.transparent=transparent
+        self.add_subfigLabel=add_subfigLabel
         
         super().__init__(**kwargs)
         
