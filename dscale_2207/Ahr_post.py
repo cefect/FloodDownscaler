@@ -96,7 +96,7 @@ elif env_type=='present':
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+4,
         'figure.autolayout':False,
-        'figure.figsize':(19*cm,34*cm), #GFZ template slide size
+        'figure.figsize':(34*cm,19*cm), #GFZ template slide size
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -154,9 +154,9 @@ def ahr_aoi08_0303_present(**kwargs):
             ),
         
         rlay_res_kwargs=dict(
-             aoi_fp=ahr_aoi_fp,
+             aoi_fp=ahr_aoi_fp,output_format='png',
             #mod_keys = present_mod_keys,
-            fig_mat_kwargs=dict(figsize=(20*cm,18*cm)),
+            fig_mat_kwargs=dict(figsize=(25*cm,19*cm), add_subfigLabel=False),
             ),
  
         **kwargs)

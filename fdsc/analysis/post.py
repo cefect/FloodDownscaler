@@ -63,7 +63,7 @@ class PostBase(Plotr):
             'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
             }
     
-    rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+    rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'WSE2':'Hydrodyn. (s2)'}
     
     def __init__(self, 
                  run_name = None,
@@ -240,11 +240,17 @@ class Plot_rlay_raw(PostBase):
         #list of model values
         if mod_keys is None:
             #mod_keys = list(fp_lib.keys())
-            mod_keys = ['WSE2', 'WSE1','Basic', 'SimpleFilter', 'CostGrow',  'Schumann14']            
+            mod_keys = ['WSE2', 'Basic', 'SimpleFilter', 'CostGrow',  'Schumann14', 'WSE1']            
         assert set(mod_keys).difference(fp_lib.keys())==set()
         
+        #model fancy labels
         if rowLabels_d is None:
             rowLabels_d=self.rowLabels_d
+            
+        #add any missing
+        for k in mod_keys:
+            if not k in rowLabels_d:
+                rowLabels_d[k] = k
             
         #bounding box
         if aoi_fp is None:
@@ -259,7 +265,8 @@ class Plot_rlay_raw(PostBase):
         # setup figure
         #=======================================================================        
         ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(
-                                            mod_keys,logger=log, constrained_layout=False, 
+                                            mod_keys,logger=log, 
+                                            constrained_layout=False, 
                                             **fig_mat_kwargs)
         """
         self.figsize
@@ -291,6 +298,16 @@ class Plot_rlay_raw(PostBase):
                 # focal raster
                 fp = fp_lib[modk][gridk]
                 self._ax_raster_show(ax, bbox, fp, gridk)
+                
+                #===============================================================
+                # label
+                #===============================================================
+                ax.text(0.05, 0.95, 
+                            rowLabels_d[modk], 
+                            transform=ax.transAxes, va='top', ha='left',
+                            size=matplotlib.rcParams['axes.titlesize'],
+                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                            )
                     
                 #===============================================================
                 # wrap
@@ -310,7 +327,7 @@ class Plot_rlay_raw(PostBase):
         log.debug(f'adding colorbar')
         
         #make room
-        fig.subplots_adjust(bottom=0.1)
+        fig.subplots_adjust(bottom=0.1, wspace=0.05, hspace=0.05, left=0.05, right=0.95)
         
         shared_kwargs = dict(orientation='horizontal',
                              extend='both', #pointed ends
@@ -360,7 +377,7 @@ class Plot_rlay_raw(PostBase):
         #     figure.colorbar(AxesImage)
         #=======================================================================
         
-        return fig
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
         
  
                 
@@ -1382,7 +1399,7 @@ class Plot_HWMS(PostBase):
             constrained_layout=constrained_layout, 
             sharex='all', 
             sharey='all', 
-            add_subfigLabel=True, 
+            #add_subfigLabel=True, 
             figsize_scaler=figsize_scaler, 
             **kwargs)
         
