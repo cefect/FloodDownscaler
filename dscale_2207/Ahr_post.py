@@ -113,9 +113,8 @@ def runr(meta_fp_d, rlay_mat_kwargs=dict(), ses_init_kwargs=dict(), **kwargs):
         
     return basic_post_pipeline(meta_fp_d, 
                                rlay_mat_kwargs=rlay_mat_kwargs,
-                               ses_init_kwargs={**ses_init_kwargs, **env_kwargs},
-                               
-                               )
+                               ses_init_kwargs={**ses_init_kwargs, **env_kwargs},                               
+                               **kwargs)
     
 
  
@@ -163,8 +162,10 @@ def ahr_aoi08_0303_present(**kwargs):
     
 
 def ahr_aoi08_0303(**kwargs):
+ 
     return runr(ahr_aoi08_r32_0303_d, 
         ses_init_kwargs=dict(run_name='post_0303',proj_name='ahr_aoi08_0303'),
+        rlay_res_kwargs=dict(aoi_fp=r'L:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi09t_zoom0308.geojson'),
         **kwargs)
 
 #===============================================================================

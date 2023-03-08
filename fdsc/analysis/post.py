@@ -24,10 +24,11 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from hp.plot import Plotr, get_dict_str, hide_text
 from hp.pd import view
 from hp.rio import (    
-    get_ds_attr,get_meta
+    get_ds_attr,get_meta, SpatialBBOXWrkr
     )
 from hp.err_calc import get_confusion_cat, ErrorCalcs
 from hp.gpd import get_samples
+from hp.fiona import get_bbox_and_crs
 
 
  
@@ -58,6 +59,14 @@ class PostBase(Plotr):
             }
     
     rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+    
+    def __init__(self, 
+                 run_name = None,
+                 **kwargs):
+ 
+        if run_name is None:
+            run_name = 'post_v1'
+        super().__init__(run_name=run_name, **kwargs)
     
     
 
@@ -122,6 +131,7 @@ class Plot_rlay_raw(PostBase):
                           fp_lib, metric_lib=None,
                           gridk = 'pred_wse',                          
                           mod_keys=None,
+                          aoi_fp=None,
                           
                           output_format=None,rowLabels_d=None,
                           
@@ -152,6 +162,14 @@ class Plot_rlay_raw(PostBase):
         if rowLabels_d is None:
             rowLabels_d=self.rowLabels_d
             
+        #bounding box
+        if aoi_fp is None:
+            bbox, crs=None, None
+        else:
+            
+            bbox, crs=get_bbox_and_crs(aoi_fp)
+            log.info(f'using aoi from \'{os.path.basename(aoi_fp)}\'')
+            
         log.info(f'plotting {gridk} on {mod_keys}')
         #=======================================================================
         # setup figure
@@ -168,7 +186,7 @@ class Plot_rlay_raw(PostBase):
         # plot loop------
         #=======================================================================
         
-        meta_lib=dict()
+        meta_lib, axImg_d=dict(), dict()
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
                 #===============================================================
@@ -183,7 +201,13 @@ class Plot_rlay_raw(PostBase):
                 # raster plot
                 #===============================================================
                 with rio.open(fp, mode='r') as ds:
-                    ar_raw = ds.read(1, window=None, masked=True)
+                    #load and clip the array
+                    if bbox is None:
+                        window=None
+                    else:
+                        window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+                        
+                    ar_raw = ds.read(1, window=window,masked=True)
                     
                     #===========================================================
                     # #apply masks
@@ -204,7 +228,8 @@ class Plot_rlay_raw(PostBase):
                         norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
                     elif 'wse' in gridk:
                         cmap = 'plasma_r'
-                        norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                        #norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                        norm=None
                         
                     else:
                         raise KeyError(gridk)
@@ -212,10 +237,32 @@ class Plot_rlay_raw(PostBase):
                     #===========================================================
                     # #raster plot
                     #===========================================================
-                    _ = show(ar, 
-                                  transform=ds.transform, 
-                                  ax=ax,contour=False, cmap=cmap, interpolation='nearest', 
-                                  norm=norm)
+                    _ = show(ar,transform=ds.transform,ax=ax,contour=False, cmap=cmap, 
+                             interpolation='nearest',norm=norm)
+                    
+                    #grab the image object for making the colorbar
+                    ax_img = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
+                    log.debug(f'plotted {str(ar.shape)} w/ {cmap}')
+                    
+                    #===========================================================
+                    # post format
+                    #===========================================================
+                    #hide labels
+                    ax.get_xaxis().set_ticks([])
+                    ax.get_yaxis().set_ticks([])
+                    
+        #=======================================================================
+        # colorbar-------
+        #=======================================================================
+        log.debug(f'adding colorbar')
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                #only last row 
+                if not rowk==row_keys[-1]:
+                    continue
+                    
+ 
+            
     
 
 class Plot_inun_peformance(Plot_rlay_raw):
