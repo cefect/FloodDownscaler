@@ -443,7 +443,7 @@ class Plotr(object):
                         constrained_layout=True,
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
-                        add_subfigLabel=False,
+                        add_subfigLabel=None,
                         fig=None,
                         **kwargs):
         
@@ -470,6 +470,7 @@ class Plotr(object):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('get_mat_fig')
+        if add_subfigLabel is None: add_subfigLabel=self.add_subfigLabel
         #special no singluar columns
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
