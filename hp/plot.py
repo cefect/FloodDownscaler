@@ -634,7 +634,9 @@ class Plotr(object):
                 
             ofp = os.path.join(out_dir, '%s.%s'%(fname, fmt))
         else:
+ 
             assert fmt is None, 'can not specify \'fmt\' and \'ofp\''
+ 
             fmt = os.path.splitext(ofp)[1].replace('.', '')
             assert not fmt=='', 'forget the period?'
             
