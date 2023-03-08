@@ -81,7 +81,7 @@ elif env_type=='draft':
 elif env_type=='present': 
  
     env_kwargs=dict(
-        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=True
+        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=False
         )   
  
     font_size=12

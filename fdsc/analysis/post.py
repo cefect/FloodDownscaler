@@ -240,7 +240,7 @@ class Plot_rlay_raw(PostBase):
         #list of model values
         if mod_keys is None:
             #mod_keys = list(fp_lib.keys())
-            mod_keys = ['WSE2', 'Basic', 'SimpleFilter', 'CostGrow',  'Schumann14', 'WSE1']            
+            mod_keys = ['WSE2', 'Basic', 'SimpleFilter', 'Schumann14', 'CostGrow','WSE1']            
         assert set(mod_keys).difference(fp_lib.keys())==set()
         
         #model fancy labels
@@ -327,7 +327,7 @@ class Plot_rlay_raw(PostBase):
         log.debug(f'adding colorbar')
         
         #make room
-        fig.subplots_adjust(bottom=0.1, wspace=0.05, hspace=0.05, left=0.05, right=0.95)
+        fig.subplots_adjust(bottom=0.1, wspace=0.05, top=0.999, hspace=0.05, left=0.05, right=0.95)
         
         shared_kwargs = dict(orientation='horizontal',
                              extend='both', #pointed ends
