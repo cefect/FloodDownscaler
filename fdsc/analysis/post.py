@@ -110,10 +110,10 @@ class Plot_rlay_raw(PostBase):
         return fp_lib, metric_lib
     
 
-    def _mask_grid_by_key(self, ar_raw, gridk, rowk, cc_d={'TN':100}):
+    def _mask_grid_by_key(self, ar_raw, gridk, cc_d={'TN':100}):
         """apply a mask to the grid based on the grid type"""
         if ('dep' in gridk) or ('wd' in gridk):
-            assert np.any(ar_raw == 0), 'depth grid has no zeros ' + rowk
+            assert np.any(ar_raw == 0), 'depth grid has no zeros '
             ar = np.where(ar_raw == 0, np.nan, ar_raw)
         elif 'confuGrid' in gridk:
             # mask out true negatives
@@ -126,6 +126,84 @@ class Plot_rlay_raw(PostBase):
         else:
             raise KeyError(gridk)
         return ar
+    
+    def _get_colorbar_pars_by_key(self, gridk):
+        """get standard colorbar parameters based on the grid type"""
+        if ('dep' in gridk) or ('wd' in gridk):
+            spacing = 'proportional'
+            label = 'WSH (m)'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+            location = 'bottom'
+        elif 'confuGrid' in gridk:
+            #spacing='proportional'
+            spacing = 'uniform'
+            label = 'Confusion'
+            fmt = None
+            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
+            #cax=cax_bot
+            location = 'bottom'
+        elif 'dem' in gridk:
+            spacing = 'proportional'
+            label = 'DEM (masl)'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
+            location = 'bottom'
+            
+        elif 'wse' in gridk:
+            spacing = 'proportional'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+            label = 'WSE (masl)'
+            location='bottom'
+            
+ 
+        else:
+            raise KeyError( #cax = cax_top
+                gridk)
+            
+        return location, fmt, label, spacing
+
+
+    def _ax_raster_show(self, ax, bbox, fp, gridk):
+        """add a styleized raster to the axis"""
+        with rio.open(fp, mode='r') as ds:
+            
+            #===================================================================
+            # #load and clip the array
+            #===================================================================
+            if bbox is None:
+                window = None
+            else:
+                window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+                
+            ar_raw = ds.read(1, window=window, masked=True)
+            #===========================================================
+            # #apply masks
+            #===========================================================
+            ar = self._mask_grid_by_key(ar_raw, gridk)
+            #===========================================================
+            # #get styles by key
+            #===========================================================
+            if 'confuGrid' == gridk:
+                cmap = confuGrid_cmap
+                norm = confuGrid_norm
+            elif gridk == 'dem1':
+                cmap = 'plasma'
+                norm = None
+            elif ('dep' in gridk) or ('wd' in gridk):
+                cmap = 'viridis_r'
+                norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+            elif 'wse' in gridk:
+                cmap = 'plasma_r'
+            #norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                norm = None
+            else:
+                raise KeyError(gridk)
+            #===========================================================
+            # plot it
+            #===========================================================
+            _ = show(ar, transform=ds.transform, ax=ax, contour=False, cmap=cmap, 
+                interpolation='nearest', norm=norm)
+            
+        return
 
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
@@ -193,73 +271,46 @@ class Plot_rlay_raw(PostBase):
                 # setup
                 #===============================================================
                 modk = mat_df.loc[rowk, colk]
+                log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp_lib[modk][gridk]}')
+                
+                
                 fp = fp_lib[modk][gridk]
                 
-                log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp}')
+                #===============================================================
+                # plot it
+                #===============================================================
+                #focal raster
+                self._ax_raster_show(ax, bbox, fp, gridk)
+                    
+                #===============================================================
+                # wrap
+                #===============================================================
+                #grab the image object for making the colorbar
+                axImg = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
+ 
                 
-                #===============================================================
-                # raster plot
-                #===============================================================
-                with rio.open(fp, mode='r') as ds:
-                    #load and clip the array
-                    if bbox is None:
-                        window=None
-                    else:
-                        window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
-                        
-                    ar_raw = ds.read(1, window=window,masked=True)
-                    
-                    #===========================================================
-                    # #apply masks
-                    #===========================================================
-                    ar = self._mask_grid_by_key(ar_raw, gridk, rowk)
-                        
-                    #===========================================================
-                    # #get styles by key
-                    #===========================================================
-                    if 'confuGrid' == gridk:
-                        cmap = confuGrid_cmap
-                        norm = confuGrid_norm
-                    elif gridk == 'dem1':
-                        cmap = 'plasma'
-                        norm = None
-                    elif ('dep' in gridk) or ('wd' in gridk):
-                        cmap = 'viridis_r'
-                        norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
-                    elif 'wse' in gridk:
-                        cmap = 'plasma_r'
-                        #norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
-                        norm=None
-                        
-                    else:
-                        raise KeyError(gridk)
-                      
-                    #===========================================================
-                    # #raster plot
-                    #===========================================================
-                    _ = show(ar,transform=ds.transform,ax=ax,contour=False, cmap=cmap, 
-                             interpolation='nearest',norm=norm)
-                    
-                    #grab the image object for making the colorbar
-                    ax_img = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
-                    log.debug(f'plotted {str(ar.shape)} w/ {cmap}')
-                    
-                    #===========================================================
-                    # post format
-                    #===========================================================
-                    #hide labels
-                    ax.get_xaxis().set_ticks([])
-                    ax.get_yaxis().set_ticks([])
+ 
+                #hide labels
+                ax.get_xaxis().set_ticks([])
+                ax.get_yaxis().set_ticks([])
                     
         #=======================================================================
         # colorbar-------
         #=======================================================================
         log.debug(f'adding colorbar')
-        for rowk, d0 in ax_d.items():
-            for colk, ax in d0.items():
-                #only last row 
-                if not rowk==row_keys[-1]:
-                    continue
+        
+        #focal grid
+        _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
+        
+        cbar = fig.colorbar(axImg,orientation='horizontal',
+                                 location='bottom',
+                                 extend='both', #pointed ends
+                                 shrink=0.8,
+                                 label=label,format=fmt, spacing=spacing,
+                                 )
+ 
+                
+                
                     
  
             
@@ -270,6 +321,9 @@ class Plot_inun_peformance(Plot_rlay_raw):
     gdf_d=dict() #container for preloading geopandas
     
  
+
+
+
 
     def plot_inun_perf_mat(self,
                       fp_lib, metric_lib=None,
@@ -399,7 +453,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
                         #===========================================================
                         # #apply masks
                         #===========================================================
-                        ar = self._mask_grid_by_key(ar_raw, gridk, rowk, cc_d=cc_d)
+                        ar = self._mask_grid_by_key(ar_raw, gridk, cc_d=cc_d)
                             
                         #===========================================================
                         # #get styles by key
@@ -490,33 +544,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
                 
  
                             
-                if ('dep' in gridk) or ('wd' in gridk):
-                    spacing='proportional'
-                    label='WSH (m)'
-                    fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
-                    location='bottom'
-                    #cax = cax_top
-                elif 'confuGrid' in gridk:
- 
-                    #spacing='proportional'
-                    spacing='uniform'
-                    label='Confusion'
-                    fmt=None
-                    #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
-                    #cax=cax_bot
-                    location='bottom'
-                    
-                elif 'dem' in gridk:
-                    spacing='proportional'
-                    label='DEM (masl)'
-                    fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
-                    location='bottom'
-                    
-                elif gridk=='pie':
-                    continue
-                    
-                else:
-                    raise KeyError(gridk)
+                location, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
                 
                 cbar = fig.colorbar(axImg_d[gridk],
                                 #cax=cax, 
