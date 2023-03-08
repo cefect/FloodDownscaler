@@ -1620,6 +1620,29 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
         
     return d
 
+#===============================================================================
+# PLOTS----------
+#===============================================================================
+def plot_with_window(ax, fp, bbox=None, **kwargs):
+    """plot a clipped raster"""
+    with rio.open(fp, mode='r') as ds:
+        
+        #===================================================================
+        # #load and clip the array
+        #===================================================================
+        if bbox is None:
+            window = None
+            transform = ds.transform
+        else:
+            window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+            #transform = rio.transform.from_bounds(*bbox.bounds, *window.shape)
+            transform = rio.windows.transform(window, ds.transform)
+            
+        ar = ds.read(1, window=window, masked=True)
+    
+    return show(ar, 
+                transform=transform, 
+                ax=ax, contour=False,interpolation='nearest', **kwargs)
  
 
 #===============================================================================
