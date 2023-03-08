@@ -21,6 +21,11 @@ import matplotlib
 from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
+#earthpy
+import earthpy as et
+import earthpy.spatial as es
+import earthpy.plot as ep
+
 from hp.plot import Plotr, get_dict_str, hide_text
 from hp.pd import view
 from hp.rio import (    
@@ -123,6 +128,8 @@ class Plot_rlay_raw(PostBase):
             print(ar_raw.max())
         elif 'wse' in gridk:
             ar = ar_raw
+        elif 'hillshade'==gridk:
+            ar = es.hillshade(ar_raw)
         else:
             raise KeyError(gridk)
         return ar
@@ -147,6 +154,7 @@ class Plot_rlay_raw(PostBase):
             label = 'DEM (masl)'
             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
             location = 'bottom'
+ 
             
         elif 'wse' in gridk:
             spacing = 'proportional'
@@ -183,27 +191,25 @@ class Plot_rlay_raw(PostBase):
             # #get styles by key
             #===========================================================
             if 'confuGrid' == gridk:
-                cmap = confuGrid_cmap
-                norm = confuGrid_norm
-            elif gridk == 'dem1':
-                cmap = 'plasma'
-                norm = None
+                show_kwargs=dict(cmap = confuGrid_cmap, norm = confuGrid_norm)
+            elif 'dem' in gridk:
+                show_kwargs = dict(cmap = 'plasma', norm = None)
+            elif 'hillshade'==gridk:
+                show_kwargs = dict(cmap=plt.cm.copper, norm=None, alpha=0.8)
             elif ('dep' in gridk) or ('wd' in gridk):
-                cmap = 'viridis_r'
-                norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                show_kwargs = dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4))
             elif 'wse' in gridk:
-                cmap = 'plasma_r'
-            #norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
-                norm = None
+                show_kwargs = dict(cmap = 'plasma_r', norm = None)
             else:
                 raise KeyError(gridk)
-            #===========================================================
-            # plot it
-            #===========================================================
-            _ = show(ar, transform=ds.transform, ax=ax, contour=False, cmap=cmap, 
-                interpolation='nearest', norm=norm)
-            
-        return
+        #===========================================================
+        # plot it
+        #===========================================================
+        """
+        plt.show()
+        """
+ 
+        return show(ar, transform=ds.transform, ax=ax, contour=False,interpolation='nearest',**show_kwargs)
 
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
@@ -253,7 +259,8 @@ class Plot_rlay_raw(PostBase):
         # setup figure
         #=======================================================================        
         ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(
-                                            mod_keys,logger=log, **fig_mat_kwargs)
+                                            mod_keys,logger=log, constrained_layout=False, 
+                                            **fig_mat_kwargs)
         """
         self.figsize
         plt.show()
@@ -271,43 +278,90 @@ class Plot_rlay_raw(PostBase):
                 # setup
                 #===============================================================
                 modk = mat_df.loc[rowk, colk]
+                
                 log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp_lib[modk][gridk]}')
-                
-                
-                fp = fp_lib[modk][gridk]
                 
                 #===============================================================
                 # plot it
                 #===============================================================
-                #focal raster
+                # DEM raster
+                dem_fp = fp_lib[modk]['dem']
+                self._ax_raster_show(ax, bbox, dem_fp, 'hillshade')
+                
+                # focal raster
+                fp = fp_lib[modk][gridk]
                 self._ax_raster_show(ax, bbox, fp, gridk)
                     
                 #===============================================================
                 # wrap
                 #===============================================================
-                #grab the image object for making the colorbar
-                axImg = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
  
-                
- 
-                #hide labels
+                # hide labels
                 ax.get_xaxis().set_ticks([])
                 ax.get_yaxis().set_ticks([])
                     
         #=======================================================================
         # colorbar-------
         #=======================================================================
+        #grab the image object for making the colorbar
+        l= [obj for obj in ax.get_children() if isinstance(obj, AxesImage)]
+        axImg_d = dict(zip(['dem', gridk], l))
+                
         log.debug(f'adding colorbar')
         
-        #focal grid
-        _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
+        #make room
+        fig.subplots_adjust(bottom=0.1)
         
-        cbar = fig.colorbar(axImg,orientation='horizontal',
-                                 location='bottom',
-                                 extend='both', #pointed ends
-                                 shrink=0.8,
+        shared_kwargs = dict(orientation='horizontal',
+                             extend='both', #pointed ends
+                             shrink=0.8,
+                             ticklocation='top',
+                             )
+        #=======================================================================
+        # #focal grid
+        #=======================================================================
+        #build the nex axes
+        left=0.1
+        bot_wid_height = (0.01, 0.8, 0.03)
+        cax = fig.add_axes([left, *bot_wid_height])
+        
+        
+        _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
+        #mat_df.iloc[0, -1]
+         
+        cbar = fig.colorbar(axImg_d[gridk],
+                                cax=cax, 
                                  label=label,format=fmt, spacing=spacing,
-                                 )
+                                 **shared_kwargs)
+        
+        #=======================================================================
+        # dem
+        #=======================================================================
+        #=======================================================================
+        # _, fmt, label, spacing = self._get_colorbar_pars_by_key('dem')
+        # 
+        # #build the nex axes
+        # left=left=+0.51
+        # cax = fig.add_axes([left,*bot_wid_height])
+        # 
+        # cbar = fig.colorbar(axImg_d['dem'],cax=cax, 
+        #                          label=label,format=fmt, spacing=spacing,
+        #                          **shared_kwargs)
+        # 
+        # log.debug('finished')
+        #=======================================================================
+        """
+        plt.show()
+        """
+        
+        #=======================================================================
+        # def add_colorBar(AxesImage, figure):
+        #     #add the colorbar at the bottom of the figure, spanning the full figure, shifting all of the axes up slightly
+        #     figure.colorbar(AxesImage)
+        #=======================================================================
+        
+        return fig
+        
  
                 
                 
@@ -1302,7 +1356,11 @@ class Plot_HWMS(PostBase):
 
 
 
-    def _get_fig_mat_models(self, mod_keys, ncols=3,  total_fig_width=14, figsize=None, 
+    def _get_fig_mat_models(self, mod_keys, 
+                            ncols=3,  
+                            total_fig_width=None, 
+                            figsize=None, 
+                            constrained_layout=True, 
                             **kwargs):
         #reshape into a frame
         mat_df = pd.DataFrame(np.array(mod_keys).reshape(-1, ncols))
@@ -1315,13 +1373,13 @@ class Plot_HWMS(PostBase):
         if figsize is None:
             figsize_scaler = (total_fig_width / ncols) * cm
         else:
-            assert ncols is None
+            #assert ncols is None
             assert total_fig_width is None
             figsize_scaler = None
             
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, 
             set_ax_title=False, figsize=figsize, 
-            constrained_layout=True, 
+            constrained_layout=constrained_layout, 
             sharex='all', 
             sharey='all', 
             add_subfigLabel=True, 

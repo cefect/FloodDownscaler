@@ -13,7 +13,7 @@ from fdsc.analysis.post import basic_post_pipeline
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'present'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -129,7 +129,7 @@ ahr_aoi08_r32_0303_d =    {'CostGrow': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\c
  'WSE2': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse2_vali\\20230304\\ahr_aoi08_0303_wse2_vali_0304_meta_lib.pkl',
  'WSE1': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi08_0303\\wse1_vali\\20230304\\ahr_aoi08_0303_wse1_vali_0304_meta_lib.pkl'}
     
- 
+ahr_aoi_fp = r'L:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi09t_zoom0308.geojson'
 present_mod_keys = ['Basic', 'Schumann14', 'CostGrow', 'WSE1']
 present_rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'Basic':'Hydrodyn. (s2)'}
  
@@ -154,8 +154,9 @@ def ahr_aoi08_0303_present(**kwargs):
             ),
         
         rlay_res_kwargs=dict(
-            mod_keys = present_mod_keys,
-            fig_mat_kwargs=dict(ncols=2,total_fig_width=19),
+             aoi_fp=ahr_aoi_fp,
+            #mod_keys = present_mod_keys,
+            fig_mat_kwargs=dict(figsize=(20*cm,18*cm)),
             ),
  
         **kwargs)
@@ -165,7 +166,7 @@ def ahr_aoi08_0303(**kwargs):
  
     return runr(ahr_aoi08_r32_0303_d, 
         ses_init_kwargs=dict(run_name='post_0303',proj_name='ahr_aoi08_0303'),
-        rlay_res_kwargs=dict(aoi_fp=r'L:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi09t_zoom0308.geojson'),
+        rlay_res_kwargs=dict(aoi_fp=ahr_aoi_fp),
         **kwargs)
 
 #===============================================================================
@@ -197,8 +198,8 @@ def ahr11_rim0206_0304(**kwargs):
 if __name__=='__main__':
  
     
-    ahr_aoi08_0303()
-    #ahr_aoi08_0303_present()
+    #ahr_aoi08_0303()
+    ahr_aoi08_0303_present()
     
     #ahr11_rim0206_0304()
    
