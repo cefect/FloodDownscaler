@@ -495,7 +495,7 @@ class Plotr(object):
                     figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
                     
                     #fancy diagnostic p rint
-                    fsize_cm = ('%.2f'%(e/cm) for e in figsize)                    
+                    fsize_cm = tuple(('%.2f cm'%(e/cm) for e in figsize))                    
                     log.info(f'got figsize={fsize_cm} from figsize_scaler={figsize_scaler:.2f} and col_cnt={len(col_keys)}')
                     
  
