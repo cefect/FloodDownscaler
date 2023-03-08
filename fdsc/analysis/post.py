@@ -100,23 +100,48 @@ class Plot_rlay_raw(PostBase):
         self.fp_lib=fp_lib
         return fp_lib, metric_lib
     
+
+    def _mask_grid_by_key(self, ar_raw, gridk, rowk, cc_d={'TN':100}):
+        """apply a mask to the grid based on the grid type"""
+        if ('dep' in gridk) or ('wd' in gridk):
+            assert np.any(ar_raw == 0), 'depth grid has no zeros ' + rowk
+            ar = np.where(ar_raw == 0, np.nan, ar_raw)
+        elif 'confuGrid' in gridk:
+            # mask out true negatives
+            ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
+        elif 'dem' == gridk:
+            ar = np.where(ar_raw < 130, ar_raw, np.nan)
+            print(ar_raw.max())
+        elif 'wse' in gridk:
+            ar = ar_raw
+        else:
+            raise KeyError(gridk)
+        return ar
+
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
-                          
+                          gridk = 'pred_wse',                          
                           mod_keys=None,
                           
                           output_format=None,rowLabels_d=None,
                           
                           fig_mat_kwargs=dict(figsize=None,ncols=3,total_fig_width=14),
                           **kwargs):
-        """matrix plot of raster results"""
+        """matrix plot of raster results
+        
+        Pars
+        --------
+        gridk: str, default: 'pred_wse'
+            which grid to plot
+            
+        """
         #=======================================================================
         # defaults
         #=======================================================================
         if output_format is None: output_format=self.output_format
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
         
-        log.info(f'on {list(fp_lib.keys())}')
+        
         
         #list of model values
         if mod_keys is None:
@@ -127,6 +152,7 @@ class Plot_rlay_raw(PostBase):
         if rowLabels_d is None:
             rowLabels_d=self.rowLabels_d
             
+        log.info(f'plotting {gridk} on {mod_keys}')
         #=======================================================================
         # setup figure
         #=======================================================================        
@@ -148,9 +174,48 @@ class Plot_rlay_raw(PostBase):
                 #===============================================================
                 # setup
                 #===============================================================
-                modk = mat_df.loc[rowk, colk] 
+                modk = mat_df.loc[rowk, colk]
+                fp = fp_lib[modk][gridk]
                 
-                log.info(f'plotting {rowk}x{colk} ({modk})')
+                log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp}')
+                
+                #===============================================================
+                # raster plot
+                #===============================================================
+                with rio.open(fp, mode='r') as ds:
+                    ar_raw = ds.read(1, window=None, masked=True)
+                    
+                    #===========================================================
+                    # #apply masks
+                    #===========================================================
+                    ar = self._mask_grid_by_key(ar_raw, gridk, rowk)
+                        
+                    #===========================================================
+                    # #get styles by key
+                    #===========================================================
+                    if 'confuGrid' == gridk:
+                        cmap = confuGrid_cmap
+                        norm = confuGrid_norm
+                    elif gridk == 'dem1':
+                        cmap = 'plasma'
+                        norm = None
+                    elif ('dep' in gridk) or ('wd' in gridk):
+                        cmap = 'viridis_r'
+                        norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                    elif 'wse' in gridk:
+                        cmap = 'plasma_r'
+                        norm = matplotlib.colors.Normalize(vmin=0, vmax=4)
+                        
+                    else:
+                        raise KeyError(gridk)
+                      
+                    #===========================================================
+                    # #raster plot
+                    #===========================================================
+                    _ = show(ar, 
+                                  transform=ds.transform, 
+                                  ax=ax,contour=False, cmap=cmap, interpolation='nearest', 
+                                  norm=norm)
     
 
 class Plot_inun_peformance(Plot_rlay_raw):
@@ -287,17 +352,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
                         #===========================================================
                         # #apply masks
                         #===========================================================
-                        if ('dep' in gridk) or ('wd' in gridk):
-                            assert np.any(ar_raw==0), 'depth grid has no zeros ' + rowk
-                            ar = np.where(ar_raw==0, np.nan, ar_raw)
-                        elif 'confuGrid' in gridk:
-                            #mask out true negatives
-                            ar = np.where(ar_raw==cc_d['TN'], np.nan, ar_raw)
-                        elif 'dem' ==gridk:
-                            ar = np.where(ar_raw<130, ar_raw, np.nan)
-                            print(ar_raw.max())
-                        else:
-                            raise KeyError(gridk)
+                        ar = self._mask_grid_by_key(ar_raw, gridk, rowk, cc_d=cc_d)
                             
                         #===========================================================
                         # #get styles by key
