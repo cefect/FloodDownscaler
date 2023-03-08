@@ -47,9 +47,21 @@ def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
 
  
+class PostBase(Plotr):
+    """base worker"""
+    
+    sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
+    
+    
+    confusion_color_d = {
+            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
+            }
+    
+    rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+    
     
 
-class Plot_rlay_raw(Plotr):
+class Plot_rlay_raw(PostBase):
     """worker for plotting raw raster  results"""
     
     def collect_rlay_fps(self, run_lib, **kwargs):
@@ -91,7 +103,9 @@ class Plot_rlay_raw(Plotr):
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
                           
-                          output_format=None,
+                          mod_keys=None,
+                          
+                          output_format=None,rowLabels_d=None,
                           **kwargs):
         """matrix plot of raster results"""
         #=======================================================================
@@ -101,6 +115,14 @@ class Plot_rlay_raw(Plotr):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rlayRes', ext='.'+output_format, **kwargs)
         
         log.info(f'on {list(fp_lib.keys())}')
+        
+        #list of model values
+        if mod_keys is None:
+            mod_keys = list(fp_lib.keys())            
+        assert set(mod_keys).difference(fp_lib.keys())==set()
+        
+        if rowLabels_d is None:
+            rowLabels_d=self.rowLabels_d
     
 
 class Plot_inun_peformance(Plot_rlay_raw):
@@ -559,7 +581,7 @@ class Plot_inun_peformance(Plot_rlay_raw):
         return  
 
         
-class Plot_samples_wrkr(Plotr):
+class Plot_samples_wrkr(PostBase):
     
     def collect_samples_data(self, run_lib, 
                              sample_dx_fp=None,
@@ -858,7 +880,7 @@ class Plot_samples_wrkr(Plotr):
         
         return predict, {'rvalue':lm.rvalue, 'slope':lm.slope, 'intercept':lm.intercept}
     
-class Plot_HWMS(Plotr):
+class Plot_HWMS(PostBase):
     """plotter for HWM analysis"""
     
     def collect_HWM_data(self, run_lib, **kwargs):
@@ -1121,10 +1143,40 @@ class Plot_HWMS(Plotr):
 
 
 
-    def plot_HWM_3x3(self, gdf, metric_lib=None,
-                     ncols=3,
+
+    def _get_fig_mat_models(self, mod_keys, ncols=3,  total_fig_width=14, figsize=None, 
+                            **kwargs):
+        #reshape into a frame
+        mat_df = pd.DataFrame(np.array(mod_keys).reshape(-1, ncols))
+        mat_df.columns = [f'c{e}' for e in mat_df.columns]
+        mat_df.index = [f'r{e}' for e in mat_df.index]
+        row_keys = mat_df.index.tolist()
+        col_keys = mat_df.columns.tolist()
+        
+        #figure size
+        if figsize is None:
+            figsize_scaler = (total_fig_width / ncols) * cm
+        else:
+            assert ncols is None
+            assert total_fig_width is None
+            figsize_scaler = None
+            
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, 
+            set_ax_title=False, figsize=figsize, 
+            constrained_layout=True, 
+            sharex='all', 
+            sharey='all', 
+            add_subfigLabel=True, 
+            figsize_scaler=figsize_scaler, 
+            **kwargs)
+        
+        return ax_d, mat_df, row_keys, col_keys, fig
+
+    def plot_HWM_3x3(self, gdf, 
+                     metric_lib=None,
+                     
                  output_format=None,
-                 figsize=None, total_fig_width=14,
+                  
                  transparent=False,
                  style_d = {},
                  style_default_d=dict(marker='x', fillstyle='none', alpha=0.8),
@@ -1132,6 +1184,7 @@ class Plot_HWMS(Plotr):
                  mod_keys=None,
                  rowLabels_d=None,metaKeys_l=None,
                  xlim=None,
+                 fig_mat_kwargs=dict(figsize=None,ncols=3,total_fig_width=14),
                  **kwargs):
         
         """matrix of scatter plots for performance against HWMs...by column count"""
@@ -1160,32 +1213,8 @@ class Plot_HWMS(Plotr):
         #=======================================================================
 
         
-        #reshape into a frame
-        mat_df = pd.DataFrame(np.array(mod_keys).reshape(-1,ncols))
-        mat_df.columns = [f'c{e}' for e in mat_df.columns]
-        mat_df.index = [f'r{e}' for e in mat_df.index]        
- 
-        row_keys = mat_df.index.tolist() 
-        col_keys = mat_df.columns.tolist()      
-        
-        #figure size
-        if figsize is None:
-            figsize_scaler=(total_fig_width/ncols)*cm
-        else:
-            assert ncols is None
-            assert total_fig_width is None
-            figsize_scaler=None
-            
-        
-        
-        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log,
-                                set_ax_title=False, figsize=figsize,
-                                constrained_layout=True,
-                                sharex='all',
-                                sharey='all',
-                                add_subfigLabel=True,
-                                figsize_scaler=figsize_scaler,
-                                )
+        ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(
+                                            mod_keys,logger=log, **fig_mat_kwargs)
         
         #=======================================================================
         # setup style
@@ -1555,19 +1584,12 @@ class Plot_hyd_HWMS(Plot_HWMS):
  
  
 
-class PostSession(Plot_inun_peformance, Plot_samples_wrkr, Plot_hyd_HWMS,
+class PostSession(PostBase, Plot_inun_peformance, Plot_samples_wrkr, Plot_hyd_HWMS,
                    ValidateSession):
     "Session for analysis on multiple downscale results and their validation metrics"
     
     #see self._build_color_d(mod_keys)
-    sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
-    
-    
-    confusion_color_d = {
-            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
-            }
-    
-    rowLabels_d = {'WSE1':'Hydrodyn. (s1)'}
+
     
     
     
