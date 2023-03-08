@@ -326,13 +326,16 @@ class Plot_rlay_raw(PostBase):
                 assert gdf.geometry.crs==crs
  
                 #fill
-                gdf.clip(bbox.bounds).plot(ax=ax, 
-                                           facecolor='none', hatch='.', edgecolor='black', alpha=0.1,linewidth=0.0,label='obs. inundation'
-                                           )
+                #===============================================================
+                # gdf.clip(bbox.bounds).plot(ax=ax, 
+                #                            facecolor='none', hatch='....', edgecolor='black', alpha=0.1,linewidth=0.0,label='obs. inundation'
+                #                            )
+                #===============================================================
                 #boundary
-                gdf.clip(bbox.bounds).plot(ax=ax, 
-                                   facecolor='none', edgecolor='black', linewidth=0.75, linestyle='dashed',
-                                   )
+                poly_kwargs = dict(facecolor='none', edgecolor='black', linewidth=0.75, linestyle='dashed')
+                gdf.clip(bbox.bounds).plot(ax=ax,**poly_kwargs)
+                
+                
                 
  
  
@@ -396,14 +399,13 @@ class Plot_rlay_raw(PostBase):
         # post
         #=======================================================================
         """nothing in the legend for some reason...."""
-        #=======================================================================
-        # for rowk, d0 in ax_d.items():
-        #     for colk, ax in d0.items():
-        #         
-        #         if rowk==row_keys[0]:
-        #             if colk==col_keys[-1]:
-        #                 ax.legend() 
-        #=======================================================================
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                 
+                if rowk==row_keys[0]:
+                    if colk==col_keys[-1]:
+                        dummy_patch = matplotlib.patches.Patch(label='observed', **poly_kwargs)
+                        ax.legend(handles=[dummy_patch], loc='upper right') 
         
  
         
