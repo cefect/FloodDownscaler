@@ -106,6 +106,8 @@ class Plot_rlay_raw(PostBase):
                           mod_keys=None,
                           
                           output_format=None,rowLabels_d=None,
+                          
+                          fig_mat_kwargs=dict(figsize=None,ncols=3,total_fig_width=14),
                           **kwargs):
         """matrix plot of raster results"""
         #=======================================================================
@@ -118,11 +120,37 @@ class Plot_rlay_raw(PostBase):
         
         #list of model values
         if mod_keys is None:
-            mod_keys = list(fp_lib.keys())            
+            #mod_keys = list(fp_lib.keys())
+            mod_keys = ['WSE2', 'WSE1','Basic', 'SimpleFilter', 'CostGrow',  'Schumann14']            
         assert set(mod_keys).difference(fp_lib.keys())==set()
         
         if rowLabels_d is None:
             rowLabels_d=self.rowLabels_d
+            
+        #=======================================================================
+        # setup figure
+        #=======================================================================        
+        ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(
+                                            mod_keys,logger=log, **fig_mat_kwargs)
+        """
+        self.figsize
+        plt.show()
+        self.font_size
+        """
+        
+        #=======================================================================
+        # plot loop------
+        #=======================================================================
+        
+        meta_lib=dict()
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():                
+                #===============================================================
+                # setup
+                #===============================================================
+                modk = mat_df.loc[rowk, colk] 
+                
+                log.info(f'plotting {rowk}x{colk} ({modk})')
     
 
 class Plot_inun_peformance(Plot_rlay_raw):
@@ -1210,9 +1238,7 @@ class Plot_HWMS(PostBase):
  
         #=======================================================================
         # setup figure
-        #=======================================================================
-
-        
+        #=======================================================================        
         ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(
                                             mod_keys,logger=log, **fig_mat_kwargs)
         
@@ -1584,7 +1610,7 @@ class Plot_hyd_HWMS(Plot_HWMS):
  
  
 
-class PostSession(PostBase, Plot_inun_peformance, Plot_samples_wrkr, Plot_hyd_HWMS,
+class PostSession(Plot_inun_peformance, Plot_samples_wrkr, Plot_hyd_HWMS,
                    ValidateSession):
     "Session for analysis on multiple downscale results and their validation metrics"
     
