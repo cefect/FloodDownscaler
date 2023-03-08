@@ -31,6 +31,7 @@ import scipy.ndimage
 #import hp.gdal
 from hp.oop import Basic
 from hp.basic import get_dict_str
+from hp.fiona import get_bbox_and_crs
 #from hp.plot import plot_rast #for debugging
 import matplotlib.pyplot as plt
 
@@ -684,8 +685,8 @@ class RioWrkr(Basic):
     def __exit__(self,  *args,**kwargs):
         #print('RioWrkr.__exit__')
         pass
-        
-class RioSession(RioWrkr):
+    
+class SpatialBBOXWrkr(Basic):
     aoi_fp=None
     
     def __init__(self, 
@@ -740,9 +741,8 @@ class RioSession(RioWrkr):
         assert os.path.exists(aoi_fp)
         
         #open file and get bounds and crs using fiona
-        with fiona.open(aoi_fp, "r") as source:
-            bbox = sgeo.box(*source.bounds) 
-            crs = CRS(source.crs['init'])
+        bbox, crs = get_bbox_and_crs(aoi_fp)
+ 
             
         self.crs=crs
         self.bbox = bbox
@@ -751,6 +751,11 @@ class RioSession(RioWrkr):
         self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
+    
+
+        
+class RioSession(RioWrkr, SpatialBBOXWrkr):
+
     
     def _get_defaults(self, crs=None, bbox=None, nodata=None, compress=None,
                       as_dict=False):
