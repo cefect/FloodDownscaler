@@ -127,9 +127,17 @@ class Plotr(object):
     
   
     
-    def __init__(self, output_format='svg', add_stamp=True, **kwargs):
+    def __init__(self, 
+                 output_format='svg', 
+                 add_stamp=True, 
+                 transparent=True,
+                 add_subfigLabel=True,                 
+                 **kwargs):
+        
         self.output_format=output_format
         self.add_stamp=add_stamp
+        self.transparent=transparent
+        self.add_subfigLabel=add_subfigLabel
         
         super().__init__(**kwargs)
         
@@ -435,7 +443,7 @@ class Plotr(object):
                         constrained_layout=True,
                         set_ax_title=True, #add simple axis titles to each subplot
                         logger=None,
-                        add_subfigLabel=False,
+                        add_subfigLabel=None,
                         fig=None,
                         **kwargs):
         
@@ -462,6 +470,7 @@ class Plotr(object):
         #=======================================================================
         if logger is None: logger=self.logger
         log=logger.getChild('get_mat_fig')
+        if add_subfigLabel is None: add_subfigLabel=self.add_subfigLabel
         #special no singluar columns
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
@@ -487,7 +496,7 @@ class Plotr(object):
                     figsize = (len(col_keys)*figsize_scaler, len(row_keys)*figsize_scaler)
                     
                     #fancy diagnostic p rint
-                    fsize_cm = ('%.2f'%(e/cm) for e in figsize)                    
+                    fsize_cm = tuple(('%.2f cm'%(e/cm) for e in figsize))                    
                     log.info(f'got figsize={fsize_cm} from figsize_scaler={figsize_scaler:.2f} and col_cnt={len(col_keys)}')
                     
  
@@ -584,7 +593,7 @@ class Plotr(object):
                    
                    #figure write controls
                  fmt=None, 
-                  transparent=True, 
+                  transparent=None, 
                   dpi = 300,
                   logger=None,
                   **kwargs):
@@ -599,7 +608,7 @@ class Plotr(object):
         log = logger.getChild('output_fig')
         
         if add_stamp is None: add_stamp=self.add_stamp
-        
+        if transparent is None: transparent=self.transparent
         
         #=======================================================================
         # precheck
