@@ -169,6 +169,8 @@ def write_wsh_clean(fp,
                  mask=mar_raw.mask, 
                  fill_value=mar_raw.fill_value)
     
+    assert_wsh_ar(mar1)
+    
     return write_array2(mar1, ofp, **get_profile(fp))
     
     

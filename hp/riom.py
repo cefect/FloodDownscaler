@@ -133,6 +133,8 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary',
         
         assert np.any(raw_ar.mask)
         
+    #overwrite the nodata
+    ds_prof['nodata'] = -9999
     #===========================================================================
     # manipulate mask
     #===========================================================================
