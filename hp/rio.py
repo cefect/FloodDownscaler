@@ -1104,6 +1104,23 @@ def get_write_kwargs( obj,
     
     return rlay_kwargs
 
+def get_shape(obj):
+    d = rlay_apply(obj, get_stats, att_l=['height', 'width'])
+    
+    return (d['height'], d['width'])
+
+def get_support_ratio(obj_top, obj_bot):
+        """get scale difference"""
+        shape1 = get_shape(obj_top)
+        shape2 = get_shape(obj_bot)
+        
+        height_ratio = shape1[0]/shape2[0]
+        width_ratio = shape1[1]/shape2[1]
+        
+        assert height_ratio==width_ratio, f'ratio mismatch. height={height_ratio}. width={width_ratio}'
+        
+        return width_ratio
+
 
 def rlay_calc1(rlay_fp, ofp, statement):
     """evaluate a statement with numpy math on a single raster"""
@@ -1194,60 +1211,62 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
-    """add dem and wse to get a depth grid"""
-    
-    assert_spatial_equal(dem_fp, wse_fp)
-    
-    if ofp is None:
-        if out_dir is None:
-            out_dir = tempfile.gettempdir()
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
-        
-        fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
-        ofp = os.path.join(out_dir,fname)
-    
-    #===========================================================================
-    # load
-    #===========================================================================
-    dem_ar = load_array(dem_fp, masked=True)    
-    wse_ar = load_array(wse_fp, masked=True)
-    
-    #logic checks
-    assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
-    assert wse_ar.mask.any()
-    assert not wse_ar.mask.all()
-    
-    #===========================================================================
-    # calc
-    #===========================================================================
-    #simple subtraction
-    wd1_ar = wse_ar - dem_ar
-    
-    #identify dry
-    dry_bx = np.logical_or(
-        wse_ar.mask, wse_ar.data<dem_ar.data
-        )
-    
-    assert not dry_bx.all().all()
-    
-    #rebuild
-    wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
-    
-    
-    #check we have no positive depths on the wse mask
-    assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
-    
-    #===========================================================================
-    # write
-    #===========================================================================
-    
-    #convert to masked
-    wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
-    
-    assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
-    
-    return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
+#===============================================================================
+# def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
+#     """add dem and wse to get a depth grid"""
+#     
+#     assert_spatial_equal(dem_fp, wse_fp)
+#     
+#     if ofp is None:
+#         if out_dir is None:
+#             out_dir = tempfile.gettempdir()
+#         if not os.path.exists(out_dir):os.makedirs(out_dir)
+#         
+#         fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
+#         ofp = os.path.join(out_dir,fname)
+#     
+#     #===========================================================================
+#     # load
+#     #===========================================================================
+#     dem_ar = load_array(dem_fp, masked=True)    
+#     wse_ar = load_array(wse_fp, masked=True)
+#     
+#     #logic checks
+#     assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
+#     assert wse_ar.mask.any()
+#     assert not wse_ar.mask.all()
+#     
+#     #===========================================================================
+#     # calc
+#     #===========================================================================
+#     #simple subtraction
+#     wd1_ar = wse_ar - dem_ar
+#     
+#     #identify dry
+#     dry_bx = np.logical_or(
+#         wse_ar.mask, wse_ar.data<dem_ar.data
+#         )
+#     
+#     assert not dry_bx.all().all()
+#     
+#     #rebuild
+#     wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
+#     
+#     
+#     #check we have no positive depths on the wse mask
+#     assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
+#     
+#     #===========================================================================
+#     # write
+#     #===========================================================================
+#     
+#     #convert to masked
+#     wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
+#     
+#     assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
+#     
+#     return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
+#===============================================================================
     
 #===============================================================================
 # Building New Rasters--------
@@ -1723,27 +1742,39 @@ def assert_extent_equal(left, right,  msg='',):
         raise AssertionError('extent mismatch \n    %s != %s\n    '%(
                 le, re) +msg) 
 
-def assert_spatial_equal(left, right,  msg='',): 
-    """check all spatial attributes match"""
-    if not __debug__: # true if Python was not started with an -O option
 
-        return 
-
-    __tracebackhide__ = True
-    
-    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l) 
+def is_spatial_equal(left, right):
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l)
     
     ld = rlay_apply(left, f)
     rd = rlay_apply(right, f)
-    
-    #===========================================================================
-    # check
-    #===========================================================================
+ 
     for k, lval in ld.items():
         rval = rd[k]
+        if not lval == rval:
+            return False
         
-        if not lval==rval:
-            raise AssertionError(f'{k} mismatch\n    right={rval}\n    left={lval}\n'+msg)
+    return True
+            
+
+def assert_spatial_equal(left, right,  msg='',): 
+    """check all spatial attributes match"""
+    if not __debug__: # true if Python was not started with an -O option
+        return 
+
+    __tracebackhide__ = True     
+    
+ 
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l)
+    
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
+ 
+    for k, lval in ld.items():
+        rval = rd[k]
+        if not lval == rval:
+            raise AssertionError(f'{k} mismatch\n    right={rval}\n    left={lval}\n' + msg)
+        
  
         
         

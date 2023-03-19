@@ -152,7 +152,8 @@ def rlay_to_gdf(rlay_fp, convert_to_binary=True):
 
 def write_rasterize(poly_fp,
                     rlay_ref_fp,
-                    ofp=None):
+                    ofp=None, out_dir=None,
+                    ):
     """burn a polygon into a raster
     
     Parameters
@@ -167,8 +168,10 @@ def write_rasterize(poly_fp,
     #===========================================================================
     
     if ofp is None:
-        ext = os.path.splitext(poly_fp)[1]            
-        ofp = os.path.join(tempfile.gettempdir(), os.path.basename(poly_fp).replace(ext, '.tif'))
+        ext = os.path.splitext(poly_fp)[1] 
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        ofp = os.path.join(out_dir, os.path.basename(poly_fp).replace(ext, '.tif'))
     
     #get spatial kwargs from reference array
     rd = get_meta(rlay_ref_fp)
