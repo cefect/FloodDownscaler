@@ -20,7 +20,7 @@ from hp.rio import (
 #===============================================================================
 # RASTERS -------
 #===============================================================================
-def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
+def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
@@ -40,53 +40,51 @@ def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
     
     wse_ar = load_array(wse_fp, masked=True)
     
-    #logic checks
-    assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
-    assert wse_ar.mask.any()
-    assert not wse_ar.mask.all()
-    
     #===========================================================================
-    # calc
+    # build raster
     #===========================================================================
-    #simple subtraction
-    wd1_ar = wse_ar - dem_ar
-    
-    #identify dry
-    dry_bx = np.logical_or(
-        wse_ar.mask, wse_ar.data<dem_ar.data
-        )
-    
-    assert not dry_bx.all().all()
-    
-    #rebuild
-    wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
-    
-    
-    #check we have no positive depths on the wse mask
-    assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
+    wd2M_ar = get_wsh_ar(dem_ar, wse_ar)
     
     #===========================================================================
     # write
     #===========================================================================
-    
-    #convert to masked
-    wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
-    
-    assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
-    
     return write_array2(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
 
-def get_wse(dem_fp, wd_fp, out_dir = None, ofp=None):
+def get_wsh_ar(dem_ar, wse_ar):
+    
+    assert_dem_ar(dem_ar)
+    assert_wse_ar(wse_ar)
+    
+    #simple subtract
+    wd_ar1 = wse_ar-dem_ar
+    
+    #filter dry    
+    wd_ar2 = np.where(wd_ar1.mask, 0.0, wd_ar1.data)
+ 
+    
+    #filter negatives
+    wd_ar3 = ma.array(
+        np.where(wd_ar2<0.0, 0.0, wd_ar2.data),
+        mask=np.full(wd_ar1.shape, False),
+        fill_value=-9999)
+    
+    assert_wsh_ar(wd_ar3)
+    
+    return wd_ar3
+        
+    
+
+def get_wse_rlay(dem_fp, wd_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
-    assert_spatial_equal(dem_fp, wse_fp)
+    assert_spatial_equal(dem_fp, wd_fp)
     
     if ofp is None:
         if out_dir is None:
             out_dir = tempfile.gettempdir()
         if not os.path.exists(out_dir):os.makedirs(out_dir)
         
-        fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wse.tif'
+        fname = os.path.splitext( os.path.basename(wd_fp))[0] + '_wse.tif'
         ofp = os.path.join(out_dir,fname)
     
     #===========================================================================
@@ -94,12 +92,38 @@ def get_wse(dem_fp, wd_fp, out_dir = None, ofp=None):
     #===========================================================================
     dem_ar = load_array(dem_fp, masked=True)
     
+        
     wd_ar = load_array(wd_fp, masked=True)
     
-    #logic checks
-    assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
-    assert wse_ar.mask.any()
-    assert not wse_ar.mask.all()
+    wse_ar = get_wse_ar(dem_ar, wd_ar)
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    return write_array2(wse_ar, ofp, masked=False, **get_profile(wd_fp))
+    
+    
+    
+def get_wse_ar(dem_ar, wd_ar):
+    assert_dem_ar(dem_ar)
+    assert_wsh_ar(wd_ar)
+    #===========================================================================
+    # add
+    #===========================================================================
+    wse_ar1 = wd_ar+dem_ar
+    
+    wse_ar2 = ma.array(
+                wse_ar1.data, 
+                 mask=wd_ar<=0.0, 
+                 fill_value=dem_ar.fill_value)
+    
+    assert_wse_ar(wse_ar2)
+    
+    return wse_ar2
+    
+    
+    
+ 
 #===============================================================================
 # ASSERTIONS---------
 #===============================================================================
@@ -124,7 +148,7 @@ def assert_wse_ar(ar, msg=''):
     assert_partial_wet(ar.mask, msg=msg)
     
     
-def assert_wd_ar(ar, msg=''):
+def assert_wsh_ar(ar, msg=''):
     """check the array satisfies expectations for a WD array"""
     if not __debug__: # true if Python was not started with an -O option
         return
@@ -135,7 +159,7 @@ def assert_wd_ar(ar, msg=''):
         raise AssertionError(msg+': some masked values')
     
     if not np.min(ar)==0.0:
-        raise AssertionError(msg+': non-zero minimum') 
+        raise AssertionError(msg+': expected zero minimum, got %.2f'%np.min(ar)) 
     
     if not np.max(ar)>0.0:
         raise AssertionError(msg+': zero maximum') 
