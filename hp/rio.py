@@ -1695,7 +1695,7 @@ def assert_rlay_simple(rlay, msg='',):
  
     
     if not x==y:
-        raise AssertionError('non-square pixels\n' + msg)
+        raise AssertionError(f'non-square pixels {x} x {y}\n' + msg)
  
     if not round(x, 10)==int(x):
         raise AssertionError('non-integer pixel size\n' + msg)
