@@ -192,7 +192,21 @@ def write_rasterize(poly_fp,
     """
     gdf.plot()
     """
+
+#===============================================================================
+# ASSERTIONS------
+#===============================================================================
+def assert_file_points(file_path, msg='',): 
+    """check the file is a points layer"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
     
- 
+    __tracebackhide__ = True
+    assert isinstance(file_path, str)  
+    gdf = gpd.read_file(file_path)
+    
+    if not all(gdf.geometry.geom_type == 'Point'):
+        raise AssertionError(f"{file_path} is not a points vector layer")
+
 
  

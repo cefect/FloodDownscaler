@@ -1210,8 +1210,7 @@ def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
     #===========================================================================
     # load
     #===========================================================================
-    dem_ar = load_array(dem_fp, masked=True)
-    
+    dem_ar = load_array(dem_fp, masked=True)    
     wse_ar = load_array(wse_fp, masked=True)
     
     #logic checks
