@@ -145,6 +145,33 @@ def write_wsh_boolean(fp,
  
     
     return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
+
+
+def write_wsh_clean(fp,
+                    ofp=None, out_dir=None,
+                    ):
+    """filter a depths raster"""
+    
+    if ofp is None:
+        if out_dir is None:
+            out_dir = os.path.dirname(fp)
+        
+        fname, ext = os.path.splitext(os.path.basename(fp))
+        ofp = os.path.join(out_dir, fname+'_clean'+ext)
+    
+    mar_raw = load_array(fp, masked=True)
+    
+    ar_raw = mar_raw.data
+    
+    
+    mar1 = ma.array(
+                np.where(ar_raw>=0, ar_raw, 0.0), #filter
+                 mask=mar_raw.mask, 
+                 fill_value=mar_raw.fill_value)
+    
+    return write_array2(mar1, ofp, **get_profile(fp))
+    
+    
  
         
  
