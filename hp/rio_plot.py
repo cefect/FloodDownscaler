@@ -55,6 +55,7 @@ class RioPlotr(Plotr):
         #get rastetr val to color conversion for confusion grid
         cval_d = {v:confusion_color_d[k] for k,v in cc_d.items()}        
         cval_d = {k:cval_d[k] for k in sorted(cval_d)} #sort it
+        self.confusion_val_d = cval_d.copy()
         
         cmap = matplotlib.colors.ListedColormap(cval_d.values())        
         norm = matplotlib.colors.BoundaryNorm(
@@ -68,12 +69,14 @@ class RioPlotr(Plotr):
         self.grid_styles_lib['confusion'] = {'cmap':cmap, 'norm':norm}
         
     
-    def _mask_grid_by_key(self, ar_raw, gridk, cc_d={'TN':100}):
+    def _mask_grid_by_key(self, ar_raw, gridk, cc_d=None):
         """apply a mask to the grid based on the grid type"""
+        if cc_d is None: cc_d=self.confusion_codes.copy()
+        
         if gridk=='wsh':
             assert np.any(ar_raw == 0), 'depth grid has no zeros '
             ar = np.where(ar_raw == 0, np.nan, ar_raw)
-        elif 'confuGrid' in gridk:
+        elif 'confusion' in gridk:
             # mask out true negatives
             ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
         elif 'dem' == gridk:
@@ -94,7 +97,7 @@ class RioPlotr(Plotr):
             label = 'WSH (m)'
             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
             location = 'bottom'
-        elif 'confuGrid' in gridk:
+        elif 'confusion' in gridk:
             #spacing='proportional'
             spacing = 'uniform'
             label = 'Confusion'
@@ -124,7 +127,8 @@ class RioPlotr(Plotr):
     #===========================================================================
     # plotters------
     #===========================================================================
-    def _ax_raster_show(self, ax, bbox, fp, 
+    def _ax_raster_show(self, ax,  fp, 
+                        bbox=None,
                         gridk=None,
                         show_kwargs=None,
                          **kwargs):
