@@ -35,88 +35,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 cm = 1 / 2.54
-#===============================================================================
-# #===============================================================================
-# # setup matplotlib
-# #===============================================================================
-#  
-# import matplotlib
-# matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
-# matplotlib.set_loglevel("info") #reduce logging level
-# import matplotlib.pyplot as plt
-# 
-# #set teh styles
-# plt.style.use('default')
-# 
-# #font
-# matplotlib.rc('font', **{
-#         'family' : 'serif',
-#         'weight' : 'normal',
-#         'size'   : 8})
-# 
-# for k,v in {
-#     'axes.titlesize':10,
-#     'axes.labelsize':10,
-#     'figure.titlesize':12,
-#     'figure.autolayout':False,
-#     'figure.figsize':(10,6),
-#     'legend.title_fontsize':'large'
-#     }.items():
-#         matplotlib.rcParams[k] = v
-#  
-# print('loaded matplotlib %s'%matplotlib.__version__)
-#===============================================================================
-def plot_rast(ar_raw,
-              ax=None,
-              cmap='gray',
-              interpolation='nearest',
-              txt_d = None,
-              nodata=None,
-              **kwargs):
-    """plot a raster array
-    
-    see also hp.rio
-    
-    TODO: add a histogram"""
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    if ax is None:
-        fig, ax = plt.subplots()  # Create a figure containing a single axes.
-        
-    if txt_d is None: txt_d=dict()
-    
-    #===========================================================================
-    # handle nodata
-    #===========================================================================
-    if not nodata is None:
-        masked_ar = np.ma.masked_where(ar_raw==nodata, ar_raw)
-        
-        #update meta
-        txt_d.update({'nodata':'%.4e'%nodata, 'ndcnt':masked_ar.mask.sum()})
  
-    else:
-        masked_ar=ar_raw
-        txt_d['nodata']='none'
-    
-    #===========================================================================
-    # plot the image
-    #===========================================================================
-    
-    ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
- 
-    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
-    #===========================================================================
-    # add some details
-    #===========================================================================
-    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
- 
-    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
-    """
-    plt.show()
-    """
-    
-    return ax
+
 
 class Plotr(object):
  
@@ -124,6 +44,8 @@ class Plotr(object):
     # controls
     #===========================================================================
     fignum = 0 #counter for figure numbers
+    
+
     
   
     
@@ -141,6 +63,7 @@ class Plotr(object):
         
         super().__init__(**kwargs)
         
+ 
     #===========================================================================
     # plotters------
     #===========================================================================
@@ -327,7 +250,7 @@ class Plotr(object):
             meta_d.update({'hmin':hmin, 'hmax':hmax})
         
         else:
-            raise Error(plot_type)
+            raise KeyError(plot_type)
         
         #=======================================================================
         # post----

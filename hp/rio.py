@@ -33,7 +33,17 @@ from hp.oop import Basic
 from hp.basic import get_dict_str
 from hp.fiona import get_bbox_and_crs
 #from hp.plot import plot_rast #for debugging
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+
+#===============================================================================
+# vars
+#===============================================================================
+confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
+
+#===============================================================================
+# classes
+#===============================================================================
+
 
 class RioWrkr(Basic):
     """work session for single band raster calcs"""
@@ -1146,55 +1156,7 @@ def rlay_calc1(rlay_fp, ofp, statement):
         
     
 
-def plot_rast(ar_raw,
-              ax=None,
-              cmap='gray',
-              interpolation='nearest',
-              txt_d = None,
- 
-              transform=None,
-              **kwargs):
-    """plot a raster array
-    see also hp.plot
-    TODO: add a histogram"""
-    
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    if ax is None:
-        fig, ax = plt.subplots()  # Create a figure containing a single axes.
-        limits = None
-    else:
-        limits = ax.axis()
-        
-    if txt_d is None: txt_d=dict()
-    
-    imkwargs = {**dict(cmap=cmap,interpolation=interpolation), **kwargs}
-    
-    #===========================================================================
-    # plot the image
-    #===========================================================================
-    ax_img = show(ar_raw, transform=transform, ax=ax,contour=False, **imkwargs)
-    #ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
- 
-    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
-    #===========================================================================
-    # add some details
-    #===========================================================================
-    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
- 
-    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
-    
-    #===========================================================================
-    # wrap
-    #===========================================================================
-    if not limits is None:
-        ax.axis(limits)
-    """
-    plt.show()
-    """
-    
-    return ax
+
 
 def get_xy_coords(transform, shape):
     """return an array of spatial values for x and y
