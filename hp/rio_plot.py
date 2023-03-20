@@ -13,7 +13,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 
-from hp.plot import Plotr
+import earthpy.spatial as es
+
+from hp.plot import Plotr, get_dict_str
 from hp.rio import confusion_codes
 
 class RioPlotr(Plotr):
@@ -25,7 +27,7 @@ class RioPlotr(Plotr):
         'hillshade':dict(cmap=plt.cm.copper, norm=None, alpha=0.8),
         'dem':dict(cmap = 'plasma', norm = None),
         'wsh':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
-        'wse':dict(cmap = 'plasma_r', norm = None),
+        'wse':dict(cmap = 'plasma_r', norm = None), #May lead to inconsistent color styles
         }
     
     #confusion colors
@@ -65,17 +67,72 @@ class RioPlotr(Plotr):
         
         self.grid_styles_lib['confusion'] = {'cmap':cmap, 'norm':norm}
         
+    
+    def _mask_grid_by_key(self, ar_raw, gridk, cc_d={'TN':100}):
+        """apply a mask to the grid based on the grid type"""
+        if gridk=='wsh':
+            assert np.any(ar_raw == 0), 'depth grid has no zeros '
+            ar = np.where(ar_raw == 0, np.nan, ar_raw)
+        elif 'confuGrid' in gridk:
+            # mask out true negatives
+            ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
+        elif 'dem' == gridk:
+            ar = np.where(ar_raw < 130, ar_raw, np.nan)
+ 
+        elif 'wse' in gridk: #no masking
+            ar = ar_raw
+        elif 'hillshade'==gridk:
+            ar = es.hillshade(ar_raw)
+        else:
+            raise KeyError(gridk)
+        return ar
+    
+    def _get_colorbar_pars_by_key(self, gridk):
+        """get standard colorbar parameters based on the grid type"""
+        if gridk=='wsh':
+            spacing = 'proportional'
+            label = 'WSH (m)'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+            location = 'bottom'
+        elif 'confuGrid' in gridk:
+            #spacing='proportional'
+            spacing = 'uniform'
+            label = 'Confusion'
+            fmt = None
+            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
+            #cax=cax_bot
+            location = 'bottom'
+        elif 'dem' in gridk:
+            spacing = 'proportional'
+            label = 'DEM (masl)'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
+            location = 'bottom'
+ 
+            
+        elif 'wse' in gridk:
+            spacing = 'proportional'
+            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+            label = 'WSE (masl)'
+            location='bottom'
+            
+ 
+        else:
+            raise KeyError( gridk)
+            
+        return location, fmt, label, spacing
+        
     #===========================================================================
     # plotters------
     #===========================================================================
-    def _ax_raster_show(self, ax, bbox, fp, gridk=None,
-                        grid_styles_lib=None,
+    def _ax_raster_show(self, ax, bbox, fp, 
+                        gridk=None,
+                        show_kwargs=None,
                          **kwargs):
         """add a styleized raster to the axis"""
         #=======================================================================
         # defaults
         #=======================================================================
-        if grid_styles_lib is None: grid_styles_lib=self.grid_styles_lib
+ 
         with rio.open(fp, mode='r') as ds:
             
             #===================================================================
@@ -97,11 +154,14 @@ class RioPlotr(Plotr):
             #===========================================================
             # #get styles by key
             #===========================================================
-            if gridk is None:
-                show_kwargs=dict() 
-            else:
-                assert gridk in grid_styles_lib, f'no gridk \'{gridk}\' found in style lib'
-                show_kwargs = grid_styles_lib[gridk]
+            if show_kwargs is None:
+                if gridk is None:
+                    show_kwargs=dict() 
+                else:
+                    assert gridk in self.grid_styles_lib, f'no gridk \'{gridk}\' found in style lib'
+                    show_kwargs = self.grid_styles_lib[gridk]
+                    
+            assert isinstance(show_kwargs, dict)
         #===========================================================
         # plot it
         #===========================================================
