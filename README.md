@@ -1,7 +1,12 @@
 # coms
 common scripts shared across project
 
-usin this as a subomdule now
+using this as a subomdule now
+
+## Archiving
+Often, only some of the scripts (and some functions) are needed by a project. 
+I don't think there is a good way to clean out coms without disrupting eventual re-incorporation of updates into coms.main.
+Suggestion: Once the project is mature, create a public fork of coms (at the same hash as the submodule), then make edits that won't be pushed back into coms.main (e.g., deletions).
 
 ## Contribution
 
