@@ -21,7 +21,7 @@ wrk_dir = r'L:\10_IO\coms'
 
 #spatial (mostly for testing)
 epsg = 3857
-bbox= (0, 0, 100, 100)
+bounds = (0, 0, 100, 100)
 
  
 
