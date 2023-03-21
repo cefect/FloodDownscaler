@@ -59,20 +59,17 @@ class RioWrkr(Basic):
     height=None
     width=None
     transform=None
+    
+    profile = None
  
 
 
     def __init__(self,
-                 rlay_ref_fp = None,  
+  
                  
                  #default behaviors
                 compress=Compression('NONE'),nodata=-9999, 
-                 
-                 #reference inheritance
-                 #crs=None,height=None,width=None,transform=None,nodata=None,
-                 
  
-                 
                  **kwargs):
 
  
@@ -91,10 +88,9 @@ class RioWrkr(Basic):
  
   
     
-    def _set_defaults(self, d):
-        for attn in ['crs', 'height', 'width', 'transform', 'nodata']:
-            assert attn in d, attn
-            setattr(self, attn, d[attn])
+    def _set_profile(self,fp):
+        """set the spatial profile of this worker from a raster file"""
+        self.profile = get_profile(fp)
             
                    
     
@@ -150,6 +146,72 @@ class RioWrkr(Basic):
             
         log.info(f'finished on {len(res_d)}')
         return res_d
+    
+    def write_array(self,raw_ar,
+                        #write kwargs
+                       nodata=None, compress=None,
+                       
+                       #function kwargs
+                       logger=None, out_dir=None, tmp_dir=None,ofp=None, 
+                     resname=None,ext='.tif',subdir=False,
+                       **kwargs):
+        """write an array to raster using rio using session defaults
+        
+        nodata = 0
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('write_array',
+                           ext=ext, logger=logger, out_dir=out_dir, tmp_dir=tmp_dir, ofp=ofp,
+                           resname=resname, subdir=subdir)
+        
+        if compress is None:
+            compress = self.compress
+        if nodata is None:
+            nodata = self.nodata
+        
+        #=======================================================================
+        # get kwargs
+        #=======================================================================
+        #pull the session defaults
+        prof_d = self.profile.copy()
+        
+        #update 
+        prof_d.update(dict(compress=compress, nodata=nodata))
+        prof_d.update(kwargs)
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        log.info(f'writing {str(raw_ar.shape)}  to \n    {ofp}')
+ 
+        return write_array2(raw_ar, ofp, **prof_d)       
+    
+ #==============================================================================
+ #    def _get_profile(self, **kwargs):
+ # 
+ #        
+ #        def get_aval(attName):
+ #            if attName in kwargs:
+ #                attVal=kwargs[attName]
+ #            else:
+ #                attVal = None
+ #                
+ #            if attVal is None:
+ #                attVal = getattr(self, attName)
+ #                
+ #            return attVal
+ #            
+ #        args=list()
+ #        for attName in ['crs', 'height', 'width', 'transform', 'nodata']:
+ #            args.append(get_aval(attName))
+ #        
+ #        #self.ref_vals_d.keys()
+ #        
+ #        return args #crs, height, width, transform, nodata
+ #==============================================================================
     
 class SpatialBBOXWrkr(Basic):
     aoi_fp=None
