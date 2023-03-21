@@ -5,10 +5,22 @@ Created on Mar. 19, 2023
 
 tools for helping with vector tests
 '''
-
+import os, tempfile, datetime
+import fiona
+import fiona.crs
 import geopandas as gpd
-from shapely.geometry import Point
+import shapely.geometry as sgeo
+from shapely.geometry import Point, mapping, Polygon
+from pyproj.crs import CRS
+ 
 import random
+
+from hp.tests.conftest import temp_dir
+
+#spatial defaults
+from definitions import epsg,bounds 
+crs_default = CRS.from_user_input(epsg)
+bbox_default = sgeo.box(*bounds)
 
 def generate_random_points(bbox, n):
     """
@@ -42,3 +54,27 @@ def generate_random_points(bbox, n):
     
     
     return gdf
+
+
+def get_aoi_fp(bbox, crs=crs_default, ofp=None, out_dir=None,):
+    
+    if ofp is None:
+        if out_dir is None: out_dir=temp_dir
+        ofp = os.path.join(out_dir, 'aoi.geojson')
+        
+    # write a vectorlayer from a single bounding box
+    assert isinstance(bbox, Polygon)
+    with fiona.open(ofp, 'w', driver='GeoJSON',
+        crs=fiona.crs.from_epsg(crs.to_epsg()),
+        schema={'geometry': 'Polygon',
+                'properties': {'id':'int'},
+            },
+ 
+        ) as c:
+        
+        c.write({ 
+            'geometry':mapping(bbox),
+            'properties':{'id':0},
+            })
+        
+    return ofp
