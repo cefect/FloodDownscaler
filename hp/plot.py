@@ -398,7 +398,7 @@ class Plotr(object):
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
         
-
+        log.info(f'building {len(row_keys)}x{len(col_keys)} fig\n    row_keys:{row_keys}\n    col_keys:{col_keys}')
         
         #=======================================================================
         # precheck
