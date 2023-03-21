@@ -24,7 +24,7 @@ class RioPlotr(Plotr):
     
     #standard styles for grids
     grid_styles_lib={
-        'hillshade':dict(cmap=plt.cm.copper, norm=None, alpha=0.8),
+        'hillshade':dict(cmap=plt.cm.copper, norm=None),
         'dem':dict(cmap = 'plasma', norm = None),
         'wsh':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
         'wse':dict(cmap = 'plasma_r', norm = None), #May lead to inconsistent color styles
@@ -132,7 +132,12 @@ class RioPlotr(Plotr):
                         gridk=None,
                         show_kwargs=None,
                          **kwargs):
-        """add a styleized raster to the axis"""
+        """add a styleized raster to the axis
+        
+        show_kwargs: dict
+            kwargs to pass to rio.plot.show
+            if None: loaded from grid_styles_lib (w/ gridk) 
+        """
         #=======================================================================
         # defaults
         #=======================================================================
