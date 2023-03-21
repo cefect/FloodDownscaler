@@ -31,9 +31,14 @@ class RioPlotr(Plotr):
         }
     
     #confusion colors
-    #https://colorbrewer2.org/?type=diverging&scheme=RdYlBu&n=4
+    #https://colorbrewer2.org/?type=diverging&scheme=RdYlBu&n=4#type=diverging&scheme=PiYG&n=4
+    """spent some time thinking about this
+    want to avoid blues... because almost everything is inundation. just show a WSH grid in parallel.
+    colorblind safe
+    lots of TrueNegatives... generally masking these out
+    """
     confusion_color_d = {
-            'FN':'#d7191c', 'FP':'#fdae61', 'TP':'#abd9e9', 'TN':'#2c7bb6'
+            'FN':'#f1b6da', 'FP':'#d01c8b', 'TP':'#b8e186', 'TN':'white'
             }
     
     def __init__(self, **kwargs):
