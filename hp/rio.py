@@ -91,6 +91,7 @@ class RioWrkr(Basic):
     def _set_profile(self,fp):
         """set the spatial profile of this worker from a raster file"""
         self.profile = get_profile(fp)
+        self.shape = get_shape(fp)
             
                    
     
