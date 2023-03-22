@@ -13,7 +13,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 
-import earthpy.spatial as es
+import earthpy.spatial as es #for plotting hillshades
+
+#colormaps
+from palettable.colorbrewer.sequential import BuPu_3
 
 from hp.plot import Plotr, get_dict_str
 from hp.rio import confusion_codes
@@ -27,7 +30,7 @@ class RioPlotr(Plotr):
         'hillshade':dict(cmap=plt.cm.copper, norm=None),
         'dem':dict(cmap = 'plasma', norm = None),
         'wsh':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
-        'wse':dict(cmap = 'plasma_r', norm = None), #May lead to inconsistent color styles
+        'wse':dict(cmap = BuPu_3.mpl_colormap, norm = None), #May lead to inconsistent color styles
         }
     
     #confusion colors
