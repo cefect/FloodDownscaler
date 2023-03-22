@@ -225,7 +225,7 @@ class Plotr(object):
    
                 assert len(ar)>10
                 #build teh function
-                
+                import scipy
                 kde = scipy.stats.gaussian_kde(ar, 
                                                    bw_method='scott',
                                                    weights=None, #equally weighted
@@ -498,6 +498,63 @@ class Plotr(object):
  
         color_d = {k:rgb2hex(cmap(ni)) for k, ni in ik_d.items()}
         return color_d
+    
+    def _add_arrow(self, 
+                   ax_d,
+                   rowk_l=None, colk_l=None,
+                   xy_loc = (0.66, 0.55),
+                   text_str='',
+                   arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.7),
+                   logger=None,
+                   **kwargs):
+        """add an annotation arrow
+        
+        Pars
+        --------
+        target: tuple
+            index of rowk and colk in ax_d
+            
+        xy_loc: tuple
+            head location of arrow
+        """
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('_add_arrow')
+        
+        if rowk_l is None: rowk_l=list(ax_d.keys())        
+        if colk_l is None: colk_l=list(ax_d[rowk_l[0]].keys())
+        
+        
+        log.debug(f'at {xy_loc}')
+        
+        #=======================================================================
+        # loop and add
+        #=======================================================================
+        cnt=0
+        res_d = dict()
+        for rowk, d0 in ax_d.items():
+            if not rowk in rowk_l:continue
+            res_d[rowk] = dict()
+            
+            for colk, ax in d0.items():
+                if not colk in colk_l:continue
+ 
+                #add an arrow at this location
+                                       
+                res_d[rowk][colk] = ax.annotate(text_str, 
+                            xy=xy_loc,  
+                            xycoords='axes fraction',
+                            xytext=(xy_loc[0], xy_loc[1]+0.25),
+                            textcoords='axes fraction',
+                            arrowprops=arrowprops,
+                            **kwargs)
+                
+                cnt+=1
+        
+        log.info(f'added {cnt} arrows')
+        return res_d
     
     #===========================================================================
     # OUTPUTTRS------
