@@ -83,7 +83,8 @@ def load_mask_array(mask_fp, maskType='binary', window=None,):
     return mask_ar
 
 
-def write_array_mask(raw_ar, maskType='binary', 
+def write_array_mask(raw_ar, 
+                     maskType='binary',
                      ofp=None, out_dir=None,
                      nodata=-9999,
                      **kwargs):
@@ -115,8 +116,10 @@ def write_array_mask(raw_ar, maskType='binary',
     return write_array2(mask_raw_ar, ofp, nodata=nodata, **kwargs)
 
 
-def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', 
-                       invert=False, 
+def write_extract_mask(raw_fp,  
+                       ofp=None, out_dir=None, 
+                       maskType='binary',invert=False,
+                       window=None, bbox=None, 
                        **kwargs):
  
     
@@ -127,7 +130,15 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary',
     #===========================================================================
     with rio.open(raw_fp, mode='r') as dataset:
         
-        raw_ar = dataset.read(1,  masked=True)
+        if window is None and (not bbox is None):
+            window = rio.windows.from_bounds(*bbox.bounds, transform=dataset.transform)
+            transform = rio.windows.transform(window, dataset.transform)
+        else:
+            transform=dataset.transform
+            assert bbox is None
+ 
+        
+        raw_ar = dataset.read(1,  masked=True, window=window)
         
         ds_prof = dataset.profile
         
@@ -135,6 +146,7 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary',
         
     #overwrite the nodata
     ds_prof['nodata'] = -9999
+    ds_prof['transform'] = transform
     #===========================================================================
     # manipulate mask
     #===========================================================================

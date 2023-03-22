@@ -141,9 +141,8 @@ def write_wsh_boolean(fp,
     #load the raw
     mar_raw = load_array(fp, **load_kwargs)
     assert_wsh_ar(mar_raw)
-    
  
-    
+    #write mask True=dry, False=wet
     return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
 
 
