@@ -488,7 +488,7 @@ class Plotr(object):
         log.info('built %ix%i w/ figsize=%s'%(len(col_keys), len(row_keys), figsize))
         return fig, ax_d
             
- 
+
     def _build_color_d(self, keys,
                        cmap = plt.cm.get_cmap(name='Set1')
                        ):
@@ -498,6 +498,10 @@ class Plotr(object):
  
         color_d = {k:rgb2hex(cmap(ni)) for k, ni in ik_d.items()}
         return color_d
+
+    #===========================================================================
+    # WIDGETS--------
+    #===========================================================================
     
     def _add_arrow(self, 
                    ax_d,

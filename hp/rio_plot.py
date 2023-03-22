@@ -2,6 +2,11 @@
 Created on Mar. 20, 2023
 
 @author: cefect
+
+requires these special packages
+    matplotlib_scalebar: scale bar
+    palettable: color scales
+    earthpy: hillshade
 '''
 import os, string
 import numpy as np
@@ -12,7 +17,9 @@ from rasterio.plot import show
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
+from matplotlib.patches import ArrowStyle
 
+from matplotlib_scalebar.scalebar import ScaleBar
 import earthpy.spatial as es #for plotting hillshades
 
 #colormaps
@@ -52,7 +59,7 @@ class RioPlotr(Plotr):
         
     
     #===========================================================================
-    # style
+    # style---------
     #===========================================================================
     def _set_confusion_style(self):
         """setup styles for confusion plotting"""
@@ -131,6 +138,55 @@ class RioPlotr(Plotr):
             raise KeyError( gridk)
             
         return location, fmt, label, spacing
+    
+    #===========================================================================
+    # Widgets--------
+    #===========================================================================-
+    def _add_scaleBar_northArrow(self, ax,
+                                 xy_loc=(0.2, 0.01),
+ 
+                                 ):
+        """add a scalebar and a north arrow to an axis
+        
+        
+        plt.show()
+        """
+        scaleBar_artist = ax.add_artist(ScaleBar(1.0, "m", length_fraction=0.2, location='lower left', 
+                box_alpha=0.8,border_pad=0.3
+                #frameon=False,
+                ))
+        
+ 
+ 
+    
+        #=======================================================================
+        # #north arrow
+        #=======================================================================
+        """spent 30mins on this... couldnt find an elegent way"""
+  #=============================================================================
+  #       xytext=(xy_loc[0], xy_loc[1]+0.15)
+  #       ax.annotate('', xy=xy_loc, xytext=xytext,
+  #           arrowprops=dict(facecolor='black', 
+  #                           linewidth=1.5,  
+  #                           #headwidth=8,
+  #                           arrowstyle='<-',
+  # 
+  #                           #arrowstyle=ArrowStyle("]-", head_length=.4, head_width=.4, tail_width=.4),
+  #                           ),
+  #           ha='center', va='center', #fontsize=16,
+  #           #xycoords=ax.transAxes,
+  #           xycoords='axes fraction',textcoords='axes fraction',
+  #           )
+  #        
+  #       #add the N
+  #       xytext2 = (xytext[0], xytext[1]+0.03)
+  #       ax.annotate('N', xy=xytext2,ha='center', va='top', #fontsize=16,
+  #           #xycoords=ax.transAxes,
+  #           xycoords='axes fraction',textcoords='axes fraction',
+  #           )
+  #=============================================================================
+        
+ 
         
     #===========================================================================
     # plotters------
