@@ -23,7 +23,8 @@ wrk_dir = r'L:\10_IO\coms'
 epsg = 3857
 bounds = (0, 0, 100, 100)
 
- 
+#specify the latex install directory
+os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
 
  
 
