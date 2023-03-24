@@ -21,5 +21,6 @@ dependencies:
   #- rioxarray=0.13.*
   - xlsxwriter=3.0.*
   - georasters=0.5.*
+  - earthpy=0.9.*
 
   
