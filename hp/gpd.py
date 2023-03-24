@@ -152,7 +152,8 @@ def rlay_to_gdf(rlay_fp, convert_to_binary=True):
 
 def write_rasterize(poly_fp,
                     rlay_ref_fp,
-                    ofp=None):
+                    ofp=None, out_dir=None,
+                    ):
     """burn a polygon into a raster
     
     Parameters
@@ -167,8 +168,10 @@ def write_rasterize(poly_fp,
     #===========================================================================
     
     if ofp is None:
-        ext = os.path.splitext(poly_fp)[1]            
-        ofp = os.path.join(tempfile.gettempdir(), os.path.basename(poly_fp).replace(ext, '.tif'))
+        ext = os.path.splitext(poly_fp)[1] 
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        ofp = os.path.join(out_dir, os.path.basename(poly_fp).replace(ext, '.tif'))
     
     #get spatial kwargs from reference array
     rd = get_meta(rlay_ref_fp)
@@ -192,7 +195,21 @@ def write_rasterize(poly_fp,
     """
     gdf.plot()
     """
+
+#===============================================================================
+# ASSERTIONS------
+#===============================================================================
+def assert_file_points(file_path, msg='',): 
+    """check the file is a points layer"""
+    if not __debug__: # true if Python was not started with an -O option
+        return
     
- 
+    __tracebackhide__ = True
+    assert isinstance(file_path, str)  
+    gdf = gpd.read_file(file_path)
+    
+    if not all(gdf.geometry.geom_type == 'Point'):
+        raise AssertionError(f"{file_path} is not a points vector layer")
+
 
  

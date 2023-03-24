@@ -112,6 +112,7 @@ def apply_block_reduce(a, func,aggscale=2):
     
     https://stackoverflow.com/questions/73529481/numpy-based-spatial-reduction/73529581#73529581
         """
+    warnings.warn("20230319: apply_block_reduce2", DeprecationWarning)
     #===========================================================================
     # defaults
     #===========================================================================
@@ -184,6 +185,32 @@ def apply_block_reduce(a, func,aggscale=2):
     assert res_ar2.shape==new_shape
     
     return res_ar2
+
+def apply_block_reduce2(ar1, aggscale=2, func=np.mean):
+    """apply a reducing function to a numpy array in 2d blocks
+    
+    see apply_block_reduce() for notes"""
+    
+ 
+    # get teh new shape
+ 
+    assert isinstance(aggscale, int)
+    assert aggscale>1    
+    new_shape = (ar1.shape[0]//aggscale, ar1.shape[1]//aggscale)
+    
+    
+    #stack windows into axis 1 and 3
+    ar1_stacked = ar1.reshape(ar1.shape[0]//aggscale, aggscale, ar1.shape[1]//aggscale, aggscale)
+    
+    ##apply function
+    res_ar2 = func(ar1_stacked, axis=(1,3))
+    
+    #check
+    assert res_ar2.shape==new_shape
+    
+    return res_ar2
+    
+    
 
 def downsample(a, n=2):
     """increase shape. scale up an array by replicating parent cells onto children with spatial awareness
@@ -303,3 +330,15 @@ def downsample(a, n=2):
 def dropna(a):
     """mimic pandas behavior"""
     return a[~np.isnan(a)]
+
+def get_support_ratio(ar_top, ar_bot):
+        """get scale difference"""
+        shape1 = ar_top.shape
+        shape2 = ar_bot.shape
+        
+        height_ratio = shape1[0]/shape2[0]
+        width_ratio = shape1[1]/shape2[1]
+        
+        assert height_ratio==width_ratio, f'ratio mismatch. height={height_ratio}. width={width_ratio}'
+        
+        return width_ratio

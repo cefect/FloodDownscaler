@@ -35,88 +35,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 cm = 1 / 2.54
-#===============================================================================
-# #===============================================================================
-# # setup matplotlib
-# #===============================================================================
-#  
-# import matplotlib
-# matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
-# matplotlib.set_loglevel("info") #reduce logging level
-# import matplotlib.pyplot as plt
-# 
-# #set teh styles
-# plt.style.use('default')
-# 
-# #font
-# matplotlib.rc('font', **{
-#         'family' : 'serif',
-#         'weight' : 'normal',
-#         'size'   : 8})
-# 
-# for k,v in {
-#     'axes.titlesize':10,
-#     'axes.labelsize':10,
-#     'figure.titlesize':12,
-#     'figure.autolayout':False,
-#     'figure.figsize':(10,6),
-#     'legend.title_fontsize':'large'
-#     }.items():
-#         matplotlib.rcParams[k] = v
-#  
-# print('loaded matplotlib %s'%matplotlib.__version__)
-#===============================================================================
-def plot_rast(ar_raw,
-              ax=None,
-              cmap='gray',
-              interpolation='nearest',
-              txt_d = None,
-              nodata=None,
-              **kwargs):
-    """plot a raster array
-    
-    see also hp.rio
-    
-    TODO: add a histogram"""
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    if ax is None:
-        fig, ax = plt.subplots()  # Create a figure containing a single axes.
-        
-    if txt_d is None: txt_d=dict()
-    
-    #===========================================================================
-    # handle nodata
-    #===========================================================================
-    if not nodata is None:
-        masked_ar = np.ma.masked_where(ar_raw==nodata, ar_raw)
-        
-        #update meta
-        txt_d.update({'nodata':'%.4e'%nodata, 'ndcnt':masked_ar.mask.sum()})
  
-    else:
-        masked_ar=ar_raw
-        txt_d['nodata']='none'
-    
-    #===========================================================================
-    # plot the image
-    #===========================================================================
-    
-    ax_img = ax.imshow(masked_ar,cmap=cmap,interpolation=interpolation, **kwargs)
- 
-    #plt.colorbar(ax_img, ax=ax) #steal some space and add a color bar
-    #===========================================================================
-    # add some details
-    #===========================================================================
-    txt_d.update({'shape':str(ar_raw.shape), 'size':ar_raw.size})
- 
-    ax.text(0.1, 0.9, get_dict_str(txt_d), transform=ax.transAxes, va='top', fontsize=8, color='red')
-    """
-    plt.show()
-    """
-    
-    return ax
+
 
 class Plotr(object):
  
@@ -124,6 +44,8 @@ class Plotr(object):
     # controls
     #===========================================================================
     fignum = 0 #counter for figure numbers
+    
+
     
   
     
@@ -141,6 +63,7 @@ class Plotr(object):
         
         super().__init__(**kwargs)
         
+ 
     #===========================================================================
     # plotters------
     #===========================================================================
@@ -302,7 +225,7 @@ class Plotr(object):
    
                 assert len(ar)>10
                 #build teh function
-                
+                import scipy
                 kde = scipy.stats.gaussian_kde(ar, 
                                                    bw_method='scott',
                                                    weights=None, #equally weighted
@@ -327,7 +250,7 @@ class Plotr(object):
             meta_d.update({'hmin':hmin, 'hmax':hmax})
         
         else:
-            raise Error(plot_type)
+            raise KeyError(plot_type)
         
         #=======================================================================
         # post----
@@ -475,7 +398,7 @@ class Plotr(object):
         if col_keys is None: ncols=1
         else:ncols=len(col_keys)
         
-
+        log.info(f'building {len(row_keys)}x{len(col_keys)} fig\n    row_keys:{row_keys}\n    col_keys:{col_keys}')
         
         #=======================================================================
         # precheck
@@ -565,7 +488,7 @@ class Plotr(object):
         log.info('built %ix%i w/ figsize=%s'%(len(col_keys), len(row_keys), figsize))
         return fig, ax_d
             
- 
+
     def _build_color_d(self, keys,
                        cmap = plt.cm.get_cmap(name='Set1')
                        ):
@@ -575,6 +498,67 @@ class Plotr(object):
  
         color_d = {k:rgb2hex(cmap(ni)) for k, ni in ik_d.items()}
         return color_d
+
+    #===========================================================================
+    # WIDGETS--------
+    #===========================================================================
+    
+    def _add_arrow(self, 
+                   ax_d,
+                   rowk_l=None, colk_l=None,
+                   xy_loc = (0.66, 0.55),
+                   text_str='',
+                   arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.7),
+                   logger=None,
+                   **kwargs):
+        """add an annotation arrow
+        
+        Pars
+        --------
+        target: tuple
+            index of rowk and colk in ax_d
+            
+        xy_loc: tuple
+            head location of arrow
+        """
+        #=======================================================================
+        # defautls
+        #=======================================================================
+        if logger is None: logger=self.logger
+        log=logger.getChild('_add_arrow')
+        
+        if rowk_l is None: rowk_l=list(ax_d.keys())        
+        if colk_l is None: colk_l=list(ax_d[rowk_l[0]].keys())
+        
+        
+        log.debug(f'at {xy_loc}')
+        
+        #=======================================================================
+        # loop and add
+        #=======================================================================
+        cnt=0
+        res_d = dict()
+        for rowk, d0 in ax_d.items():
+            if not rowk in rowk_l:continue
+            res_d[rowk] = dict()
+            
+            for colk, ax in d0.items():
+                if not colk in colk_l:continue
+ 
+                #add an arrow at this location
+                                       
+                res_d[rowk][colk] = ax.annotate(text_str, 
+                            xy=xy_loc,  
+                            xycoords='axes fraction',
+                            xytext=(xy_loc[0], xy_loc[1]+0.25),
+                            textcoords='axes fraction',
+                            arrowprops=arrowprops,
+                            **kwargs)
+                
+                cnt+=1
+        
+        log.info(f'added {cnt} arrows')
+        return res_d
     
     #===========================================================================
     # OUTPUTTRS------

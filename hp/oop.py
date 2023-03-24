@@ -233,10 +233,8 @@ class Basic(object): #simple base class
             log.info('    %s'%k)
         
     def _func_setup(self, dkey, 
-                    logger=None, out_dir=None, tmp_dir=None,ofp=None,
- 
-                     resname=None,ext='.tif',
-                    subdir=False,
+                    logger=None, out_dir=None, tmp_dir=None,ofp=None, 
+                     resname=None,ext='.tif',subdir=False,
                     ):
         """common function default setup
         

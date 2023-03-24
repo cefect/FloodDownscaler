@@ -173,6 +173,57 @@ def append_levels(mdex, keys_d):
     df = df.loc[:, list(keys_d.keys())+ list(mdex.names)] #rerder
     
     return pd.MultiIndex.from_frame(df)
+
+ 
+
+def dict_to_multiindex(d, index=None):
+    """
+    Recursive function to convert a nested dictionary into a reformed dictionary that can be passed to pd.DataFrame() method.
+
+    Parameters
+    ----------
+    d : dict
+        The input nested dictionary.
+    index : list, optional
+        The current index of the recursive function. Default is None.
+
+    Returns
+    -------
+    dict
+        The reformed dictionary that can be passed to pd.DataFrame() method.
+    """
+    
+    if index is None:
+        index = []
+        
+    if isinstance(d, dict):
+        result = {}
+        for key in d:
+            result.update(dict_to_multiindex(d[key], index + [key]))
+        return result
+    else:
+        return {tuple(index): d}
+
+def nested_dict_to_dx(d, **kwargs):
+    """
+    Function to convert a nested dictionary into a multi-index DataFrame.
+
+    Parameters
+    ----------
+    d : dict
+        The input nested dictionary.
+
+    Returns
+    -------
+    pd.DataFrame
+        The resulting multi-index DataFrame.
+    
+   """
+    
+    reformed_dict = dict_to_multiindex(d, **kwargs)
+    multiIndex_df = pd.DataFrame(reformed_dict, index=['row1'])
+    return multiIndex_df
+    
 #===============================================================================
 # MISC --------------------------------------------------------------------
 #===============================================================================

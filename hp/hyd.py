@@ -17,8 +17,10 @@ from hp.rio import (
     load_array, get_profile
     )
 
+from hp.riom import write_array_mask
+
 #===============================================================================
-# RASTERS -------
+# RASTERS CONVSERIONS -------
 #===============================================================================
 def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
@@ -74,18 +76,24 @@ def get_wsh_ar(dem_ar, wse_ar):
         
     
 
+
+def _get_ofp(fp, out_dir, name='wse'):
+    """shortcut to get filepaths"""
+    if out_dir is None:
+        out_dir = tempfile.gettempdir()
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    fname = os.path.splitext(os.path.basename(fp))[0] + f'_{name}.tif'
+    ofp = os.path.join(out_dir, fname)
+    return ofp
+
 def get_wse_rlay(dem_fp, wd_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wd_fp)
     
     if ofp is None:
-        if out_dir is None:
-            out_dir = tempfile.gettempdir()
-        if not os.path.exists(out_dir):os.makedirs(out_dir)
-        
-        fname = os.path.splitext( os.path.basename(wd_fp))[0] + '_wse.tif'
-        ofp = os.path.join(out_dir,fname)
+        ofp = _get_ofp(wd_fp, out_dir)
     
     #===========================================================================
     # load
@@ -122,7 +130,51 @@ def get_wse_ar(dem_ar, wd_ar):
     return wse_ar2
     
     
+def write_wsh_boolean(fp,
+                 ofp=None, out_dir=None,
+                 load_kwargs=dict(),
+                 ):
+    """write a boolean (0,1) raster of the inundation represented by the input WSH"""
+    if ofp is None:
+        ofp = _get_ofp(fp, out_dir, name='inun')
+        
+    #load the raw
+    mar_raw = load_array(fp, **load_kwargs)
+    assert_wsh_ar(mar_raw)
+ 
+    #write mask True=dry, False=wet
+    return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
+
+
+def write_wsh_clean(fp,
+                    ofp=None, out_dir=None,
+                    ):
+    """filter a depths raster"""
     
+    if ofp is None:
+        if out_dir is None:
+            out_dir = os.path.dirname(fp)
+        
+        fname, ext = os.path.splitext(os.path.basename(fp))
+        ofp = os.path.join(out_dir, fname+'_clean'+ext)
+    
+    mar_raw = load_array(fp, masked=True)
+    
+    ar_raw = mar_raw.data
+    
+    
+    mar1 = ma.array(
+                np.where(ar_raw>=0, ar_raw, 0.0), #filter
+                 mask=mar_raw.mask, 
+                 fill_value=mar_raw.fill_value)
+    
+    assert_wsh_ar(mar1)
+    
+    return write_array2(mar1, ofp, **get_profile(fp))
+    
+    
+ 
+        
  
 #===============================================================================
 # ASSERTIONS---------

@@ -16,14 +16,15 @@ import pandas as pd
 
 from hp.rio import write_array
 from hp.gpd import rlay_to_gdf
-
+from hp.tests.conftest import temp_dir
 
 nan, array = np.nan, np.array
 
-temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
-if not os.path.exists(temp_dir): os.makedirs(temp_dir)
-crs_default = CRS.from_user_input(25832)
-bbox_default = sgeo.box(0, 0, 100, 100)
+#spatial defaults
+from definitions import epsg,bounds 
+crs_default = CRS.from_user_input(epsg)
+bbox_default = sgeo.box(*bounds)
+
 
 def get_rlay_fp(ar, layName, 
             ofp=None, 

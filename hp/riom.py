@@ -29,7 +29,7 @@ from hp.rio import (
     )
 
 
-def load_mask_array(mask_fp, maskType='binary'):
+def load_mask_array(mask_fp, maskType='binary', window=None,):
     """helper to load mask from array and process
     
     
@@ -52,21 +52,25 @@ def load_mask_array(mask_fp, maskType='binary'):
     #===========================================================================
     with rio.open(mask_fp, mode='r') as dataset:
         assert dataset.nodata==-9999
+        #=======================================================================
+        # raster has 0s and 1s
+        #=======================================================================
         if maskType=='binary':
-            mask_ar_raw = dataset.read(1,   masked=False)
+            mask_ar_raw = dataset.read(1,   masked=False, window=window)
             
             assert_f(mask_ar_raw)
                         
             mask_ar = np.where(mask_ar_raw==1, False, True)
             
+        #=======================================================================
+        # use the gdal mask
+        #=======================================================================
         elif maskType=='native': 
-            mask_ar_raw =  dataset.read(1,   masked=True)
+            mask_ar_raw =  dataset.read(1,   masked=True, window=window)
             
             assert_f(mask_ar_raw)
             
-            mask_ar = mask_ar_raw.mask
-            
- 
+            mask_ar = mask_ar_raw.mask 
             
         else:
             raise KeyError(maskType)
@@ -79,7 +83,8 @@ def load_mask_array(mask_fp, maskType='binary'):
     return mask_ar
 
 
-def write_array_mask(raw_ar, maskType='binary', 
+def write_array_mask(raw_ar, 
+                     maskType='binary',
                      ofp=None, out_dir=None,
                      nodata=-9999,
                      **kwargs):
@@ -90,7 +95,7 @@ def write_array_mask(raw_ar, maskType='binary',
     
     see load_mask_array"""
     
-    assert_mask_ar(raw_ar, msg='expect a masked array')
+    assert_mask_ar(raw_ar, msg='expects a boolean array')
     
     if maskType=='native':
         mask_raw_ar = ma.array(np.where(raw_ar, 0, 1),mask=raw_ar, fill_value=nodata)
@@ -111,7 +116,11 @@ def write_array_mask(raw_ar, maskType='binary',
     return write_array2(mask_raw_ar, ofp, nodata=nodata, **kwargs)
 
 
-def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwargs):
+def write_extract_mask(raw_fp,  
+                       ofp=None, out_dir=None, 
+                       maskType='binary',invert=False,
+                       window=None, bbox=None, 
+                       **kwargs):
  
     
     """extractc the native mask from a rlay as a separate raster. 0=masked"""
@@ -121,11 +130,30 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwa
     #===========================================================================
     with rio.open(raw_fp, mode='r') as dataset:
         
-        raw_ar = dataset.read(1,  masked=True)
+        if window is None and (not bbox is None):
+            window = rio.windows.from_bounds(*bbox.bounds, transform=dataset.transform)
+            transform = rio.windows.transform(window, dataset.transform)
+        else:
+            transform=dataset.transform
+            assert bbox is None
+ 
         
-        prof = dataset.profile
+        raw_ar = dataset.read(1,  masked=True, window=window)
+        
+        ds_prof = dataset.profile
         
         assert np.any(raw_ar.mask)
+        
+    #overwrite the nodata
+    ds_prof['nodata'] = -9999
+    ds_prof['transform'] = transform
+    #===========================================================================
+    # manipulate mask
+    #===========================================================================
+    if invert:
+        mask = np.invert(raw_ar.mask)
+    else:
+        mask = raw_ar.mask
         
     #===========================================================================
     # filenames
@@ -133,12 +161,23 @@ def write_extract_mask(raw_fp,  ofp=None, out_dir=None, maskType='binary', **kwa
     ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
         
     
-    return write_array_mask(raw_ar.mask, ofp=ofp, maskType=maskType, **kwargs, **prof)
+    return write_array_mask(mask, ofp=ofp, maskType=maskType, **kwargs, **ds_prof)
         
- 
+def rlay_mar_apply(rlay_fp, func, maskType='binary', **kwargs):
+    """apply a function to a mask on an rlay
+    
+    similar to hp.rio.rlay_ar_apply (but less flexible)
+    """
+    mask_ar = load_mask_array(rlay_fp,  maskType=maskType)
+    
+    return func(mask_ar, **kwargs)
+        
+
 #===============================================================================
 # helpers------
 #===============================================================================
+
+    
 def _get_ofp(raw_fp, dkey='mask', out_dir=None, ofp=None):
 
     
