@@ -11,7 +11,7 @@ import numpy as np
  
 
 from hp.gpd import rlay_to_gdf
-from hp.rio import get_depth
+from hp.hyd import get_wsh_rlay
 from hp.tests.tools.rasters import get_poly_fp_from_rlay
 
 from fdsc.analysis.valid.v_ses import ValidateSession, run_validator
@@ -31,7 +31,7 @@ from tests.conftest import (
 td1 = proj_lib['fred01']
  
 #convert  Fred WSE to depths
-f = lambda wse_fp:get_depth(td1['dem1_rlay_fp'], wse_fp)
+f = lambda wse_fp:get_wsh_rlay(td1['dem1_rlay_fp'], wse_fp)
 td1_wd1_rlayV_fp = f(td1['wse1_rlayV_fp'])
 td1_wd1_rlay3_fp = f(td1['wse1_rlay3_fp'])
 
@@ -49,7 +49,7 @@ dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1')
 inun_poly_fp = get_poly_fp_from_rlay(wse1_rlayV_fp)
 
 #convert to depths
-f = lambda wse_fp:get_depth(dem1_rlay_fp, wse_fp)
+f = lambda wse_fp:get_wsh_rlay(dem1_rlay_fp, wse_fp)
 
 toy_wd1_rlay3_fp = f(wse1_rlay3_fp)
 toy_wd1_rlayV_fp = f(wse1_rlayV_fp)

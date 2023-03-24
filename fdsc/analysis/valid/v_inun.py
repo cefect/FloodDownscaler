@@ -14,7 +14,7 @@ import rasterio as rio
 from sklearn.metrics import confusion_matrix
 
 from hp.rio import (
-    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, is_raster_file,
     write_array2,get_write_kwargs, rlay_ar_apply
     )
 

@@ -16,8 +16,10 @@ from definitions import wrk_dir, src_name
 
 from hp.basic import today_str
 from hp.rio import (
-    write_clip,assert_spatial_equal,assert_extent_equal,get_depth,write_resample,is_raster_file,
+    write_clip,assert_spatial_equal,assert_extent_equal,write_resample,is_raster_file,
     )
+
+from hp.hyd import get_wsh_rlay
 
 
 from fdsc.scripts.control import Dsc_Session, nicknames_d
@@ -107,7 +109,7 @@ class PipeSession(Dsc_Session, ValidateSession):
         dem2_fp = write_resample(dem1_fp, resampling=Resampling.bilinear, 
             scale=1 / downscale, out_dir=tmp_dir)
         #write depths
-        meta_d['dep2'] = get_depth(dem2_fp, wse2_fp,ofp=ofp)
+        meta_d['dep2'] = get_wsh_rlay(dem2_fp, wse2_fp,ofp=ofp)
         
         return ofp, meta_d
 

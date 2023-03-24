@@ -25,9 +25,7 @@ elif env_type == 'present':
 else:
     raise KeyError(env_type)
 
-
-if usetex:
-    os.environ['PATH'] += R";C:\Users\cefect\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
+ 
  
   
 import matplotlib

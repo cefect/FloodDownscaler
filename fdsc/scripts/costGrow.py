@@ -53,7 +53,7 @@ class CostGrow(WetPartials):
         
         #skwargs, meta_lib, log, ofp, start = self._func_setup_dsc(nicknames_d[method], wse_fp, dem_fp, **kwargs)
         downscale = self.downscale
-        
+        self._set_profile(dem_fp) #set raster profile
         #=======================================================================
         # p1: wet partials
         #=======================================================================                
@@ -62,8 +62,7 @@ class CostGrow(WetPartials):
         #=======================================================================
         # p2: dry partials
         #=======================================================================
-        wse1_dp_fp, meta_lib['p2_DP'] = self.get_costGrow_DP(wse1_wp_fp, dem_fp,ofp=ofp, **skwargs)
-        
+        wse1_dp_fp, meta_lib['p2_DP'] = self.get_costGrow_DP(wse1_wp_fp, dem_fp,ofp=ofp, **skwargs)     
  
         
         return wse1_dp_fp, meta_lib

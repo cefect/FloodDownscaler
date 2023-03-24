@@ -22,9 +22,11 @@ from matplotlib.image import AxesImage
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 #earthpy
-import earthpy as et
-import earthpy.spatial as es
-import earthpy.plot as ep
+#===============================================================================
+# #import earthpy as et
+# import earthpy.spatial as es
+# import earthpy.plot as ep
+#===============================================================================
 
 from hp.plot import Plotr, get_dict_str, hide_text
 from hp.pd import view
@@ -182,7 +184,7 @@ class Plot_rlay_raw(PostBase):
                 transform = ds.transform
             else:
                 window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
-                #transform = rio.transform.from_bounds(*bbox.bounds, *window.shape)
+                #transform = rio.transform.from_bounds(*bbox.bounds, *window.shcondaape)
                 transform = rio.windows.transform(window, ds.transform)
                 
             ar_raw = ds.read(1, window=window, masked=True)

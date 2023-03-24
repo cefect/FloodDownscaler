@@ -9,13 +9,15 @@ import shapely.geometry as sgeo
 import geopandas as gpd
 import rasterio as rio
 from hp.rio import (
-    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, get_depth,is_raster_file,
+    RioSession, RioWrkr, assert_rlay_simple, get_stats, assert_spatial_equal, is_raster_file,
     write_array2,get_write_kwargs, rlay_ar_apply, get_meta, get_ds_attr, write_clip
     )
 
 from hp.gpd import (
     write_rasterize, get_samples
     )
+
+from hp.hyd import get_wsh_rlay
 
 from fdsc.base import (
     Master_Session, assert_partial_wet, rlay_extract, assert_wse_ar, assert_wd_ar, assert_dem_ar
@@ -295,7 +297,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
         """doing this everytime... nice to have the wd for plots"""
         #if (sample_pts_fp!=None) or (hwm_pts_fp!=None):
         #predicted
-        pred_wd_fp = get_depth(dem_fp, pred_wse_fp, out_dir=out_dir)
+        pred_wd_fp = get_wsh_rlay(dem_fp, pred_wse_fp, out_dir=out_dir)
         rlay_ar_apply(pred_wd_fp, assert_wd_ar, msg='pred')
         
         self.pred_wd_fp=pred_wd_fp
@@ -312,7 +314,7 @@ class ValidateSession(ValidateMask, ValidatePoints, RioSession, Master_Session):
             #===================================================================
             # #build depths arrays
             #===================================================================                        
-            true_wd_fp = get_depth(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
+            true_wd_fp = get_wsh_rlay(dem_fp, clip_rlay(true_wse_fp), out_dir=tmp_dir)
             rlay_ar_apply(true_wd_fp, assert_wd_ar, msg='true')
             self.true_wd_fp=true_wd_fp
             fp_d['true_wd_fp'] = true_wd_fp

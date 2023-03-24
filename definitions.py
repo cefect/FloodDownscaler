@@ -22,7 +22,12 @@ wrk_dir = r'L:\10_IO\fdsc'
 #whitebox exe location
 wbt_dir = os.path.join(src_dir, r'whitebox-tools\target\release')
 
- 
+#specify the latex install directory
+os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
 
+ 
+#spatial (mostly for testing)
+epsg = 3857
+bounds = (0, 0, 100, 100)
  
 
