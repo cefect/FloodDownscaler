@@ -2986,7 +2986,8 @@ def assert_rlay_simple(rlay, msg='',):
 # ENVIRONMENT-------------
 #===============================================================================
 def test_install(): #test your qgis install
-    with QSession() as proj: 
+    from hp.logr import get_new_console_logger
+    with QSession(logger=get_new_console_logger(), logfile_duplicate=False) as proj: 
         proj._install_info()
     
     
