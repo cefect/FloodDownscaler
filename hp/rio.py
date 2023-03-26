@@ -311,6 +311,7 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
  
 def write_array2(ar, ofp, 
                  count=1, width=None, height=None, nodata=-9999, dtype=None,
+                 transform=None, bbox=None,
                  **kwargs):
  
     """skinny writer"""
@@ -328,12 +329,22 @@ def write_array2(ar, ofp,
         
     if dtype is None:
         dtype=ar.dtype
+        
+        
+    #===========================================================================
+    # bounded
+    #===========================================================================
+    if transform is None and bbox is not None:
+        """otherwise result is mirrored about x=0?"""
+        height, width  = ar.shape
+        transform=rio.transform.from_bounds(*bbox.bounds,width, height)
     
     #===========================================================================
     # write
     #===========================================================================
     with rio.open(ofp, 'w', 
                   count=count, width=width, height=height,nodata=nodata, dtype=dtype,
+                  transform=transform, bbox=bbox,
                   **kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
@@ -1088,10 +1099,13 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
     """
     get shapely polygons for each clump in a raster
     
+    see also hp.hyd.write_inun_poly
+    
     Parameters
     -----------
     convert_to_binary: bool, True
-        polygonize the mask (rather than groups of data values)
+        True: polygon around mask values (e.g., inundation)
+        False: polygon around data values
         
     """
     
@@ -1241,7 +1255,6 @@ def assert_spatial_equal(left, right,  msg='',):
     """check all spatial attributes match"""
     if not __debug__: # true if Python was not started with an -O option
         return 
-
     __tracebackhide__ = True     
     
  
