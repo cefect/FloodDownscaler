@@ -43,6 +43,7 @@ from hp.rio import (
 
 from hp.riom import (
     write_array_mask, _dataset_to_mar, assert_mask_ar, rlay_mar_apply, load_mask_array,
+    write_extract_mask
     )
 
 
@@ -161,6 +162,8 @@ def get_inun_ar(ar_raw, dkey):
     """convert flood like array to inundation (wet=True)"""
     if dkey in ['INUN_RLAY']:
         ar = ar_raw
+    elif dkey == 'WSE':
+        ar = np.invert(ar_raw.mask)
     else:
         raise NotImplementedError(dkey)
         ar = ar.mask
@@ -186,6 +189,28 @@ def write_wsh_boolean(fp,
  
     #write mask True=dry, False=wet
     return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
+
+def write_inun_rlay(fp, dkey,
+                    ofp=None, out_dir=None,
+                    **kwargs):
+    """write a boolean inundation ratser from a WSE or WSH layer"""
+    
+    assert_type_fp(fp, dkey)
+    
+    if ofp is None:
+        ofp = _get_ofp(fp, out_dir, name='INUN')
+    
+    if dkey=='WSE':
+        write_extract_mask(fp, ofp=ofp, maskType='binary', **kwargs)
+    else:
+        raise NotImplementedError(dkey)
+    
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    assert_type_fp(ofp, 'INUN_RLAY')
+    
+    return ofp
 
 
 def write_wsh_clean(fp,
@@ -228,15 +253,9 @@ def rlay_to_inun_poly(rlay_fp, dkey,
     assert is_raster_file(rlay_fp)
     assert_type_fp(rlay_fp, dkey)
     
-
-        
-        
-    
     #===========================================================================
     # collect polygons
     #===========================================================================
- 
-        
     
     with rio.open(rlay_fp, mode='r') as dataset:
         #load the array by type
@@ -245,10 +264,8 @@ def rlay_to_inun_poly(rlay_fp, dkey,
         #convert to mask (wet=True)
         ar_bool = get_inun_ar(ar_raw, dkey)
  
- 
         #convert to binary for rio (1=wet)
         ar_binary = np.where(ar_bool, 1, 0)
-        
  
         #mask = image != src.nodata
         geo_d=dict()
@@ -257,7 +274,6 @@ def rlay_to_inun_poly(rlay_fp, dkey,
                                                   connectivity=8):
             
             geo_d[val] = sgeo.shape(geom)
-            
     
     assert len(geo_d)==1
     assert val==0
@@ -294,7 +310,9 @@ def write_rlay_to_inun_poly(rlay_fp, dkey,
         
     return ofp
         
-    
+#===============================================================================
+# HIDDEN HELPERS---------
+#===============================================================================
     
 def _rlay_apply_hyd(rlay_fp, dkey, func, **kwargs):
     """special applier that recognizes our mask arrays"""
@@ -313,10 +331,14 @@ def _get_hyd_ar(rlay_obj, dkey, **kwargs):
     
     if dkey in ['INUN_RLAY']:
         return load_mask_array(rlay_obj, maskType='binary', **kwargs)
+ 
     else:
         return load_array(rlay_obj, masked=True, **kwargs)
         
-    
+def _get_inun_gdf(fp):
+    gdf = gpd.read_file(fp)
+    assert_inun_poly(gdf, msg=os.path.basename(fp))
+    return gdf
         
  
 #===============================================================================
@@ -338,11 +360,15 @@ def assert_type_fp(fp, dkey, msg=''):
     
     if dkey in ['WSH', 'WSE', 'DEM', 'INUN_RLAY']:
         assert is_raster_file(fp)
+        _rlay_apply_hyd(fp, dkey, assert_func_d[dkey], msg=msg+f' w/ dkey={dkey}')
+    elif dkey in ['INUN_POLY']:
+        _get_inun_gdf(fp)
+        
     else:
         raise KeyError(dkey)    
 
  
-    _rlay_apply_hyd(fp, dkey, assert_func_d[dkey], msg=msg+f' w/ dkey={dkey}')
+    
     
 def assert_inun_ar(ar, msg=''):
     if not __debug__: # true if Python was not started with an -O option
@@ -408,10 +434,17 @@ def assert_partial_wet(ar, msg=''):
     if np.all(np.invert(ar)):
         raise AssertionError(msg+': all false')
     
+def assert_inun_poly(gdf, msg=''):
+    assert len(gdf)==1, msg
+    assert gdf.iloc[0].geometry.geom_type=='Polygon', msg
+    
+    
+    
     
 assert_func_d = {
     'WSH':assert_wsh_ar,
     'WSE':assert_wse_ar,
     'DEM':assert_dem_ar,
     'INUN_RLAY':assert_inun_ar,
+    'INUN_POLY':assert_inun_poly,
     }

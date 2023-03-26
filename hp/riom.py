@@ -138,7 +138,7 @@ def write_extract_mask(raw_fp,
  
     
     """extractc the mask from a rlay as a separate raster. 0=masked"""
-    
+    ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
     #===========================================================================
     # retrieve
     #===========================================================================
@@ -172,7 +172,7 @@ def write_extract_mask(raw_fp,
     #===========================================================================
     # filenames
     #===========================================================================
-    ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
+    
         
     
     return write_array_mask(mask, ofp=ofp, maskType=maskType, **kwargs, **ds_prof)
