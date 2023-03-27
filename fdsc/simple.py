@@ -23,6 +23,7 @@ from hp.rio import (
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
 from hp.riom import write_extract_mask, write_array_mask
+from hp.hyd import assert_type_fp
 
 from fdsc.base import (
     DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
@@ -72,7 +73,8 @@ class WetPartials(DscBaseWorker):
                        ofp=self._get_ofp(dkey='resamp', out_dir=tmp_dir, ext='.tif'),
                        )
         
-        rlay_ar_apply(wse1_rsmp_fp, assert_wse_ar, msg='WSE resample')
+        assert_type_fp(wse1_rsmp_fp, 'WSE', msg=f'resample {downscale}')
+        #rlay_ar_apply(wse1_rsmp_fp, assert_wse_ar, msg='WSE resample')
         
         meta_d['wse1_rsmp_fp'] = wse1_rsmp_fp
  

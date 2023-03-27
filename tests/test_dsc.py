@@ -18,23 +18,34 @@ from fdsc.control import run_downscale
 from fdsc.control import Dsc_Session as Session
  
 #from fdsc.bufferLoop import ar_buffer
+from hp.tests.tools.rasters import get_rlay_fp
 
 from tests.conftest import (
-    get_rlay_fp, crs_default, proj_lib,get_aoi_fp,par_algoMethodKwargs,
-    par_method_kwargs,
+     proj_lib,get_aoi_fp,par_algoMethodKwargs,
+    par_method_kwargs,temp_dir,
  
     )
  
 #===============================================================================
 # test data------
 #===============================================================================
-from tests.data.toy import dem1_ar, wse2_ar, wse1_ar2, wse1_ar3
+from fperf.tests.data.toy import (
+    aoi_box, bbox_default, proj_ar_d, crs_default
+    )
 
-dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1') 
-wse2_rlay_fp = get_rlay_fp(wse2_ar, 'wse2')
-wse1_rlay2_fp = get_rlay_fp(wse1_ar2, 'wse12')
-wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
-aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
+#build rasters
+toy_d =dict()
+for k, ar in proj_ar_d.items():
+    toy_d[k] = get_rlay_fp(ar, k, out_dir=temp_dir, crs=crs_default, bbox=bbox_default)
+    
+
+#===============================================================================
+# dem1_rlay_fp = get_rlay_fp(dem1_ar, 'dem1') 
+# toy_d['wse2'] = get_rlay_fp(wse2_ar, 'wse2')
+# wse1_rlay2_fp = get_rlay_fp(wse1_ar2, 'wse12')
+# wse1_rlay3_fp = get_rlay_fp(wse1_ar3, 'wse13')
+#===============================================================================
+toy_d['aoi'] = get_aoi_fp(aoi_box, crs=crs_default)
 
 #===============================================================================
 # fixtures------------
@@ -51,7 +62,7 @@ def wrkr(init_kwargs, crs= crs_default):
 
 
 @pytest.mark.parametrize('dem_fp, wse_fp, aoi_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp, aoi_fp),
+    (toy_d['dem1'], toy_d['wse2'], toy_d['aoi']),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['aoi_fp'])
     ]) 
 def test_p0_clip(dem_fp, wse_fp, aoi_fp, tmp_path, wrkr): 
@@ -61,17 +72,17 @@ def test_p0_clip(dem_fp, wse_fp, aoi_fp, tmp_path, wrkr):
     
 #===============================================================================
 # @pytest.mark.parametrize('dem_fp, wse_fp, crs', [
-#     (dem1_rlay_fp, wse2_rlay_fp, crs_default),
-#     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'], proj_lib['fred01']['crs'])
+#     (dem1_rlay_fp, toy_d['wse2'], crs_default),
+#     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['toy_d['wse2']'], proj_lib['fred01']['crs'])
 #     ]) 
 # def test_p0(dem_fp, wse_fp, crs, tmp_path, wrkr):    
 #     wrkr.p0_load_rasters(wse_fp, dem_fp, crs=crs, out_dir=tmp_path)
 #     
 #===============================================================================
-
+@pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp),
-    (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    (toy_d['dem1'], toy_d['wse2']),
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ]) 
 def test_p1(dem_fp, wse_fp, wrkr):    
     wrkr.p1_wetPartials(wse_fp, dem_fp)
@@ -105,7 +116,7 @@ def test_p1(dem_fp, wse_fp, wrkr):
 
 
 @pytest.mark.parametrize('wse_fp', [
-    (wse1_rlay3_fp),
+    (toy_d['wse13']),
     (proj_lib['fred01']['wse1_rlay3_fp']),
  
     ])
@@ -114,7 +125,7 @@ def test_p2_filter_isolated(wse_fp, wrkr):
     
 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse1_rlay2_fp),
+    (toy_d['dem1'], toy_d['wse13']),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse1_rlay2_fp']), 
     ])
 def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
@@ -132,7 +143,7 @@ def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
 
 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp),
+    (toy_d['dem1'], toy_d['wse2']),
     (proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ]) 
 @pytest.mark.parametrize('backend', ['gr', 'rio'])
@@ -142,8 +153,8 @@ def test_schu14(dem_fp, wse_fp, wrkr, backend):
 
 
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp),
-    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    (toy_d['dem1'], toy_d['wse2']),
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['toy_d['wse2']'])
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):    
@@ -153,8 +164,8 @@ def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):
 
 @pytest.mark.dev
 @pytest.mark.parametrize('dem_fp, wse_fp', [
-    (dem1_rlay_fp, wse2_rlay_fp),
-    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    (toy_d['dem1'], toy_d['wse2']),
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['toy_d['wse2']'])
     ])
 @pytest.mark.parametrize('method_pars', [par_method_kwargs])
 def test_run_dsc_multi(dem_fp, wse_fp, method_pars, wrkr):

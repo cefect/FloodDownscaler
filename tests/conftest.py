@@ -17,10 +17,11 @@ import fiona.crs
 from pyproj.crs import CRS
 
 #project
-from definitions import src_dir
+from definitions import src_dir, epsg, bounds
 from fdsc.base import nicknames_d
 
 #helpers
+from hp.tests.tools.rasters import get_rlay_fp
 from hp.tests.conftest import init_kwargs
 from hp.logr import get_new_console_logger, logging
 from hp.rio import write_array, write_array2
@@ -59,8 +60,8 @@ assert miss_s==set(), 'parameter key mismatch: %s'%miss_s
 # TEST DATA---------
 #===============================================================================
 
-crs_default = CRS.from_user_input(25832)
-bbox_default = sgeo.box(0, 0, 60, 90)
+crs_default = CRS.from_user_input(epsg)
+bbox_default = sgeo.box(*bounds)
 
 proj_lib = dict()
 proj_lib['fred01'] = {
@@ -112,30 +113,32 @@ def get_xy_coords(transform, shape):
     return x_ar, y_ar
                       
  
-def get_rlay_fp(ar, layName,
-            ofp=None,
-            crs=crs_default,
-            bbox=bbox_default,
- 
-            ):
-    """wrapper for array writing with default spatial meta"""
-    
-    assert_masked_ar(ar), layName
-    #===========================================================================
-    # build out path
-    #===========================================================================
- 
-    height, width = ar.shape
-    
-    if ofp is None: 
-        ofp = os.path.join(temp_dir, f'{layName}_{width}x{height}.tif')
-    
-    #===========================================================================
-    # write    
-    #===========================================================================
-    return write_array2(ar, ofp, crs=crs,
-                        transform=rio.transform.from_bounds(*bbox.bounds, width, height),
-                        )
+#===============================================================================
+# def get_rlay_fp(ar, layName,
+#             ofp=None,
+#             crs=crs_default,
+#             bbox=bbox_default,
+#  
+#             ):
+#     """wrapper for array writing with default spatial meta"""
+#     
+#     assert_masked_ar(ar), layName
+#     #===========================================================================
+#     # build out path
+#     #===========================================================================
+#  
+#     height, width = ar.shape
+#     
+#     if ofp is None: 
+#         ofp = os.path.join(temp_dir, f'{layName}_{width}x{height}.tif')
+#     
+#     #===========================================================================
+#     # write    
+#     #===========================================================================
+#     return write_array2(ar, ofp, crs=crs,
+#                         transform=rio.transform.from_bounds(*bbox.bounds, width, height),
+#                         )
+#===============================================================================
 
 
 def get_aoi_fp(bbox, crs=crs_default, ofp=None):
