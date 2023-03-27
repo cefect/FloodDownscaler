@@ -25,7 +25,7 @@ from hp.hyd import (
 
 from fdsc.wbt import WBT_worker
 from fdsc.base import (
-    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, now
+    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, now
     )
 
 from fdsc.simple import BasicDSC
@@ -38,7 +38,7 @@ from fdsc.bufferLoop import BufferGrowLoop
 
 
 class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
-        RioSession, Master_Session, WBT_worker):
+        RioSession, DscBaseSession, WBT_worker):
       
     #===========================================================================
     # phase0-------  

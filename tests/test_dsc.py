@@ -13,7 +13,7 @@ import shapely.geometry as sgeo
 xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
-from fdsc.base import nicknames_d
+#from fdsc.base import nicknames_d
 from fdsc.control import run_downscale
 from fdsc.control import Dsc_Session as Session
  
