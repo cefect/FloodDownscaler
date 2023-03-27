@@ -55,6 +55,8 @@ def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
+    assert_type_fp(wse_fp, 'WSE')
+    assert_type_fp(dem_fp, 'DEM')
     
     if ofp is None:
         if out_dir is None:
