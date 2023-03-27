@@ -12,6 +12,7 @@ import numpy.ma as ma
 import rasterio as rio
 from rasterio import shutil as rshutil
 
+from hp.basic import dstr
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
@@ -200,7 +201,10 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         # check
         #=======================================================================
         assert_type_fp(wse1_fp, 'WSE')
-        assert_spatial_equal(wse1_fp, dem1_fp)            
+        assert_spatial_equal(wse1_fp, dem1_fp)
+        
+
+                    
             
         #=======================================================================
         # wrap
@@ -217,7 +221,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             
         log.info(f'finished \'{method}\' in {tdelta} on\n    {ofp}')
         
-        return ofp, meta_lib
+        return {'WSE1':ofp}, meta_lib
     
     def run_dsc_multi(self,
                       dem1_fp,wse2_fp,
@@ -228,6 +232,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
                          'BufferGrowLoop': {}, 
                          'Schumann14': {},
                          },
+                  copy_inputs=True,
                   write_meta=True,
                   write_pick=True, 
                   **kwargs):
@@ -242,7 +247,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscM', subdir=True, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscM', ext='.pkl', **kwargs)
         assert isinstance(method_pars, dict)
         assert set(method_pars.keys()).difference(self.nicknames_d.keys())==set()
         start = now()
@@ -264,9 +269,26 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         log.info(f'downscale={downscale} on \n    WSE:{os.path.basename(wse2_fp)}\n    DEM:{os.path.basename(dem1_fp)}')
         
         #=======================================================================
+        # prep inputs
+        #=======================================================================
+        ins_d = {'DEM':dem1_fp, 'WSE2':wse2_fp}
+        if copy_inputs:
+            odi = os.path.join(out_dir, 'inputs')
+            if not os.path.exists(odi):os.makedirs(odi)
+            
+            for k, fp in ins_d.copy().items():
+                ofpi = os.path.join(odi,  os.path.basename(fp))
+                rshutil.copy(fp, ofpi)
+                
+                #update the references
+                ins_d[f'{k}_raw']=fp
+                ins_d[k] = ofpi
+            
+        
+        #=======================================================================
         # loop on methods
         #=======================================================================
-        res_lib = dict()
+        res_lib = {'inputs':{'fp':ins_d, 'meta':{'start':start}}}
         for method, mkwargs in method_pars.items():
 
             d = dict()
@@ -274,13 +296,18 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             skwargs = dict(out_dir=os.path.join(out_dir, name), 
                            logger=self.logger.getChild(name),
                            tmp_dir=os.path.join(tmp_dir, name),
+                           
                            )  
             log.info(f'on {name} w/ {mkwargs}\n\n')
             
  
             """not set up super well for sub-classing like this"""
-            with Dsc_Session(obj_name=name,proj_name=self.proj_name,run_name=self.run_name,
-                **skwargs) as wrkr:
+            with Dsc_Session(obj_name=name,
+                             proj_name=self.proj_name,
+                             run_name=self.run_name,
+                             base_dir=self.base_dir,
+                             **skwargs) as wrkr:
+ 
                 d['fp'], d['meta'] = wrkr.run_dsc(dem1_fp, wse2_fp, 
                                                   downscale=downscale,
                                                   subdir=False,
@@ -290,6 +317,17 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             res_lib[method]=d
             
         log.info(f'finished on {len(res_lib)}\n\n')
+        
+        #=======================================================================
+        # add relative paths
+        #=======================================================================
+        for k0, d0 in {k:v['fp'] for k,v in res_lib.items()}.items():
+            res_lib[k0]['fp_rel'] = {k0:self._relpath(fp) for k0, fp in d0.items()}
+            #===================================================================
+            # for k1, fp in d0.items(): 
+            #     res_lib[k0]['fp_rel'][k1] = self._relpath(fp)
+            #===================================================================
+        
         #=======================================================================
         # write meta summary
         #=======================================================================
@@ -309,11 +347,16 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # write results pickle
         #=======================================================================
-        if write_pick:
+        if write_pick:            
+ 
+            #===================================================================
+            # write the pick
+            #===================================================================
             assert not os.path.exists(ofp)
             with open(ofp,'wb') as file:
-                pickle.dump(meta_lib, file)
-            log.info(f'wrote meta_lib pickle to \n    {ofp}')
+                pickle.dump(res_lib, file)
+            log.debug('\n'+dstr(res_lib))
+            log.info(f'wrote res_lib pickle to \n    {ofp}')
  
         #=======================================================================
         # wrap

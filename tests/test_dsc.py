@@ -40,37 +40,10 @@ aoi_fp = get_aoi_fp(sgeo.box(0, 30, 60, 60))
 # fixtures------------
 #===============================================================================
 @pytest.fixture(scope='function')
-def wrkr(tmp_path,write,logger, test_name,
-         crs= crs_default,
-                    ):
-    
-    """Mock session for tests"""
+def wrkr(init_kwargs, crs= crs_default):
+    with Session(crs=crs, **init_kwargs) as session:
+        yield session
  
-    #np.random.seed(100)
-    #random.seed(100)
-    
-    with Session(  
- 
-                 #oop.Basic
-                 out_dir=tmp_path, 
-                 tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
-                 #prec=prec,
-                  proj_name='test', #probably a better way to propagate through this key 
-                 run_name=test_name[:8].replace('_',''),
-                  
-                 relative=True, write=write, #avoid writing prep layers
-                 
-                 logger=logger, overwrite=True,
-                   
-                   #oop.Session
-                   logfile_duplicate=False,
-                   
-                   #RioSession
-                   crs=crs,
- 
-                   ) as ses:
- 
-        yield ses
 
 #===============================================================================
 # tests-------
