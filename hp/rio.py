@@ -158,9 +158,9 @@ class RioWrkr(Basic):
                        **kwargs):
         """write an array to raster using rio using session defaults
         
- 
+        nodata = 0
         """
-        assert not self.profile is None, 'must call _set_profile on the session first'
+        
         #=======================================================================
         # defaults
         #=======================================================================
@@ -311,6 +311,7 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
  
 def write_array2(ar, ofp, 
                  count=1, width=None, height=None, nodata=-9999, dtype=None,
+                 transform=None, bbox=None,
                  **kwargs):
  
     """skinny writer"""
@@ -328,12 +329,22 @@ def write_array2(ar, ofp,
         
     if dtype is None:
         dtype=ar.dtype
+        
+        
+    #===========================================================================
+    # bounded
+    #===========================================================================
+    if transform is None and bbox is not None:
+        """otherwise result is mirrored about x=0?"""
+        height, width  = ar.shape
+        transform=rio.transform.from_bounds(*bbox.bounds,width, height)
     
     #===========================================================================
     # write
     #===========================================================================
     with rio.open(ofp, 'w', 
                   count=count, width=width, height=height,nodata=nodata, dtype=dtype,
+                  transform=transform, bbox=bbox,
                   **kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
@@ -1018,71 +1029,69 @@ def write_mask_apply(rlay_fp, mask_ar,
     
 def write_mosaic(fp1, fp2, ofp=None):
     """combine valid cell values on two rasters"""
-     
+    
     #===========================================================================
     # load
     #===========================================================================
     assert_spatial_equal(fp1, fp2)
     ar1 = load_array(fp1, masked=True)
-     
+    
     ar2 = load_array(fp2, masked=True)
-     
+    
     #===========================================================================
     # check overlap
     #===========================================================================
     overlap = np.logical_and(~ar1.mask, ~ar2.mask)
     assert not np.any(overlap), f'masks overlap {overlap.sum()}'
-     
-     
+    
+    
     merge_ar = ma.array(ar1.filled(1)*ar2.filled(1), mask=ar1.mask*ar2.mask)
-     
+    
     #===========================================================================
     # write
     #===========================================================================
     return write_array2(merge_ar, ofp, **get_profile(fp1))
-     
+    
+
+    
+    with rio.open(raw_fp, mode='r') as ds:
+        
+        #crs check/load
+        if not crs is None:
+            assert crs==ds.crs
+        else:
+            crs = ds.crs
+        
+        #window default
+        if window is None:
+            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
  
-     
-  #=============================================================================
-  #   with rio.open(raw_fp, mode='r') as ds:
-  #        
-  #       #crs check/load
-  #       if not crs is None:
-  #           assert crs==ds.crs
-  #       else:
-  #           crs = ds.crs
-  #        
-  #       #window default
-  #       if window is None:
-  #           window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
-  # 
-  #       else: 
-  #           assert bbox is None
-  #            
-  #       #get the windowed transform
-  #       transform = rasterio.windows.transform(window, ds.transform)
-  #        
-  #       #get stats
-  #       stats_d = get_stats(ds)
-  #       stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
-  #            
-  #       #load the windowed data
-  #       ar = ds.read(1, window=window, masked=masked)
-  #        
-  #       #=======================================================================
-  #       # #write clipped data
-  #       #=======================================================================
-  #       if ofp is None:
-  #           fname = os.path.splitext( os.path.basename(raw_fp))[0] + '_clip.tif'
-  #           ofp = os.path.join(os.path.dirname(raw_fp),fname)
-  #        
-  #       write_kwargs = get_write_kwargs(ds)
-  #       write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
-  #        
-  #       ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
-  #        
-  #   return ofp, stats_d
-  #=============================================================================
+        else: 
+            assert bbox is None
+            
+        #get the windowed transform
+        transform = rasterio.windows.transform(window, ds.transform)
+        
+        #get stats
+        stats_d = get_stats(ds)
+        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+            
+        #load the windowed data
+        ar = ds.read(1, window=window, masked=masked)
+        
+        #=======================================================================
+        # #write clipped data
+        #=======================================================================
+        if ofp is None:
+            fname = os.path.splitext( os.path.basename(raw_fp))[0] + '_clip.tif'
+            ofp = os.path.join(os.path.dirname(raw_fp),fname)
+        
+        write_kwargs = get_write_kwargs(ds)
+        write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
+        
+        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
+        
+    return ofp, stats_d
 
 
 def rlay_to_polygons(rlay_fp, convert_to_binary=True,
@@ -1090,10 +1099,13 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
     """
     get shapely polygons for each clump in a raster
     
+    see also hp.hyd.write_inun_poly
+    
     Parameters
     -----------
     convert_to_binary: bool, True
-        polygonize the mask (rather than groups of data values)
+        True: polygon around mask values (e.g., inundation)
+        False: polygon around data values
         
     """
     
@@ -1243,7 +1255,6 @@ def assert_spatial_equal(left, right,  msg='',):
     """check all spatial attributes match"""
     if not __debug__: # true if Python was not started with an -O option
         return 
-
     __tracebackhide__ = True     
     
  

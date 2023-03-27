@@ -75,6 +75,18 @@ def get_rand_ar(shape, null_frac=0.1):
     return ar_raw
 
 def get_poly_fp_from_rlay(rlay_fp, convert_to_binary=True, ofp=None):
+    """convert raster into polygon
+    
+    Parameters
+    -----------
+    convert_to_binary: bool, True
+        polygonize the mask (rather than groups of data values)
+        WARNING: only works on native masks
+    
+ 
+    
+    """
+ 
     
     #geto geoDataFrame
     gdf = rlay_to_gdf(rlay_fp, convert_to_binary=convert_to_binary)

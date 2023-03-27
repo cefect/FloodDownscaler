@@ -29,8 +29,30 @@ from hp.rio import (
     )
 
 
-def load_mask_array(mask_fp, maskType='binary', window=None,):
-    """helper to load mask from array and process
+
+def _dataset_to_mar(dataset, maskType, window):
+    """return a boolean array based on the mask type"""
+    assert dataset.nodata == -9999
+    #=======================================================================
+    # raster has 0s and 1s
+    #=======================================================================
+    if maskType == 'binary':
+        mask_ar_raw = dataset.read(1, masked=False, window=window)
+        #check the loaded array conforms to the mask expectations
+        assert_mask_ar_raw(mask_ar_raw, maskType=maskType)
+        mask_ar = np.where(mask_ar_raw == 1, False, True)
+    elif maskType == 'native':
+        mask_ar_raw = dataset.read(1, masked=True, window=window)
+        #check the loaded array conforms to the mask expectations
+        assert_mask_ar_raw(mask_ar_raw, maskType=maskType)
+        mask_ar = mask_ar_raw.mask
+    else:
+        raise KeyError(maskType)
+ 
+    return mask_ar
+
+def load_mask_array(mask_obj, maskType='binary', window=None,):
+    """helper to load boolean array from rlay mask and process
     
     
     here we assume a certain convention for storing mask rasters (in GDAL)
@@ -43,37 +65,16 @@ def load_mask_array(mask_fp, maskType='binary', window=None,):
 
             
             """
-    
-    assert_f = lambda ar:assert_mask_ar_raw(ar, maskType=maskType)
-    
-    
+ 
     #===========================================================================
     # load by type
     #===========================================================================
-    with rio.open(mask_fp, mode='r') as dataset:
-        assert dataset.nodata==-9999
-        #=======================================================================
-        # raster has 0s and 1s
-        #=======================================================================
-        if maskType=='binary':
-            mask_ar_raw = dataset.read(1,   masked=False, window=window)
-            
-            assert_f(mask_ar_raw)
-                        
-            mask_ar = np.where(mask_ar_raw==1, False, True)
-            
-        #=======================================================================
-        # use the gdal mask
-        #=======================================================================
-        elif maskType=='native': 
-            mask_ar_raw =  dataset.read(1,   masked=True, window=window)
-            
-            assert_f(mask_ar_raw)
-            
-            mask_ar = mask_ar_raw.mask 
-            
-        else:
-            raise KeyError(maskType)
+    if isinstance(mask_obj, str):        
+        with rio.open(mask_obj, mode='r') as dataset:
+            mask_ar = _dataset_to_mar(dataset, maskType, window)
+    
+    else:
+        mask_ar = _dataset_to_mar(mask_obj, maskType, window)
         
     #===========================================================================
     # wrap
@@ -87,6 +88,8 @@ def write_array_mask(raw_ar,
                      maskType='binary',
                      ofp=None, out_dir=None,
                      nodata=-9999,
+                     bbox=None,
+                     transform=None, #dummy identify
                      **kwargs):
     """write a boolean mask to a raster. 
     
@@ -95,6 +98,19 @@ def write_array_mask(raw_ar,
     
     see load_mask_array"""
     
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ofp is None:
+        if out_dir is None:
+            out_dir = os.path.expanduser('~')
+        assert os.path.exists(out_dir)
+                
+        ofp = os.path.join(out_dir,'mask.tif')
+    
+    #===========================================================================
+    # load the array
+    #===========================================================================
     assert_mask_ar(raw_ar, msg='expects a boolean array')
     
     if maskType=='native':
@@ -105,15 +121,13 @@ def write_array_mask(raw_ar,
     else:
         raise KeyError(maskType)
     
-        
-    if ofp is None:
-        if out_dir is None:
-            out_dir = os.path.expanduser('~')
-        assert os.path.exists(out_dir)
-                
-        ofp = os.path.join(out_dir,'mask.tif')
+    #===========================================================================
+    # get spatial parameters
+    #===========================================================================
+
+
     
-    return write_array2(mask_raw_ar, ofp, nodata=nodata, **kwargs)
+    return write_array2(mask_raw_ar, ofp, nodata=nodata,transform=transform, bbox=bbox, **kwargs)
 
 
 def write_extract_mask(raw_fp,  
@@ -123,8 +137,8 @@ def write_extract_mask(raw_fp,
                        **kwargs):
  
     
-    """extractc the native mask from a rlay as a separate raster. 0=masked"""
-    
+    """extractc the mask from a rlay as a separate raster. 0=masked"""
+    ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
     #===========================================================================
     # retrieve
     #===========================================================================
@@ -158,7 +172,7 @@ def write_extract_mask(raw_fp,
     #===========================================================================
     # filenames
     #===========================================================================
-    ofp = _get_ofp(raw_fp, out_dir=out_dir, ofp=ofp)
+    
         
     
     return write_array_mask(mask, ofp=ofp, maskType=maskType, **kwargs, **ds_prof)
@@ -195,7 +209,7 @@ def _get_ofp(raw_fp, dkey='mask', out_dir=None, ofp=None):
 # ASSERTIONS--------
 #===============================================================================
 
-def assert_mask(rlay_fp,
+def assert_mask_fp(rlay_fp,
                msg='',
                 **kwargs):
     """check the passed rlay is a mask-like raster"""
@@ -216,7 +230,7 @@ def assert_mask(rlay_fp,
     
 
     
-def assert_mask_ar_raw(ar,  maskType='binary'):
+def assert_mask_ar_raw(ar,  maskType='binary', msg=''):
     """check raw raster array conforms to our mask speecifications
     
     usually we deal with processed masks... see assert_mask_ar
@@ -228,6 +242,9 @@ def assert_mask_ar_raw(ar,  maskType='binary'):
     maskType: str
         see load_mask_array
     """
+    if not __debug__: # true if Python was not started with an -O option
+        return 
+    __tracebackhide__ = True
     
     #===========================================================================
     # get test function based on mask typee
@@ -242,17 +259,24 @@ def assert_mask_ar_raw(ar,  maskType='binary'):
         assert isinstance(ar, ma.MaskedArray)
         """sets don't like the nulls apparently"""
         vals = set(np.unique(np.where(ar.mask, 1.0, ar.data).ravel()))
+        
+        #raise NotImplementedError('not sure about this one....')
         evals = {1.0}  
     else:
         raise KeyError(maskType)
     
  
-    assert vals.symmetric_difference(evals)==set(), f'got unexpected values for maskType {maskType}\n    {vals}'
+    if not vals.symmetric_difference(evals)==set():
+        raise AssertionError(f'got unexpected values for maskType {maskType}\n    {vals}')
     
 def assert_mask_ar(ar, msg=''):
     """check for processed array
     
     see load_mask_array
     """
+    if not __debug__: # true if Python was not started with an -O option
+        return 
+    __tracebackhide__ = True
+    
     assert not isinstance(ar, ma.MaskedArray), msg
     assert ar.dtype==np.dtype('bool'), msg

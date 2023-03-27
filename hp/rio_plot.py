@@ -201,12 +201,7 @@ class RioPlotr(Plotr):
         show_kwargs: dict
             kwargs to pass to rio.plot.show
             if None: loaded from grid_styles_lib (w/ gridk) 
-            
-        gridk: str
-            style keyword found in self.grid_styles_lib
         """
-        if not isinstance(fp, str):
-            raise AssertionError('bad type:'+str(type(fp)))
         #=======================================================================
         # defaults
         #=======================================================================
