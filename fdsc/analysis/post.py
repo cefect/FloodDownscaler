@@ -28,11 +28,12 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 # import earthpy.plot as ep
 #===============================================================================
 
-from hp.plot import Plotr, get_dict_str, hide_text
+from hp.plot import get_dict_str, hide_text
 from hp.pd import view
 from hp.rio import (    
     get_ds_attr,get_meta, SpatialBBOXWrkr
     )
+from hp.rio_plot import RioPlotr
 from hp.err_calc import get_confusion_cat, ErrorCalcs
 from hp.gpd import get_samples
 from hp.fiona import get_bbox_and_crs
@@ -55,15 +56,13 @@ def dstr(d):
     return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
 
  
-class PostBase(Plotr):
+class PostBase(RioPlotr):
     """base worker"""
     
     sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
     
     
-    confusion_color_d = {
-            'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'
-            }
+    #confusion_color_d = {'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'}
     
     rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'WSE2':'Hydrodyn. (s2)'}
     
@@ -117,106 +116,112 @@ class Plot_rlay_raw(PostBase):
         return fp_lib, metric_lib
     
 
-    def _mask_grid_by_key(self, ar_raw, gridk, cc_d={'TN':100}):
-        """apply a mask to the grid based on the grid type"""
-        if ('dep' in gridk) or ('wd' in gridk):
-            assert np.any(ar_raw == 0), 'depth grid has no zeros '
-            ar = np.where(ar_raw == 0, np.nan, ar_raw)
-        elif 'confuGrid' in gridk:
-            # mask out true negatives
-            ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
-        elif 'dem' == gridk:
-            ar = np.where(ar_raw < 130, ar_raw, np.nan)
-            print(ar_raw.max())
-        elif 'wse' in gridk:
-            ar = ar_raw
-        elif 'hillshade'==gridk:
-            ar = es.hillshade(ar_raw)
-        else:
-            raise KeyError(gridk)
-        return ar
+    #===========================================================================
+    # def _mask_grid_by_key(self, ar_raw, gridk, cc_d={'TN':100}):
+    #     """apply a mask to the grid based on the grid type"""
+    #     if ('dep' in gridk) or ('wd' in gridk):
+    #         assert np.any(ar_raw == 0), 'depth grid has no zeros '
+    #         ar = np.where(ar_raw == 0, np.nan, ar_raw)
+    #     elif 'confuGrid' in gridk:
+    #         # mask out true negatives
+    #         ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
+    #     elif 'dem' == gridk:
+    #         ar = np.where(ar_raw < 130, ar_raw, np.nan)
+    #         print(ar_raw.max())
+    #     elif 'wse' in gridk:
+    #         ar = ar_raw
+    #     elif 'hillshade'==gridk:
+    #         ar = es.hillshade(ar_raw)
+    #     else:
+    #         raise KeyError(gridk)
+    #     return ar
+    #===========================================================================
     
-    def _get_colorbar_pars_by_key(self, gridk):
-        """get standard colorbar parameters based on the grid type"""
-        if ('dep' in gridk) or ('wd' in gridk):
-            spacing = 'proportional'
-            label = 'WSH (m)'
-            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
-            location = 'bottom'
-        elif 'confuGrid' in gridk:
-            #spacing='proportional'
-            spacing = 'uniform'
-            label = 'Confusion'
-            fmt = None
-            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
-            #cax=cax_bot
-            location = 'bottom'
-        elif 'dem' in gridk:
-            spacing = 'proportional'
-            label = 'DEM (masl)'
-            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
-            location = 'bottom'
- 
-            
-        elif 'wse' in gridk:
-            spacing = 'proportional'
-            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
-            label = 'WSE (masl)'
-            location='bottom'
-            
- 
-        else:
-            raise KeyError( #cax = cax_top
-                gridk)
-            
-        return location, fmt, label, spacing
+ #==============================================================================
+ #    def _get_colorbar_pars_by_key(self, gridk):
+ #        """get standard colorbar parameters based on the grid type"""
+ #        if ('dep' in gridk) or ('wd' in gridk):
+ #            spacing = 'proportional'
+ #            label = 'WSH (m)'
+ #            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+ #            location = 'bottom'
+ #        elif 'confuGrid' in gridk:
+ #            #spacing='proportional'
+ #            spacing = 'uniform'
+ #            label = 'Confusion'
+ #            fmt = None
+ #            #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
+ #            #cax=cax_bot
+ #            location = 'bottom'
+ #        elif 'dem' in gridk:
+ #            spacing = 'proportional'
+ #            label = 'DEM (masl)'
+ #            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
+ #            location = 'bottom'
+ # 
+ #            
+ #        elif 'wse' in gridk:
+ #            spacing = 'proportional'
+ #            fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
+ #            label = 'WSE (masl)'
+ #            location='bottom'
+ #            
+ # 
+ #        else:
+ #            raise KeyError( #cax = cax_top
+ #                gridk)
+ #            
+ #        return location, fmt, label, spacing
+ #==============================================================================
 
 
-    def _ax_raster_show(self, ax, bbox, fp, gridk, **kwargs):
-        """add a styleized raster to the axis"""
-        with rio.open(fp, mode='r') as ds:
-            
-            #===================================================================
-            # #load and clip the array
-            #===================================================================
-            if bbox is None:
-                window = None
-                transform = ds.transform
-            else:
-                window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
-                #transform = rio.transform.from_bounds(*bbox.bounds, *window.shcondaape)
-                transform = rio.windows.transform(window, ds.transform)
-                
-            ar_raw = ds.read(1, window=window, masked=True)
-            #===========================================================
-            # #apply masks
-            #===========================================================
-            ar = self._mask_grid_by_key(ar_raw, gridk)
-            #===========================================================
-            # #get styles by key
-            #===========================================================
-            if 'confuGrid' == gridk:
-                show_kwargs=dict(cmap = confuGrid_cmap, norm = confuGrid_norm)
-            elif 'dem' in gridk:
-                show_kwargs = dict(cmap = 'plasma', norm = None)
-            elif 'hillshade'==gridk:
-                show_kwargs = dict(cmap=plt.cm.copper, norm=None, alpha=0.8)
-            elif ('dep' in gridk) or ('wd' in gridk):
-                show_kwargs = dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4))
-            elif 'wse' in gridk:
-                show_kwargs = dict(cmap = 'plasma_r', norm = None)
-            else:
-                raise KeyError(gridk)
-        #===========================================================
-        # plot it
-        #===========================================================
-        """
-        plt.show()
-        """
- 
-        return show(ar, 
-                    transform=transform, 
-                    ax=ax, contour=False,interpolation='nearest',**show_kwargs, **kwargs)
+ #==============================================================================
+ #    def _ax_raster_show(self, ax, bbox, fp, gridk, **kwargs):
+ #        """add a styleized raster to the axis"""
+ #        with rio.open(fp, mode='r') as ds:
+ #            
+ #            #===================================================================
+ #            # #load and clip the array
+ #            #===================================================================
+ #            if bbox is None:
+ #                window = None
+ #                transform = ds.transform
+ #            else:
+ #                window = rio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+ #                #transform = rio.transform.from_bounds(*bbox.bounds, *window.shcondaape)
+ #                transform = rio.windows.transform(window, ds.transform)
+ #                
+ #            ar_raw = ds.read(1, window=window, masked=True)
+ #            #===========================================================
+ #            # #apply masks
+ #            #===========================================================
+ #            ar = self._mask_grid_by_key(ar_raw, gridk)
+ #            #===========================================================
+ #            # #get styles by key
+ #            #===========================================================
+ #            if 'confuGrid' == gridk:
+ #                show_kwargs=dict(cmap = confuGrid_cmap, norm = confuGrid_norm)
+ #            elif 'dem' in gridk:
+ #                show_kwargs = dict(cmap = 'plasma', norm = None)
+ #            elif 'hillshade'==gridk:
+ #                show_kwargs = dict(cmap=plt.cm.copper, norm=None, alpha=0.8)
+ #            elif ('dep' in gridk) or ('wd' in gridk):
+ #                show_kwargs = dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4))
+ #            elif 'wse' in gridk:
+ #                show_kwargs = dict(cmap = 'plasma_r', norm = None)
+ #            else:
+ #                raise KeyError(gridk)
+ #        #===========================================================
+ #        # plot it
+ #        #===========================================================
+ #        """
+ #        plt.show()
+ #        """
+ # 
+ #        return show(ar, 
+ #                    transform=transform, 
+ #                    ax=ax, contour=False,interpolation='nearest',**show_kwargs, **kwargs)
+ #==============================================================================
 
     def plot_rlay_res_mat(self,
                           fp_lib, metric_lib=None,
@@ -316,11 +321,11 @@ class Plot_rlay_raw(PostBase):
                 #===============================================================
                 # DEM raster
                 dem_fp = fp_lib[modk]['dem']
-                self._ax_raster_show(ax, bbox, dem_fp, 'hillshade')
+                self._ax_raster_show(ax, dem_fp, bbox=bbox,  gridk='hillshade')
                 
                 # focal raster
                 fp = fp_lib[modk][gridk]
-                self._ax_raster_show(ax, bbox, fp, gridk, alpha=0.9)
+                self._ax_raster_show(ax,  fp, bbox=bbox,gridk=gridk, alpha=0.9)
                 
                 #inundation
                 inun_fp = fp_lib[modk]['true_inun']                
