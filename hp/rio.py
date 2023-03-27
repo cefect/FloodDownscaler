@@ -1300,22 +1300,4 @@ def assert_ds_attribute_match(rlay,
  
 
  
-def assert_masked_ar(ar, msg=''):
-    """check the array satisfies expectations for a masked array
-    
-    NOTE: to call this on a raster filepath, wrap with rlay_ar_apply:
-        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
-    """
-    if not __debug__: # true if Python was not started with an -O option
-        return
-    
-    if not isinstance(ar, ma.MaskedArray):
-        raise AssertionError(msg+'\n     bad type ' + str(type(ar)))
-    if not 'float' in ar.dtype.name:
-        raise AssertionError(msg+'\n     bad dtype ' + ar.dtype.name)
-    
-    #check there are no nulls on the data
-    if np.any(np.isnan(ar.filled())):
-        raise AssertionError(msg+f'\n    got {np.isnan(ar.data).sum()}/{ar.size} nulls outside of mask')
-        
- 
+

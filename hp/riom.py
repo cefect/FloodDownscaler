@@ -153,10 +153,14 @@ def write_extract_mask(raw_fp,
  
         
         raw_ar = dataset.read(1,  masked=True, window=window)
+        assert_masked_ar(raw_ar)
+        assert np.any(raw_ar.mask), 'passed raster has no mask'
         
         ds_prof = dataset.profile
         
-        assert np.any(raw_ar.mask)
+        #assert not np.any(np.isnan(np.unique(raw_ar.filled()))), f'unmasked nulls on \n    {raw_fp}'
+        
+        
         
     #overwrite the nodata
     ds_prof['nodata'] = -9999
@@ -269,8 +273,34 @@ def assert_mask_ar_raw(ar,  maskType='binary', msg=''):
     if not vals.symmetric_difference(evals)==set():
         raise AssertionError(f'got unexpected values for maskType {maskType}\n    {vals}')
     
+
+def assert_masked_ar(ar, msg=''):
+    """check the array satisfies expectations for a masked array
+        not to be comfused with a MASK array
+     
+    NOTE: to call this on a raster filepath, wrap with rlay_ar_apply:
+        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
+    """
+    if not __debug__: # true if Python was not started with an -O option
+        return
+     
+    if not isinstance(ar, ma.MaskedArray):
+        raise AssertionError(msg+'\n     bad type ' + str(type(ar)))
+    if not 'float' in ar.dtype.name:
+        raise AssertionError(msg+'\n     bad dtype ' + ar.dtype.name)
+     
+    #check there are no nulls on the data
+    if np.any(np.isnan(ar.filled())):
+        raise AssertionError(msg+f'\n    got {np.isnan(ar.data).sum()}/{ar.size} nulls outside of mask')
+    
+    if np.all(ar.mask):
+        raise AssertionError(msg+f'\n    passed array is fully m asked')
+         
+  
+    
 def assert_mask_ar(ar, msg=''):
-    """check for processed array
+    """check if mask array
+        not to be confused with MASKED array
     
     see load_mask_array
     """
