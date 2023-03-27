@@ -629,7 +629,13 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
     def _relpath(self, fp):
         """intelligently convert a filepath to relative"""
         if self.relative:
-            return os.path.relpath(fp, self.base_dir)
+            assert os.path.exists(self.base_dir)
+            assert os.path.exists(fp), fp
+            try:
+                return os.path.relpath(fp, self.base_dir)
+            except Exception as e:
+                """only works if the root directories are the same"""
+                raise IOError(f'failed to get relpath on\n    {fp}\n    {self.base_dir}\n{e}')
         else:
             return fp
 
