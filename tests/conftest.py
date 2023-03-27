@@ -21,6 +21,7 @@ from definitions import src_dir
 from fdsc.base import nicknames_d
 
 #helpers
+from hp.tests.conftest import init_kwargs
 from hp.logr import get_new_console_logger, logging
 from hp.rio import write_array, write_array2
 from hp.riom import assert_masked_ar
