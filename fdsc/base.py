@@ -135,7 +135,7 @@ class DscBaseWorker(object):
  
     
 
-class DscBaseSession(Session):
+class DscBaseSession(DscBaseWorker, Session):
     def __init__(self, 
                  run_name='v1', #using v instead of r to avoid resolution confusion
                  relative=True,
@@ -166,7 +166,20 @@ def rlay_extract(fp,
     return stats_d, ar
     
 
+def assert_dsc_res_lib(dsc_res_lib, msg=''):
+    if not __debug__: # true if Python was not started with an -O option
+        return
+    assert isinstance(dsc_res_lib, dict)
     
+    #===========================================================================
+    # check keys
+    #===========================================================================
+    #check level 1 keys        
+    assert set(dsc_res_lib.keys()).difference(nicknames_d.keys())==set(['inputs'])
+    
+    for k0, d0 in dsc_res_lib.items():
+        assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set()
+        
 #===============================================================================
 # def assert_dem_ar(ar, msg=''):
 #     """check the array satisfies expectations for a DEM array"""

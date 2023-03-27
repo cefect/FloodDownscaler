@@ -26,7 +26,7 @@ from hp.hyd import (
 
 from fdsc.wbt import WBT_worker
 from fdsc.base import (
-    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, now
+    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, now, assert_dsc_res_lib
     )
 
 from fdsc.simple import BasicDSC
@@ -347,6 +347,8 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # write results pickle
         #=======================================================================
+        assert_dsc_res_lib(res_lib)
+        
         if write_pick:            
  
             #===================================================================
