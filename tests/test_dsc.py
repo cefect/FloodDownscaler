@@ -21,6 +21,7 @@ from fdsc.control import Dsc_Session as Session
 
 from tests.conftest import (
     get_rlay_fp, crs_default, proj_lib,get_aoi_fp,par_algoMethodKwargs,
+    par_method_kwargs,
  
     )
  
@@ -166,13 +167,25 @@ def test_schu14(dem_fp, wse_fp, wrkr, backend):
     wrkr.run_schu14(wse_fp, dem_fp, buffer_size=float(2/3), r2p_backend=backend)
     
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('dem_fp, wse_fp', [
     (dem1_rlay_fp, wse2_rlay_fp),
     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
     ])
 @pytest.mark.parametrize(*par_algoMethodKwargs)
 def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):    
-    run_downscale(wse_fp, dem_fp, out_dir=tmp_path, run_name='test',logger=logger,
+    run_downscale(dem_fp, wse_fp,  out_dir=tmp_path, run_name='test',logger=logger,
                   method=method, **kwargs)
+
+
+@pytest.mark.dev
+@pytest.mark.parametrize('dem_fp, wse_fp', [
+    (dem1_rlay_fp, wse2_rlay_fp),
+    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['wse2_rlay_fp'])
+    ])
+@pytest.mark.parametrize('method_pars', [par_method_kwargs])
+def test_run_dsc_multi(dem_fp, wse_fp, method_pars, wrkr):
+    wrkr.run_dsc_multi(dem_fp, wse_fp, method_pars=method_pars)
+ 
+    
     

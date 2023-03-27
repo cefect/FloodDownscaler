@@ -28,11 +28,11 @@ from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
     )
 
-from fdsc.base import Dsc_basic
+from fdsc.base import DscBaseWorker
 
 
 
-class WetPartials(Dsc_basic):
+class WetPartials(DscBaseWorker):
     """first phase of two phase downsamplers"""
 
 

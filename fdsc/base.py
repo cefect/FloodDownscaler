@@ -27,10 +27,11 @@ def now():
     return datetime.datetime.now()
 
 
-class Dsc_basic(object):
+class DscBaseWorker(object):
     """methods shared by all downscaler classes"""
     
     downscale=None
+    nicknames_d=nicknames_d
     
     def __init__(self,
                  run_dsc_handle_d=dict(), 

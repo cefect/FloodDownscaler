@@ -5,7 +5,7 @@ Created on Dec. 4, 2022
 
 flood downscaling top-level control scripts
 '''
-import os, datetime, shutil
+import os, datetime, shutil, pickle
 import numpy as np
 import numpy.ma as ma
  
@@ -19,10 +19,13 @@ from hp.rio import (
     )
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
+from hp.hyd import (
+    assert_type_fp
+    )
 
 from fdsc.wbt import WBT_worker
 from fdsc.base import (
-    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
+    Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, now
     )
 
 from fdsc.simple import BasicDSC
@@ -113,84 +116,18 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         return wse2_ar, dem1_ar, wse_stats, dem_stats
     
  
- 
- #==============================================================================
- #    def p2_dryPartials(self, wse1_fp, dem1_fp,
- #                       dryPartial_method='SimpleFilter',
- #                       write_meta=True,
- #                       run_kwargs=dict(),
- #                       **kwargs):
- #        """downscale in drypartial zones        
- #        should develop a few options here
- #        
- #        Parameters
- 
- #        dryPartial_method: str
- #            method to apply
- #            
- #        run_kwargs: dict
- #            pass kwargs to the run caller. used for testing.
- #        
- #        """
- #        
- #        #=======================================================================
- #        # defaults
- #        #=======================================================================
- #        log, tmp_dir, out_dir, ofp, resname = self._func_setup('p2DP', subdir=True, **kwargs)
- #        skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
- #        start = now()
- #        assert_spatial_equal(wse1_fp, dem1_fp)
- #        meta_lib = {'smry':{'dryPartial_method':dryPartial_method, 'wse1_fp':wse1_fp, 'dem1_fp':dem1_fp}}
- #            
- #        sn = nicknames_d[dryPartial_method]  # short name
- #        #=======================================================================
- #        # by method
- #        #=======================================================================
- #        if dryPartial_method == 'SimpleFilter':
- #            assert len(run_kwargs)==0
- #            rshutil.copy(wse1_fp, ofp, 'GTiff', strict=True, creation_options={})            
- #            wse1_dp_fp = ofp
- #            d = {'SimpleFilter':'none'}  # dummy placeholder
- # 
- #        elif dryPartial_method == 'CostGrow': 
- #            wse1_dp_fp, d = self.run_costGrowSimple(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
- #            
- #        elif dryPartial_method == 'bufferGrowLoop':
- #            wse1_dp_fp, d = self.run_bufferGrowLoop(wse1_fp, dem1_fp, ofp=ofp, **run_kwargs, **skwargs)            
- #            
- #        else:
- #            raise KeyError(dryPartial_method)
- # 
- #        meta_lib.update({sn + '_' + k:v for k, v in d.items()}) 
- #        #=======================================================================
- #        # check
- #        #=======================================================================
- #        if __debug__:
- #            assert_spatial_equal(wse1_fp, wse1_dp_fp)
- #            rlay_ar_apply(wse1_dp_fp, assert_wse_ar, masked=True)
- #        
- #        #=======================================================================
- #        # wrap
- #        #=======================================================================
- #        tdelta = (now() - start).total_seconds()
- #        meta_lib['smry']['tdelta'] = tdelta
- #        meta_lib['smry']['wse1_dp_fp'] = wse1_dp_fp
- #        log.info(f'finished in {tdelta:.2f} secs')
- #        
- #        if write_meta:
- #            self._write_meta(meta_lib, logger=log, out_dir=out_dir)
- # 
- #        return wse1_dp_fp, meta_lib
- #==============================================================================
 
     def run_dsc(self,
-            wse2_fp,
             dem1_fp,
+            wse2_fp,
+            
  
             method='CostGrow',
             downscale=None,
             write_meta=True,
+            subdir=True,
             rkwargs=dict(),
+            debug=None,
                 **kwargs):
         """run a downsampling pipeline
         
@@ -205,6 +142,9 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         method: str
             downsccaling method to apply
             
+        debug: bool, None
+            optional flag to disable debugging on just this method (nice for run_dsc_multi)
+            
         Note
         -------
         no AOI clipping is performed. raster layers must have the same spatial extents. 
@@ -214,20 +154,25 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=True, **kwargs)
- 
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=subdir, **kwargs)
+        if debug is None: debug=__debug__
         
         meta_lib = {'smry':{**{'today':self.today_str, 'method':method, 'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem1_fp, 'ofp':ofp}, 
                             **self._get_init_pars()}}
         
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         start = now()
-        assert_extent_equal(wse2_fp, dem1_fp)
+        
         
         
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
+        assert not os.path.exists(ofp)
+        if debug:
+            assert_extent_equal(wse2_fp, dem1_fp)
+            assert_type_fp(dem1_fp, 'DEM')
+            assert_type_fp(wse2_fp, 'WSE')
  
         meta_lib['wse_raw'] = get_stats2(wse2_fp)
         meta_lib['dem_raw'] = get_stats2(dem1_fp)
@@ -250,20 +195,19 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #     raise IOError(f'failed to execute algo \'{method}\' method \'{f.__name__}\' w/ \n    {e}')
         #=======================================================================
         meta_lib.update(d)
-
  
-        
         #=======================================================================
         # check
         #=======================================================================
-        if __debug__:
-            assert_spatial_equal(wse1_fp, dem1_fp)            
-            rlay_ar_apply(wse1_fp, assert_wse_ar, masked=True)
+        assert_type_fp(wse1_fp, 'WSE')
+        assert_spatial_equal(wse1_fp, dem1_fp)            
+            
         #=======================================================================
         # wrap
         #=======================================================================
         # copy tover to the main result
-        rshutil.copy(wse1_fp, ofp)
+        if not ofp==wse1_fp:
+            rshutil.copy(wse1_fp, ofp)
         
         tdelta = (now() - start).total_seconds()
         meta_lib['smry']['tdelta'] = tdelta
@@ -275,13 +219,113 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         
         return ofp, meta_lib
     
+    def run_dsc_multi(self,
+                      dem1_fp,wse2_fp,
+                  
+                  method_pars={'CostGrow': {}, 
+                         'Basic': {}, 
+                         'SimpleFilter': {}, 
+                         'BufferGrowLoop': {}, 
+                         'Schumann14': {},
+                         },
+                  write_meta=True,
+                  **kwargs):
+        """run downscaling on multiple methods
+        
+        Pars
+        ------
+        method_pars: dict
+            method name: kwargs
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscM', subdir=True, **kwargs)
+        assert isinstance(method_pars, dict)
+        assert set(method_pars.keys()).difference(self.nicknames_d.keys())==set()
+        start = now()
+        
+        log.info(f'looping on {len(method_pars)}:\n    {list(method_pars.keys())}')
+ 
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert_type_fp(dem1_fp, 'DEM')
+        assert_type_fp(wse2_fp, 'WSE')
+        assert_extent_equal(wse2_fp, dem1_fp), 'must pre-clip rasters'
+        
+        #=======================================================================
+        # build common pars
+        #=======================================================================
+        downscale = self.get_downscale(wse2_fp, dem1_fp)
+        
+        log.info(f'downscale={downscale} on \n    WSE:{os.path.basename(wse2_fp)}\n    DEM:{os.path.basename(dem1_fp)}')
+        
+        #=======================================================================
+        # loop on methods
+        #=======================================================================
+        res_lib = dict()
+        for method, mkwargs in method_pars.items():
+
+            d = dict()
+            name = self.nicknames_d[method]
+            skwargs = dict(out_dir=os.path.join(out_dir, name), 
+                           logger=self.logger.getChild(name),
+                           tmp_dir=os.path.join(tmp_dir, name),
+                           )  
+            log.info(f'on {name} w/ {mkwargs}\n\n')
+            
+ 
+            """not set up super well for sub-classing like this"""
+            with Dsc_Session(obj_name=name,proj_name=self.proj_name,run_name=self.run_name,
+                **skwargs) as wrkr:
+                d['fp'], d['meta'] = wrkr.run_dsc(dem1_fp, wse2_fp, 
+                                                  downscale=downscale,
+                                                  subdir=False,
+                                                  resname=self._get_resname(name), 
+                                                  **skwargs)
+                
+            res_lib[method]=d
+            
+        log.info(f'finished on {len(res_lib)}\n\n')
+        #=======================================================================
+        # write meta summary
+        #=======================================================================
+        if write_meta:
+            #collect
+            meta_lib = {k:v['meta'].copy() for k,v in res_lib.items()}
+            
+            #===================================================================
+            # with open(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\coms\hp\tests\data\oop\run_dsc_multi_meta_lib_20230327.pkl',
+            #           'wb') as file:
+            #     pickle.dump(meta_lib, file)
+            #===================================================================
+ 
+            #convert
+            self._write_meta(meta_lib)
+            
+            
+            
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished in {now() - start}')
+        
+        return res_lib
+        
+        
+                      
+    
     #===========================================================================
     # PRIVATES--------
     #===========================================================================
  
 def run_downscale(
-        wse2_rlay_fp,
         dem1_rlay_fp,
+        wse2_rlay_fp,
+        
         aoi_fp=None,
         method='CostGrow',
         **kwargs):
@@ -297,6 +341,6 @@ def run_downscale(
     """
     
     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        wse1_dp_fp, meta_d = ses.run_dsc(wse2_rlay_fp, dem1_rlay_fp, method=method)
+        wse1_dp_fp, meta_d = ses.run_dsc(dem1_rlay_fp, wse2_rlay_fp,  method=method)
         
     return wse1_dp_fp, meta_d

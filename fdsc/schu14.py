@@ -32,11 +32,11 @@ from hp.gpd import (
     drop_z, set_mask, view
     )
 
-from fdsc.base import Dsc_basic, now, assert_partial_wet
+from fdsc.base import DscBaseWorker, now, assert_partial_wet
 
 methodName = 'Schumann14'
 
-class Schuman14(Dsc_basic):
+class Schuman14(DscBaseWorker):
     buffer_size=None
     
     def __init__(self, 

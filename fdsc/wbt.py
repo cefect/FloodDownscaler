@@ -62,7 +62,7 @@ class WBT_worker(Basic, WhiteboxTools):
         #=======================================================================
         # wrap
         #=======================================================================
-        self.logger.info('setup WhiteBoxTools w/\n' +\
+        self.logger.debug('setup WhiteBoxTools w/\n' +\
                  
                  f'    set_whitebox_dir({build_dir})\n'+\
                  f'    set_verbose_mode({__debug__})\n'+\
