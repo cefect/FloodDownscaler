@@ -19,17 +19,19 @@ PROJECT_DIR_NAME\coms
 PROJECT_DIR_NAME\whitebox-tools
 PROJECT_DIR_NAME\whitebox-tools\target\release (need to build first)
 
-### Coms
-git submodule add -b FloodDownscaler https://github.com/cefect/coms.git
+cef's tools
+`git submodule add -b FloodDownscaler https://github.com/cefect/coms.git`
 
-### Whitebox tools
-cefect's fork
-    git submodule https://github.com/cefect/whitebox-tools.git
+flood grid performance tools
+`git submodule add https://github.com/cefect/fperf`
 
-v2.2.0
-    git switch c8d03fc3154a34d2d2904491ee36a7ab8239289c --detached
-    
-need to build this using rust (see below)
+whitebox tools (cefect's fork)
+`git submodule https://github.com/cefect/whitebox-tools.git`
+
+    v2.2.0
+        git switch c8d03fc3154a34d2d2904491ee36a7ab8239289c --detached
+        
+    need to build this using rust (see below)
     
 
 
