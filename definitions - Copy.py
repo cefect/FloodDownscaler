@@ -6,9 +6,6 @@ Created on Mar. 25, 2022
 I guess this is overwritten by local projects?
 '''
 import os
- 
-
-
 
 src_dir = os.path.dirname(os.path.abspath(__file__))
 src_name = os.path.basename(src_dir)
@@ -24,10 +21,8 @@ wbt_dir = os.path.join(src_dir, r'whitebox-tools\target\release')
 
 #specify the latex install directory
 os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
-
  
 #spatial (mostly for testing)
 epsg = 3857
 bounds = (0, 0, 100, 100)
- 
 

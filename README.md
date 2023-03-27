@@ -44,3 +44,5 @@ build whitebox-tools using rust
     cargo build --release
     takes a while
 add submodules to pythonpath (see above)
+
+create and customize a definitions.py file (see the copy)
