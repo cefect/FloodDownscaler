@@ -55,7 +55,7 @@ import os, sys, datetime, gc, copy, pickle, pprint, logging
 import logging.config
 #from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
-from hp.basic import today_str
+from hp.basic import today_str, dstr
  
 from definitions import src_name
  
@@ -259,7 +259,6 @@ class Basic(object): #simple base class
         if logger is None:
             logger = self.logger
         log = logger.getChild(dkey)
- 
         
         #=======================================================================
         # #temporary directory
@@ -284,22 +283,18 @@ class Basic(object): #simple base class
         #=======================================================================
         # ofp
         #=======================================================================
- 
         
         if resname is None:
             resname = self._get_resname(dkey=dkey)
          
         if ofp is None:
             ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
-            
  
         #=======================================================================
         # if os.path.exists(ofp):
         #     log.warning('ofp exists... overwriting')
         #     os.remove(ofp)
         #=======================================================================
- 
- 
             
         return log, tmp_dir, out_dir, ofp, resname 
     
@@ -553,5 +548,65 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         
         self.logger.debug('finished Session.__init__')
         
+    #===========================================================================
+    # def _write_meta(self, meta_lib, **kwargs):
+    #     """write a dict of dicts to a spreadsheet"""
+    #     log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
+    #     
+    #     #write dict of dicts to frame
+    #     with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:
+    #         for tabnm, d in meta_lib.items():
+    #             pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
+    #     
+    #     log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+    #     
+    #     return ofp
+    #===========================================================================
+    
+    def _write_meta(self, meta_lib, **kwargs):
+        """write a dict of dicts to a spreadsheet
+        
+        handles any number of nests
+            not sure how flexible this is... after 2 levels I think it just dumps to a string
+        
+        
+        
+        """
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
+        from hp.pd import nested_dict_to_dx
+        
+        #convert to simple {tabn:dataframe}\
+        res_d = dict()
+        for k0, d0 in meta_lib.items():
+            #print(dstr(d0))
+            res_d[k0] = dict_to_df(d0)
+ 
+        
+        
+        #write dict of dicts to frame
+        with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:
+            for tabnm, dx in res_d.items():                
+                dx.to_excel(writer, sheet_name=tabnm, index=True, header=True)
+        
+        log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+        
+        return ofp
+    
+    def _write_pick(self, data, **kwargs):
+        """dump data to a pickle"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('w', subdir=False,ext='.pkl',  **kwargs)
+        
+        with open(ofp, 'wb') as handle:
+            pickle.dump(data, handle)
+            
+        log.info(f'wrote {type(data)} to \n    {ofp}')
+        return ofp
 
+def dict_to_df(d):
+    df = pd.DataFrame.from_dict({(i,j): d[i][j] for i in d.keys() for j in d[i].keys()}, orient='index')
+    df.index = pd.MultiIndex.from_tuples(df.index)
+    return df
+
+ 
     
