@@ -807,7 +807,10 @@ def write_resample(rlay_fp,
             
             """
             dataset.read(1, masked=False)
+            dataset.read(1, masked=True)
             """
+            assert not np.any(np.isnan(dataset.read(1, masked=False))), \
+                'found masked nulls... resampling wont handle this?'
          
             out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
  

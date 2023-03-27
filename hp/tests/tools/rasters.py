@@ -53,14 +53,21 @@ def get_rlay_fp(ar, layName,
     
     
 def get_mar(ar_raw):
-    return ma.array(ar_raw, mask=np.isnan(ar_raw), fill_value=-9999)
+    """convert a numpy array (w/ nulls) to rio mask-like"""
+    return ma.array(
+        np.where(np.isnan(ar_raw), -9999, ar_raw),
+        mask=np.isnan(ar_raw), 
+        fill_value=-9999,
+        )
 
 def get_ar_from_str(ar_str, dtype=float):
     return pd.read_csv(StringIO(ar_str), sep='\s+', header=None).astype(dtype).values
 
-def get_wse_ar(ar_str, **kwargs):
-    ar1 = get_ar_from_str(ar_str, **kwargs)
-    return np.where(ar1==-9999, np.nan, ar1) #replace nans
+#===============================================================================
+# def get_wse_ar(ar_str, **kwargs):
+#     ar1 = get_ar_from_str(ar_str, **kwargs)
+#     return np.where(ar1==-9999, np.nan, ar1) #replace nans
+#===============================================================================
 
 
 def get_rand_ar(shape, null_frac=0.1):
