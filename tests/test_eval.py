@@ -4,7 +4,7 @@ Created on Mar. 27, 2023
 @author: cefect
 '''
 
-import pytest, copy, os, random, re
+import pytest, copy, os, random, re, pickle
 import numpy as np
 import pandas as pd
 
@@ -27,3 +27,12 @@ def ses(init_kwargs):
 #===============================================================================
 def test_init(ses):
     pass
+
+@pytest.mark.parametrize('pick_fp',)
+                         
+def test_run_dsc_vali_multi(pick_fp, ses):
+    
+    with open(pick_fp, "rb") as f:
+        res_lib = pickle.load(f)
+    
+    ses.run_dsc_vali_multi(res_lib)
