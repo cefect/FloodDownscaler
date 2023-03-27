@@ -229,6 +229,7 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
                          'Schumann14': {},
                          },
                   write_meta=True,
+                  write_pick=True, 
                   **kwargs):
         """run downscaling on multiple methods
         
@@ -305,9 +306,15 @@ class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             #convert
             self._write_meta(meta_lib)
             
-            
-            
-        
+        #=======================================================================
+        # write results pickle
+        #=======================================================================
+        if write_pick:
+            assert not os.path.exists(ofp)
+            with open(ofp,'wb') as file:
+                pickle.dump(meta_lib, file)
+            log.info(f'wrote meta_lib pickle to \n    {ofp}')
+ 
         #=======================================================================
         # wrap
         #=======================================================================
