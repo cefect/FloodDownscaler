@@ -702,62 +702,12 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-#===============================================================================
-# def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
-#     """add dem and wse to get a depth grid"""
-#     
-#     assert_spatial_equal(dem_fp, wse_fp)
-#     
-#     if ofp is None:
-#         if out_dir is None:
-#             out_dir = tempfile.gettempdir()
-#         if not os.path.exists(out_dir):os.makedirs(out_dir)
-#         
-#         fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
-#         ofp = os.path.join(out_dir,fname)
-#     
-#     #===========================================================================
-#     # load
-#     #===========================================================================
-#     dem_ar = load_array(dem_fp, masked=True)    
-#     wse_ar = load_array(wse_fp, masked=True)
-#     
-#     #logic checks
-#     assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
-#     assert wse_ar.mask.any()
-#     assert not wse_ar.mask.all()
-#     
-#     #===========================================================================
-#     # calc
-#     #===========================================================================
-#     #simple subtraction
-#     wd1_ar = wse_ar - dem_ar
-#     
-#     #identify dry
-#     dry_bx = np.logical_or(
-#         wse_ar.mask, wse_ar.data<dem_ar.data
-#         )
-#     
-#     assert not dry_bx.all().all()
-#     
-#     #rebuild
-#     wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
-#     
-#     
-#     #check we have no positive depths on the wse mask
-#     assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
-#     
-#     #===========================================================================
-#     # write
-#     #===========================================================================
-#     
-#     #convert to masked
-#     wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
-#     
-#     assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
-#     
-#     return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
-#===============================================================================
+def get_bbox(rlay_obj):
+    bounds = get_ds_attr(rlay_obj, 'bounds')
+    return sgeo.box(*bounds)
+ 
+    
+ 
     
 #===============================================================================
 # Building New Rasters--------
