@@ -29,7 +29,8 @@ from hp.rio import (
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
 
-from hp.riom import write_extract_mask, write_array_mask, assert_mask
+from hp.riom import write_extract_mask, write_array_mask, assert_mask_fp
+from hp.hyd import assert_type_fp
 
 class CostGrow(WetPartials):
     
@@ -49,7 +50,8 @@ class CostGrow(WetPartials):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         meta_lib=dict()
-        
+        assert_type_fp(wse_fp, 'WSE')
+        assert_type_fp(dem_fp, 'DEM')
         
         #skwargs, meta_lib, log, ofp, start = self._func_setup_dsc(nicknames_d[method], wse_fp, dem_fp, **kwargs)
         downscale = self.downscale
@@ -78,6 +80,8 @@ class CostGrow(WetPartials):
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         meta_lib={'smry':{'wse_fp':wse_fp}}
         start=now()
+        assert_type_fp(wse_fp, 'WSE')
+        self._set_profile(dem_fp) #set profile for session raster writing
         #=======================================================================
         # grow/buffer out the WSE values
         #=======================================================================
@@ -123,6 +127,8 @@ class CostGrow(WetPartials):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('filter', subdir=False,  **kwargs)
         assert_spatial_equal(dem_fp, wse_fp)
         
+        """no... often we pass a costDistance raster which is WSE-like, but has no nulls
+        assert_type_fp(wse_fp, 'WSE')"""
         #=======================================================================
         # load arrays
         #=======================================================================
@@ -138,21 +144,26 @@ class CostGrow(WetPartials):
         # #array math
         #=======================================================================
         bx_ar = wse_ar <= dem1_ar
-        wse1_ar1 = np.where(np.invert(bx_ar), wse_ar, np.nan)
+        assert_partial_wet(bx_ar, msg='wse_ar <= dem1_ar')
+ 
+        wse1_mar1 = ma.array(
+            np.where(np.invert(bx_ar), wse_ar, np.nan),
+            mask=bx_ar, fill_value=-9999)
         
         log.info(f'filtered {bx_ar.sum()}/{bx_ar.size} wse values which dont exceed the DEM')
         #=======================================================================
         # #dump to raster
         #=======================================================================
-        rlay_kwargs = get_write_kwargs(dem_fp, driver='GTiff', masked=False)
-        wse1_ar1_fp = self.write_array(wse1_ar1, resname='wse1_ar3', 
-                                       out_dir=out_dir,  logger=log, ofp=ofp,
-                                       **rlay_kwargs) 
+        #rlay_kwargs = get_write_kwargs(dem_fp, driver='GTiff', masked=False)
+        wse1_ar1_fp = self.write_array(wse1_mar1, resname='wse1_ar3', 
+                                       out_dir=out_dir,  logger=log, ofp=ofp) 
         
         
         #=======================================================================
         # meta
         #=======================================================================
+        assert_type_fp(wse1_ar1_fp, 'WSE')
+        
         meta_d={'size':wse_ar.size, 'wse1_ar1_fp':wse1_ar1_fp}
         if __debug__:
             meta_d['violation_count'] = bx_ar.astype(int).sum()
@@ -166,12 +177,13 @@ class CostGrow(WetPartials):
         start = now()
         meta_d=dict()
         assert get_ds_attr(wse_fp, 'nodata')==-9999
+        assert_type_fp(wse_fp, 'WSE', 'filter_iso input')
         #=======================================================================
         # #convert to mask
         #=======================================================================
         """wbt.clump needs 1s and 0s"""
         mask_fp = write_extract_mask(wse_fp, out_dir=out_dir, maskType='native')
-        assert_mask(mask_fp,  maskType='native')
+        assert_mask_fp(mask_fp,  maskType='native')
         #=======================================================================
         # #clump it
         #=======================================================================
@@ -275,6 +287,8 @@ class CostGrow(WetPartials):
         
         
         assert_spatial_equal(costAlloc_fp, wse_fp)
+        assert_type_fp(wse_fp, 'WSE')
+        
         tdelta = (now() - start).total_seconds()
         meta_d['tdelta'] = tdelta
         log.info(f'finished in {tdelta}\n    {costAlloc_fp}')

@@ -13,8 +13,9 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, assert_masked_ar
+    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
     )
+from hp.riom import assert_masked_ar
 
 nicknames_d = {'CostGrow':'cgs', 
                'Basic':'rsmp',

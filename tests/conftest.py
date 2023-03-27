@@ -22,7 +22,8 @@ from fdsc.base import nicknames_d
 
 #helpers
 from hp.logr import get_new_console_logger, logging
-from hp.rio import write_array, write_array2, assert_masked_ar
+from hp.rio import write_array, write_array2
+from hp.riom import assert_masked_ar
 
 temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
 if not os.path.exists(temp_dir):

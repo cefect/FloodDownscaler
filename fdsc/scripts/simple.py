@@ -22,7 +22,7 @@ from hp.rio import (
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
-from hp.riom import write_extract_mask, write_array_mask, assert_mask
+from hp.riom import write_extract_mask, write_array_mask
 
 from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
