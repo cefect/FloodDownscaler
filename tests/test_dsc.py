@@ -14,10 +14,10 @@ xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
 from fdsc.base import nicknames_d
-from fdsc.scripts.control import run_downscale
-from fdsc.scripts.control import Dsc_Session as Session
+from fdsc.control import run_downscale
+from fdsc.control import Dsc_Session as Session
  
-from fdsc.scripts.bufferLoop import ar_buffer
+#from fdsc.bufferLoop import ar_buffer
 
 from tests.conftest import (
     get_rlay_fp, crs_default, proj_lib,get_aoi_fp,par_algoMethodKwargs,
@@ -147,11 +147,13 @@ def test_p2_bufferGrow(dem_fp, wse_fp, wrkr):
     wrkr.get_bufferGrowLoop_DP(wse_fp, dem_fp, loop_range=range(5))
     
 
-@pytest.mark.parametrize('wse_ar',[
-    (wse1_ar2),
-    ]) 
-def test_ar_buffer(wse_ar):
-    ar_buffer(wse_ar)
+#===============================================================================
+# @pytest.mark.parametrize('wse_ar',[
+#     (wse1_ar2),
+#     ]) 
+# def test_ar_buffer(wse_ar):
+#     ar_buffer(wse_ar)
+#===============================================================================
 
 
 

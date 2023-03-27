@@ -20,15 +20,15 @@ from hp.rio import (
 from hp.pd import view, pd
 from hp.gdal import getNoDataCount
 
-from fdsc.scripts.wbt import WBT_worker
+from fdsc.wbt import WBT_worker
 from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now
     )
 
-from fdsc.scripts.simple import BasicDSC
-from fdsc.scripts.schu14 import Schuman14
-from fdsc.scripts.costGrow import CostGrow
-from fdsc.scripts.bufferLoop import BufferGrowLoop
+from fdsc.simple import BasicDSC
+from fdsc.schu14 import Schuman14
+from fdsc.costGrow import CostGrow
+from fdsc.bufferLoop import BufferGrowLoop
 
 
 

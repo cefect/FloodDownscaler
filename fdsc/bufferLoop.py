@@ -10,7 +10,7 @@ import pandas as pd
 import rasterio as rio
 from rasterio import shutil as rshutil
 
-from fdsc.scripts.simple import WetPartials
+from fdsc.simple import WetPartials
 
 from fdsc.base import (
     Master_Session, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
