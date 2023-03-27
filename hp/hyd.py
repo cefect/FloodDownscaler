@@ -349,7 +349,7 @@ def assert_type_fp(fp, dkey, msg=''):
     """check the file matches the dkey hydro expectations"""
     if not __debug__: # true if Python was not started with an -O option
         return 
-    __tracebackhide__ = True  
+    #__tracebackhide__ = True  
     
     #dkey check
     if not dkey in assert_func_d:
@@ -424,7 +424,7 @@ def assert_partial_wet(ar, msg=''):
     """assert a boolean array has some trues and some falses (but not all)"""
     if not __debug__: # true if Python was not started with an -O option
         return
-    __tracebackhide__ = True 
+    #__tracebackhide__ = True 
     
     #assert isinstance(ar, ma.MaskedArray)
     assert 'bool' in ar.dtype.name
