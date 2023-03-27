@@ -11,8 +11,9 @@ import pandas as pd
 xfail = pytest.mark.xfail
 
 from fdsc.eval.control import Dsc_Eval_Session as Session
-from definitions import src_dir
-
+#from definitions import src_dir
+"""issues with relative paths"""
+src_dir = r'C:\LS\09_REPOS\\03_TOOLS\\FloodDownscaler'
 #===============================================================================
 # test data
 #===============================================================================
@@ -59,7 +60,7 @@ def test_init(ses):
 
 
 
-#@pytest.mark.dev
+
 @pytest.mark.parametrize(*dsc_pick_pars)                         
 def test_get_fps_from_dsc_lib(pick_fp_rel, ses):
     dsc_res_lib, base_dir = _get_rel_fps(pick_fp_rel)    
@@ -83,8 +84,8 @@ def test_run_dsc_vali_multi(pick_fp, hwm_pts_fp, inun_fp, aoi_fp, ses):
         fp_lib = pickle.load(f)  
     
     ses.run_vali_multi_dsc(fp_lib, 
-                           aoi_fp=aoi_fp,
-                           vali_kwargs=dict(hwm_pts_fp=hwm_pts_fp, inun_fp=inun_fp)
+                           
+                           vali_kwargs=dict(hwm_pts_fp=hwm_pts_fp, inun_fp=inun_fp, aoi_fp=aoi_fp)
                            )
     
     
