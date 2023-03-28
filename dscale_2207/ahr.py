@@ -7,7 +7,7 @@ Ahr case study
 '''
 import os, pickle
 from pyproj.crs import CRS
-from dscale_2207.pipeline import run_downscale, run_eval
+from dscale_2207.pipeline import run_downscale, run_eval, run_plot
 
 debug=True
 
@@ -52,34 +52,60 @@ for k in ['proj_name','crs']:
             
 
 
-vali_kwargs=dict(hwm_pts_fp=proj_lib['hwm'], inun_fp=proj_lib['inun'], aoi_fp=proj_lib['aoi'])
+
 
 #===============================================================================
 # run
 #===============================================================================
+def load_pick(fp):
+    with open(fp, 'rb') as f:
+        d = pickle.load(f)
+    assert isinstance(d, dict)
+    print(f'loaded {len(d)} from \n    {fp}')
+    return d
+    
+
 if __name__=='__main__':
- 
+    dsc_res_lib, pick_fp, dsc_vali_res_lib=None, None, None
+    
+    #precompiled results
+    pick_lib = {
+        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
+        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
+        }
     #===========================================================================
     # downscaling
     #===========================================================================
-    ik = {**{'aoi_fp':proj_lib['aoi']}, **init_kwargs}
-    dsc_res_lib, pick_fp=None, None
- 
-    
-    dsc_res_lib, init_kwargs['logger'] = run_downscale(proj_lib,init_kwargs=ik)
-    
-    #pick_fp=r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl'
-    
-    #load run_downscale results library
-    if dsc_res_lib is None:
-        with open(pick_fp, 'rb') as f:
-            dsc_res_lib = pickle.load(f)
+    k = 'downscale'
+    if not k in pick_lib:
+        ik = {**{'aoi_fp':proj_lib['aoi']}, **init_kwargs}    
+        dsc_res_lib, init_kwargs['logger'] = run_downscale(proj_lib,init_kwargs=ik)
+        
+    else:
+        dsc_res_lib = load_pick(pick_lib[k])
+
     #===========================================================================
     # evaluation
     #===========================================================================
+    k = 'eval'
+    if not k in pick_lib: 
+        ik = {**{'index_coln':proj_lib['index_coln']}, **init_kwargs}
+        vali_kwargs=dict(hwm_pts_fp=proj_lib['hwm'], inun_fp=proj_lib['inun'], aoi_fp=proj_lib['aoi'])
+        
+        dsc_vali_res_lib, init_kwargs['logger'] = run_eval(dsc_res_lib, 
+                                               init_kwargs=ik,vali_kwargs=vali_kwargs)
+    else:        
+        dsc_vali_res_lib = load_pick(pick_lib[k])
+    
  
-    ik = {**{'index_coln':proj_lib['index_coln']}, **init_kwargs}
-    run_eval(dsc_res_lib, init_kwargs=ik, vali_kwargs=vali_kwargs)
+            
+    #===========================================================================
+    # plot
+    #===========================================================================
+    ik = init_kwargs
+    
+    run_plot(dsc_vali_res_lib, init_kwargs = ik)
+    
  
  
     print('done')

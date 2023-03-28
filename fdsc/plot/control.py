@@ -174,81 +174,83 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
         
         
         
-def basic_post_pipeline(meta_fp_d, 
-                      sample_dx_fp=None,
-                      hwm_pick_fp=None,
-                      
-                      ses_init_kwargs = dict(),
-                      inun_perf_kwargs= dict(),
-                      samples_mat_kwargs=dict(),
-                      hwm3_kwargs=dict(),
-                      hyd_hwm_kwargs=dict(),
-                      rlay_res_kwargs=dict()
-                      ):
-    """main runner for generating plots"""    
-    
-    res_d = dict()
-    with PostSession(**ses_init_kwargs) as ses:
-        
-        #load the metadata from teh run
-        run_lib, smry_d = ses.load_metas(meta_fp_d)
-        
-        #ses.collect_runtimes(run_lib)
-        
-        #=======================================================================
-        # HWM performance (all)
-        #=======================================================================
-        #=======================================================================
-        # fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
-        # gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
-        # res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
-        #=======================================================================
- 
-        #=======================================================================
-        # hydrodyn HWM performance
-        #=======================================================================
-  #=============================================================================
-  #       ses.collect_hyd_fps(run_lib) 
-  #          
-  #       ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
-  # 
-  #=============================================================================
-        
-        #=======================================================================
-        # RASTER PLOTS
-        #=======================================================================
-        #get rlays
-        rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)        
-        res_d['rlay_res'] = ses.plot_rlay_res_mat(rlay_fp_lib, metric_lib=metric_lib, **rlay_res_kwargs)
-        
- 
-        #=======================================================================
-        # INUNDATION PERFORMANCe
-        #======================================================================= 
-        #res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **inun_perf_kwargs)
-         
- 
- 
-
- 
-        #=======================================================================
-        # sample metrics
-        #=======================================================================
 #===============================================================================
-#         ses.logger.info('\n\nSAMPLES\n\n')
-#         try: 
-#             del run_lib['nodp'] #clear this
-#         except: pass
+# def basic_post_pipeline(meta_fp_d, 
+#                       sample_dx_fp=None,
+#                       hwm_pick_fp=None,
+#                       
+#                       ses_init_kwargs = dict(),
+#                       inun_perf_kwargs= dict(),
+#                       samples_mat_kwargs=dict(),
+#                       hwm3_kwargs=dict(),
+#                       hyd_hwm_kwargs=dict(),
+#                       rlay_res_kwargs=dict()
+#                       ):
+#     """main runner for generating plots"""    
+#     
+#     res_d = dict()
+#     with PostSession(**ses_init_kwargs) as ses:
 #         
-#         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
+#         #load the metadata from teh run
+#         run_lib, smry_d = ses.load_metas(meta_fp_d)
 #         
-#         """switched to plotting all trues per simulation"""
+#         #ses.collect_runtimes(run_lib)
+#         
+#         #=======================================================================
+#         # HWM performance (all)
+#         #=======================================================================
+#         #=======================================================================
+#         # fp_lib, metric_lib = ses.collect_HWM_data(run_lib)
+#         # gdf = ses.concat_HWMs(fp_lib,pick_fp=hwm_pick_fp)
+#         # res_d['HWM3'] = ses.plot_HWM_3x3(gdf, metric_lib=metric_lib, **hwm3_kwargs)
+#         #=======================================================================
 #  
-#         df_wet=df
+#         #=======================================================================
+#         # hydrodyn HWM performance
+#         #=======================================================================
+#   #=============================================================================
+#   #       ses.collect_hyd_fps(run_lib) 
+#   #          
+#   #       ses.plot_hyd_hwm(gdf.drop('geometry', axis=1), **hyd_hwm_kwargs)
+#   # 
+#   #=============================================================================
+#         
+#         #=======================================================================
+#         # RASTER PLOTS
+#         #=======================================================================
+#         #get rlays
+#         rlay_fp_lib, metric_lib = ses.collect_rlay_fps(run_lib)        
+#         res_d['rlay_res'] = ses.plot_rlay_res_mat(rlay_fp_lib, metric_lib=metric_lib, **rlay_res_kwargs)
+#         
+#  
+#         #=======================================================================
+#         # INUNDATION PERFORMANCe
+#         #======================================================================= 
+#         #res_d['inun_perf'] = ses.plot_inun_perf_mat(rlay_fp_lib, metric_lib, **inun_perf_kwargs)
+#          
+#  
+#  
 # 
-#         res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
+#  
+#         #=======================================================================
+#         # sample metrics
+#         #=======================================================================
+# #===============================================================================
+# #         ses.logger.info('\n\nSAMPLES\n\n')
+# #         try: 
+# #             del run_lib['nodp'] #clear this
+# #         except: pass
+# #         
+# #         df, metric_lib = ses.collect_samples_data(run_lib, sample_dx_fp=sample_dx_fp)
+# #         
+# #         """switched to plotting all trues per simulation"""
+# #  
+# #         df_wet=df
+# # 
+# #         res_d['ssampl_mat'] =ses.plot_samples_mat(df_wet, metric_lib, **samples_mat_kwargs)
+# #===============================================================================
+#         
+#     print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
+#     return res_d
 #===============================================================================
-        
-    print('finished on \n    ' + pprint.pformat(res_d, width=30, indent=True, compact=True, sort_dicts =False))
-    return res_d
  
