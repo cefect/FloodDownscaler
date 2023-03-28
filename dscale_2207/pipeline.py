@@ -10,12 +10,20 @@ import os, pickle
 import pandas as pd
 from pandas import IndexSlice as idx
 
+
+
+#===============================================================================
+# IMPORTS------
+#===============================================================================
+
 from hp.pd import view
 from hp.basic import dstr
 
 from fdsc.control import Dsc_Session
 from fdsc.eval.control import  Dsc_Eval_Session
 from fdsc.plot.control import Fdsc_Plot_Session
+
+
 
 def run_downscale(
         proj_lib,

@@ -22,9 +22,9 @@ proj_lib = {
     'proj_name': 'ahr_aoi08_0303',
     'wse2': f(r'fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r32_1221-0030_wse.tif'),
     'dem1': f(r'r04\dem005_r04_aoi08_1210.tif'), 
-    'true_wse_fp': f(r'fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif'),
+    #'true_wse_fp': f(r'fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif'),
     'inun': f(r'inun\inun_anschlaglinie_HW_7_21_220223_aoi09_0303.geojson'),
-    'sample_pts_fp': f(r'bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson'),
+    #'sample_pts_fp': f(r'bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson'),
     'hwm': f(r'hwm\NWR_ahr11_hwm_20220113b_fix_aoi09.geojson'),
     'aoi': f('aoi09_1221_r32.geojson'),
     'crs':CRS.from_user_input(25832),
@@ -51,7 +51,11 @@ for k in ['proj_name','crs']:
         init_kwargs[k]=proj_lib[k]
             
 
-
+#precompiled results
+pick_lib = {
+    'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
+    'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
+    }
 
 
 #===============================================================================
@@ -68,11 +72,7 @@ def load_pick(fp):
 if __name__=='__main__':
     dsc_res_lib, pick_fp, dsc_vali_res_lib=None, None, None
     
-    #precompiled results
-    pick_lib = {
-        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
-        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
-        }
+
     #===========================================================================
     # downscaling
     #===========================================================================
@@ -101,10 +101,10 @@ if __name__=='__main__':
             
     #===========================================================================
     # plot
-    #===========================================================================
-    ik = init_kwargs
-    
-    run_plot(dsc_vali_res_lib, init_kwargs = ik)
+    #===========================================================================\
+    """ moved to standalone script ahr_plot.py
+    ik = init_kwargs    
+    run_plot(dsc_vali_res_lib, init_kwargs = ik)"""
     
  
  
