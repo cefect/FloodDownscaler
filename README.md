@@ -16,6 +16,7 @@
 PYTHONPATH:
 PROJECT_DIR_NAME
 PROJECT_DIR_NAME\coms
+PROJECT_DIR_NAME\fperf
 PROJECT_DIR_NAME\whitebox-tools
 PROJECT_DIR_NAME\whitebox-tools\target\release (need to build first)
 
