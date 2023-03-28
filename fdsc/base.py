@@ -25,8 +25,7 @@ nicknames_d = {'CostGrow':'cgs',
                'BufferGrowLoop':'bgl', 
                'Schumann14':'s14'}
 
-def now():
-    return datetime.datetime.now()
+ 
 
 
 class DscBaseWorker(object):

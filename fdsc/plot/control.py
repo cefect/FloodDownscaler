@@ -2,6 +2,8 @@
 Created on Mar. 28, 2023
 
 @author: cefect
+
+plotting downsample performance results
 '''
 
 
@@ -10,7 +12,7 @@ import numpy as np
 import pandas as pd
 import rasterio as rio
 import geopandas as gpd
-import scipy
+ 
 
 from rasterio.plot import show
 
@@ -26,6 +28,7 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 # import earthpy.plot as ep
 #===============================================================================
 
+from hp.oop import Session
 from hp.plot import get_dict_str, hide_text
 from hp.pd import view
 from hp.rio import (    
@@ -38,10 +41,13 @@ from hp.fiona import get_bbox_and_crs
 
 
 from fdsc.plot.base import Fdsc_Plot_Base
+from fdsc.base import DscBaseWorker
+from fperf.plot.pipeline import PostSession
 
 
-class Fdsc_Plot_Session(Fdsc_Plot_Base):
-    "Session for analysis on multiple downscale results and their validation metrics"
+
+class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
+    "plotting downsample performance"
     
     #see self._build_color_d(mod_keys)
 
