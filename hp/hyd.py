@@ -438,7 +438,7 @@ def assert_partial_wet(ar, msg=''):
     
 def assert_inun_poly(gdf, msg=''):
     assert len(gdf)==1, msg
-    assert gdf.iloc[0].geometry.geom_type=='Polygon', msg
+    assert gdf.iloc[0].geometry.geom_type in ['Polygon','MultiPolygon'], msg
     
     
     
