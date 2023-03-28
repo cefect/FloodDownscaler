@@ -190,8 +190,12 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=subdir, **kwargs)
         if debug is None: debug=__debug__
         
-        meta_lib = {'smry':{**{'today':self.today_str, 'method':method, 'wse2_fp':os.path.basename(wse2_fp), 'dem_fp':dem1_fp, 'ofp':ofp}, 
-                            **self._get_init_pars()}}
+        
+        meta_lib = {'smry':{**{'today':self.today_str, 'method':method, 
+                               'wse2_fp':os.path.basename(wse2_fp), 
+                               'dem_fp':dem1_fp, 'ofp':ofp}, 
+                            **self._get_init_pars(), #wont have aoi props as these are on the calling session
+                            }}
         
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         start = now()
@@ -398,13 +402,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         log.info(f'finished in {now() - start}')
         
         return res_lib
-        
-        
-                      
-    
-    #===========================================================================
-    # PRIVATES--------
-    #===========================================================================
+ 
  
 #===============================================================================
 # def run_downscale(
