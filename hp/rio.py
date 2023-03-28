@@ -3,7 +3,7 @@ Created on Aug. 7, 2022
 
 @author: cefect
 '''
-import os, warnings, tempfile
+import os, warnings, tempfile, shutil
 import numpy as np
  
 import numpy.ma as ma
@@ -707,11 +707,56 @@ def get_bbox(rlay_obj):
     return sgeo.box(*bounds)
  
     
+def rlay_to_polygons(rlay_fp, convert_to_binary=True,
+                          ):
+    """
+    get shapely polygons for each clump in a raster
+    
+    see also hp.hyd.write_inun_poly
+    
+    Parameters
+    -----------
+    convert_to_binary: bool, True
+        True: polygon around mask values (e.g., inundation)
+        False: polygon around data values
+        
+    """
+    
+    #===========================================================================
+    # collect polygons
+    #===========================================================================
+    with rio.open(rlay_fp, mode='r') as src:
+        mar = src.read(1, masked=True)
+        
+        if convert_to_binary:
+            source = np.where(mar.mask, int(mar.fill_value),1)
+        else:
+            source = mar
+        #mask = image != src.nodata
+        d=dict()
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
+                                                  connectivity=8):
+            
+            d[val] = sgeo.shape(geom)
+            
+        #print(f'finished w/ {len(d)} polygon')
+        
  
+        
+    return d
     
 #===============================================================================
 # Building New Rasters--------
 #===============================================================================
+def copyr(fp, ofp):
+    if ofp==fp:
+        ofp=fp
+    elif is_raster_file(fp):                    
+        rasterio.shutil.copy(fp, ofp)
+    else:
+        shutil.copy(fp, ofp)
+    return ofp
+    
 def write_resample(rlay_fp,
                  resampling=Resampling.nearest,
                  scale=1.0,
@@ -1047,43 +1092,7 @@ def write_mosaic(fp1, fp2, ofp=None):
     return ofp, stats_d
 
 
-def rlay_to_polygons(rlay_fp, convert_to_binary=True,
-                          ):
-    """
-    get shapely polygons for each clump in a raster
-    
-    see also hp.hyd.write_inun_poly
-    
-    Parameters
-    -----------
-    convert_to_binary: bool, True
-        True: polygon around mask values (e.g., inundation)
-        False: polygon around data values
-        
-    """
-    
-    #===========================================================================
-    # collect polygons
-    #===========================================================================
-    with rio.open(rlay_fp, mode='r') as src:
-        mar = src.read(1, masked=True)
-        
-        if convert_to_binary:
-            source = np.where(mar.mask, int(mar.fill_value),1)
-        else:
-            source = mar
-        #mask = image != src.nodata
-        d=dict()
-        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
-                                                  connectivity=8):
-            
-            d[val] = sgeo.shape(geom)
-            
-        #print(f'finished w/ {len(d)} polygon')
-        
- 
-        
-    return d
+
 
 #===============================================================================
 # PLOTS----------
