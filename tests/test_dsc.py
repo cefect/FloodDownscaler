@@ -59,6 +59,10 @@ def wrkr(init_kwargs, crs= crs_default):
 #===============================================================================
 # tests-------
 #===============================================================================
+@pytest.mark.dev
+def test_init(wrkr):
+    pass
+    
 
 
 @pytest.mark.parametrize('dem_fp, wse_fp, aoi_fp', [

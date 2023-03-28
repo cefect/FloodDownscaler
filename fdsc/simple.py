@@ -26,7 +26,7 @@ from hp.riom import write_extract_mask, write_array_mask
 from hp.hyd import assert_type_fp
 
 from fdsc.base import (
-    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
+    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
     )
 
 from fdsc.base import DscBaseWorker

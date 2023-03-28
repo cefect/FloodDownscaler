@@ -14,10 +14,12 @@ from hp.fiona import get_bbox_and_crs
 from hp.hyd import assert_type_fp, get_wsh_rlay
 from hp.rio import write_clip, is_raster_file, copyr
 
-from fdsc.base import DscBaseSession, assert_dsc_res_lib
+from fdsc.base import assert_dsc_res_lib, DscBaseWorker
+#from fdsc.control import Dsc_Session
 from fperf.pipeline import ValidateSession
+ 
 
-class Dsc_Eval_Session(DscBaseSession, ValidateSession):
+class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
     """special methods for validationg downscample inundation rasters"""
     
     def _get_fps_from_dsc_lib(self,

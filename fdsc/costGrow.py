@@ -18,7 +18,7 @@ from rasterio import shutil as rshutil
 from fdsc.simple import WetPartials
 
 from fdsc.base import (
-    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
+    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
     )
 
 #helpers

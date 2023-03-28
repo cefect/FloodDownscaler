@@ -45,9 +45,7 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base):
     
     #see self._build_color_d(mod_keys)
 
-    
-    
-    
+ 
     def __init__(self, 
                  run_name = None,
                  **kwargs):

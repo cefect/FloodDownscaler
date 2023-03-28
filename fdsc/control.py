@@ -13,6 +13,7 @@ import rasterio as rio
 from rasterio import shutil as rshutil
 
 from hp.basic import dstr
+from hp.oop import Session
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
@@ -26,7 +27,7 @@ from hp.hyd import (
 
 from fdsc.wbt import WBT_worker
 from fdsc.base import (
-    DscBaseSession, assert_dem_ar, assert_wse_ar, rlay_extract, now, assert_dsc_res_lib
+    assert_dem_ar, assert_wse_ar, rlay_extract, now, assert_dsc_res_lib
     )
 
 from fdsc.simple import BasicDSC
@@ -38,8 +39,16 @@ from fdsc.bufferLoop import BufferGrowLoop
 
 
 
-class Dsc_Session(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
-        RioSession, DscBaseSession, WBT_worker):
+class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
+        RioSession, WBT_worker):
+    """session controller for downscaling"""
+    
+    def __init__(self, 
+                 run_name='v1', #using v instead of r to avoid resolution confusion
+                 relative=True,
+                 **kwargs):
+ 
+        super().__init__(run_name=run_name, relative=relative, **kwargs)
       
     #===========================================================================
     # phase0-------  

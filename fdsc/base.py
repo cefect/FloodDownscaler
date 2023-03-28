@@ -135,13 +135,15 @@ class DscBaseWorker(object):
  
     
 
-class DscBaseSession(DscBaseWorker, Session):
-    def __init__(self, 
-                 run_name='v1', #using v instead of r to avoid resolution confusion
-                 relative=True,
-                 **kwargs):
- 
-        super().__init__(run_name=run_name, relative=relative, **kwargs)
+#===============================================================================
+# class DscBaseSession(DscBaseWorker, Session):
+#     def __init__(self, 
+#                  run_name='v1', #using v instead of r to avoid resolution confusion
+#                  relative=True,
+#                  **kwargs):
+#  
+#         super().__init__(run_name=run_name, relative=relative, **kwargs)
+#===============================================================================
         
  
     
