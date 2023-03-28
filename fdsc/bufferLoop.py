@@ -10,16 +10,19 @@ import pandas as pd
 import rasterio as rio
 from rasterio import shutil as rshutil
 
-from fdsc.simple import WetPartials
 
-from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
-    )
 
+from hp.basic import now
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
     write_array, assert_spatial_equal, get_write_kwargs, rlay_calc1, load_array, write_clip,
     rlay_apply, rlay_ar_apply, write_resample, Resampling, get_ds_attr, get_stats2
+    )
+
+from fdsc.simple import WetPartials
+
+from fdsc.base import (
+    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, assert_partial_wet
     )
 
 

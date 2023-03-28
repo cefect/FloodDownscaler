@@ -15,7 +15,7 @@ import rasterio as rio
 from rasterio import shutil as rshutil
 
 
-
+from hp.basic import now
 from hp.gdal import getNoDataCount
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
@@ -26,7 +26,7 @@ from hp.riom import write_extract_mask, write_array_mask
 from hp.hyd import assert_type_fp
 
 from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, now, assert_partial_wet
+    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d,  assert_partial_wet
     )
 
 from fdsc.base import DscBaseWorker

@@ -18,7 +18,7 @@ import geopandas as gpd
 from sklearn.neighbors import KDTree, BallTree
 from joblib import parallel_backend
 
-
+from hp.basic import now
 from hp.rio import (
      write_resample, assert_extent_equal, Resampling, assert_spatial_equal,
      write_mask_apply, get_profile, write_array2, write_mosaic
@@ -32,7 +32,7 @@ from hp.gpd import (
     drop_z, set_mask, view
     )
 
-from fdsc.base import DscBaseWorker, now, assert_partial_wet
+from fdsc.base import DscBaseWorker, assert_partial_wet
 
 methodName = 'Schumann14'
 

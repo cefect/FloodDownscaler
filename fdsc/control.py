@@ -12,7 +12,7 @@ import numpy.ma as ma
 import rasterio as rio
 from rasterio import shutil as rshutil
 
-from hp.basic import dstr
+from hp.basic import dstr, now
 from hp.oop import Session
 from hp.rio import (
     assert_extent_equal, assert_ds_attribute_match, get_stats, assert_rlay_simple, RioSession,
@@ -27,7 +27,7 @@ from hp.hyd import (
 
 from fdsc.wbt import WBT_worker
 from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, now, assert_dsc_res_lib
+    assert_dem_ar, assert_wse_ar, rlay_extract, assert_dsc_res_lib
     )
 
 from fdsc.simple import BasicDSC
