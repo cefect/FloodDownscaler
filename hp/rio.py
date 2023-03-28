@@ -30,7 +30,7 @@ import scipy.ndimage
 
 #import hp.gdal
 from hp.oop import Basic
-from hp.basic import get_dict_str
+from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
 #from hp.plot import plot_rast #for debugging
 #import matplotlib.pyplot as plt
@@ -190,29 +190,7 @@ class RioWrkr(Basic):
  
         return write_array2(raw_ar, ofp, **prof_d)       
     
- #==============================================================================
- #    def _get_profile(self, **kwargs):
- # 
- #        
- #        def get_aval(attName):
- #            if attName in kwargs:
- #                attVal=kwargs[attName]
- #            else:
- #                attVal = None
- #                
- #            if attVal is None:
- #                attVal = getattr(self, attName)
- #                
- #            return attVal
- #            
- #        args=list()
- #        for attName in ['crs', 'height', 'width', 'transform', 'nodata']:
- #            args.append(get_aval(attName))
- #        
- #        #self.ref_vals_d.keys()
- #        
- #        return args #crs, height, width, transform, nodata
- #==============================================================================
+ 
     
 class SpatialBBOXWrkr(Basic):
     aoi_fp=None
@@ -247,9 +225,12 @@ class SpatialBBOXWrkr(Basic):
         # set aoi
         #=======================================================================
         if not aoi_fp is None:            
-            assert crs is None
+            
             assert bbox is None
             self._set_aoi(aoi_fp)
+            
+            if not crs is None:
+                assert crs==self.crs
             
 
         else:
@@ -275,7 +256,7 @@ class SpatialBBOXWrkr(Basic):
         self.crs=crs
         self.bbox = bbox
         
-        self.logger.info('set crs: %s'%crs.to_epsg())
+        self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
         self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
@@ -342,10 +323,12 @@ def write_array2(ar, ofp,
     #===========================================================================
     # write
     #===========================================================================
-    with rio.open(ofp, 'w', 
-                  count=count, width=width, height=height,nodata=nodata, dtype=dtype,
-                  transform=transform, bbox=bbox,
-                  **kwargs) as ds:
+    open_kwargs = {**dict(count=count, width=width, height=height,nodata=nodata, 
+                       dtype=dtype,transform=transform, bbox=bbox), **kwargs}
+    
+    #print(dstr(open_kwargs))
+    
+    with rio.open(ofp, 'w',**open_kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
             
@@ -573,12 +556,16 @@ def rlay_ar_apply(rlay, func, masked=True, **kwargs):
 
 
 def get_window(ds, bbox,
+               buffer_bbox=False,
                 round_offsets=False,
                  round_lengths=False,
                  ):
     """get a well rounded window from a bbox"""
-    #buffer 1 pixel  
-    bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
+    #buffer 1 pixel 
+    if buffer_bbox: 
+        bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
+    else:
+        bbox1 =bbox
     
     #build a window and round                   
     window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform)
@@ -895,18 +882,19 @@ def write_resample(rlay_fp,
 
             return write_array2(res_mar,ofp, **prof_rsmp)
 
-            
-
 
 def write_clip(raw_fp, 
                 window=None,
                 bbox=None,
-                 
+                
                 masked=True,
-                 crs=None, 
- 
-                 ofp=None,
-                 **kwargs):
+                crs=None,
+                
+                fancy_window=None,
+                
+                ofp=None,
+                
+                **kwargs):
     """write a new raster from a window"""
 
     
@@ -920,7 +908,13 @@ def write_clip(raw_fp,
         
         #window default
         if window is None:
-            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+            """make the user pass window explicitly if they want rounding
+            window, _ = get_window(ds, bbox, round_offsets=round_offsets, round_lengths=round_lengths)
+            """
+            if fancy_window is None:
+                window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+            else:
+                window, _ = get_window(ds, bbox, **fancy_window)
  
         else: 
             assert bbox is None
@@ -930,11 +924,19 @@ def write_clip(raw_fp,
         
         #get stats
         stats_d = get_stats(ds)
-        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+        #stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
             
         #load the windowed data
         ar = ds.read(1, window=window, masked=masked)
         
+        """
+        print(get_meta(ds))
+        ds.read(1)
+        """
+        
+        for e in ar.shape:
+            assert e>0, window
+ 
         #=======================================================================
         # #write clipped data
         #=======================================================================
@@ -945,8 +947,9 @@ def write_clip(raw_fp,
         write_kwargs = get_write_kwargs(ds)
         write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
         
-        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
+        ofp = write_array2(ar, ofp,  masked=False,   **write_kwargs1)
         
+    stats_d['bounds'] = get_ds_attr(ofp, 'bounds')
     return ofp, stats_d
 
 
@@ -1137,7 +1140,7 @@ def is_divisible(rlay, divisor):
 def is_raster_file(filepath):
     """probably some more sophisticated way to do this... but I always use tifs"""
     _, ext = os.path.splitext(filepath)
-    return ext in ['.tif']
+    return ext in ['.tif', '.asc']
 
 
 #===============================================================================
