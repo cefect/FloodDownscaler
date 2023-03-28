@@ -203,7 +203,7 @@ class SpatialBBOXWrkr(Basic):
                  crs=None, bbox=None, aoi_fp=None,
                  
                  #defaults
-                 
+                 init_pars=None,
                  
                  **kwargs):
         
@@ -219,30 +219,42 @@ class SpatialBBOXWrkr(Basic):
         crs: <class 'pyproj.crs.crs.CRS'>
             coordinate reference system
         """
-        super().__init__(**kwargs)
+        if init_pars is None: init_pars=list()
         
         #=======================================================================
         # set aoi
         #=======================================================================
-        if not aoi_fp is None:            
-            
+        if not aoi_fp is None:
+                        
             assert bbox is None
             self._set_aoi(aoi_fp)
+            init_pars.append('aoi_fp')
             
             if not crs is None:
                 assert crs==self.crs
-            
-
+ 
         else:
             self.crs=crs
             self.bbox = bbox
             
+        
+            
         #check
         if not self.crs is None:
             assert isinstance(self.crs, CRS)
+            init_pars.append('crs')
             
         if not self.bbox is None:
             assert isinstance(self.bbox, Polygon)
+            init_pars.append('bbox')
+        
+        
+        super().__init__(init_pars=init_pars, **kwargs)
+        
+        if not aoi_fp is None:
+            self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
+        
+
  
         
         
@@ -256,7 +268,7 @@ class SpatialBBOXWrkr(Basic):
         self.crs=crs
         self.bbox = bbox
         
-        self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
+        
         self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
