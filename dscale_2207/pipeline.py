@@ -3,7 +3,7 @@ Created on Mar. 28, 2023
 
 @author: cefect
 
-work pipeline for 2207_Dscale
+work pipelines for 2207_Dscale
 '''
 import os, pickle
 

@@ -72,7 +72,7 @@ def test_init(wrkr):
     ]) 
 def test_p0_clip(dem_fp, wse_fp, aoi_fp, tmp_path, wrkr): 
     wrkr._set_aoi(aoi_fp)
-    wrkr.p0_clip_rasters(wse_fp, dem_fp, out_dir=tmp_path)
+    wrkr.p0_clip_rasters(dem_fp, wse_fp,  out_dir=tmp_path)
     
     
 #===============================================================================
