@@ -14,7 +14,7 @@ xfail = pytest.mark.xfail
 
 #from fdsc.scripts.disag import disag
 #from fdsc.base import nicknames_d
-from fdsc.control import run_downscale
+
 from fdsc.control import Dsc_Session as Session
  
 #from fdsc.bufferLoop import ar_buffer
@@ -157,14 +157,16 @@ def test_schu14(dem_fp, wse_fp, wrkr, backend):
     
 
 
-@pytest.mark.parametrize('dem_fp, wse_fp', [
-    (toy_d['dem1'], toy_d['wse2']),
-    #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['toy_d['wse2']'])
-    ])
-@pytest.mark.parametrize(*par_algoMethodKwargs)
-def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):    
-    run_downscale(dem_fp, wse_fp,  out_dir=tmp_path, run_name='test',logger=logger,
-                  method=method, **kwargs)
+#===============================================================================
+# @pytest.mark.parametrize('dem_fp, wse_fp', [
+#     (toy_d['dem1'], toy_d['wse2']),
+#     #(proj_lib['fred01']['dem1_rlay_fp'], proj_lib['fred01']['toy_d['wse2']'])
+#     ])
+# @pytest.mark.parametrize(*par_algoMethodKwargs)
+# def test_runr(dem_fp, wse_fp, tmp_path, method, kwargs, logger):    
+#     run_downscale(dem_fp, wse_fp,  out_dir=tmp_path, run_name='test',logger=logger,
+#                   method=method, **kwargs)
+#===============================================================================
 
 
 @pytest.mark.dev

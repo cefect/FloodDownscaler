@@ -383,25 +383,27 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
     # PRIVATES--------
     #===========================================================================
  
-def run_downscale(
-        dem1_rlay_fp,
-        wse2_rlay_fp,
-        
-        aoi_fp=None,
-        method='CostGrow',
-        **kwargs):
-    """downscale/disag the wse (s2) raster to match the dem resolution (s1)
-    
-    Parameters
-    ----------
-    method: str
-        downscaling method to apply. see run_dsc
-        
-    aoi_fp: str, Optional
-        filepath to AOI. must be well rounded to the coarse raster
-    """
-    
-    with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-        wse1_dp_fp, meta_d = ses.run_dsc(dem1_rlay_fp, wse2_rlay_fp,  method=method)
-        
-    return wse1_dp_fp, meta_d
+#===============================================================================
+# def run_downscale(
+#         dem1_rlay_fp,
+#         wse2_rlay_fp,
+#         
+#         aoi_fp=None,
+#         method='CostGrow',
+#         **kwargs):
+#     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
+#     
+#     Parameters
+#     ----------
+#     method: str
+#         downscaling method to apply. see run_dsc
+#         
+#     aoi_fp: str, Optional
+#         filepath to AOI. must be well rounded to the coarse raster
+#     """
+#     
+#     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
+#         wse1_dp_fp, meta_d = ses.run_dsc(dem1_rlay_fp, wse2_rlay_fp,  method=method)
+#         
+#     return wse1_dp_fp, meta_d
+#===============================================================================
