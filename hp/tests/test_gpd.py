@@ -12,11 +12,13 @@ from pyproj.crs import CRS
 
 
 
-from hp.gpd import write_rasterize
+from hp.gpd import write_rasterize, rlay_to_gdf
 #===============================================================================
 # test data
 #===============================================================================
-from hp.tests.tools.rasters import get_rlay_fp, get_wse_ar, bbox_default, get_rand_ar, crs_default, get_poly_fp_from_rlay
+from hp.tests.tools.rasters import (
+    get_rlay_fp, bbox_default, get_rand_ar, crs_default, get_poly_fp_from_rlay,
+    )
 
 from hp.tests.data.toy_rasters import wse1_mar
  
@@ -31,3 +33,10 @@ poly_fp = get_poly_fp_from_rlay(wse1_mar_fp)
 @pytest.mark.parametrize('poly_fp, rlay_fp', [(poly_fp, wse1_mar_fp)])
 def test_rasterize(poly_fp, rlay_fp):
     write_rasterize(poly_fp, rlay_fp)
+    
+    
+
+@pytest.mark.dev
+@pytest.mark.parametrize('rlay_fp', [wse1_mar_fp])
+def test_polygonize(rlay_fp):
+    rlay_to_gdf(rlay_fp)

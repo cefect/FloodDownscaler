@@ -7,7 +7,8 @@ Created on Aug. 7, 2022
 
 import pytest, tempfile, datetime, os, copy, math
 import numpy as np
-from hp.rio import RioWrkr, write_array, rio, write_rlay_to_polygon
+import rasterio as rio
+from hp.rio import RioWrkr, write_array, write_resample, rlay_ar_apply
 from rasterio.enums import Resampling
 from pyproj.crs import CRS
 from definitions import src_dir
@@ -15,7 +16,7 @@ from definitions import src_dir
 #===============================================================================
 # test data
 #===============================================================================
-from hp.tests.tools.rasters import get_rlay_fp, get_wse_ar, bbox_default, get_rand_ar
+from hp.tests.tools.rasters import get_rlay_fp, bbox_default, get_rand_ar
 
 crsid = 2953
 output_kwargs = dict(crs=rio.crs.CRS.from_epsg(crsid),
@@ -33,15 +34,17 @@ wse1_mar_fp = get_rlay_fp(wse1_mar, 'wse1_toy_mar', crs=CRS.from_user_input(crsi
 #===============================================================================
 # fixtures------
 #===============================================================================
-@pytest.fixture(scope='function')
-def riowrkr(session, rlay_fp):
-    with RioWrkr(
-        rlay_ref_fp=rlay_fp,
-         # oop.Basic
-         session=session
-        
-        ) as wrkr:
-        yield wrkr
+#===============================================================================
+# @pytest.fixture(scope='function')
+# def riowrkr(session, rlay_fp):
+#     with RioWrkr(
+#         rlay_ref_fp=rlay_fp,
+#          # oop.Basic
+#          session=session
+#         
+#         ) as wrkr:
+#         yield wrkr
+#===============================================================================
  
 
 @pytest.fixture(scope='function')
@@ -51,11 +54,13 @@ def rlay_fp(ar, tmp_path):
 #===============================================================================
 # tests---------
 #===============================================================================
-@pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
-def test_init(riowrkr, ar):    
-    assert isinstance(riowrkr.ref_name, str)
+#===============================================================================
+# @pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
+# def test_init(riowrkr, ar):    
+#     assert isinstance(riowrkr.ref_name, str)
+#===============================================================================
 
-
+@pytest.mark.dev
 @pytest.mark.parametrize('ar, scale', [
         (np.random.random((3, 3)), 3), #downsample
         (np.random.random((3, 3)), 1/3), #upsample
@@ -65,18 +70,22 @@ def test_init(riowrkr, ar):
     ], indirect=False)
 @pytest.mark.parametrize('resampling', [
     Resampling.bilinear, Resampling.nearest])
-def test_resample(riowrkr, resampling, scale, ar, rlay_fp):
+def test_resample(resampling, scale, ar, rlay_fp):
     
-    dataset = riowrkr.resample(resampling=resampling, scale=scale, write=True)
+    res_fp = write_resample(rlay_fp, resampling=resampling, scale=scale)
     
-    ar_res =  dataset.read(1)
-    assert isinstance(ar_res, np.ndarray)
-    assert ar_res.shape==(int(ar.shape[0]*scale), int(ar.shape[1]*scale))
+    #dataset = riowrkr.resample(resampling=resampling, scale=scale, write=True)
+    
+    #check
+    def func(res_ar):
+ 
+        assert isinstance(res_ar, np.ndarray)
+        assert res_ar.shape==(int(ar.shape[0]*scale), int(ar.shape[1]*scale))
+        
+    rlay_ar_apply(res_fp, func)
+    
 
-@pytest.mark.dev
-@pytest.mark.parametrize('rlay_fp', [wse1_mar_fp])
-def test_polygonize(rlay_fp):
-    write_rlay_to_polygon(rlay_fp)
+
 
 
 #===============================================================================

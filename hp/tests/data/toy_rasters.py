@@ -5,7 +5,7 @@ Created on Feb. 4, 2023
 '''
 import numpy as np
 nan, array = np.nan, np.array
-from hp.tests.tools.rasters import get_mar, get_ar_from_str, get_wse_ar
+from hp.tests.tools.rasters import get_mar, get_ar_from_str
  
 
 wse1_mar = get_mar(
