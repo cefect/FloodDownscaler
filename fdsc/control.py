@@ -60,7 +60,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip_rasters', **kwargs) 
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip', **kwargs) 
      
         write_kwargs = RioSession._get_defaults(self, bbox=bbox, crs=crs, as_dict=True)
         bbox = write_kwargs['bbox']
@@ -78,7 +78,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #clip the coarse WSE    
         wse_clip_fp, wse_stats = write_clip(wse_fp, 
                                             fancy_window=dict(round_offsets=True, round_lengths=True),
-                                            ofp=os.path.join(tmp_dir, 'wse2_clip.tif'), 
+                                            ofp=os.path.join(out_dir, 'wse2_clip.tif'), 
                                             **write_kwargs)
         
         #clip the fine DEMI by the WSe extents
@@ -88,7 +88,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
  
             
         dem_clip_fp, dem_stats = write_clip(dem_fp,                                            
-                                            ofp=os.path.join(tmp_dir, 'dem1_clip.tif'), 
+                                            ofp=os.path.join(out_dir, 'dem1_clip.tif'), 
                                             **write_kwargs)
         
         
@@ -205,7 +205,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
-        assert not os.path.exists(ofp)
+        #assert not os.path.exists(ofp), f'output exists\n    {ofp}'
         if debug:
             assert_extent_equal(wse2_fp, dem1_fp)
             assert_type_fp(dem1_fp, 'DEM')
@@ -390,7 +390,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
             #===================================================================
             # write the pick
             #===================================================================
-            assert not os.path.exists(ofp)
+            #assert not os.path.exists(ofp)
             with open(ofp,'wb') as file:
                 pickle.dump(res_lib, file)
             log.debug('\n'+dstr(res_lib))

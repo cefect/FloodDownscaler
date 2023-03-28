@@ -30,7 +30,7 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('gfps',  **kwargs)
         if relative is None: relative=self.relative
         if base_dir is None: base_dir=self.base_dir
-        
+        assert os.path.exists(base_dir)
         #=======================================================================
         # precheck
         #=======================================================================
@@ -56,7 +56,7 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
         #=======================================================================
         for simName, d0 in res_d.items():
             for k, v in d0.items():
-                assert os.path.exists(v), f'{simName}.{k}\n    {v}'
+                assert os.path.exists(v), f'bad file on {simName}.{k}\n    {v}'
                 
         log.debug('\n'+dstr(res_d))
         
@@ -192,6 +192,8 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
         if copy_inputs:
             dem_fp1 = os.path.join(out_dir, os.path.basename(dem_fp))
             copyr(dem_fp, dem_fp1)
+        else:
+            dem_fp1 = dem_fp
             
         #WSE
         log.debug('adding wse')
