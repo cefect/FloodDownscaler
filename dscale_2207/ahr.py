@@ -9,7 +9,7 @@ import os, pickle
 from pyproj.crs import CRS
 from dscale_2207.pipeline import run_downscale, run_eval, run_plot
 
-debug=True
+debug=False
 
 
 proj_base_dir = r'l:\10_IO\2207_dscale\ins\ahr\aoi08'
@@ -52,10 +52,17 @@ for k in ['proj_name','crs']:
             
 
 #precompiled results
-pick_lib = {
-    'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
-    'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
-    }
+if debug:
+    pick_lib = {
+        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
+        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
+        }
+else:
+    pick_lib={
+        'downscale':r'l:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_dscM.pkl',
+        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_gfps.pkl',
+        }
+        
 
 
 #===============================================================================

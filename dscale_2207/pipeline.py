@@ -117,6 +117,7 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
+ 
         #=======================================================================
         # grid plots
         #=======================================================================
@@ -124,12 +125,11 @@ def run_plot(dsc_vali_res_lib,
             fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
                                          dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)
-            
-        
+ 
         #=======================================================================
         # INUNDATION PERFORMANCe
         #======================================================================= 
-        fp_df, metric_lib = ses.collect_inun_data(serx, gridk, raw_coln='raw')
+        fp_df, metric_lib = ses.collect_inun_data(serx, 'wsh', raw_coln='raw')
         res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df, metric_lib=metric_lib, **inun_per_kg)
         
         #=======================================================================

@@ -74,7 +74,7 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
                            copy_inputs=False,  
                            **kwargs):
         """skinny wrapper for test_run_vali_multi using dsc formatted results"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('gfps', ext='.pkl', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rvmd', ext='.pkl', **kwargs)
         #if aoi_fp is None: aoi_fp=self.aoi_fp
         
         #=======================================================================

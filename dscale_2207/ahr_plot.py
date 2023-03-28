@@ -108,12 +108,41 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 from dscale_2207.pipeline import run_plot
 from dscale_2207.ahr import load_pick, init_kwargs, pick_lib
 
+#===============================================================================
+# vars
+#===============================================================================
 init_kwargs['run_name'] = init_kwargs['run_name']+'_plot0328'
 
+ahr_aoi_fp = r'L:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi09t_zoom0308.geojson'
 
+#===============================================================================
+# run
+#===============================================================================
 if __name__=='__main__':
+    #load the eval results pickle
     dsc_vali_res_lib = load_pick(pick_lib['eval'])
+    
+    #update init pars
     ik = {**init_kwargs, **env_kwargs}
-    run_plot(dsc_vali_res_lib, init_kwargs = ik)
+    
+    #run
+    run_plot(dsc_vali_res_lib, init_kwargs = ik,
+             
+             hwm_scat_kg=dict(
+                 fig_mat_kwargs=dict(ncols=3),
+                 ),
+             
+             grids_mat_kg=dict(
+                 aoi_fp=ahr_aoi_fp,
+                 fig_mat_kwargs=dict(ncols=3),
+                 ),
+             )
+    
+    print('finished')
+    
+    
+    
+    
+    
     
     
