@@ -5,12 +5,14 @@ Created on Mar. 27, 2023
 
 running evaluation on downscaling results
 '''
-import os, pickle
+import os, pickle, shutil
+
+import rasterio.shutil
 
 from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
 from hp.hyd import assert_type_fp, get_wsh_rlay
-from hp.rio import write_clip, is_raster_file
+from hp.rio import write_clip, is_raster_file, copyr
 
 from fdsc.base import DscBaseSession, assert_dsc_res_lib
 from fperf.pipeline import ValidateSession
@@ -67,11 +69,15 @@ class Dsc_Eval_Session(DscBaseSession, ValidateSession):
                            vali_kwargs=dict(),
                            write_meta=True,
                            write_pick=True,
+                           copy_inputs=False,  
                            **kwargs):
         """skinny wrapper for test_run_vali_multi using dsc formatted results"""
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('gfps', ext='.pkl', **kwargs)
         #if aoi_fp is None: aoi_fp=self.aoi_fp
         
+        #=======================================================================
+        # PRE------
+        #=======================================================================
         #=======================================================================
         # precheck
         #=======================================================================
@@ -134,39 +140,87 @@ class Dsc_Eval_Session(DscBaseSession, ValidateSession):
         log.debug(f'on \n%s'%dstr(pred_wse_fp_d))
         for k, wse_fp in pred_wse_fp_d.items():
             fnm = os.path.splitext(os.path.basename(wse_fp))[0]
+            odi = os.path.join(out_dir, k)
+            if not os.path.exists(odi):os.makedirs(odi)
             wsh_fp_d[k] = get_wsh_rlay(dem_fp, wse_fp, 
-                             ofp=os.path.join(out_dir, f'{fnm}_WSH.tif'),
+                             ofp=os.path.join(odi, f'{fnm}_WSH.tif'),
                              )
             
         #=======================================================================
-        # compute performance metrics
+        # RUN----------
         #=======================================================================
+ 
         res_lib = self.run_vali_multi(wsh_fp_d, **vali_kwargs,logger=log, out_dir=out_dir,
-                                      write_meta=False,  write_pick=False)
+                                      write_meta=False,  write_pick=False, copy_inputs=copy_inputs)
         
         #=======================================================================
-        # add WSE
+        # POST---------
         #=======================================================================
+        print(dstr(res_lib))
+        
+        
+        
+        #=======================================================================
+        # add WSE and DEMback into results
+        #=======================================================================
+        #=======================================================================
+        # odi=os.path.join(out_dir, 'inputs')
+        # if not os.path.exists(odi):os.makedirs(odi)
+        #=======================================================================
+ 
+        def c(fp, odi): 
+            """copy helper
+            run_vali_multi copies inputs over to out_dir/methodName
+            adds this to res_lib under level1 (see above)
+            """
+            if copy_inputs:
+                """nice to add WSE if this isn't included"""
+                fname = os.path.splitext(os.path.basename(fp))[0]
+                if not 'WSE' in fname:                    
+                    ofp = os.path.join(odi, f'{fname}_WSE.tif')
+                else:
+                    ofp = os.path.join(odi,os.path.basename(fp))
+ 
+                 
+                return copyr(fp, ofp)
+            else:
+                return fp
+            
+        #DEM
+        if copy_inputs:
+            dem_fp1 = os.path.join(out_dir, os.path.basename(dem_fp))
+            copyr(dem_fp, dem_fp1)
+            
+        #WSE
         log.debug('adding wse')
         for k0, v0 in res_lib.items(): #simName
             for k1, v1 in v0.items():#validation type
                 if  k1=='raw':
-                    v1['fp']['wse'] = pred_wse_fp_d[k0] #note htese aren't clipped
+                    #print(dstr(v1['fp'])) 
+ 
+                    v1['fp']['wse'] = c(pred_wse_fp_d[k0], os.path.dirname(list(v1['fp'].values())[0])) #note htese aren't clipped
+                    v1['fp']['dem'] = dem_fp1
                     #print(v1['fp'].keys())
                     
+        
+        
+        for k0, v0 in res_lib.items():
+            log.debug(f'{k0}\n'+dstr(v0['raw']['fp']))
+ 
         #=======================================================================
         # add relative paths
         #=======================================================================
-        log.debug('adding relative paths')
+
+                
+        log.debug(f'adding relative paths w/ relative={self.relative}, base_dir={self.base_dir}')
         for k0, v0 in res_lib.copy().items(): #simName
             for k1, v1 in v0.items():#validation type
                 if 'fp' in v1: 
-                    #should over-write
-                       
+                    #should over-write                       
                     v1['fp_rel'] =  {k:self._relpath(fp) for k, fp in v1['fp'].items()}
                                    
  
-        print(dstr(res_lib))
+        #print(dstr(res_lib))
         #=======================================================================
         # write meta and pick
         #=======================================================================

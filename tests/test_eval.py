@@ -84,7 +84,7 @@ def test_run_dsc_vali_multi(pick_fp, hwm_pts_fp, inun_fp, aoi_fp, ses):
         fp_lib = pickle.load(f)  
     
     ses.run_vali_multi_dsc(fp_lib, 
-                           
+                           copy_inputs=True,
                            vali_kwargs=dict(hwm_pts_fp=hwm_pts_fp, inun_fp=inun_fp, aoi_fp=aoi_fp)
                            )
     
