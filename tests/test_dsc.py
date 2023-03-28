@@ -61,7 +61,7 @@ def wrkr(init_kwargs, crs= crs_default):
 #===============================================================================
 @pytest.mark.dev
 def test_init(wrkr):
-    raise IOError('test')
+     
     pass
     
 
