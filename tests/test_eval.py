@@ -57,10 +57,7 @@ def ses(init_kwargs):
 def test_init(ses):
     pass
 
-
-
-
-
+ 
 @pytest.mark.parametrize(*dsc_pick_pars)                         
 def test_get_fps_from_dsc_lib(pick_fp_rel, ses):
     dsc_res_lib, base_dir = _get_rel_fps(pick_fp_rel)    
