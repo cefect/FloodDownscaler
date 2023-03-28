@@ -11,16 +11,26 @@ dependencies:
   - matplotlib=3.6.*
   - geopandas=0.12.*
   - openpyxl
-  - numba=0.56.*
-  - cudatoolkit
-  - colorama
-  - pyyaml
+  #- numba=0.56.*
+  #- cudatoolkit
+  #- colorama
+  #- pyyaml
   #- xarray=2022.12.*
   #- dask
-  - numbagg
+  #- numbagg
   #- rioxarray=0.13.*
   - xlsxwriter=3.0.*
   - georasters=0.5.*
-  - earthpy=0.9.*
+ 
+  - pip
+  - pip:
+    - earthpy==0.9.*
+    - palettable==3.3.*
+    - matplotlib-scalebar==0.8.*
 
-  
+variables:
+  #tell geopandas to use pygeos (instead of shapely) 
+  USE_PYGEOS: 1
+  #remove any GDAL data
+  PROJ_LIB: 
+  GDAL_DATA:

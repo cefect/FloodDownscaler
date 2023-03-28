@@ -9,7 +9,7 @@ tests for whitebox
 
 import pytest, copy, os
 
-from fdsc.scripts.wbt import WBT_worker
+from fdsc.wbt import WBT_worker
 
 #===============================================================================
 # tests-------
