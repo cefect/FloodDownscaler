@@ -1,7 +1,7 @@
 '''pytest oop module
 '''
 
-import pytest, tempfile, datetime, os, copy, logging
+import pytest, tempfile, datetime, os, copy, logging, pickle
 
 from hp.oop import Basic, Session
 
@@ -25,6 +25,12 @@ def logger(request):
         return logger
     else:
         return None
+    
+@pytest.fixture(scope='function')
+def ses(init_kwargs):
+    with Session(**init_kwargs) as wrkr:
+        yield wrkr
+
 
 #===============================================================================
 # tests------
@@ -58,7 +64,7 @@ def test_basic(
     assert d['out_dir']==out_dir
     
 
-@pytest.mark.dev
+ 
 @pytest.mark.parametrize('out_dir, tmp_dir, wrk_dir',[
     #[None,None, None], 
     [temp_dir, os.path.join(temp_dir, 'tmp'), temp_dir]])
@@ -125,6 +131,16 @@ def test_inherit(
         d = o._get_init_pars()
     
         assert isinstance(d, dict)
+        
+
+@pytest.mark.dev
+@pytest.mark.parametrize('meta_lib_fp', 
+     [r'l:\09_REPOS\03_TOOLS\FloodDownscaler\coms\hp\tests\data\oop\run_dsc_multi_meta_lib_20230327.pkl'], 
+     )  
+def test_write_meta(meta_lib_fp, ses):
+    with open(meta_lib_fp, 'rb') as file:
+        meta_lib = pickle.load(file)
+    ses._write_meta(meta_lib)
  
         
         

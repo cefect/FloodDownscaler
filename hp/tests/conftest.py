@@ -50,6 +50,7 @@ def init_kwargs(tmp_path,logger, test_name):
     return dict(
         out_dir=tmp_path, 
         tmp_dir=os.path.join(tmp_path, 'tmp_dir'),
+        base_dir=tmp_path,
         #prec=prec,
         proj_name='test', #probably a better way to propagate through this key 
         run_name=test_name[:8].replace('_',''),

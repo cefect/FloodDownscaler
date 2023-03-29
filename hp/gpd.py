@@ -142,6 +142,7 @@ def set_mask(gser_raw, drop_mask):
     return gser
 
 def rlay_to_gdf(rlay_fp, convert_to_binary=True):
+    """make polygons out of a raster. i.e., polygonize"""
     
     #get geometry collection
     geo_d = rlay_to_polygons(rlay_fp, convert_to_binary=convert_to_binary)

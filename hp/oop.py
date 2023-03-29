@@ -55,7 +55,8 @@ import os, sys, datetime, gc, copy, pickle, pprint, logging
 import logging.config
 #from qgis.core import QgsMapLayer
 from hp.dirz import delete_dir
-from hp.basic import today_str
+from hp.basic import today_str, dstr
+from hp.pd import nested_dict_to_dx, view
  
 from definitions import src_name
  
@@ -77,6 +78,7 @@ class Basic(object): #simple base class
                  out_dir        = None,
                  tmp_dir       = None,
                  wrk_dir       = None,
+                 base_dir       = None,
                  
                  #names/labels
                  proj_name      = None,  
@@ -197,6 +199,7 @@ class Basic(object): #simple base class
         attach(wrk_dir,    'wrk_dir', directory=True)
         attach(out_dir,    'out_dir', directory=True, subdir=subdir)
         attach(tmp_dir,    'tmp_dir', directory=True, subdir=subdir)
+        attach(base_dir,    'base_dir', directory=True)
  
         if obj_name is None:
             obj_name = self.__class__.__name__
@@ -259,7 +262,6 @@ class Basic(object): #simple base class
         if logger is None:
             logger = self.logger
         log = logger.getChild(dkey)
- 
         
         #=======================================================================
         # #temporary directory
@@ -284,22 +286,18 @@ class Basic(object): #simple base class
         #=======================================================================
         # ofp
         #=======================================================================
- 
         
         if resname is None:
             resname = self._get_resname(dkey=dkey)
          
         if ofp is None:
             ofp = self._get_ofp(dkey=dkey, out_dir=out_dir, resname=resname, ext=ext) 
-            
  
         #=======================================================================
         # if os.path.exists(ofp):
         #     log.warning('ofp exists... overwriting')
         #     os.remove(ofp)
         #=======================================================================
- 
- 
             
         return log, tmp_dir, out_dir, ofp, resname 
     
@@ -477,10 +475,14 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
     #useful for buildling a Basic object w/o the session (mostly testing)
     """TODO: integrate with init"""
     default_kwargs = dict(overwrite=True,prec=2,relative=False,write=True, 
-                          proj_name=src_name, fancy_name='fancy_name', run_name='r1', obj_name='Session',
+                          proj_name=src_name, 
+                          fancy_name='fancy_name', 
+                          run_name='r1', 
+                          obj_name='Session',
                           wrk_dir = os.path.expanduser('~'),
                           out_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'outs'),
-                          tmp_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'tmp')
+                          tmp_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'tmp'),
+                          base_dir=os.path.join(os.path.expanduser('~'), 'py', 'oop', 'outs'), 
                           ) 
     
     def __init__(self, 
@@ -488,7 +490,7 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
                  proj_name = None, fancy_name=None, run_name='r1', obj_name='Session',
                  
                  #Session directories
-                 out_dir = None,wrk_dir=None,tmp_dir=None, 
+                 out_dir = None,wrk_dir=None,tmp_dir=None,  base_dir=None,
  
                 **kwargs):
         """
@@ -504,6 +506,8 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
             Directory used for outputs. Defaults to a sub-directory of wrk_dir            
         tmp_dir: str, optional
             Directory for temporary outputs (i.e., cache). Defaults to a sub-directory of out_dir.
+        base_dir: str, optional
+            for relative=True, this is the base path
  
         """
 
@@ -524,12 +528,20 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
             fancy_name = '%s_%s_%s'%(proj_name, run_name,  datetime.datetime.now().strftime('%m%d'))
         kwargs['fancy_name']=fancy_name
  
+        #work directory
         if wrk_dir is None:
             from definitions import wrk_dir
         kwargs['wrk_dir']=wrk_dir
+        
+        #base directory
+        if base_dir is None:
+            base_dir = os.path.join(wrk_dir, 'outs', proj_name, run_name, today_str)
+        if not os.path.exists(base_dir):os.makedirs(base_dir)
+        kwargs['base_dir']=base_dir
             
+        #output directory
         if out_dir is None:
-            out_dir = os.path.join(wrk_dir, 'outs', proj_name, run_name, today_str)
+            out_dir = base_dir
         kwargs['out_dir']=out_dir
         
         if tmp_dir is None:
@@ -544,6 +556,9 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
             print('failed to init tmp_dir w/ \n    %s'%e)
             
         kwargs['tmp_dir']=tmp_dir
+        
+
+        
  
         #=======================================================================
         # init cascade
@@ -553,5 +568,102 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         
         self.logger.debug('finished Session.__init__')
         
+    #===========================================================================
+    # def _write_meta(self, meta_lib, **kwargs):
+    #     """write a dict of dicts to a spreadsheet"""
+    #     log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
+    #     
+    #     #write dict of dicts to frame
+    #     with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:
+    #         for tabnm, d in meta_lib.items():
+    #             pd.Series(d).to_frame().to_excel(writer, sheet_name=tabnm, index=True, header=True)
+    #     
+    #     log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+    #     
+    #     return ofp
+    #===========================================================================
+    
+    def _write_meta(self, meta_lib, **kwargs):
+        """write a dict of dicts to a spreadsheet
+        
+        handles any number of nests
+            not sure how flexible this is... after 2 levels I think it just dumps to a string
+        
+        
+        
+        """
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('meta', subdir=False,ext='.xls',  **kwargs)
+        from hp.pd import nested_dict_to_dx
+        
+        #convert to simple {tabn:dataframe}\
+        res_d = dict()
+        for k0, d0 in meta_lib.items():
+            #print(dstr(d0))
+            res_d[k0] = dict_to_df(d0)
+            """
+            view(dict_to_df(d0))
+            """
+ 
+        
+        
+        #write dict of dicts to frame
+        with pd.ExcelWriter(ofp, engine='xlsxwriter') as writer:
+            for tabnm, dx in res_d.items():                
+                dx.to_excel(writer, sheet_name=tabnm, index=True, header=True)
+        
+        log.info(f'wrote meta (w/ {len(meta_lib)}) to \n    {ofp}')
+        
+        return ofp
+    
+    def _write_pick(self, data, **kwargs):
+        """dump data to a pickle"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('w', subdir=False,ext='.pkl',  **kwargs)
+        
+        with open(ofp, 'wb') as handle:
+            pickle.dump(data, handle)
+            
+        log.info(f'wrote {type(data)} to \n    {ofp}')
+        return ofp
+    
+    def _relpath(self, fp):
+        """intelligently convert a filepath to relative"""
+        if self.relative:
+            assert os.path.exists(self.base_dir)
+            assert os.path.exists(fp), fp
+            try:
+                return os.path.relpath(fp, self.base_dir)
+            except Exception as e:
+                """only works if the root directories are the same"""
+                raise IOError(f'failed to get relpath on\n    {fp}\n    {self.base_dir}\n{e}')
+        else:
+            return fp
 
+def dict_to_df(d):
+    """compress an arbitrarily nested dictionary to a multindex frame"""
+    
+    
+    try:
+        return pd.DataFrame.from_dict(d, orient='index').stack()
+    except:
+        res_d = dict()    
+        for k0, v0 in d.items():
+            if isinstance(v0, dict):
+                res_d[k0] = dict_to_df(v0)
+            else:
+                res_d[k0] = pd.Series({k0:str(v0)})
+            
+        return pd.concat(res_d)
+            
+ 
+        
+            
+    
+    #===========================================================================
+    # df = pd.DataFrame.from_dict(d1, orient='index')
+    # df.index = pd.MultiIndex.from_tuples(df.index)
+    # return df
+    #===========================================================================
+
+ 
     

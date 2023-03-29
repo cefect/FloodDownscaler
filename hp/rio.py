@@ -3,7 +3,7 @@ Created on Aug. 7, 2022
 
 @author: cefect
 '''
-import os, warnings, tempfile
+import os, warnings, tempfile, shutil
 import numpy as np
  
 import numpy.ma as ma
@@ -30,7 +30,7 @@ import scipy.ndimage
 
 #import hp.gdal
 from hp.oop import Basic
-from hp.basic import get_dict_str
+from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
 #from hp.plot import plot_rast #for debugging
 #import matplotlib.pyplot as plt
@@ -190,29 +190,7 @@ class RioWrkr(Basic):
  
         return write_array2(raw_ar, ofp, **prof_d)       
     
- #==============================================================================
- #    def _get_profile(self, **kwargs):
- # 
- #        
- #        def get_aval(attName):
- #            if attName in kwargs:
- #                attVal=kwargs[attName]
- #            else:
- #                attVal = None
- #                
- #            if attVal is None:
- #                attVal = getattr(self, attName)
- #                
- #            return attVal
- #            
- #        args=list()
- #        for attName in ['crs', 'height', 'width', 'transform', 'nodata']:
- #            args.append(get_aval(attName))
- #        
- #        #self.ref_vals_d.keys()
- #        
- #        return args #crs, height, width, transform, nodata
- #==============================================================================
+ 
     
 class SpatialBBOXWrkr(Basic):
     aoi_fp=None
@@ -225,7 +203,7 @@ class SpatialBBOXWrkr(Basic):
                  crs=None, bbox=None, aoi_fp=None,
                  
                  #defaults
-                 
+                 init_pars=None,
                  
                  **kwargs):
         
@@ -241,27 +219,42 @@ class SpatialBBOXWrkr(Basic):
         crs: <class 'pyproj.crs.crs.CRS'>
             coordinate reference system
         """
-        super().__init__(**kwargs)
+        if init_pars is None: init_pars=list()
         
         #=======================================================================
         # set aoi
         #=======================================================================
-        if not aoi_fp is None:            
-            assert crs is None
+        if not aoi_fp is None:
+                        
             assert bbox is None
             self._set_aoi(aoi_fp)
+            init_pars.append('aoi_fp')
             
-
+            if not crs is None:
+                assert crs==self.crs
+ 
         else:
             self.crs=crs
             self.bbox = bbox
             
+        
+            
         #check
         if not self.crs is None:
             assert isinstance(self.crs, CRS)
+            init_pars.append('crs')
             
         if not self.bbox is None:
             assert isinstance(self.bbox, Polygon)
+            init_pars.append('bbox')
+        
+        
+        super().__init__(init_pars=init_pars, **kwargs)
+        
+        if not aoi_fp is None:
+            self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
+        
+
  
         
         
@@ -275,7 +268,7 @@ class SpatialBBOXWrkr(Basic):
         self.crs=crs
         self.bbox = bbox
         
-        self.logger.info('set crs: %s'%crs.to_epsg())
+        
         self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
@@ -311,6 +304,7 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
  
 def write_array2(ar, ofp, 
                  count=1, width=None, height=None, nodata=-9999, dtype=None,
+                 transform=None, bbox=None,
                  **kwargs):
  
     """skinny writer"""
@@ -328,13 +322,25 @@ def write_array2(ar, ofp,
         
     if dtype is None:
         dtype=ar.dtype
+        
+        
+    #===========================================================================
+    # bounded
+    #===========================================================================
+    if transform is None and bbox is not None:
+        """otherwise result is mirrored about x=0?"""
+        height, width  = ar.shape
+        transform=rio.transform.from_bounds(*bbox.bounds,width, height)
     
     #===========================================================================
     # write
     #===========================================================================
-    with rio.open(ofp, 'w', 
-                  count=count, width=width, height=height,nodata=nodata, dtype=dtype,
-                  **kwargs) as ds:
+    open_kwargs = {**dict(count=count, width=width, height=height,nodata=nodata, 
+                       dtype=dtype,transform=transform, bbox=bbox), **kwargs}
+    
+    #print(dstr(open_kwargs))
+    
+    with rio.open(ofp, 'w',**open_kwargs) as ds:
         ds.write(ar, indexes=1, masked=False)
     return ofp
             
@@ -562,12 +568,16 @@ def rlay_ar_apply(rlay, func, masked=True, **kwargs):
 
 
 def get_window(ds, bbox,
+               buffer_bbox=False,
                 round_offsets=False,
                  round_lengths=False,
                  ):
     """get a well rounded window from a bbox"""
-    #buffer 1 pixel  
-    bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
+    #buffer 1 pixel 
+    if buffer_bbox: 
+        bbox1 = sgeo.box(*bbox.buffer(ds.res[0], cap_style=3, resolution=1).bounds)
+    else:
+        bbox1 =bbox
     
     #build a window and round                   
     window = rasterio.windows.from_bounds(*bbox1.bounds, transform=ds.transform)
@@ -691,66 +701,61 @@ def get_xy_coords(transform, shape):
     
     return x_ar, y_ar
 
-#===============================================================================
-# def get_depth(dem_fp, wse_fp, out_dir = None, ofp=None):
-#     """add dem and wse to get a depth grid"""
-#     
-#     assert_spatial_equal(dem_fp, wse_fp)
-#     
-#     if ofp is None:
-#         if out_dir is None:
-#             out_dir = tempfile.gettempdir()
-#         if not os.path.exists(out_dir):os.makedirs(out_dir)
-#         
-#         fname = os.path.splitext( os.path.basename(wse_fp))[0] + '_wsh.tif'
-#         ofp = os.path.join(out_dir,fname)
-#     
-#     #===========================================================================
-#     # load
-#     #===========================================================================
-#     dem_ar = load_array(dem_fp, masked=True)    
-#     wse_ar = load_array(wse_fp, masked=True)
-#     
-#     #logic checks
-#     assert not dem_ar.mask.any(), f'got {dem_ar.mask.sum()} masked values in dem array \n    {dem_fp}'
-#     assert wse_ar.mask.any()
-#     assert not wse_ar.mask.all()
-#     
-#     #===========================================================================
-#     # calc
-#     #===========================================================================
-#     #simple subtraction
-#     wd1_ar = wse_ar - dem_ar
-#     
-#     #identify dry
-#     dry_bx = np.logical_or(
-#         wse_ar.mask, wse_ar.data<dem_ar.data
-#         )
-#     
-#     assert not dry_bx.all().all()
-#     
-#     #rebuild
-#     wd2_ar = np.where(~dry_bx, wd1_ar.data, 0.0)
-#     
-#     
-#     #check we have no positive depths on the wse mask
-#     assert not np.logical_and(wse_ar.mask, wd2_ar>0.0).any()
-#     
-#     #===========================================================================
-#     # write
-#     #===========================================================================
-#     
-#     #convert to masked
-#     wd2M_ar = ma.array(wd2_ar, mask=np.isnan(wd2_ar), fill_value=wse_ar.fill_value)
-#     
-#     assert not wd2M_ar.mask.any(), 'depth grids should have no mask'
-#     
-#     return write_array(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
-#===============================================================================
+def get_bbox(rlay_obj):
+    bounds = get_ds_attr(rlay_obj, 'bounds')
+    return sgeo.box(*bounds)
+ 
+    
+def rlay_to_polygons(rlay_fp, convert_to_binary=True,
+                          ):
+    """
+    get shapely polygons for each clump in a raster
+    
+    see also hp.hyd.write_inun_poly
+    
+    Parameters
+    -----------
+    convert_to_binary: bool, True
+        True: polygon around mask values (e.g., inundation)
+        False: polygon around data values
+        
+    """
+    
+    #===========================================================================
+    # collect polygons
+    #===========================================================================
+    with rio.open(rlay_fp, mode='r') as src:
+        mar = src.read(1, masked=True)
+        
+        if convert_to_binary:
+            source = np.where(mar.mask, int(mar.fill_value),1)
+        else:
+            source = mar
+        #mask = image != src.nodata
+        d=dict()
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
+                                                  connectivity=8):
+            
+            d[val] = sgeo.shape(geom)
+            
+        #print(f'finished w/ {len(d)} polygon')
+        
+ 
+        
+    return d
     
 #===============================================================================
 # Building New Rasters--------
 #===============================================================================
+def copyr(fp, ofp):
+    if ofp==fp:
+        ofp=fp
+    elif is_raster_file(fp):                    
+        rasterio.shutil.copy(fp, ofp)
+    else:
+        shutil.copy(fp, ofp)
+    return ofp
+    
 def write_resample(rlay_fp,
                  resampling=Resampling.nearest,
                  scale=1.0,
@@ -796,7 +801,10 @@ def write_resample(rlay_fp,
             
             """
             dataset.read(1, masked=False)
+            dataset.read(1, masked=True)
             """
+            assert not np.any(np.isnan(dataset.read(1, masked=False))), \
+                'found masked nulls... resampling wont handle this?'
          
             out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
  
@@ -886,18 +894,19 @@ def write_resample(rlay_fp,
 
             return write_array2(res_mar,ofp, **prof_rsmp)
 
-            
-
 
 def write_clip(raw_fp, 
                 window=None,
                 bbox=None,
-                 
+                
                 masked=True,
-                 crs=None, 
- 
-                 ofp=None,
-                 **kwargs):
+                crs=None,
+                
+                fancy_window=None,
+                
+                ofp=None,
+                
+                **kwargs):
     """write a new raster from a window"""
 
     
@@ -905,13 +914,19 @@ def write_clip(raw_fp,
         
         #crs check/load
         if not crs is None:
-            assert crs==ds.crs
+            assert crs==ds.crs, f'mismatch crs={crs} and \n    {os.path.basename(raw_fp)}'
         else:
             crs = ds.crs
         
         #window default
         if window is None:
-            window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+            """make the user pass window explicitly if they want rounding
+            window, _ = get_window(ds, bbox, round_offsets=round_offsets, round_lengths=round_lengths)
+            """
+            if fancy_window is None:
+                window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
+            else:
+                window, _ = get_window(ds, bbox, **fancy_window)
  
         else: 
             assert bbox is None
@@ -921,11 +936,19 @@ def write_clip(raw_fp,
         
         #get stats
         stats_d = get_stats(ds)
-        stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
+        #stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
             
         #load the windowed data
         ar = ds.read(1, window=window, masked=masked)
         
+        """
+        print(get_meta(ds))
+        ds.read(1)
+        """
+        
+        for e in ar.shape:
+            assert e>0, window
+ 
         #=======================================================================
         # #write clipped data
         #=======================================================================
@@ -936,8 +959,9 @@ def write_clip(raw_fp,
         write_kwargs = get_write_kwargs(ds)
         write_kwargs1 = {**write_kwargs, **dict(transform=transform), **kwargs}
         
-        ofp = write_array(ar, ofp,  masked=False,   **write_kwargs1)
+        ofp = write_array2(ar, ofp,  masked=False,   **write_kwargs1)
         
+    stats_d['bounds'] = get_ds_attr(ofp, 'bounds')
     return ofp, stats_d
 
 
@@ -1083,40 +1107,7 @@ def write_mosaic(fp1, fp2, ofp=None):
     return ofp, stats_d
 
 
-def rlay_to_polygons(rlay_fp, convert_to_binary=True,
-                          ):
-    """
-    get shapely polygons for each clump in a raster
-    
-    Parameters
-    -----------
-    convert_to_binary: bool, True
-        polygonize the mask (rather than groups of data values)
-        
-    """
-    
-    #===========================================================================
-    # collect polygons
-    #===========================================================================
-    with rio.open(rlay_fp, mode='r') as src:
-        mar = src.read(1, masked=True)
-        
-        if convert_to_binary:
-            source = np.where(mar.mask, int(mar.fill_value),1)
-        else:
-            source = mar
-        #mask = image != src.nodata
-        d=dict()
-        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
-                                                  connectivity=8):
-            
-            d[val] = sgeo.shape(geom)
-            
-        #print(f'finished w/ {len(d)} polygon')
-        
- 
-        
-    return d
+
 
 #===============================================================================
 # PLOTS----------
@@ -1161,7 +1152,7 @@ def is_divisible(rlay, divisor):
 def is_raster_file(filepath):
     """probably some more sophisticated way to do this... but I always use tifs"""
     _, ext = os.path.splitext(filepath)
-    return ext in ['.tif']
+    return ext in ['.tif', '.asc']
 
 
 #===============================================================================
@@ -1241,7 +1232,6 @@ def assert_spatial_equal(left, right,  msg='',):
     """check all spatial attributes match"""
     if not __debug__: # true if Python was not started with an -O option
         return 
-
     __tracebackhide__ = True     
     
  
@@ -1287,22 +1277,4 @@ def assert_ds_attribute_match(rlay,
  
 
  
-def assert_masked_ar(ar, msg=''):
-    """check the array satisfies expectations for a masked array
-    
-    NOTE: to call this on a raster filepath, wrap with rlay_ar_apply:
-        rlay_ar_apply(wse1_dp_fp, assert_wse_ar, msg='result WSe')
-    """
-    if not __debug__: # true if Python was not started with an -O option
-        return
-    
-    if not isinstance(ar, ma.MaskedArray):
-        raise AssertionError(msg+'\n     bad type ' + str(type(ar)))
-    if not 'float' in ar.dtype.name:
-        raise AssertionError(msg+'\n     bad dtype ' + ar.dtype.name)
-    
-    #check there are no nulls on the data
-    if np.any(np.isnan(ar.filled())):
-        raise AssertionError(msg+f'\n    got {np.isnan(ar.data).sum()}/{ar.size} nulls outside of mask')
-        
- 
+

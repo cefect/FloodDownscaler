@@ -47,9 +47,11 @@ rlay_small_fp = get_rlay_fp(get_mar(np.random.random((int(1e2), int(1e2)))), 'rl
 #===============================================================================
 # tests--------
 #===============================================================================
-from hp.gpd import raster_to_points as gpd_func
+from hp.rio_to_points import raster_to_points_simple as gpd_func
 
-@pytest.mark.parametrize('fp', [rlay_small_fp, rlay_big_fp], indirect=False)
+@pytest.mark.parametrize('fp', [rlay_small_fp, 
+                                #rlay_big_fp #12secs
+                                ], indirect=False)
 @pytest.mark.parametrize('drop_mask', [False], indirect=False)
 @pytest.mark.parametrize('max_workers', [1, 4, None], indirect=False)
 def test_gpd(fp, drop_mask, max_workers):
@@ -62,21 +64,14 @@ from hp.gr import pixels_to_points as gr_func
 
 
 @pytest.mark.dev
-@pytest.mark.parametrize('fp', [rlay_small_fp, rlay_big_fp], indirect=False)
+@pytest.mark.parametrize('fp', [rlay_small_fp,
+                                 #rlay_big_fp #65 secs
+                                 ], indirect=False)
 def test_georasters(fp):
     gr_func(fp)
     
     
-from hp.rio_to_points import raster_to_points as rio_func 
-
-
-@pytest.mark.parametrize('fp', [rlay_small_fp, rlay_big_fp], indirect=False)
-@pytest.mark.parametrize('drop_mask', [False], indirect=False)
-@pytest.mark.parametrize('max_workers', [1, 4, None], indirect=False)
-def test_rio(fp, drop_mask, max_workers):
-    result = rio_func(fp, drop_mask=drop_mask, max_workers=max_workers)
-    
-    assert isinstance(result, gpd.GeoSeries)
+ 
  
     
 
