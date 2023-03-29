@@ -724,6 +724,7 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
     #===========================================================================
     # collect polygons
     #===========================================================================
+    print(f'with convert_to_binary={convert_to_binary} on \n    {rlay_fp}')
     with rio.open(rlay_fp, mode='r') as src:
         mar = src.read(1, masked=True)
         
@@ -733,7 +734,8 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
             source = mar
         #mask = image != src.nodata
         d=dict()
-        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask,
+                                                  transform=src.transform,
                                                   connectivity=8):
             
             d[val] = sgeo.shape(geom)
