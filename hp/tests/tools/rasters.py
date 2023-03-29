@@ -21,9 +21,9 @@ from hp.tests.conftest import temp_dir
 nan, array = np.nan, np.array
 
 #spatial defaults
-from definitions import epsg,bounds 
+from definitions import epsg,bbox 
 crs_default = CRS.from_user_input(epsg)
-bbox_default = sgeo.box(*bounds)
+bbox_default = sgeo.box(*bbox)
 
 
 def get_rlay_fp(ar, layName, 
