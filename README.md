@@ -52,4 +52,9 @@ bbox= (0, 0, 100, 100)
 #specify the latex install directory
 os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
 ```
+## Tests
+see `./hp/tests`
+
+because coms serves lots of different environments, not really a way to test everything here.
+test in your local deployment (only the relevant scripts)
     
