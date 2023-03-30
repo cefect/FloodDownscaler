@@ -1,7 +1,7 @@
 # coms
 common scripts shared across project
 
-using this as a subomdule now
+
 
 ## Use
 make a branch or a tag of coms for your new project
