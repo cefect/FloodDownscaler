@@ -7,6 +7,7 @@ import subprocess
 
 def sub_cmd(cmd, **kwargs):
     """execute a command as a subprocess"""
+    print(f'with cmd={cmd}')
     err_str = ''
     with subprocess.Popen(cmd,
                           stdout=subprocess.PIPE,
