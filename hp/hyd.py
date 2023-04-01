@@ -172,7 +172,96 @@ def get_inun_ar(ar_raw, dkey):
         
     assert_inun_ar(ar, msg=dkey)
     
-    return ar 
+    return ar
+
+#===============================================================================
+# RASTER-POLY conversions -----------
+#===============================================================================
+
+def rlay_to_poly(rlay_fp, dkey,                    
+                    window=None,
+                    ):
+    """build an inundation polygon from the rlay
+    
+    
+    Pars
+    ---------
+    rlay_fp: str
+        flood like grid
+            WSH: 
+    
+    see also hp.rio.rlay_to_polygons
+    """
+    assert is_raster_file(rlay_fp)
+    assert_type_fp(rlay_fp, dkey)
+    
+    #===========================================================================
+    # collect polygons
+    #===========================================================================
+    
+    with rio.open(rlay_fp, mode='r') as dataset:
+        #load the array by type
+        ar_raw = _get_hyd_ar(dataset, dkey, window=window)
+        
+        #convert to mask (wet=True)
+        ar_bool = get_inun_ar(ar_raw, dkey)
+ 
+        #convert to binary for rio (1=wet)
+        ar_binary = np.where(ar_bool, 1, 0)
+ 
+        #mask = image != src.nodata
+        geo_d=dict()
+        for geom, val in rasterio.features.shapes(ar_binary, mask=~ar_bool, 
+                                                  transform=dataset.transform,
+                                                  connectivity=8):
+            
+            geo_d[val] = sgeo.shape(geom)
+    
+    assert len(geo_d)==1
+    assert val==0
+    
+    return geo_d[val]
+
+def polyVlay_to_ar(poly_fp,
+                       rlay_ref=None,
+                       out_shape=None,
+                       transform=None,
+                       ofp=None, out_dir=None,
+                            **kwargs):
+    """convert an inundation polygon to a boolean inundation raster
+    """
+    assert_type_fp(poly_fp, 'INUN_POLY')
+    
+
+    
+ 
+    
+    #===========================================================================
+    # load poolygon
+    #===========================================================================
+    gdf = gpd.read_file(poly_fp)
+    
+    #===========================================================================
+    # get ref values
+    #===========================================================================
+    if out_shape is None or transform is None:
+        with rasterio.open(rlay_ref, 'r') as src:
+            out_shape = src.shape
+            transform=src.transform
+    
+    
+ 
+    
+    #===========================================================================
+    # # Generate a mask from the geojson geometry
+    #===========================================================================
+    mask_ar = rasterio.features.geometry_mask(gdf.geometry, 
+                                   out_shape=src.shape, transform=src.transform, 
+                                   invert=True)
+    
+    assert_inun_ar(mask_ar)
+    
+    return mask_ar
 
 #===============================================================================
 # WRITERS-----------
@@ -238,54 +327,19 @@ def write_wsh_clean(fp,
     return write_array2(mar1, ofp, **get_profile(fp))
     
 
-def rlay_to_inun_poly(rlay_fp, dkey,                    
-                    window=None,
-                    ):
-    """build and write an inundation polygon from the rlay
-    
-    
-    Pars
-    ---------
-    rlay_fp: str
-        flood like grid
-            WSH: 
-    
-    see also hp.rio.rlay_to_polygons
-    """
-    assert is_raster_file(rlay_fp)
-    assert_type_fp(rlay_fp, dkey)
-    
-    #===========================================================================
-    # collect polygons
-    #===========================================================================
-    
-    with rio.open(rlay_fp, mode='r') as dataset:
-        #load the array by type
-        ar_raw = _get_hyd_ar(dataset, dkey, window=window)
-        
-        #convert to mask (wet=True)
-        ar_bool = get_inun_ar(ar_raw, dkey)
- 
-        #convert to binary for rio (1=wet)
-        ar_binary = np.where(ar_bool, 1, 0)
- 
-        #mask = image != src.nodata
-        geo_d=dict()
-        for geom, val in rasterio.features.shapes(ar_binary, mask=~ar_bool, 
-                                                  transform=dataset.transform,
-                                                  connectivity=8):
-            
-            geo_d[val] = sgeo.shape(geom)
-    
-    assert len(geo_d)==1
-    assert val==0
-    
-    return geo_d[val]
 
-def write_rlay_to_inun_poly(rlay_fp, dkey,
+
+def write_rlay_to_poly(rlay_fp, 
+                            dkey='WSE',
                             crs=None,
                             ofp=None, out_dir=None,
                             **kwargs):
+    """
+    
+    Parame4ters
+    --------
+    dkey: str
+    """
     #===========================================================================
     # defaults
     #===========================================================================
@@ -300,7 +354,7 @@ def write_rlay_to_inun_poly(rlay_fp, dkey,
     #===========================================================================
     # build the polygon
     #===========================================================================
-    poly = rlay_to_inun_poly(rlay_fp, dkey, **kwargs)
+    poly = rlay_to_poly(rlay_fp, dkey, **kwargs)
     
     assert isinstance(poly, sgeo.polygon.Polygon)
     
@@ -311,6 +365,40 @@ def write_rlay_to_inun_poly(rlay_fp, dkey,
     gdf.to_file(ofp)
         
     return ofp
+
+
+
+    
+def write_poly_to_rlay(poly_fp,
+                       rlay_ref=None,
+                       out_shape=None,
+                       transform=None,
+                       ofp=None, out_dir=None,
+                       ):
+    """write polygon to raster"""
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ofp is None:
+        ofp = _get_ofp(poly_fp, out_dir, name='inun', ext='tif')
+    
+    #===========================================================================
+    # get the mask
+    #===========================================================================
+    mask_ar = polyVlay_to_ar(poly_fp, 
+                         rlay_ref=rlay_ref, out_shape=out_shape, transform=transform)
+    
+    #===========================================================================
+    # # Write the mask to the output raster
+    #===========================================================================
+    return write_array2(mask_ar, ofp, **get_profile(rlay_ref))
+
+ 
+    
+    
+    
+                       
         
 #===============================================================================
 # HIDDEN HELPERS---------
@@ -437,7 +525,7 @@ def assert_partial_wet(ar, msg=''):
         raise AssertionError(msg+': all false')
     
 def assert_inun_poly(gdf, msg=''):
-    assert len(gdf)==1, msg
+    assert len(gdf)==1, f'got {len(gdf)} feats\n'+msg
     assert gdf.iloc[0].geometry.geom_type in ['Polygon','MultiPolygon'], msg
     
     
