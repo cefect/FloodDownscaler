@@ -459,7 +459,8 @@ def assert_type_fp(fp, dkey, msg=''):
         raise AssertionError(f'unrecognized dkey {dkey}')
     
     #file type checking
-    assert os.path.exists(fp)
+    if not os.path.exists(fp):
+        raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
     
     if dkey in ['WSH', 'WSE', 'DEM', 'INUN_RLAY']:
         assert is_raster_file(fp)
@@ -553,3 +554,9 @@ assert_func_d = {
     'INUN_RLAY':assert_inun_ar,
     'INUN_POLY':assert_inun_poly,
     }
+
+#populate assertion functions by key
+"""eaiser on the user"""
+assert_func_d_fp = dict()
+for k in assert_func_d.keys():
+    assert_func_d_fp[k] = lambda fp, msg='':assert_type_fp(fp,k, msg=msg)
