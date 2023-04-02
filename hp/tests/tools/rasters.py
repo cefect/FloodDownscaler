@@ -32,6 +32,7 @@ def get_rlay_fp(ar, layName,
             bbox=bbox_default,
             out_dir=None, 
             ):
+    """simple raster writer for tests"""
     
     #===========================================================================
     # build out path
