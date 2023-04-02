@@ -53,8 +53,10 @@ def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull f
     
     return txt
 
-def dstr(d):
-    return pprint.pformat(d, width=30, indent=0.3, compact=True, sort_dicts =False)
+def dstr(d,
+         width=100, indent=0.3, compact=True, sort_dicts =False,
+         ):
+    return pprint.pformat(d, width=width, indent=indent, compact=compact, sort_dicts =sort_dicts)
 
 def now():
     return datetime.datetime.now()
