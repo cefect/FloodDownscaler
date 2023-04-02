@@ -246,6 +246,10 @@ class Basic(object): #simple base class
         subdir: bool, default False
             build the out_dir as a subdir of the default out_dir (using dkey)
             
+        
+        Use
+        ---------
+        log, tmp_dir, out_dir, ofp, resname  = self._func_setup('myFuncName', **kwargs) 
             
         TODO
         ----------
@@ -615,14 +619,30 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         
         return ofp
     
-    def _write_pick(self, data, **kwargs):
+    def _write_pick(self, data, overwrite=None, **kwargs):
         """dump data to a pickle"""
-        
+        #=======================================================================
+        # defaults
+        #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('w', subdir=False,ext='.pkl',  **kwargs)
+        if overwrite is None:
+            overwrite=self.overwrite
+            
+        #=======================================================================
+        # jprecheck
+        #=======================================================================
+        if os.path.exists(ofp):
+            assert overwrite
         
+        #=======================================================================
+        # write
+        #=======================================================================
         with open(ofp, 'wb') as handle:
             pickle.dump(data, handle)
             
+        #=======================================================================
+        # wrap
+        #=======================================================================
         log.info(f'wrote {type(data)} to \n    {ofp}')
         return ofp
     
