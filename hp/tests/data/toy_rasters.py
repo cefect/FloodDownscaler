@@ -9,7 +9,6 @@ nan, array = np.nan, np.array
 from hp.tests.tools.rasters import get_mar, get_ar_from_str
  
 
-nan, array = np.nan, np.array
 
 """setup to construct when called
 seems cleaner then building each time we init (some tests dont need these)

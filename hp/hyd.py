@@ -226,7 +226,8 @@ def polyVlay_to_ar(poly_fp,
                        rlay_ref=None,
                        out_shape=None,
                        transform=None,
-                       ofp=None, out_dir=None,
+                   crs=None,
+
                             **kwargs):
     """convert an inundation polygon to a boolean inundation raster
     """
@@ -240,23 +241,33 @@ def polyVlay_to_ar(poly_fp,
     # load poolygon
     #===========================================================================
     gdf = gpd.read_file(poly_fp)
+
+    if not crs is None:
+        gdf = gdf.to_crs(crs)
     
     #===========================================================================
     # get ref values
     #===========================================================================
     if out_shape is None or transform is None:
-        with rasterio.open(rlay_ref, 'r') as src:
+        assert os.path.exists(rlay_ref)
+        with rasterio.open(rlay_ref, 'r+',**kwargs) as src:
+            if not crs is None:
+                src.crs=crs
+            assert src.crs.to_epsg()==gdf.crs.to_epsg(), f'crs mismatch'
+            """
+            type(gdf.crs)
+            """
             out_shape = src.shape
             transform=src.transform
+
+
     
-    
- 
-    
+
     #===========================================================================
     # # Generate a mask from the geojson geometry
     #===========================================================================
     mask_ar = rasterio.features.geometry_mask(gdf.geometry, 
-                                   out_shape=src.shape, transform=src.transform, 
+                                   out_shape=out_shape, transform=transform,
                                    invert=True)
     
     assert_inun_ar(mask_ar)
@@ -374,7 +385,7 @@ def write_poly_to_rlay(poly_fp,
                        out_shape=None,
                        transform=None,
                        ofp=None, out_dir=None,
-                       ):
+                       **kwargs):
     """write polygon to raster"""
     
     #===========================================================================
@@ -387,7 +398,8 @@ def write_poly_to_rlay(poly_fp,
     # get the mask
     #===========================================================================
     mask_ar = polyVlay_to_ar(poly_fp, 
-                         rlay_ref=rlay_ref, out_shape=out_shape, transform=transform)
+                         rlay_ref=rlay_ref, out_shape=out_shape, transform=transform,
+                             **kwargs)
     
     #===========================================================================
     # # Write the mask to the output raster
@@ -466,6 +478,8 @@ def assert_inun_ar(ar, msg=''):
     __tracebackhide__ = True
     
     assert_mask_ar(ar, msg=msg+' inun')
+    if not ar.any():
+        raise AssertionError(f'expect some Trues\n'+msg)
     
       
 

@@ -3,7 +3,7 @@ Created on Dec. 29, 2021
 
 @author: cefect
 '''
-import pprint, datetime
+import pprint, datetime, os
 
 today_str = datetime.datetime.today().strftime('%Y%m%d')
 
@@ -65,3 +65,15 @@ def lib_iter(d):
     for k1, d1 in d.items():
         for k2, v in d1.items():
             yield k1, k2, v
+
+def proj_lib_make_abs(proj_lib):
+    """make filepaths absolute in a proj_lib"""
+    for k0, d in proj_lib.items():
+        idir = d['dir']
+        assert os.path.exists(idir), k0
+        for k1, v in d.items():
+            if v is None: continue
+            if k1.endswith('_fp'):
+                d[k1] = os.path.join(idir, v)
+                assert os.path.exists(d[k1]), f'bad path on {k0}.{k1}\n    {d[k1]}'
+
