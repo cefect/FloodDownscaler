@@ -230,6 +230,7 @@ def polyVlay_to_ar(poly_fp,
 
                             **kwargs):
     """convert an inundation polygon to a boolean inundation raster
+    1=wet
     """
     assert_type_fp(poly_fp, 'INUN_POLY')
     
