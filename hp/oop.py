@@ -220,7 +220,7 @@ class Basic(object): #simple base class
         
     def _get_init_pars(self):
         """only for simple atts... no containers"""
-        return {k:getattr(self, k) for k in self.init_pars}
+        return {k:getattr(self, k) for k in self.init_pars}.copy()
     
     def _install_info(self,
                          log = None): #print version info
