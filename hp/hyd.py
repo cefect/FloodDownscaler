@@ -26,7 +26,7 @@ make this a class object, where you can specify the data type
 
 '''
 
-import datetime, os, tempfile
+import datetime, os, tempfile, warnings
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
@@ -55,8 +55,9 @@ def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
-    assert_type_fp(wse_fp, 'WSE')
-    assert_type_fp(dem_fp, 'DEM')
+    HydTypes('WSE').assert_fp(wse_fp)
+    HydTypes('DEM').assert_fp(dem_fp)
+ 
     
     if ofp is None:
         if out_dir is None:
@@ -193,7 +194,8 @@ def rlay_to_poly(rlay_fp, dkey,
     see also hp.rio.rlay_to_polygons
     """
     assert is_raster_file(rlay_fp)
-    assert_type_fp(rlay_fp, dkey)
+    HydTypes(dkey).assert_fp(rlay_fp)
+ 
     
     #===========================================================================
     # collect polygons
@@ -232,7 +234,8 @@ def polyVlay_to_ar(poly_fp,
     """convert an inundation polygon to a boolean inundation raster
     1=wet
     """
-    assert_type_fp(poly_fp, 'INUN_POLY')
+    HydTypes('INUN_POLY').assert_fp(poly_fp)
+ 
     
 
     
@@ -298,7 +301,8 @@ def write_inun_rlay(fp, dkey,
                     **kwargs):
     """write a boolean inundation ratser from a WSE or WSH layer"""
     
-    assert_type_fp(fp, dkey)
+    HydTypes(dkey).assert_fp(fp)
+ 
     
     if ofp is None:
         ofp = _get_ofp(fp, out_dir, name='INUN')
@@ -311,7 +315,8 @@ def write_inun_rlay(fp, dkey,
     #===========================================================================
     # wrap
     #===========================================================================
-    assert_type_fp(ofp, 'INUN_RLAY')
+    HydTypes('INUN_RLAY').assert_fp(ofp)
+ 
     
     return ofp
 
@@ -417,8 +422,12 @@ def write_poly_to_rlay(poly_fp,
 # HIDDEN HELPERS---------
 #===============================================================================
     
+#===============================================================================
+# appliers
+#===============================================================================
 def _rlay_apply_hyd(rlay_fp, dkey, func, **kwargs):
     """special applier that recognizes our mask arrays"""
+    warnings.warn("2023-04-02. use HydTypes.apply_fp() instead", DeprecationWarning)
     
     if dkey in ['INUN_RLAY']:
         return rlay_mar_apply(rlay_fp, func, **kwargs)
@@ -426,8 +435,36 @@ def _rlay_apply_hyd(rlay_fp, dkey, func, **kwargs):
         return rlay_ar_apply(rlay_fp, func, **kwargs)
         
     
+
+        
+
+
+def _gpd_apply(fp, func, **kwargs):
+    """matching the syntax of rlay_ar_apply"""
+    gdf = gpd.read_file(fp)
+    return func(gdf, **kwargs)
+    
+#===============================================================================
+# loaders
+#===============================================================================
+def _load_ar(rlay_obj, **kwargs):
+    return load_array(rlay_obj, masked=True, **kwargs)
+
+def _load_mar(rlay_obj, **kwargs):
+    return load_mask_array(rlay_obj, maskType='binary', **kwargs)
+
+ 
+
+def _get_inun_gdf(fp):
+    warnings.warn("2023-04-02. use HydTypes.load_fp() instead", DeprecationWarning)
+    gdf = gpd.read_file(fp)
+    assert_inun_poly(gdf, msg=os.path.basename(fp))
+    return gdf
+
+
 def _get_hyd_ar(rlay_obj, dkey, **kwargs):
     """special array loader"""
+    warnings.warn("2023-04-02. use HydTypes.load_fp() instead", DeprecationWarning)
     
     #allowing datasets here
     #assert_type_fp(rlay_obj, dkey)
@@ -437,43 +474,88 @@ def _get_hyd_ar(rlay_obj, dkey, **kwargs):
  
     else:
         return load_array(rlay_obj, masked=True, **kwargs)
-        
-def _get_inun_gdf(fp):
-    gdf = gpd.read_file(fp)
-    assert_inun_poly(gdf, msg=os.path.basename(fp))
-    return gdf
-        
- 
+              
+              
 #===============================================================================
 # ASSERTIONS---------
 #===============================================================================
-
-def assert_type_fp(fp, dkey, msg=''):
-    """check the file matches the dkey hydro expectations"""
-    if not __debug__: # true if Python was not started with an -O option
-        return 
-    #__tracebackhide__ = True  
+class HydTypes(object):
+    """handling flood GIS data
     
-    #dkey check
-    if not dkey in assert_func_d:
-        raise AssertionError(f'unrecognized dkey {dkey}')
+    assert_fp: check the file matches the expectations
     
-    #file type checking
-    if not os.path.exists(fp):
-        raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
+    apply_fp: apply some function to the file
     
-    if dkey in ['WSH', 'WSE', 'DEM', 'INUN_RLAY']:
-        assert is_raster_file(fp)
-        _rlay_apply_hyd(fp, dkey, assert_func_d[dkey], msg=msg+f' w/ dkey={dkey}')
-    elif dkey in ['INUN_POLY']:
-        _get_inun_gdf(fp)
+    load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
+    
+    conversions: TODO
+    
+    """
+    
+    def __init__(self,
+                 dkey, 
+                 map_lib=None,
+                 ):
         
-    else:
-        raise KeyError(dkey)    
-
  
+        
+        
+        self.dkey=dkey
+        
+        
+        
+        #=======================================================================
+        # assertion mapper
+        #=======================================================================
+        if map_lib is None:
+            map_lib = dict()
+            
+        map_lib.update({
+            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar},
+            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file}
+             })
+        
+        self.map_lib=map_lib                 
+
+    def assert_fp(self, fp, msg=''):
+        """check the file matches the dkey hydro expectations"""
+        if not __debug__: # true if Python was not started with an -O option
+            return 
+        #__tracebackhide__ = True
+        
+        dkey = self.dkey  
+        
+        #dkey check
+        if not dkey in self.map_lib:
+            raise AssertionError(f'unrecognized dkey {dkey}')
+        
+        #file type checking
+        if not os.path.exists(fp):
+            raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
+        
+        #apply the assertion
+
+        assert_func =  self.map_lib[dkey]['assert']
+        
+        self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
+        
+    def apply_fp(self, fp, func, **kwargs):
+        return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
     
-    
+    def load_fp(self, fp, **kwargs):
+        #type check
+        self.assert_fp(fp, msg='loading')
+        
+        #return the data
+        return self.map_lib[self.dkey]['load'](fp, **kwargs)
+        
+ 
+     
+        
+        
 def assert_inun_ar(ar, msg=''):
     if not __debug__: # true if Python was not started with an -O option
         return 
@@ -546,17 +628,4 @@ def assert_inun_poly(gdf, msg=''):
     
     
     
-    
-assert_func_d = {
-    'WSH':assert_wsh_ar,
-    'WSE':assert_wse_ar,
-    'DEM':assert_dem_ar,
-    'INUN_RLAY':assert_inun_ar,
-    'INUN_POLY':assert_inun_poly,
-    }
-
-#populate assertion functions by key
-"""eaiser on the user"""
-assert_func_d_fp = dict()
-for k in assert_func_d.keys():
-    assert_func_d_fp[k] = lambda fp, msg='':assert_type_fp(fp,k, msg=msg)
+ 
