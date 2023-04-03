@@ -47,7 +47,84 @@ from hp.riom import (
     )
 
 
+#===============================================================================
+# WORKER-------
+#===============================================================================
+class HydTypes(object):
+    """handling flood GIS data
+    
+    assert_fp: check the file matches the expectations
+    
+    apply_fp: apply some function to the file
+    
+    load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
+    
+    conversions: TODO
+    
+    """
+    
+    def __init__(self,
+                 dkey, 
+                 map_lib=None,
+                 ):
+        
+ 
+        
+        
+        self.dkey=dkey
+        
+        
+        
+        #=======================================================================
+        # assertion mapper
+        #=======================================================================
+        if map_lib is None:
+            map_lib = dict()
+            
+        map_lib.update({
+            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
+            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar},
+            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file}
+             })
+        
+        self.map_lib=map_lib                 
 
+    def assert_fp(self, fp, msg=''):
+        """check the file matches the dkey hydro expectations"""
+        if not __debug__: # true if Python was not started with an -O option
+            return 
+        #__tracebackhide__ = True
+        
+        dkey = self.dkey  
+        
+        #dkey check
+        if not dkey in self.map_lib:
+            raise AssertionError(f'unrecognized dkey {dkey}')
+        
+        #file type checking
+        if not os.path.exists(fp):
+            raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
+        
+        #apply the assertion
+
+        assert_func =  self.map_lib[dkey]['assert']
+        
+        self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
+        
+    def apply_fp(self, fp, func, **kwargs):
+        return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
+    
+    def load_fp(self, fp, **kwargs):
+        #type check
+        self.assert_fp(fp, msg='loading')
+        
+        #return the data
+        return self.map_lib[self.dkey]['load'](fp, **kwargs)
+        
+ 
+   
 #===============================================================================
 # RASTERS CONVSERIONS -------
 #===============================================================================
@@ -479,81 +556,7 @@ def _get_hyd_ar(rlay_obj, dkey, **kwargs):
 #===============================================================================
 # ASSERTIONS---------
 #===============================================================================
-class HydTypes(object):
-    """handling flood GIS data
-    
-    assert_fp: check the file matches the expectations
-    
-    apply_fp: apply some function to the file
-    
-    load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
-    
-    conversions: TODO
-    
-    """
-    
-    def __init__(self,
-                 dkey, 
-                 map_lib=None,
-                 ):
-        
- 
-        
-        
-        self.dkey=dkey
-        
-        
-        
-        #=======================================================================
-        # assertion mapper
-        #=======================================================================
-        if map_lib is None:
-            map_lib = dict()
-            
-        map_lib.update({
-            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar},
-            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file}
-             })
-        
-        self.map_lib=map_lib                 
-
-    def assert_fp(self, fp, msg=''):
-        """check the file matches the dkey hydro expectations"""
-        if not __debug__: # true if Python was not started with an -O option
-            return 
-        #__tracebackhide__ = True
-        
-        dkey = self.dkey  
-        
-        #dkey check
-        if not dkey in self.map_lib:
-            raise AssertionError(f'unrecognized dkey {dkey}')
-        
-        #file type checking
-        if not os.path.exists(fp):
-            raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
-        
-        #apply the assertion
-
-        assert_func =  self.map_lib[dkey]['assert']
-        
-        self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
-        
-    def apply_fp(self, fp, func, **kwargs):
-        return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
-    
-    def load_fp(self, fp, **kwargs):
-        #type check
-        self.assert_fp(fp, msg='loading')
-        
-        #return the data
-        return self.map_lib[self.dkey]['load'](fp, **kwargs)
-        
- 
-     
+  
         
         
 def assert_inun_ar(ar, msg=''):
