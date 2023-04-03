@@ -89,7 +89,15 @@ class HydTypes(object):
             'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file}
              })
         
-        self.map_lib=map_lib                 
+        self.map_lib=map_lib
+        
+    def assertd(self, *args, **kwargs):
+        if not __debug__: # true if Python was not started with an -O option
+            return 
+        __tracebackhide__ = True
+    
+        return self.map_lib[self.dkey]['assert'](*args, **kwargs)
+                         
 
     def assert_fp(self, fp, msg=''):
         """check the file matches the dkey hydro expectations"""
