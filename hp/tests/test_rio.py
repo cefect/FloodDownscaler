@@ -26,9 +26,9 @@ output_kwargs = dict(crs=rio.crs.CRS.from_epsg(crsid),
 #===============================================================================
 # toy data
 #===============================================================================
-from hp.tests.data.toy_rasters import wse1_mar
+from hp.tests.data.toy_rasters import proj_ar_d
  
-wse1_mar_fp = get_rlay_fp(wse1_mar, 'wse1_toy_mar', crs=CRS.from_user_input(crsid), bbox=bbox_default)
+wse1_mar_fp = get_rlay_fp(proj_ar_d['wse13'], 'wse1_toy_mar', crs=CRS.from_user_input(crsid), bbox=bbox_default)
 
 
 #===============================================================================
