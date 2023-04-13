@@ -64,7 +64,7 @@ def load_mask_array(mask_obj, maskType='binary', window=None,):
         how to treat the mask rlay
 
             
-            """
+    """
  
     #===========================================================================
     # load by type
@@ -301,6 +301,8 @@ def assert_masked_ar(ar, msg=''):
 def assert_mask_ar(ar, msg=''):
     """check if mask array
         not to be confused with MASKED array
+   
+    TODO: accept masks (we should be able to keep the mask information)
     
     see load_mask_array
     """

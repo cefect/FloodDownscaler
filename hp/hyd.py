@@ -63,33 +63,73 @@ class HydTypes(object):
     
     """
     
+    fp=None
+    
     def __init__(self,
                  dkey, 
+                 fp=None,
                  map_lib=None,
+                 conv_lib=None,
+                 out_dir=None,
                  ):
         
  
         
-        
+        #=======================================================================
+        # basics
+        #=======================================================================
         self.dkey=dkey
         
+        if not fp is None:
+            assert os.path.exists(fp)
+            self.fp=fp
+            
+        
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        
+        self.out_dir=out_dir
         
         
         #=======================================================================
-        # assertion mapper
+        # basic mapper
         #=======================================================================
         if map_lib is None:
             map_lib = dict()
             
         map_lib.update({
-            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar},
-            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar},
-            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file}
+            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar, 'ext':'.tif'},
+            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file, 'ext':'.geojson'}
              })
         
         self.map_lib=map_lib
+        
+        #=======================================================================
+        # conversion mapper
+        #=======================================================================
+        """using a separate container as this is 2d """
+        if conv_lib is None:
+            conv_lib=dict()
+            
+        conv_lib.update({
+            'WSH':          {'INUN_RLAY':self._to_INUN_fp},
+            'WSE':          {'INUN_RLAY':self._to_INUN_fp},
+            'DEM':          {},
+            'INUN_RLAY':    {},
+            'INUN_POLY':    {}
+             })
+        
+        self.conv_lib=conv_lib
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        if not self.fp is None:
+            self.assert_fp()
         
     def assertd(self, *args, **kwargs):
         if not __debug__: # true if Python was not started with an -O option
@@ -99,12 +139,14 @@ class HydTypes(object):
         return self.map_lib[self.dkey]['assert'](*args, **kwargs)
                          
 
-    def assert_fp(self, fp, msg=''):
+    def assert_fp(self, fp=None, msg=''):
         """check the file matches the dkey hydro expectations"""
         if not __debug__: # true if Python was not started with an -O option
             return 
         #__tracebackhide__ = True
-        
+        if fp is None:
+            fp=self.fp
+            
         dkey = self.dkey  
         
         #dkey check
@@ -122,6 +164,8 @@ class HydTypes(object):
         self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
         
     def apply_fp(self, fp, func, **kwargs):
+        assert isinstance(fp, str)
+        assert os.path.exists(fp)
         return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
     
     def load_fp(self, fp, **kwargs):
@@ -130,6 +174,112 @@ class HydTypes(object):
         
         #return the data
         return self.map_lib[self.dkey]['load'](fp, **kwargs)
+    
+    def convert(self, out_dkey,**kwargs):
+        """convert to the requested type"""
+        if not self.dkey in self.conv_lib:
+            raise KeyError(self.dkey)
+        
+        d = self.conv_lib[self.dkey]
+        
+        if not out_dkey in d:
+            raise NotImplementedError(out_dkey)
+        
+        f =d[out_dkey]
+        
+
+        
+        return f(**kwargs)
+        
+    #===========================================================================
+    # hidden helpers-------
+    #===========================================================================
+        
+    def _to_INUN_fp(self, fp=None, prof_kwargs=dict(), **kwargs):
+        """convert wsh to inun
+        
+        write_array_mask:
+            np.where(raw_ar, 0, 1). 0:True
+        load_mask_array:
+            np.where(mask_ar_raw == 1, False, True). 0:True
+        
+        """
+        
+        #=======================================================================
+        # load
+        #=======================================================================
+        if fp is None:
+            fp=self.fp
+            
+        mar = self.load_fp(fp)
+        
+        #=======================================================================
+        # convert
+        #=======================================================================
+        inun_bar = get_inun_ar(mar, self.dkey) #wet=True
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        #get profile
+        prof = {**get_profile(fp), **prof_kwargs}
+        
+        
+        #prof = get_profile(fp)
+        """NOTE: this gives 0=True"""
+        ofp = write_array_mask(inun_bar, ofp=self._get_ofp(sfx='INUN_RLAY',**kwargs),**prof)
+        
+        #check
+        HydTypes('INUN_RLAY').assert_fp(ofp)
+        
+        
+        return ofp
+        
+    def _get_ofp(self, sfx=None, ofp=None, out_dir=None, ext=None, 
+                 fname=None, base_fp=None,):
+        
+        if ofp is None:
+            #directory
+            if out_dir is None:
+                out_dir=self.out_dir
+            
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+                
+            #extension
+            if ext is None:
+                ext = self.map_lib[self.dkey]['ext']
+            
+            
+            #filename
+            if fname is None:
+                
+                if base_fp is None:
+                    base_fp=self.fp
+                    
+                fname = os.path.basename(base_fp)
+                
+                if not sfx is None:
+                    fname = fname+'_' + sfx
+                    
+            assert not ext in fname
+            
+            #assemble
+            ofp = os.path.join(out_dir, fname+ext)
+            
+        return ofp
+        
+        
+            
+        
+        
+    def __enter__(self):
+        return self
+    
+    def __exit__(self,  *args,**kwargs):
+        pass
+        """not needed by lowest object
+        super().__exit__(*args, **kwargs)"""
         
  
    
@@ -247,11 +397,24 @@ def get_wse_ar(dem_ar, wd_ar):
     return wse_ar2
     
 def get_inun_ar(ar_raw, dkey):
-    """convert flood like array to inundation (wet=True)"""
+    """convert flood like array to inundation (wet=True)
+    
+    Params
+    -----
+    ar_raw:
+        mask array
+    dkey:
+        type of mask array
+    """
     if dkey in ['INUN_RLAY']:
         ar = ar_raw
     elif dkey == 'WSE':
         ar = np.invert(ar_raw.mask)
+    elif dkey=='WSH':
+        """not allowing a mask
+        TODO: fix this so masks are allowed"""
+        #ar = ma.array(ar_raw.data>0,mask=ar_raw.mask, fill_value=ar_raw.fill_value)
+        ar=ar_raw.data>0
     else:
         raise NotImplementedError(dkey)
         ar = ar.mask
@@ -259,6 +422,8 @@ def get_inun_ar(ar_raw, dkey):
     assert_inun_ar(ar, msg=dkey)
     
     return ar
+
+
 
 #===============================================================================
 # RASTER-POLY conversions -----------
@@ -384,7 +549,7 @@ def write_wsh_boolean(fp,
 def write_inun_rlay(fp, dkey,
                     ofp=None, out_dir=None,
                     **kwargs):
-    """write a boolean inundation ratser from a WSE or WSH layer"""
+    """write a boolean inundation ratser from a WSE or WSH layer (wet=True)"""
     
     HydTypes(dkey).assert_fp(fp)
  
@@ -393,6 +558,7 @@ def write_inun_rlay(fp, dkey,
         ofp = _get_ofp(fp, out_dir, name='INUN')
     
     if dkey=='WSE':
+        raise IOError('check this... flipped? np.where(raw_ar, 0, 1) >  np.where(mask_ar_raw == 1, False, True)')
         write_extract_mask(fp, ofp=ofp, maskType='binary', **kwargs)
     else:
         raise NotImplementedError(dkey)
@@ -568,9 +734,10 @@ def _get_hyd_ar(rlay_obj, dkey, **kwargs):
         
         
 def assert_inun_ar(ar, msg=''):
-    if not __debug__: # true if Python was not started with an -O option
+    """inundation array. wet=True"""
+    if not __debug__:  
         return 
-    __tracebackhide__ = True
+    #__tracebackhide__ = True
     
     assert_mask_ar(ar, msg=msg+' inun')
     if not ar.any():
