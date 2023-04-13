@@ -492,6 +492,8 @@ def rlay_apply(rlay, func, **kwargs):
     assert not rlay is None
     
     if isinstance(rlay, str):
+        if not is_raster_file(rlay):
+            raise AssertionError(f'expected a raster filepath:\n    {rlay}')
         with rio.open(rlay, mode='r') as ds:
             res = func(ds, **kwargs)
             
@@ -511,6 +513,7 @@ def rlay_ar_apply(rlay, func, masked=True, **kwargs):
     takes a function like
         f(np.Array, **kwargs)
     """
+    
 
     def ds_func(dataset, **kwargs):
         return func(dataset.read(1, window=None, masked=masked), **kwargs)
