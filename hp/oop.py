@@ -215,7 +215,7 @@ class Basic(object): #simple base class
         self.init_pars=init_pars
  
         if not logger is None:
-            self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
+            self.logger.debug(f'finished Basic.__init__ w/ out_dir={out_dir}\n    %s '%init_pars)
  
         
     def _get_init_pars(self):
