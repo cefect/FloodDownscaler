@@ -8,7 +8,10 @@ Created on Aug. 7, 2022
 import pytest, tempfile, datetime, os, copy, math
 import numpy as np
 import rasterio as rio
-from hp.rio import RioWrkr, write_array, write_resample, rlay_ar_apply
+from hp.rio import (
+    RioWrkr, write_array, write_resample, rlay_ar_apply, get_crs
+    )
+
 from rasterio.enums import Resampling
 from pyproj.crs import CRS
 from definitions import src_dir
@@ -60,7 +63,7 @@ def rlay_fp(ar, tmp_path):
 #     assert isinstance(riowrkr.ref_name, str)
 #===============================================================================
 
-@pytest.mark.dev
+
 @pytest.mark.parametrize('ar, scale', [
         (np.random.random((3, 3)), 3), #downsample
         (np.random.random((3, 3)), 1/3), #upsample
@@ -84,8 +87,10 @@ def test_resample(resampling, scale, ar, rlay_fp):
         
     rlay_ar_apply(res_fp, func)
     
-
-
+@pytest.mark.dev
+@pytest.mark.parametrize('ar', [np.random.random((3, 3))])
+def test_get_crs(rlay_fp):
+    get_crs(rlay_fp)
 
 
 #===============================================================================

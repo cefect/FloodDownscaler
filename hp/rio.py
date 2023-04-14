@@ -622,6 +622,12 @@ def get_ds_attr(rlay, stat):
 def get_profile(rlay):
     return rlay_apply(rlay, lambda ds:ds.profile)
 
+def get_crs(rlay): 
+    #extract from metadata and convert to pyproj
+    crs = CRS(get_ds_attr(rlay, 'crs'))
+    assert isinstance(crs, CRS), f'bad type on crs from {rlay}\n    {type(crs)}'
+    return crs
+
 def get_write_kwargs( obj,
                       att_l = ['crs', 'transform', 'nodata'],
                       **kwargs):
