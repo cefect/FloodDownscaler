@@ -10,5 +10,6 @@ def test_sub_cmd():
         cmd = 'uname -a'
         kwargs = dict(shell=True)
     else:
-        raise NotImplementedError('dome')
+        cmd='ECHO test'
+        kwargs = dict(shell=True)
     sub_cmd(cmd, **kwargs)
