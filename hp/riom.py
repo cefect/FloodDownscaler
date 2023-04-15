@@ -62,6 +62,7 @@ def load_mask_array(mask_obj, maskType='binary', window=None,):
     -----------
     maskType: str, default 'binary'
         how to treat the mask rlay
+            binary: 0=True=wet
 
             
     """

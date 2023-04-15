@@ -649,8 +649,9 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
     def _relpath(self, fp):
         """intelligently convert a filepath to relative"""
         if self.relative:
-            assert os.path.exists(self.base_dir)
+            assert os.path.exists(self.base_dir), self.base_dir
             assert os.path.exists(fp), fp
+            #assert str(self.base_dir) in fp
             try:
                 return os.path.relpath(fp, self.base_dir)
             except Exception as e:

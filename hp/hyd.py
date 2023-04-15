@@ -103,7 +103,7 @@ class HydTypes(object):
             'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
             'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
             'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
-            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar, 'ext':'.tif'},
+            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar, 'ext':'.tif'}, #0=True=wet
             'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file, 'ext':'.geojson'}
              })
         
@@ -175,11 +175,16 @@ class HydTypes(object):
         #return the data
         return self.map_lib[self.dkey]['load'](fp, **kwargs)
     
-    def convert(self, out_dkey,**kwargs):
+    def convert(self, out_dkey,out_dir=None, **kwargs):
         """convert to the requested type"""
+        #precheck
         if not self.dkey in self.conv_lib:
             raise KeyError(self.dkey)
         
+        #defaults
+        if out_dir is None: out_dir=self.out_dir
+        
+        #extract function
         d = self.conv_lib[self.dkey]
         
         if not out_dkey in d:
@@ -187,9 +192,8 @@ class HydTypes(object):
         
         f =d[out_dkey]
         
-
-        
-        return f(**kwargs)
+        #execute
+        return f(out_dir=out_dir, **kwargs)
         
     #===========================================================================
     # hidden helpers-------
@@ -549,7 +553,15 @@ def write_wsh_boolean(fp,
 def write_inun_rlay(fp, dkey,
                     ofp=None, out_dir=None,
                     **kwargs):
-    """write a boolean inundation ratser from a WSE or WSH layer (wet=True)"""
+    """write a boolean inundation ratser from a WSE or WSH layer (wet=True)
+    
+    hp.riom.load_mask_array()
+        binary
+            mask_ar = np.where(mask_ar_raw == 1, False, True). 0=True=wet
+                
+            
+        
+    """
     
     HydTypes(dkey).assert_fp(fp)
  
@@ -558,8 +570,7 @@ def write_inun_rlay(fp, dkey,
         ofp = _get_ofp(fp, out_dir, name='INUN')
     
     if dkey=='WSE':
-        raise IOError('check this... flipped? np.where(raw_ar, 0, 1) >  np.where(mask_ar_raw == 1, False, True)')
-        write_extract_mask(fp, ofp=ofp, maskType='binary', **kwargs)
+        write_extract_mask(fp, ofp=ofp, maskType='binary', invert=True, **kwargs)
     else:
         raise NotImplementedError(dkey)
     
