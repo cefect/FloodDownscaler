@@ -660,7 +660,7 @@ def write_poly_to_rlay(poly_fp,
     # defaults
     #===========================================================================
     if ofp is None:
-        ofp = _get_ofp(poly_fp, out_dir, name='inun', ext=os.path.splitext(rlay_ref)[1])
+        ofp = _get_ofp(poly_fp, out_dir, name='inun', ext=os.path.splitext(rlay_ref)[1].replace('.', ''))
     
     #===========================================================================
     # get the mask
