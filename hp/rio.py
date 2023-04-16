@@ -295,8 +295,68 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
             return crs, bbox, compress, nodata
         else:
             return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
-
+        
+        
+class GridTypes(object):
+    """handling and conversion of grid types"""
+    fp=None
+    
+    def __init__(self,
+             dkey, 
+             fp=None,
+             map_lib=None,
+             conv_lib=None,
+             out_dir=None,
+             ):
+        
+        #=======================================================================
+        # basics
+        #=======================================================================
+        self.dkey=dkey
+        
+        if not fp is None:
+            assert os.path.exists(fp)
+            self.fp=fp
             
+        
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        
+        self.out_dir=out_dir
+        
+        #=======================================================================
+        # attachments
+        #=======================================================================
+        self.map_lib=map_lib
+        self.conv_lib=conv_lib
+        
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        if not self.fp is None:
+            self.assert_fp()
+ 
+    
+
+class ErrGridTypes(GridTypes):
+    """type handling of error/confusion grids"""
+    def __init__(self,dkey,
+                 map_lib=None,
+                 conv_lib=None, 
+                 **kwargs):
+        
+        if map_lib is None:
+            map_lib = dict()
+            
+        map_lib.update({ 
+            'CONFU':        {},
+             })
+        
+        super().__init__(dkey, map_lib=map_lib, conv_lib=conv_lib, **kwargs)
+    
+    
 #===============================================================================
 # HELPERS----------
 #===============================================================================

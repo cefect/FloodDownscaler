@@ -38,7 +38,7 @@ import geopandas as gpd
 
 from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, 
-    load_array, get_profile, is_raster_file, rlay_ar_apply
+    load_array, get_profile, is_raster_file, rlay_ar_apply, ErrGridTypes
     )
 
 from hp.riom import (
@@ -46,11 +46,13 @@ from hp.riom import (
     write_extract_mask, assert_masked_ar
     )
 
+ 
+
 
 #===============================================================================
 # WORKER-------
 #===============================================================================
-class HydTypes(object):
+class HydTypes(ErrGridTypes):
     """handling flood GIS data
     
     assert_fp: check the file matches the expectations
@@ -59,38 +61,18 @@ class HydTypes(object):
     
     load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
     
-    conversions: TODO
+ 
     
     """
     
-    fp=None
     
-    def __init__(self,
-                 dkey, 
-                 fp=None,
+    
+    def __init__(self,dkey,
                  map_lib=None,
-                 conv_lib=None,
-                 out_dir=None,
-                 ):
+                 conv_lib=None, 
+                 **kwargs):
         
  
-        
-        #=======================================================================
-        # basics
-        #=======================================================================
-        self.dkey=dkey
-        
-        if not fp is None:
-            assert os.path.exists(fp)
-            self.fp=fp
-            
-        
-        if out_dir is None:
-            out_dir = tempfile.gettempdir()
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        
-        self.out_dir=out_dir
         
         
         #=======================================================================
@@ -105,10 +87,10 @@ class HydTypes(object):
             'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
             'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar, 'ext':'.tif'}, #0=True=wet
             'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file, 'ext':'.geojson'}
+            #'CONFU':        {'assert':assert_confu
              })
         
-        self.map_lib=map_lib
-        
+ 
         #=======================================================================
         # conversion mapper
         #=======================================================================
@@ -124,12 +106,9 @@ class HydTypes(object):
             'INUN_POLY':    {}
              })
         
-        self.conv_lib=conv_lib
-        #=======================================================================
-        # prechecks
-        #=======================================================================
-        if not self.fp is None:
-            self.assert_fp()
+        super().__init__(dkey, map_lib=map_lib, conv_lib=conv_lib, **kwargs)
+ 
+
         
     def assertd(self, *args, **kwargs):
         if not __debug__: # true if Python was not started with an -O option
