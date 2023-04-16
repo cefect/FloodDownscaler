@@ -470,12 +470,10 @@ def polyVlay_to_ar(poly_fp,
                             **kwargs):
     """convert an inundation polygon to a boolean inundation raster
     1=wet
+    
+    NOTE: will fail if the raster is read locked (allows crs writing
     """
     HydTypes('INUN_POLY').assert_fp(poly_fp)
- 
-    
-
-    
  
     
     #===========================================================================
@@ -636,6 +634,7 @@ def write_poly_to_rlay(poly_fp,
                        out_shape=None,
                        transform=None,
                        ofp=None, out_dir=None,
+                       invert=True, #normallly we do wet=0
                        **kwargs):
     """write polygon to raster"""
     
@@ -648,14 +647,18 @@ def write_poly_to_rlay(poly_fp,
     #===========================================================================
     # get the mask
     #===========================================================================
-    mask_ar = polyVlay_to_ar(poly_fp, 
+    bool_ar = polyVlay_to_ar(poly_fp, 
                          rlay_ref=rlay_ref, out_shape=out_shape, transform=transform,
                              **kwargs)
+    
+ 
+    if invert:
+        bool_ar = np.invert(bool_ar)
     
     #===========================================================================
     # # Write the mask to the output raster
     #===========================================================================
-    return write_array2(mask_ar, ofp, **get_profile(rlay_ref))
+    return write_array2(bool_ar, ofp, **get_profile(rlay_ref)) #converts boolean to int (True=1)
 
  
     
