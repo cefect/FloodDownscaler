@@ -35,9 +35,9 @@ class RioPlotr(Plotr):
     #standard styles for grids
     grid_styles_lib={
         'hillshade':dict(cmap=plt.cm.copper, norm=None),
-        'dem':dict(cmap = 'plasma', norm = None),
-        'wsh':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
-        'wse':dict(cmap = BuPu_3.mpl_colormap, norm = None), #May lead to inconsistent color styles
+        'DEM':dict(cmap = 'plasma', norm = None),
+        'WSH':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
+        'WSE':dict(cmap = BuPu_3.mpl_colormap, norm = None), #May lead to inconsistent color styles
         }
     
     #confusion colors
@@ -81,23 +81,23 @@ class RioPlotr(Plotr):
                                       clip=True,
                                       )
         
-        self.grid_styles_lib['confusion'] = {'cmap':cmap, 'norm':norm}
+        self.grid_styles_lib['CONFU'] = {'cmap':cmap, 'norm':norm}
         
     
     def _mask_grid_by_key(self, ar_raw, gridk, cc_d=None):
         """apply a mask to the grid based on the grid type"""
         if cc_d is None: cc_d=self.confusion_codes.copy()
         
-        if gridk=='wsh':
+        if gridk=='WSH':
             assert np.any(ar_raw == 0), 'depth grid has no zeros '
             ar = np.where(ar_raw == 0, np.nan, ar_raw)
-        elif 'confusion' in gridk:
+        elif 'CONFU' in gridk:
             # mask out true negatives
             ar = np.where(ar_raw == cc_d['TN'], np.nan, ar_raw)
-        elif 'dem' == gridk:
+        elif 'DEM' == gridk:
             ar = np.where(ar_raw < 130, ar_raw, np.nan)
  
-        elif 'wse' in gridk: #no masking
+        elif 'WSE' in gridk: #no masking
             ar = ar_raw
         elif 'hillshade'==gridk:
             ar = es.hillshade(ar_raw)
@@ -107,27 +107,27 @@ class RioPlotr(Plotr):
     
     def _get_colorbar_pars_by_key(self, gridk):
         """get standard colorbar parameters based on the grid type"""
-        if gridk=='wsh':
+        if gridk=='WSH':
             spacing = 'proportional'
             label = 'WSH (m)'
             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
             location = 'bottom'
-        elif 'confusion' in gridk:
+        elif 'CONFU' in gridk:
             #spacing='proportional'
             spacing = 'uniform'
-            label = 'Confusion'
+            label = 'CONFU'
             fmt = None
             #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
             #cax=cax_bot
             location = 'bottom'
-        elif 'dem' in gridk:
+        elif 'DEM' in gridk:
             spacing = 'proportional'
             label = 'DEM (masl)'
             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.0f' % x)
             location = 'bottom'
  
             
-        elif 'wse' in gridk:
+        elif 'WSE' in gridk:
             spacing = 'proportional'
             fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'%.1f' % x)
             label = 'WSE (masl)'
