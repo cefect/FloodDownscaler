@@ -178,13 +178,16 @@ class HydTypes(ErrGridTypes):
     # hidden helpers-------
     #===========================================================================
         
-    def _to_INUN_fp(self, fp=None, prof_kwargs=dict(), **kwargs):
+    def _to_INUN_fp(self, fp=None, prof_kwargs=dict(), ext=None, **kwargs):
         """convert wsh to inun
         
         write_array_mask:
             np.where(raw_ar, 0, 1). 0:True
         load_mask_array:
             np.where(mask_ar_raw == 1, False, True). 0:True
+            
+        prof_kwargs: dict
+            raster profile kwargs (to overwrite base raster)
         
         """
         
@@ -210,7 +213,8 @@ class HydTypes(ErrGridTypes):
         
         #prof = get_profile(fp)
         """NOTE: this gives 0=True"""
-        ofp = write_array_mask(inun_bar, ofp=self._get_ofp(sfx='INUN_RLAY',**kwargs),**prof)
+        if ext is None: ext = os.path.splitext(fp)[1]
+        ofp = write_array_mask(inun_bar, ofp=self._get_ofp(sfx='INUN_RLAY',base_fp=fp, ext=ext, **kwargs),**prof)
         
         #check
         HydTypes('INUN_RLAY').assert_fp(ofp)
@@ -240,7 +244,7 @@ class HydTypes(ErrGridTypes):
                 if base_fp is None:
                     base_fp=self.fp
                     
-                fname = os.path.basename(base_fp)
+                fname = os.path.basename(base_fp).replace('.asc', '').replace(ext, '')
                 
                 if not sfx is None:
                     fname = fname+'_' + sfx
