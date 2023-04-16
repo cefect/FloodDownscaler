@@ -99,7 +99,7 @@ class HydTypes(ErrGridTypes):
             conv_lib=dict()
             
         conv_lib.update({
-            'WSH':          {'INUN_RLAY':self._to_INUN_fp},
+            'WSH':          {'INUN_RLAY':self._to_INUN_fp, 'WSE':self._WSH_to_WSE},
             'WSE':          {'INUN_RLAY':self._to_INUN_fp},
             'DEM':          {},
             'INUN_RLAY':    {},
@@ -110,70 +110,7 @@ class HydTypes(ErrGridTypes):
  
 
         
-    def assertd(self, *args, **kwargs):
-        if not __debug__: # true if Python was not started with an -O option
-            return 
-        __tracebackhide__ = True
-    
-        return self.map_lib[self.dkey]['assert'](*args, **kwargs)
-                         
 
-    def assert_fp(self, fp=None, msg=''):
-        """check the file matches the dkey hydro expectations"""
-        if not __debug__: # true if Python was not started with an -O option
-            return 
-        #__tracebackhide__ = True
-        if fp is None:
-            fp=self.fp
-            
-        dkey = self.dkey  
-        
-        #dkey check
-        if not dkey in self.map_lib:
-            raise AssertionError(f'unrecognized dkey {dkey}')
-        
-        #file type checking
-        if not os.path.exists(fp):
-            raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
-        
-        #apply the assertion
-
-        assert_func =  self.map_lib[dkey]['assert']
-        
-        self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
-        
-    def apply_fp(self, fp, func, **kwargs):
-        assert isinstance(fp, str)
-        assert os.path.exists(fp)
-        return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
-    
-    def load_fp(self, fp, **kwargs):
-        #type check
-        self.assert_fp(fp, msg='loading')
-        
-        #return the data
-        return self.map_lib[self.dkey]['load'](fp, **kwargs)
-    
-    def convert(self, out_dkey,out_dir=None, **kwargs):
-        """convert to the requested type"""
-        #precheck
-        if not self.dkey in self.conv_lib:
-            raise KeyError(self.dkey)
-        
-        #defaults
-        if out_dir is None: out_dir=self.out_dir
-        
-        #extract function
-        d = self.conv_lib[self.dkey]
-        
-        if not out_dkey in d:
-            raise NotImplementedError(out_dkey)
-        
-        f =d[out_dkey]
-        
-        #execute
-        return f(out_dir=out_dir, **kwargs)
-        
     #===========================================================================
     # hidden helpers-------
     #===========================================================================
@@ -217,44 +154,43 @@ class HydTypes(ErrGridTypes):
         ofp = write_array_mask(inun_bar, ofp=self._get_ofp(sfx='INUN_RLAY',base_fp=fp, ext=ext, **kwargs),**prof)
         
         #check
-        HydTypes('INUN_RLAY').assert_fp(ofp)
+        HydTypes('INUN_RLAY').assert_fp(ofp)        
+        return ofp
+    
+    def _WSH_to_WSE(self, fp=None, dem_fp=None, prof_kwargs=dict(), ext=None,  **kwargs):
+        """convert WSh to WSE with the DEM"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        odkey = 'WSE'
+        if fp is None:
+            fp=self.fp
+            
+        if ext is None: ext = os.path.splitext(fp)[1]
+        #=======================================================================
+        # #load
+        #=======================================================================
+        wsh_ar = self.load_fp(fp)
+        dem_ar = _load_ar(dem_fp)
         
+        #=======================================================================
+        # build
+        #=======================================================================
+        wse_ar = get_wse_ar(dem_ar, wsh_ar)
         
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        ofp=self._get_ofp(sfx=odkey,base_fp=fp,ext=ext,**kwargs) 
+        prof = {**get_profile(fp), **prof_kwargs}
+        ofp = write_array2(wse_ar, ofp, **prof)
+        
+        #check
+        HydTypes('WSE').assert_fp(ofp)        
         return ofp
         
-    def _get_ofp(self, sfx=None, ofp=None, out_dir=None, ext=None, 
-                 fname=None, base_fp=None,):
         
-        if ofp is None:
-            #directory
-            if out_dir is None:
-                out_dir=self.out_dir
-            
-            if not os.path.exists(out_dir):
-                os.makedirs(out_dir)
-                
-            #extension
-            if ext is None:
-                ext = self.map_lib[self.dkey]['ext']
-            
-            
-            #filename
-            if fname is None:
-                
-                if base_fp is None:
-                    base_fp=self.fp
-                    
-                fname = os.path.basename(base_fp).replace('.asc', '').replace(ext, '')
-                
-                if not sfx is None:
-                    fname = fname+'_' + sfx
-                    
-            assert not ext in fname
-            
-            #assemble
-            ofp = os.path.join(out_dir, fname+ext)
-            
-        return ofp
+
         
         
             
