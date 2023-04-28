@@ -231,7 +231,7 @@ class SpatialBBOXWrkr(Basic):
             init_pars.append('aoi_fp')
             
             if not crs is None:
-                assert crs==self.crs
+                assert crs==self.crs, f'crs mismatch between aoi {self.crs} and data {crs}'
  
         else:
             self.crs=crs
