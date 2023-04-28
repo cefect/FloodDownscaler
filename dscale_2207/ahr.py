@@ -7,37 +7,39 @@ Ahr case study
 '''
 import os, pickle
 from pyproj.crs import CRS
-from dscale_2207.pipeline import run_downscale, run_eval, run_plot
+from dscale_2207.pipeline import run_downscale, run_eval 
 
 debug=False
 
 
-proj_base_dir = r'l:\10_IO\2207_dscale\ins\ahr\aoi08'
+proj_base_dir = r'l:\10_IO\2207_dscale\ins\ahr\aoi13'
 def f(fp_rel):
     fp = os.path.join(proj_base_dir, fp_rel)
     assert os.path.exists(fp), fp_rel
     return fp
     
 proj_lib = {
-    'proj_name': 'ahr_aoi08_0303',
-    'wse2': f(r'fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r32_1221-0030_wse.tif'),
-    'dem1': f(r'r04\dem005_r04_aoi08_1210.tif'), 
-    #'true_wse_fp': f(r'fdsc\ahr_aoi08_r32_0130_30\ahr_aoi08_r04_1215-0030_wse.tif'),
-    'inun': f(r'inun\inun_anschlaglinie_HW_7_21_220223_aoi09_0303.geojson'),
-    #'sample_pts_fp': f(r'bldgs\osm_buildings_aoi07_1114_poly_a50_cent_aoi09.geojson'),
-    'hwm': f(r'hwm\NWR_ahr11_hwm_20220113b_fix_aoi09.geojson'),
-    'aoi': f('aoi09_1221_r32.geojson'),
-    'crs':CRS.from_user_input(25832),
+    'proj_name': 'ahr_aoi13_0427',
+    
+    #primary inputs
+    'wse2': f(r'fdsc\r32_0415_i4\wd_max_WSE.tif'),
+    'dem1': f(r'r04\rim2d\dem005_r04_aoi13_0415.asc'), 
+ 
+    #evaluation
+    'inun': f(r'obsv\RLP_LfU_HQ_extrm_WCS_20230324_ahr_4647_aoi13.geojson'), 
+    'hwm': f(r'obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'),
+    'aoi': r'L:\02_WORK\NRC\202110_Ahr\04_CALC\aoi\aoi13_r64_20230415.geojson',
+    'crs':CRS.from_user_input(4647),
     'index_coln':'fid',
     }
 
 
 #dev
 if debug:
-    proj_lib['aoi'] = f('aoi09T_0117.geojson')
+    proj_lib['aoi'] = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09T_0117_4647.geojson'
     run_name='dev'
 else:
-    run_name='r2'
+    run_name='r0'
 
 
 
@@ -54,13 +56,17 @@ for k in ['proj_name','crs']:
 #precompiled results
 if debug:
     pick_lib = {
-        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_dscM.pkl',
-        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\dev\20230328\ahr_aoi08_0303_dev_0328_gfps.pkl',
+ 
+        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230427\ahr_aoi13_0427_dev_0427_dscM.pkl',
+        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230428\ahr_aoi13_0427_dev_0428_rvmd.pkl',
+ 
         }
 else:
     pick_lib={
-        'downscale':r'l:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_dscM.pkl',
-        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_gfps.pkl',
+        #=======================================================================
+        # 'downscale':r'l:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_dscM.pkl',
+        # 'eval':r'L:\10_IO\fdsc\outs\ahr_aoi08_0303\r2\20230328\ahr_aoi08_0303_r2_0328_gfps.pkl',
+        #=======================================================================
         }
         
 
@@ -109,10 +115,6 @@ if __name__=='__main__':
     #===========================================================================
     # plot
     #===========================================================================\
-    """ moved to standalone script ahr_plot.py
-    ik = init_kwargs    
-    run_plot(dsc_vali_res_lib, init_kwargs = ik)"""
-    
- 
+    """ moved to standalone script ahr_plot.py"""
  
     print('done')
