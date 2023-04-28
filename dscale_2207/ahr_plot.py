@@ -111,9 +111,9 @@ from dscale_2207.ahr import load_pick, init_kwargs, pick_lib
 #===============================================================================
 # vars
 #===============================================================================
-init_kwargs['run_name'] = init_kwargs['run_name']+'_plot0328'
+init_kwargs['run_name'] = init_kwargs['run_name']+'_plot0428'
 
-ahr_aoi_fp = r'L:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi09t_zoom0308.geojson'
+ahr_aoi_fp = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson'
 
 #===============================================================================
 # run
