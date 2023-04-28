@@ -136,6 +136,8 @@ if __name__=='__main__':
                  aoi_fp=ahr_aoi_fp,
                  fig_mat_kwargs=dict(ncols=3),
                  ),
+             
+             inun_per_kg=dict(box_fp=ahr_aoi_fp),
              )
     
     print('finished')
