@@ -23,12 +23,7 @@ from osgeo.ogr import OGRERR_NONE
 import numpy as np
  
 
-
  
-
-from hp.exceptions import Error
-
-
 mod_logger = logging.getLogger(__name__)
 
 #===============================================================================
