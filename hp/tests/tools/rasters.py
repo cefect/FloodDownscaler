@@ -21,9 +21,9 @@ from hp.tests.conftest import temp_dir
 nan, array = np.nan, np.array
 
 #spatial defaults
-from definitions import epsg,bounds 
+from definitions import epsg,bbox 
 crs_default = CRS.from_user_input(epsg)
-bbox_default = sgeo.box(*bounds)
+bbox_default = sgeo.box(*bbox)
 
 
 def get_rlay_fp(ar, layName, 
@@ -32,6 +32,7 @@ def get_rlay_fp(ar, layName,
             bbox=bbox_default,
             out_dir=None, 
             ):
+    """simple raster writer for tests"""
     
     #===========================================================================
     # build out path

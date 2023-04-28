@@ -26,7 +26,7 @@ make this a class object, where you can specify the data type
 
 '''
 
-import datetime, os, tempfile
+import datetime, os, tempfile, warnings
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
@@ -38,7 +38,7 @@ import geopandas as gpd
 
 from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, 
-    load_array, get_profile, is_raster_file, rlay_ar_apply
+    load_array, get_profile, is_raster_file, rlay_ar_apply, ErrGridTypes
     )
 
 from hp.riom import (
@@ -46,8 +46,166 @@ from hp.riom import (
     write_extract_mask, assert_masked_ar
     )
 
+ 
 
 
+#===============================================================================
+# WORKER-------
+#===============================================================================
+class HydTypes(ErrGridTypes):
+    """handling flood GIS data
+    
+    assert_fp: check the file matches the expectations
+    
+    apply_fp: apply some function to the file
+    
+    load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
+    
+ 
+    
+    """
+    
+    
+    
+    def __init__(self,dkey,
+                 map_lib=None,
+                 conv_lib=None, 
+                 **kwargs):
+        
+ 
+        
+        
+        #=======================================================================
+        # basic mapper
+        #=======================================================================
+        if map_lib is None:
+            map_lib = dict()
+            
+        map_lib.update({
+            'WSH':          {'assert': assert_wsh_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'WSE':          {'assert': assert_wse_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'DEM':          {'assert': assert_dem_ar, 'apply': rlay_ar_apply, 'load':_load_ar, 'ext':'.tif'},
+            'INUN_RLAY':    {'assert': assert_inun_ar, 'apply': rlay_mar_apply, 'load':_load_mar, 'ext':'.tif'}, #0=True=wet
+            'INUN_POLY':    {'assert': assert_inun_poly, 'apply': _gpd_apply, 'load':gpd.read_file, 'ext':'.geojson'}
+            #'CONFU':        {'assert':assert_confu
+             })
+        
+ 
+        #=======================================================================
+        # conversion mapper
+        #=======================================================================
+        """using a separate container as this is 2d """
+        if conv_lib is None:
+            conv_lib=dict()
+            
+        conv_lib.update({
+            'WSH':          {'INUN_RLAY':self._to_INUN_fp, 'WSE':self._WSH_to_WSE},
+            'WSE':          {'INUN_RLAY':self._to_INUN_fp},
+            'DEM':          {},
+            'INUN_RLAY':    {},
+            'INUN_POLY':    {}
+             })
+        
+        super().__init__(dkey, map_lib=map_lib, conv_lib=conv_lib, **kwargs)
+ 
+
+        
+
+    #===========================================================================
+    # hidden helpers-------
+    #===========================================================================
+        
+    def _to_INUN_fp(self, fp=None, prof_kwargs=dict(), ext=None, **kwargs):
+        """convert wsh to inun
+        
+        write_array_mask:
+            np.where(raw_ar, 0, 1). 0:True
+        load_mask_array:
+            np.where(mask_ar_raw == 1, False, True). 0:True
+            
+        prof_kwargs: dict
+            raster profile kwargs (to overwrite base raster)
+        
+        """
+        
+        #=======================================================================
+        # load
+        #=======================================================================
+        if fp is None:
+            fp=self.fp
+            
+        mar = self.load_fp(fp)
+        
+        #=======================================================================
+        # convert
+        #=======================================================================
+        inun_bar = get_inun_ar(mar, self.dkey) #wet=True
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        #get profile
+        prof = {**get_profile(fp), **prof_kwargs}
+        
+        
+        #prof = get_profile(fp)
+        """NOTE: this gives 0=True"""
+        if ext is None: ext = os.path.splitext(fp)[1]
+        ofp = write_array_mask(inun_bar, ofp=self._get_ofp(sfx='INUN_RLAY',base_fp=fp, ext=ext, **kwargs),**prof)
+        
+        #check
+        HydTypes('INUN_RLAY').assert_fp(ofp)        
+        return ofp
+    
+    def _WSH_to_WSE(self, fp=None, dem_fp=None, prof_kwargs=dict(), ext=None,  **kwargs):
+        """convert WSh to WSE with the DEM"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        odkey = 'WSE'
+        if fp is None:
+            fp=self.fp
+            
+        if ext is None: ext = os.path.splitext(fp)[1]
+        #=======================================================================
+        # #load
+        #=======================================================================
+        wsh_ar = self.load_fp(fp)
+        dem_ar = _load_ar(dem_fp)
+        
+        #=======================================================================
+        # build
+        #=======================================================================
+        wse_ar = get_wse_ar(dem_ar, wsh_ar)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        ofp=self._get_ofp(sfx=odkey,base_fp=fp,ext=ext,**kwargs) 
+        prof = {**get_profile(fp), **prof_kwargs}
+        ofp = write_array2(wse_ar, ofp, **prof)
+        
+        #check
+        HydTypes('WSE').assert_fp(ofp)        
+        return ofp
+        
+        
+
+        
+        
+            
+        
+        
+    def __enter__(self):
+        return self
+    
+    def __exit__(self,  *args,**kwargs):
+        pass
+        """not needed by lowest object
+        super().__exit__(*args, **kwargs)"""
+        
+ 
+   
 #===============================================================================
 # RASTERS CONVSERIONS -------
 #===============================================================================
@@ -55,8 +213,9 @@ def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     """add dem and wse to get a depth grid"""
     
     assert_spatial_equal(dem_fp, wse_fp)
-    assert_type_fp(wse_fp, 'WSE')
-    assert_type_fp(dem_fp, 'DEM')
+    HydTypes('WSE').assert_fp(wse_fp)
+    HydTypes('DEM').assert_fp(dem_fp)
+ 
     
     if ofp is None:
         if out_dir is None:
@@ -161,87 +320,42 @@ def get_wse_ar(dem_ar, wd_ar):
     return wse_ar2
     
 def get_inun_ar(ar_raw, dkey):
-    """convert flood like array to inundation (wet=True)"""
+    """convert flood like array to inundation (wet=True)
+    
+    Params
+    -----
+    ar_raw:
+        mask array
+    dkey:
+        type of mask array
+    """
     if dkey in ['INUN_RLAY']:
         ar = ar_raw
     elif dkey == 'WSE':
         ar = np.invert(ar_raw.mask)
+    elif dkey=='WSH':
+        """not allowing a mask
+        TODO: fix this so masks are allowed"""
+        #ar = ma.array(ar_raw.data>0,mask=ar_raw.mask, fill_value=ar_raw.fill_value)
+        ar=ar_raw.data>0
     else:
         raise NotImplementedError(dkey)
         ar = ar.mask
         
     assert_inun_ar(ar, msg=dkey)
     
-    return ar 
+    return ar
+
+
 
 #===============================================================================
-# WRITERS-----------
+# RASTER-POLY conversions -----------
 #===============================================================================
-def write_wsh_boolean(fp,
-                 ofp=None, out_dir=None,
-                 load_kwargs=dict(),
-                 ):
-    """write a boolean (0,1) raster of the inundation represented by the input WSH"""
-    if ofp is None:
-        ofp = _get_ofp(fp, out_dir, name='inun')
-        
-    #load the raw
-    mar_raw = load_array(fp, **load_kwargs)
-    assert_wsh_ar(mar_raw)
- 
-    #write mask True=dry, False=wet
-    return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
 
-def write_inun_rlay(fp, dkey,
-                    ofp=None, out_dir=None,
-                    **kwargs):
-    """write a boolean inundation ratser from a WSE or WSH layer"""
-    
-    assert_type_fp(fp, dkey)
-    
-    if ofp is None:
-        ofp = _get_ofp(fp, out_dir, name='INUN')
-    
-    if dkey=='WSE':
-        write_extract_mask(fp, ofp=ofp, maskType='binary', **kwargs)
-    else:
-        raise NotImplementedError(dkey)
-    
-    #===========================================================================
-    # wrap
-    #===========================================================================
-    assert_type_fp(ofp, 'INUN_RLAY')
-    
-    return ofp
-
-
-def write_wsh_clean(fp,
-                    ofp=None, out_dir=None,
-                    ):
-    """filter a depths raster"""
-    
-    if ofp is None:
-        ofp = _get_ofp(fp, out_dir, name='clean')
-    
-    mar_raw = load_array(fp, masked=True)
-    
-    ar_raw = mar_raw.data
-    
-    
-    mar1 = ma.array(
-                np.where(ar_raw>=0, ar_raw, 0.0), #filter
-                 mask=mar_raw.mask, 
-                 fill_value=mar_raw.fill_value)
-    
-    assert_wsh_ar(mar1)
-    
-    return write_array2(mar1, ofp, **get_profile(fp))
-    
-
-def rlay_to_inun_poly(rlay_fp, dkey,                    
+def rlay_to_poly(rlay_fp, dkey,                    
                     window=None,
                     ):
-    """build and write an inundation polygon from the rlay
+    """build an inundation polygon from the rlay
     
     
     Pars
@@ -253,7 +367,8 @@ def rlay_to_inun_poly(rlay_fp, dkey,
     see also hp.rio.rlay_to_polygons
     """
     assert is_raster_file(rlay_fp)
-    assert_type_fp(rlay_fp, dkey)
+    HydTypes(dkey).assert_fp(rlay_fp)
+ 
     
     #===========================================================================
     # collect polygons
@@ -282,10 +397,145 @@ def rlay_to_inun_poly(rlay_fp, dkey,
     
     return geo_d[val]
 
-def write_rlay_to_inun_poly(rlay_fp, dkey,
+def polyVlay_to_ar(poly_fp,
+                       rlay_ref=None,
+                       out_shape=None,
+                       transform=None,
+                   crs=None,
+
+                            **kwargs):
+    """convert an inundation polygon to a boolean inundation raster
+    1=wet
+    
+    NOTE: will fail if the raster is read locked (allows crs writing
+    """
+    HydTypes('INUN_POLY').assert_fp(poly_fp)
+ 
+    
+    #===========================================================================
+    # load poolygon
+    #===========================================================================
+    gdf = gpd.read_file(poly_fp)
+
+    if not crs is None:
+        gdf = gdf.to_crs(crs)
+    
+    #===========================================================================
+    # get ref values
+    #===========================================================================
+    if out_shape is None or transform is None:
+        assert os.path.exists(rlay_ref)
+        with rasterio.open(rlay_ref, 'r+',**kwargs) as src:
+            if not crs is None:
+                src.crs=crs
+            assert src.crs.to_epsg()==gdf.crs.to_epsg(), f'crs mismatch'
+            """
+            type(gdf.crs)
+            """
+            out_shape = src.shape
+            transform=src.transform
+
+
+    
+
+    #===========================================================================
+    # # Generate a mask from the geojson geometry
+    #===========================================================================
+    mask_ar = rasterio.features.geometry_mask(gdf.geometry, 
+                                   out_shape=out_shape, transform=transform,
+                                   invert=True)
+    
+    assert_inun_ar(mask_ar)
+    
+    return mask_ar
+
+#===============================================================================
+# WRITERS-----------
+#===============================================================================
+def write_wsh_boolean(fp,
+                 ofp=None, out_dir=None,
+                 load_kwargs=dict(),
+                 ):
+    """write a boolean (0,1) raster of the inundation represented by the input WSH"""
+    if ofp is None:
+        ofp = _get_ofp(fp, out_dir, name='inun')
+        
+    #load the raw
+    mar_raw = load_array(fp, **load_kwargs)
+    assert_wsh_ar(mar_raw)
+ 
+    #write mask True=dry, False=wet
+    return write_array_mask(mar_raw.data==0, ofp=ofp, maskType='binary',**get_profile(fp))
+
+def write_inun_rlay(fp, dkey,
+                    ofp=None, out_dir=None,
+                    **kwargs):
+    """write a boolean inundation ratser from a WSE or WSH layer (wet=True)
+    
+    hp.riom.load_mask_array()
+        binary
+            mask_ar = np.where(mask_ar_raw == 1, False, True). 0=True=wet
+                
+            
+        
+    """
+    
+    HydTypes(dkey).assert_fp(fp)
+ 
+    
+    if ofp is None:
+        ofp = _get_ofp(fp, out_dir, name='INUN')
+    
+    if dkey=='WSE':
+        write_extract_mask(fp, ofp=ofp, maskType='binary', invert=True, **kwargs)
+    else:
+        raise NotImplementedError(dkey)
+    
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    HydTypes('INUN_RLAY').assert_fp(ofp)
+ 
+    
+    return ofp
+
+
+def write_wsh_clean(fp,
+                    ofp=None, out_dir=None,
+                    ):
+    """filter a depths raster"""
+    
+    if ofp is None:
+        ofp = _get_ofp(fp, out_dir, name='clean')
+    
+    mar_raw = load_array(fp, masked=True)
+    
+    ar_raw = mar_raw.data
+    
+    
+    mar1 = ma.array(
+                np.where(ar_raw>=0, ar_raw, 0.0), #filter
+                 mask=mar_raw.mask, 
+                 fill_value=mar_raw.fill_value)
+    
+    assert_wsh_ar(mar1)
+    
+    return write_array2(mar1, ofp, **get_profile(fp))
+    
+
+
+
+def write_rlay_to_poly(rlay_fp, 
+                            dkey='WSE',
                             crs=None,
                             ofp=None, out_dir=None,
                             **kwargs):
+    """
+    
+    Parame4ters
+    --------
+    dkey: str
+    """
     #===========================================================================
     # defaults
     #===========================================================================
@@ -300,7 +550,7 @@ def write_rlay_to_inun_poly(rlay_fp, dkey,
     #===========================================================================
     # build the polygon
     #===========================================================================
-    poly = rlay_to_inun_poly(rlay_fp, dkey, **kwargs)
+    poly = rlay_to_poly(rlay_fp, dkey, **kwargs)
     
     assert isinstance(poly, sgeo.polygon.Polygon)
     
@@ -311,13 +561,57 @@ def write_rlay_to_inun_poly(rlay_fp, dkey,
     gdf.to_file(ofp)
         
     return ofp
+
+
+
+    
+def write_poly_to_rlay(poly_fp,
+                       rlay_ref=None,
+                       out_shape=None,
+                       transform=None,
+                       ofp=None, out_dir=None,
+                       invert=True, #normallly we do wet=0
+                       **kwargs):
+    """write polygon to raster"""
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    if ofp is None:
+        ofp = _get_ofp(poly_fp, out_dir, name='inun', ext=os.path.splitext(rlay_ref)[1].replace('.', ''))
+    
+    #===========================================================================
+    # get the mask
+    #===========================================================================
+    bool_ar = polyVlay_to_ar(poly_fp, 
+                         rlay_ref=rlay_ref, out_shape=out_shape, transform=transform,
+                             **kwargs)
+    
+ 
+    if invert:
+        bool_ar = np.invert(bool_ar)
+    
+    #===========================================================================
+    # # Write the mask to the output raster
+    #===========================================================================
+    return write_array2(bool_ar, ofp, **get_profile(rlay_ref)) #converts boolean to int (True=1)
+
+ 
+    
+    
+    
+                       
         
 #===============================================================================
 # HIDDEN HELPERS---------
 #===============================================================================
     
+#===============================================================================
+# appliers
+#===============================================================================
 def _rlay_apply_hyd(rlay_fp, dkey, func, **kwargs):
     """special applier that recognizes our mask arrays"""
+    warnings.warn("2023-04-02. use HydTypes.apply_fp() instead", DeprecationWarning)
     
     if dkey in ['INUN_RLAY']:
         return rlay_mar_apply(rlay_fp, func, **kwargs)
@@ -325,8 +619,36 @@ def _rlay_apply_hyd(rlay_fp, dkey, func, **kwargs):
         return rlay_ar_apply(rlay_fp, func, **kwargs)
         
     
+
+        
+
+
+def _gpd_apply(fp, func, **kwargs):
+    """matching the syntax of rlay_ar_apply"""
+    gdf = gpd.read_file(fp)
+    return func(gdf, **kwargs)
+    
+#===============================================================================
+# loaders
+#===============================================================================
+def _load_ar(rlay_obj, **kwargs):
+    return load_array(rlay_obj, masked=True, **kwargs)
+
+def _load_mar(rlay_obj, **kwargs):
+    return load_mask_array(rlay_obj, maskType='binary', **kwargs)
+
+ 
+
+def _get_inun_gdf(fp):
+    warnings.warn("2023-04-02. use HydTypes.load_fp() instead", DeprecationWarning)
+    gdf = gpd.read_file(fp)
+    assert_inun_poly(gdf, msg=os.path.basename(fp))
+    return gdf
+
+
 def _get_hyd_ar(rlay_obj, dkey, **kwargs):
     """special array loader"""
+    warnings.warn("2023-04-02. use HydTypes.load_fp() instead", DeprecationWarning)
     
     #allowing datasets here
     #assert_type_fp(rlay_obj, dkey)
@@ -336,48 +658,23 @@ def _get_hyd_ar(rlay_obj, dkey, **kwargs):
  
     else:
         return load_array(rlay_obj, masked=True, **kwargs)
-        
-def _get_inun_gdf(fp):
-    gdf = gpd.read_file(fp)
-    assert_inun_poly(gdf, msg=os.path.basename(fp))
-    return gdf
-        
- 
+              
+              
 #===============================================================================
 # ASSERTIONS---------
 #===============================================================================
-
-def assert_type_fp(fp, dkey, msg=''):
-    """check the file matches the dkey hydro expectations"""
-    if not __debug__: # true if Python was not started with an -O option
-        return 
-    #__tracebackhide__ = True  
-    
-    #dkey check
-    if not dkey in assert_func_d:
-        raise AssertionError(f'unrecognized dkey {dkey}')
-    
-    #file type checking
-    assert os.path.exists(fp)
-    
-    if dkey in ['WSH', 'WSE', 'DEM', 'INUN_RLAY']:
-        assert is_raster_file(fp)
-        _rlay_apply_hyd(fp, dkey, assert_func_d[dkey], msg=msg+f' w/ dkey={dkey}')
-    elif dkey in ['INUN_POLY']:
-        _get_inun_gdf(fp)
+  
         
-    else:
-        raise KeyError(dkey)    
-
- 
-    
-    
+        
 def assert_inun_ar(ar, msg=''):
-    if not __debug__: # true if Python was not started with an -O option
+    """inundation array. wet=True"""
+    if not __debug__:  
         return 
-    __tracebackhide__ = True
+    #__tracebackhide__ = True
     
     assert_mask_ar(ar, msg=msg+' inun')
+    if not ar.any():
+        raise AssertionError(f'expect some Trues\n'+msg)
     
       
 
@@ -437,16 +734,9 @@ def assert_partial_wet(ar, msg=''):
         raise AssertionError(msg+': all false')
     
 def assert_inun_poly(gdf, msg=''):
-    assert len(gdf)==1, msg
+    assert len(gdf)==1, f'got {len(gdf)} feats\n'+msg
     assert gdf.iloc[0].geometry.geom_type in ['Polygon','MultiPolygon'], msg
     
     
     
-    
-assert_func_d = {
-    'WSH':assert_wsh_ar,
-    'WSE':assert_wse_ar,
-    'DEM':assert_dem_ar,
-    'INUN_RLAY':assert_inun_ar,
-    'INUN_POLY':assert_inun_poly,
-    }
+ 

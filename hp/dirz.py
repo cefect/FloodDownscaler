@@ -27,7 +27,7 @@ seems to only throw during debugging
 """
 
 
-from hp.exceptions import Error
+#from hp.exceptions import Error
 
 from pathlib import Path
 
@@ -111,7 +111,7 @@ def copy_file(filetocopy_path,  #copy file to a directory
         nfn_clean, ext = os.path.splitext(new_fn)
         
         if ext == '':
-            raise Error('missing the extension')
+            raise IOError('missing the extension')
         
         new_fn = '%s%s%s'%(nfn_clean, sfx, ext)
     
@@ -314,7 +314,7 @@ def url_retrieve(
             with open(ofp, 'wb') as f:
                 shutil.copyfileobj(r, f)
     except Exception as e:
-        raise Error('failed to DL from %s w/ \n    %s'%(url, e))
+        raise ValueError('failed to DL from %s w/ \n    %s'%(url, e))
             
     log.info('downloaded from %s'%url)
             

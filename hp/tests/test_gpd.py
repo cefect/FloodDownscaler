@@ -20,9 +20,9 @@ from hp.tests.tools.rasters import (
     get_rlay_fp, bbox_default, get_rand_ar, crs_default, get_poly_fp_from_rlay,
     )
 
-from hp.tests.data.toy_rasters import wse1_mar
+from hp.tests.data.toy_rasters import proj_ar_d
  
-wse1_mar_fp = get_rlay_fp(wse1_mar, 'wse1_toy_mar', crs=crs_default, bbox=bbox_default)
+wse1_mar_fp = get_rlay_fp(proj_ar_d['wse13'], 'wse1_toy_mar', crs=crs_default, bbox=bbox_default)
 poly_fp = get_poly_fp_from_rlay(wse1_mar_fp)
 
 #===============================================================================

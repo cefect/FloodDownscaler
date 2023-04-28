@@ -295,8 +295,167 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
             return crs, bbox, compress, nodata
         else:
             return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
-
+        
+        
+class GridTypes(object):
+    """handling and conversion of grid types"""
+    fp=None
+    
+    def __init__(self,
+             dkey, 
+             fp=None,
+             map_lib=None,
+             conv_lib=None,
+             out_dir=None,
+             ):
+        
+        #=======================================================================
+        # basics
+        #=======================================================================
+        self.dkey=dkey
+        
+        if not fp is None:
+            assert os.path.exists(fp)
+            self.fp=fp
             
+        
+        if out_dir is None:
+            out_dir = tempfile.gettempdir()
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        
+        self.out_dir=out_dir
+        
+        #=======================================================================
+        # attachments
+        #=======================================================================
+        self.map_lib=map_lib
+        self.conv_lib=conv_lib
+        
+        #=======================================================================
+        # prechecks
+        #=======================================================================
+        if not self.fp is None:
+            self.assert_fp()
+            
+    def assertd(self, *args, **kwargs):
+        if not __debug__: # true if Python was not started with an -O option
+            return 
+        __tracebackhide__ = True
+    
+        return self.map_lib[self.dkey]['assert'](*args, **kwargs)
+                         
+
+    def assert_fp(self, fp=None, msg=''):
+        """check the file matches the dkey hydro expectations"""
+        if not __debug__: # true if Python was not started with an -O option
+            return 
+        #__tracebackhide__ = True
+        if fp is None:
+            fp=self.fp
+            
+        dkey = self.dkey  
+        
+        #dkey check
+        if not dkey in self.map_lib:
+            raise AssertionError(f'unrecognized dkey {dkey}')
+        
+        #file type checking
+        if not os.path.exists(fp):
+            raise AssertionError(f'got bad filepath\n    {fp}\n'+msg)
+        
+        #apply the assertion
+
+        assert_func =  self.map_lib[dkey]['assert']
+        
+        self.apply_fp(fp, assert_func, msg=msg+f' w/ dkey={dkey}')
+        
+    def apply_fp(self, fp, func, **kwargs):
+        assert isinstance(fp, str)
+        assert os.path.exists(fp)
+        return self.map_lib[self.dkey]['apply'](fp, func, **kwargs)
+    
+    def load_fp(self, fp, **kwargs):
+        #type check
+        self.assert_fp(fp, msg='loading')
+        
+        #return the data
+        return self.map_lib[self.dkey]['load'](fp, **kwargs)
+    
+    def convert(self, out_dkey,out_dir=None, **kwargs):
+        """convert to the requested type"""
+        #precheck
+        if not self.dkey in self.conv_lib:
+            raise KeyError(self.dkey)
+        
+        #defaults
+        if out_dir is None: out_dir=self.out_dir
+        
+        #extract function
+        d = self.conv_lib[self.dkey]
+        
+        if not out_dkey in d:
+            raise NotImplementedError(out_dkey)
+        
+        f =d[out_dkey]
+        
+        #execute
+        return f(out_dir=out_dir, **kwargs)
+    
+    def _get_ofp(self, sfx=None, ofp=None, out_dir=None, ext=None, 
+                 fname=None, base_fp=None,):
+        
+        if ofp is None:
+            #directory
+            if out_dir is None:
+                out_dir=self.out_dir
+            
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+                
+            #extension
+            if ext is None:
+                ext = self.map_lib[self.dkey]['ext']
+            
+            
+            #filename
+            if fname is None:
+                
+                if base_fp is None:
+                    base_fp=self.fp
+                    
+                fname = os.path.basename(base_fp).replace('.asc', '').replace(ext, '')
+                
+                if not sfx is None:
+                    fname = fname+'_' + sfx
+                    
+            assert not ext in fname
+            
+            #assemble
+            ofp = os.path.join(out_dir, fname+ext)
+            
+        return ofp
+        
+ 
+    
+
+class ErrGridTypes(GridTypes):
+    """type handling of error/confusion grids"""
+    def __init__(self,dkey,
+                 map_lib=None,
+                 conv_lib=None, 
+                 **kwargs):
+        
+        if map_lib is None:
+            map_lib = dict()
+            
+        map_lib.update({ 
+            'CONFU':        {},
+             })
+        
+        super().__init__(dkey, map_lib=map_lib, conv_lib=conv_lib, **kwargs)
+    
+    
 #===============================================================================
 # HELPERS----------
 #===============================================================================
@@ -492,6 +651,8 @@ def rlay_apply(rlay, func, **kwargs):
     assert not rlay is None
     
     if isinstance(rlay, str):
+        if not is_raster_file(rlay):
+            raise AssertionError(f'expected a raster filepath:\n    {rlay}')
         with rio.open(rlay, mode='r') as ds:
             res = func(ds, **kwargs)
             
@@ -511,6 +672,7 @@ def rlay_ar_apply(rlay, func, masked=True, **kwargs):
     takes a function like
         f(np.Array, **kwargs)
     """
+    
 
     def ds_func(dataset, **kwargs):
         return func(dataset.read(1, window=None, masked=masked), **kwargs)
@@ -619,6 +781,12 @@ def get_ds_attr(rlay, stat):
 def get_profile(rlay):
     return rlay_apply(rlay, lambda ds:ds.profile)
 
+def get_crs(rlay): 
+    #extract from metadata and convert to pyproj
+    crs = CRS(get_ds_attr(rlay, 'crs'))
+    assert isinstance(crs, CRS), f'bad type on crs from {rlay}\n    {type(crs)}'
+    return crs
+
 def get_write_kwargs( obj,
                       att_l = ['crs', 'transform', 'nodata'],
                       **kwargs):
@@ -724,6 +892,7 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
     #===========================================================================
     # collect polygons
     #===========================================================================
+    print(f'with convert_to_binary={convert_to_binary} on \n    {rlay_fp}')
     with rio.open(rlay_fp, mode='r') as src:
         mar = src.read(1, masked=True)
         
@@ -733,7 +902,8 @@ def rlay_to_polygons(rlay_fp, convert_to_binary=True,
             source = mar
         #mask = image != src.nodata
         d=dict()
-        for geom, val in rasterio.features.shapes(source, mask=~mar.mask, transform=src.transform,
+        for geom, val in rasterio.features.shapes(source, mask=~mar.mask,
+                                                  transform=src.transform,
                                                   connectivity=8):
             
             d[val] = sgeo.shape(geom)

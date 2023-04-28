@@ -215,12 +215,12 @@ class Basic(object): #simple base class
         self.init_pars=init_pars
  
         if not logger is None:
-            self.logger.debug('finished Basic.__init__ w/\n    %s '%init_pars)
+            self.logger.debug(f'finished Basic.__init__ w/ out_dir={out_dir}\n    %s '%init_pars)
  
         
     def _get_init_pars(self):
         """only for simple atts... no containers"""
-        return {k:getattr(self, k) for k in self.init_pars}
+        return {k:getattr(self, k) for k in self.init_pars}.copy()
     
     def _install_info(self,
                          log = None): #print version info
@@ -246,6 +246,10 @@ class Basic(object): #simple base class
         subdir: bool, default False
             build the out_dir as a subdir of the default out_dir (using dkey)
             
+        
+        Use
+        ---------
+        log, tmp_dir, out_dir, ofp, resname  = self._func_setup('myFuncName', **kwargs) 
             
         TODO
         ----------
@@ -615,22 +619,39 @@ class Session(LogSession): #analysis with flexible loading of intermediate resul
         
         return ofp
     
-    def _write_pick(self, data, **kwargs):
+    def _write_pick(self, data, overwrite=None, **kwargs):
         """dump data to a pickle"""
-        
+        #=======================================================================
+        # defaults
+        #=======================================================================
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('w', subdir=False,ext='.pkl',  **kwargs)
+        if overwrite is None:
+            overwrite=self.overwrite
+            
+        #=======================================================================
+        # jprecheck
+        #=======================================================================
+        if os.path.exists(ofp):
+            assert overwrite
         
+        #=======================================================================
+        # write
+        #=======================================================================
         with open(ofp, 'wb') as handle:
             pickle.dump(data, handle)
             
+        #=======================================================================
+        # wrap
+        #=======================================================================
         log.info(f'wrote {type(data)} to \n    {ofp}')
         return ofp
     
     def _relpath(self, fp):
         """intelligently convert a filepath to relative"""
         if self.relative:
-            assert os.path.exists(self.base_dir)
+            assert os.path.exists(self.base_dir), self.base_dir
             assert os.path.exists(fp), fp
+            #assert str(self.base_dir) in fp
             try:
                 return os.path.relpath(fp, self.base_dir)
             except Exception as e:

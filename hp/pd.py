@@ -39,7 +39,7 @@ pd.options.mode.chained_assignment = None   #setting with copy warning handling
 # custom imports
 #===============================================================================
 
-from hp.exceptions import Error
+#from hp.exceptions import Error
 #import hp.np
 #from hp.np import left_in_right as linr
 
@@ -120,7 +120,7 @@ def get_bx_multiVal(df, #get boolean based on multi-column matching (single valu
         
         
     else:
-        raise Error(matchOn)
+        raise KeyError(matchOn)
     
     bx = pd.Series(baseBoolean, index=df.index) #start with nothing
     meta_d= {'base':{'bx':bx.sum()}, 'logicFunc':logicFunc.__name__}
@@ -132,7 +132,7 @@ def get_bx_multiVal(df, #get boolean based on multi-column matching (single valu
             new_bx = df[coln].isin(val)
             
         elif isinstance(val, tuple):
-            raise Error('not implemented')
+            raise TypeError('not implemented')
         else:
             new_bx = df[coln]==val
             
