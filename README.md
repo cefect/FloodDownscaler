@@ -24,7 +24,7 @@ cef's tools
 `git submodule add -b FloodDownscaler https://github.com/cefect/coms.git`
 
 flood grid performance tools
-`git submodule add https://github.com/cefect/fperf`
+`git submodule add -b FloodDownscaler https://github.com/cefect/fperf`
 
 whitebox tools (cefect's fork)
 `git submodule https://github.com/cefect/whitebox-tools.git`
