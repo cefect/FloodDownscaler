@@ -11,10 +11,10 @@ import rasterio.shutil
 
 from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
-from hp.hyd import assert_type_fp, get_wsh_rlay
+from hp.hyd import get_wsh_rlay
 from hp.rio import write_clip, is_raster_file, copyr
 
-from fdsc.base import assert_dsc_res_lib, DscBaseWorker
+from fdsc.base import assert_dsc_res_lib, DscBaseWorker, assert_type_fp
 #from fdsc.control import Dsc_Session
 from fperf.pipeline import ValidateSession
  

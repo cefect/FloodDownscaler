@@ -16,7 +16,7 @@ from hp.rio import (
     assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
     )
 from hp.riom import assert_masked_ar
-from hp.hyd import assert_wse_ar, assert_dem_ar, assert_partial_wet
+from hp.hyd import assert_wse_ar, assert_dem_ar, assert_partial_wet, HydTypes
 from hp.hyd import assert_wsh_ar as assert_wd_ar
 
 nicknames_d = {'CostGrow':'cgs', 
@@ -180,6 +180,10 @@ def assert_dsc_res_lib(dsc_res_lib, msg=''):
     
     for k0, d0 in dsc_res_lib.items():
         assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set()
+        
+def assert_type_fp(fp, dkey, **kwargs):
+    return HydTypes(dkey).assert_fp(fp, **kwargs)
+    
         
 #===============================================================================
 # def assert_dem_ar(ar, msg=''):

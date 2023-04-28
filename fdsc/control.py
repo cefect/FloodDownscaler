@@ -23,7 +23,7 @@ from hp.rio import (
 from hp.pd import view
  
 from hp.hyd import (
-    assert_type_fp
+    HydTypes
     )
 
 from fdsc.wbt import WBT_worker
@@ -68,8 +68,9 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_type_fp(dem_fp, 'DEM')
-        assert_type_fp(wse_fp, 'WSE')
+        HydTypes('DEM').assert_fp(dem_fp)
+        HydTypes('WSE').assert_fp(wse_fp)
+ 
         
  
         #=======================================================================
@@ -208,8 +209,9 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #assert not os.path.exists(ofp), f'output exists\n    {ofp}'
         if debug:
             assert_extent_equal(wse2_fp, dem1_fp)
-            assert_type_fp(dem1_fp, 'DEM')
-            assert_type_fp(wse2_fp, 'WSE')
+            HydTypes('DEM').assert_fp(dem1_fp)
+            HydTypes('WSE').assert_fp(wse2_fp)
+ 
  
         meta_lib['wse_raw'] = get_stats2(wse2_fp)
         meta_lib['dem_raw'] = get_stats2(dem1_fp)
@@ -236,7 +238,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # check
         #=======================================================================
-        assert_type_fp(wse1_fp, 'WSE')
+        HydTypes('WSE').assert_fp(wse1_fp) 
         assert_spatial_equal(wse1_fp, dem1_fp)
         
 
@@ -293,8 +295,9 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_type_fp(dem1_fp, 'DEM')
-        assert_type_fp(wse2_fp, 'WSE')
+        HydTypes('DEM').assert_fp(dem1_fp) 
+        HydTypes('WSE').assert_fp(wse2_fp) 
+ 
         assert_extent_equal(wse2_fp, dem1_fp), 'must pre-clip rasters'
         
         #=======================================================================

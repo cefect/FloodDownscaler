@@ -23,13 +23,13 @@ from hp.rio import (
     rlay_apply,rlay_ar_apply,write_resample, Resampling, get_ds_attr, get_stats2
     )
 from hp.riom import write_extract_mask, write_array_mask
-from hp.hyd import assert_type_fp
+ 
 
 from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d,  assert_partial_wet
+    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d,  assert_partial_wet, assert_type_fp, DscBaseWorker
     )
 
-from fdsc.base import DscBaseWorker
+
 
 
 

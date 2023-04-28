@@ -26,7 +26,7 @@ from hp.rio import (
     )
 
 from hp.riom import write_extract_mask, write_array_mask, assert_mask_fp
-from hp.hyd import assert_type_fp
+from fdsc.base import assert_type_fp
 
 #project
 from fdsc.simple import WetPartials
@@ -180,7 +180,7 @@ class CostGrow(WetPartials):
         start = now()
         meta_d=dict()
         assert get_ds_attr(wse_fp, 'nodata')==-9999
-        assert_type_fp(wse_fp, 'WSE', 'filter_iso input')
+        assert_type_fp(wse_fp, 'WSE', msg='filter_iso input')
         #=======================================================================
         # #convert to mask
         #=======================================================================
