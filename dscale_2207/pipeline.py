@@ -83,7 +83,7 @@ def run_plot(dsc_vali_res_lib,
              hwm_scat_kg=dict(),
              inun_per_kg=dict(),
              ):
-    """ run evaluation on downscaling results"""
+    """ plot downscaling and evalu results"""
     assert not 'aoi_fp' in  init_kwargs
     
     res_d = dict()
@@ -97,8 +97,12 @@ def run_plot(dsc_vali_res_lib,
         serx.index.names
         serx.index.unique('analysis')
         serx['clip']
+        print(dstr(dsc_vali_res_lib))
         """
-        
+ 
+        #fix some grid names
+        serx = serx.rename({'wsh':'WSH', 'wse':'WSE', 'dem':'DEM'}, level=3)
+ 
         
         #=======================================================================
         # pull inputs from library
@@ -107,7 +111,7 @@ def run_plot(dsc_vali_res_lib,
         default_fp_d = serx['raw']['fp'][mdex.unique('simName')[0]].to_dict()
         if dem_fp is None:
             """not sure why this is 'clipped' but not on the clip level"""
-            dem_fp = default_fp_d['dem']
+            dem_fp = default_fp_d['DEM']
         if inun_fp is None:
             inun_fp = default_fp_d['inun']
             
@@ -117,11 +121,11 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
- 
+  
         #=======================================================================
         # grid plots
         #=======================================================================
-        for gridk in ['wsh', 'wse']:
+        for gridk in ['WSH', 'WSE']:
             fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
                                          dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)
@@ -129,8 +133,9 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         # INUNDATION PERFORMANCe
         #======================================================================= 
-        fp_df, metric_lib = ses.collect_inun_data(serx, 'wsh', raw_coln='raw')
-        res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df, metric_lib=metric_lib, **inun_per_kg)
+        fp_df, metric_lib = ses.collect_inun_data(serx, 'WSH', raw_coln='raw')
+        res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df.loc[:, ['WSH', 'CONFU']], 
+                                                    metric_lib=metric_lib, **inun_per_kg)
         
         #=======================================================================
         # wrap

@@ -73,7 +73,10 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
                            write_pick=True,
                            copy_inputs=False,  
                            **kwargs):
-        """skinny wrapper for test_run_vali_multi using dsc formatted results"""
+        """skinny wrapper for test_run_vali_multi using dsc formatted results
+        
+        
+        """
         log, tmp_dir, out_dir, ofp, resname = self._func_setup('rvmd', ext='.pkl', **kwargs)
         #if aoi_fp is None: aoi_fp=self.aoi_fp
         
@@ -105,36 +108,7 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
         #=======================================================================
         """even though it would be nicer to only build WSH on the clip
             easier to keep it on the sub func"""
-#===============================================================================
-#         #set the raw
-#         ins_raw_d = {'DEM':dem_fp}.update(pred_wse_fp_d)
-# 
-#         if not aoi_fp is None:
-#             bbox, crs = get_bbox_and_crs(aoi_fp)
-#             
-#             #predicted rasters
-#             clip_d = self.clip_rlays(pred_wse_fp_d, bbox=bbox, crs=crs)
-#             pred_wse_fp_d={k:v['clip_fp'] for k,v in clip_d.items()}
-#             #pred_wse_fp_d = pred_wse_fp_d_clip.copy()
-#             
-#             dem_fp = write_clip(dem_fp,bbox=bbox,crs=crs,
-#                                 ofp=os.path.join(out_dir, f'{os.path.basename(dem_fp)}_clip.tif')
-#                                                   )
-#         
-#         ins_d = {'DEM':dem_fp}.update(pred_wse_fp_d)
-#             
-#  
-#         
-#         #=======================================================================
-#         #     #inundation raster
-#         #     if is_raster_file(inun_fp):
-#         #         bnm = os.path.splitext(os.path.basename(inun_fp))[0]
-#         #         log.debug(f'clipping inundation raster {bnm}')
-#         #         
-#         #         inun_fp, _ = write_clip(inun_fp, bbox=bbox, ofp=os.path.join(out_dir, f'{bnm}_clip.tif'))
-#         # 
-#         #=======================================================================
-#===============================================================================
+ 
         #=======================================================================
         # get WSH
         #=======================================================================

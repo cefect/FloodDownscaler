@@ -58,7 +58,7 @@ if debug:
     pick_lib = {
  
         'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230427\ahr_aoi13_0427_dev_0427_dscM.pkl',
-        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230428\ahr_aoi13_0427_dev_0428_rvmd.pkl',
+        #'eval':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230428\ahr_aoi13_0427_dev_0428_rvmd.pkl',
  
         }
 else:
