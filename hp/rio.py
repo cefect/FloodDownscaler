@@ -162,7 +162,7 @@ class RioWrkr(object):
         #pull fresh from attributes
         self.profile={k:getattr(self, k) for k in self.profile_expect_d.keys()}
         
-        return self.profile
+        return self.profile.copy()
         
         
     def assert_atts(self):
@@ -339,11 +339,11 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         # get kwargs
         #=======================================================================
         #pull the session defaults
-        prof_d = self.profile.copy()
+        prof_d = self.get_profile()
         
         #update 
-        prof_d.update(dict(compress=compress, nodata=nodata))
-        prof_d.update(kwargs)
+        prof_d.update({**dict(compress=compress, nodata=nodata), **kwargs})
+ 
         
         #=======================================================================
         # write
