@@ -124,6 +124,18 @@ class SpatialBBOXWrkr(object):
         assert hasattr(self.bbox, 'bounds')
         assert isinstance(self.crs, CRS) or isinstance(self.crs, CRS_rasterio), f'bad type on crs ({type(self.crs)})'
         
+    def write_bbox_vlay(self,bbox,crs=None,
+                        **kwargs):
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('bbox', ext='.geojson', **kwargs)
+        if crs is None: crs=self.crs
+        
+        return write_bbox_vlay(bbox, crs, ofp)
+        
+        
  
         
         

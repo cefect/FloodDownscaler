@@ -138,6 +138,8 @@ class RioWrkr(object):
         #pull from reference
         if not rlay_ref_fp is None:
             d1 = get_profile(rlay_ref_fp)
+        else:
+            d1 = dict()
             
         #update w/ kwargs
         d1.update(kwargs)
@@ -147,9 +149,9 @@ class RioWrkr(object):
             setattr(self, k, v)
             
             
-            
+        """dont want to do this every time... sometimes we init without setting all the atts    
         #check
-        self.assert_atts()
+        self.assert_atts()"""
         
         self.profile={k:getattr(self, k) for k in self.profile_expect_d.keys()}
         
@@ -203,6 +205,50 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         #=======================================================================
         self.compression=compression        
         assert isinstance(compression, Compression)
+        
+        
+    def clip_rlay(self, fp,
+                  aoi_fp=None, 
+                  bbox=None,
+                  crs=None,
+                  clip_kwargs=None,
+                  **kwargs):
+        """skinny clip a single raster
+        
+        Pars
+        -----------
+        aoi_fp: str
+            filepath to aoi polygon.
+            optional for setting excplicitly.
+            aoi_fp passed to init is already set
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip',  **kwargs)
+        if clip_kwargs is  None: clip_kwargs=dict()
+        
+        if not aoi_fp is None:
+            self._set_aoi(aoi_fp)
+            
+        if bbox is None: bbox=self.bbox
+        if crs is None: crs=self.crs
+            
+        #=======================================================================
+        # update clipping kwargs
+        #=======================================================================
+        clip_kwargs.update(dict(bbox=bbox, crs=crs))
+            
+        ofp, stats_d = write_clip(fp, ofp=ofp, **clip_kwargs)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'clipped {os.path.basename(fp)}\n    {stats_d})')
+        
+        return ofp
+        
+        
  
     
 
