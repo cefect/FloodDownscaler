@@ -65,7 +65,7 @@ class RioWrkr(object):
     """
     
     #extras for writing
-    compression=None
+    compress=None
     
  
     #spatial profile
@@ -192,7 +192,7 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
     def __init__(self,   
     
                     #default behaviors
-                compression=Compression('NONE'), #matching rasterio naming
+                compress=Compression('NONE'), #matching gdal GeoTiff driver naming
                 
                 **kwargs):
         
@@ -203,8 +203,8 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         #=======================================================================
         # simple attachments
         #=======================================================================
-        self.compression=compression        
-        assert isinstance(compression, Compression)
+        self.compress=compress        
+        assert isinstance(compress, Compression)
         
         
     def clip_rlay(self, fp,
