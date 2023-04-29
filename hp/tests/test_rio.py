@@ -10,14 +10,18 @@ import numpy as np
 import rasterio as rio
 
 from hp.basic import dstr
+from hp.oop import Session
 from hp.rio import (
-    RioWrkr, write_array, write_resample, rlay_ar_apply, get_crs
+    RioWrkr, write_array, write_resample, rlay_ar_apply, get_crs, RioSession
     )
 
 from rasterio.enums import Resampling
 from pyproj.crs import CRS
 from definitions import src_dir
- 
+
+#load fixture from file explicitly
+from hp.tests.test_fiona import aoi_fp
+pytestmark = pytest.mark.usefixtures("aoi_fp")
 #===============================================================================
 # test data
 #===============================================================================
@@ -28,14 +32,17 @@ output_kwargs = dict(crs=rio.crs.CRS.from_epsg(crsid),
                      transform=rio.transform.from_origin(1,100,1,1)) 
 
 
-#===============================================================================
 # toy data
-#===============================================================================
 from hp.tests.data.toy_rasters import proj_ar_d
  
 wse1_mar_fp = get_rlay_fp(proj_ar_d['wse13'], 'wse1_toy_mar', crs=CRS.from_user_input(crsid), bbox=bbox_default)
 
-
+#===============================================================================
+# helpers
+#===============================================================================
+class RioSessionTester(RioSession, Session):
+    """avoiding calling session to handle complex inheritance"""
+    pass
 #===============================================================================
 # fixtures------
 #===============================================================================
@@ -45,6 +52,13 @@ def riowrkr(rlay_fp):
         rlay_ref_fp=rlay_fp, 
         ) as wrkr:
         yield wrkr
+        
+@pytest.fixture(scope='function')     
+def rioses(rlay_fp, aoi_fp):
+    with RioSessionTester(rlay_ref_fp=rlay_fp, aoi_fp=aoi_fp) as ses:
+        ses.assert_atts()
+        yield ses
+        
  
 
 @pytest.fixture(scope='function')
@@ -54,10 +68,17 @@ def rlay_fp(ar, tmp_path):
 #===============================================================================
 # tests---------
 #===============================================================================
+ 
+@pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
+def test_init_wrkr(riowrkr): 
+    riowrkr.assert_atts()   
+    print(dstr(riowrkr.profile))
+
 @pytest.mark.dev
 @pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
-def test_init(riowrkr, ar):    
-    print(dstr(riowrkr.profile))
+def test_init_ses(rioses):
+    rioses.assert_atts()
+    
 
 
 @pytest.mark.parametrize('ar, scale', [

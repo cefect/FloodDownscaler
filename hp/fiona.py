@@ -9,6 +9,7 @@ from pyproj.crs import CRS
 import shapely.geometry as sgeo
 from shapely.geometry import mapping
 from shapely.geometry.polygon import Polygon
+from rasterio.crs import CRS as CRS_rasterio 
 
 
 def get_bbox_and_crs(fp):
@@ -117,11 +118,13 @@ class SpatialBBOXWrkr(object):
         
         return self.crs, self.bbox
     
-    def assert_valid_atts(self):
+    def assert_atts(self):
         #check
         assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
         assert hasattr(self.bbox, 'bounds')
-        assert isinstance(self.crs, CRS)
+        assert isinstance(self.crs, CRS) or isinstance(self.crs, CRS_rasterio), f'bad type on crs ({type(self.crs)})'
+        
+ 
         
         
         

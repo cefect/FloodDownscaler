@@ -171,6 +171,8 @@ class RioWrkr(object):
             attv = getattr(self, k)
             assert isinstance(attv, v), f'bad type on {k}={attv}\nexpected {v} got {type(attv)}'
             
+ 
+            
         
     def __enter__(self):
         return self
@@ -181,14 +183,6 @@ class RioWrkr(object):
         super().__exit__(*args, **kwargs)"""
         
  
-            
-                   
-    
-
-
-    
-
-    
 
         
 class RioSession(RioWrkr, SpatialBBOXWrkr):
@@ -337,11 +331,13 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         else:
             return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
         
-    def assert_valid_atts(self):
-        #check
-        assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
-        assert hasattr(self.bbox, 'bounds')
-        assert isinstance(self.crs, CRS)
+    def assert_atts(self):
+        RioWrkr.assert_atts(self)
+        SpatialBBOXWrkr.assert_atts(self)
+        """not setup for this
+        super().assert_atts()"""
+ 
+ 
         
         
 class GridTypes(object):
