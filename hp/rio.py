@@ -45,7 +45,7 @@ confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
 #===============================================================================
 
 
-class RioWrkr(Basic):
+class RioWrkr(object):
     """work session for single band raster calcs"""
     
     driver='GTiff'
@@ -192,7 +192,7 @@ class RioWrkr(Basic):
     
  
     
-class SpatialBBOXWrkr(Basic):
+class SpatialBBOXWrkr(object):
     aoi_fp=None
     
     def __init__(self, 
