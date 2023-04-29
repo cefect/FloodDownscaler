@@ -8,6 +8,8 @@ Created on Aug. 7, 2022
 import pytest, tempfile, datetime, os, copy, math
 import numpy as np
 import rasterio as rio
+
+from hp.basic import dstr
 from hp.rio import (
     RioWrkr, write_array, write_resample, rlay_ar_apply, get_crs
     )
@@ -37,17 +39,12 @@ wse1_mar_fp = get_rlay_fp(proj_ar_d['wse13'], 'wse1_toy_mar', crs=CRS.from_user_
 #===============================================================================
 # fixtures------
 #===============================================================================
-#===============================================================================
-# @pytest.fixture(scope='function')
-# def riowrkr(session, rlay_fp):
-#     with RioWrkr(
-#         rlay_ref_fp=rlay_fp,
-#          # oop.Basic
-#          session=session
-#         
-#         ) as wrkr:
-#         yield wrkr
-#===============================================================================
+@pytest.fixture(scope='function')
+def riowrkr(rlay_fp):
+    with RioWrkr(
+        rlay_ref_fp=rlay_fp, 
+        ) as wrkr:
+        yield wrkr
  
 
 @pytest.fixture(scope='function')
@@ -57,11 +54,10 @@ def rlay_fp(ar, tmp_path):
 #===============================================================================
 # tests---------
 #===============================================================================
-#===============================================================================
-# @pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
-# def test_init(riowrkr, ar):    
-#     assert isinstance(riowrkr.ref_name, str)
-#===============================================================================
+@pytest.mark.dev
+@pytest.mark.parametrize('ar', [np.random.random((3, 3))], indirect=False)
+def test_init(riowrkr, ar):    
+    print(dstr(riowrkr.profile))
 
 
 @pytest.mark.parametrize('ar, scale', [
@@ -87,7 +83,7 @@ def test_resample(resampling, scale, ar, rlay_fp):
         
     rlay_ar_apply(res_fp, func)
     
-@pytest.mark.dev
+
 @pytest.mark.parametrize('ar', [np.random.random((3, 3))])
 def test_get_crs(rlay_fp):
     get_crs(rlay_fp)

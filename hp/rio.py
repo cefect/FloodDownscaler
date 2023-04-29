@@ -18,11 +18,13 @@ assert os.getenv('PROJ_LIB') is None, 'rasterio expects no PROJ_LIB but got \n%s
 import rasterio.merge
 import rasterio.io
 import rasterio.features
+from affine import Affine
 from rasterio.plot import show
 from rasterio.enums import Resampling, Compression
 
 import fiona #not a rasterio dependency? needed for aoi work
-from pyproj.crs import CRS
+#from pyproj.crs import CRS
+from rasterio.crs import CRS
 
 import scipy.ndimage
 #import skimage
@@ -46,154 +48,149 @@ confusion_codes = {'TP':111, 'TN':110, 'FP':101, 'FN':100}
 
 
 class RioWrkr(object):
-    """work session for single band raster calcs"""
+    """work session for single band raster calcs
     
-    driver='GTiff'
-    bandCount=1
-    ref_name=None
+    RioWrkr vs. RioSession
+        RioWrkr: single raster calculations (roughly equivalent to rasterio.datasource)
+        
+        RioSession: session level calculations
     
-    #base attributes
+    WARNING:
+        been difficult to have a consistent structure here.
+        decided to make skinny and just match rio.datasource
+        
+        removed reference to oop.base to avoid clashing during complex inheritance
+    
+    
+    """
+    
+    #extras for writing
+    compression=None
+    
+ 
+    #spatial profile
     """nice to have these on the class for more consistent retrival... evven if empty"""
+    driver=None
+    dtype=None
     nodata=None
-    crs=None
-    height=None
     width=None
+    height=None
+    count=None
+    crs=None
     transform=None
+    blockysize=None
+    tiled=None
     
-    profile = None
+    profile_expect_d = dict( #type expectations
+        driver=str,
+        dtype=str,
+        nodata=None,
+        width=int,
+        height=int,
+        count=int,
+        crs=CRS,
+        transform=Affine,
+        blockysize=int,
+        tiled=bool,
+        )
+        
  
 
 
-    def __init__(self,
-  
-                 
-                 #default behaviors
-                compress=Compression('NONE'),nodata=-9999, 
+    def __init__(self,                
+                #spatial profile
+                profile=dict(
+                    nodata=-9999,
+                    driver='GTiff',
+                    ), 
+                rlay_ref_fp=None,
  
                  **kwargs):
+        """init a rio datasource worker
+        
+        
+
+        
+        Pars
+        -------------
+        profile: dict
+            spatial meta (overwrites values extracted from reference layer)
+            
+        rlay_ref_fp: str
+            filepath to a reference raster from which to extract spatial meta
+            
+        """
 
  
         super().__init__(**kwargs)
-        
  
         
         #=======================================================================
-        # simple attachments
+        # profile
         #=======================================================================
-        self.compress=compress
-        
-        assert isinstance(compress, Compression)
-        self.nodata=nodata
+        self._set_profile(rlay_ref_fp=rlay_ref_fp, **profile)
  
  
-  
-    
-    def _set_profile(self,fp):
+ 
+    def _set_profile(self, rlay_ref_fp=None, **kwargs):
         """set the spatial profile of this worker from a raster file"""
-        self.profile = get_profile(fp)
-        self.shape = get_shape(fp)
+        
+        #pull from reference
+        if not rlay_ref_fp is None:
+            d1 = get_profile(rlay_ref_fp)
+            
+        #update w/ kwargs
+        d1.update(kwargs)
+        
+        #attach
+        for k,v in d1.items():
+            setattr(self, k, v)
+            
+            
+            
+        #check
+        self.assert_atts()
+        
+        self.profile={k:getattr(self, k) for k in self.profile_expect_d.keys()}
+        
+    def get_profile(self):
+        """get the datasource profile"""
+        self.assert_atts()
+        
+        #pull fresh from attributes
+        self.profile={k:getattr(self, k) for k in self.profile_expect_d.keys()}
+        
+        return self.profile
+        
+        
+    def assert_atts(self):
+        """check spatial meta"""
+        
+        for k,v in self.profile_expect_d.items():
+            if v is None: continue
+            attv = getattr(self, k)
+            assert isinstance(attv, v), f'bad type on {k}={attv}\nexpected {v} got {type(attv)}'
+            
+        
+    def __enter__(self):
+        return self
+    
+    def __exit__(self,  *args,**kwargs):
+        pass
+        """not needed by lowest object
+        super().__exit__(*args, **kwargs)"""
+        
+ 
             
                    
     
 
-    def clip_rlays(self, raster_fp_d, aoi_fp=None, 
-                   bbox=None, crs=None,
-                 sfx='clip', **kwargs):
-        """clip a dicrionary of raster filepaths
-        
-        Parameters
-        -----------
-        raster_fp_d: dict
-            {key:filepath to raster}
-            
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, _, resname = self._func_setup('clip_set',  **kwargs)
-     
-        #=======================================================================
-        # retrive clipping parameters
-        #=======================================================================
-        if not aoi_fp is None:
-            log.debug(f'clipping from aoi\n    {aoi_fp}')
-            assert bbox is None
-            assert crs is None        
-            bbox, crs = get_bbox_and_crs(aoi_fp)
-        
-        #=======================================================================
-        # precheck
-        #=======================================================================
-        assert isinstance(raster_fp_d, dict)        
-        assert isinstance(bbox, sgeo.Polygon)
-        assert hasattr(bbox, 'bounds')
-        
-        #=======================================================================
-        # clip each
-        #=======================================================================
-        log.info(f'clipping {len(raster_fp_d)} rasters to \n    {bbox}')
-        res_d = dict()
- 
-        for key, fp in raster_fp_d.items(): 
-            d={'og_fp':fp}
-            d['clip_fp'], d['stats'] = write_clip(fp,bbox=bbox,crs=crs,
-                                                  ofp=os.path.join(out_dir, f'{key}_{sfx}.tif')
-                                                  )
-            
-            log.debug(f'clipped {key}:\n    {fp}\n    %s'%d['clip_fp'])
-            
-            res_d[key] = d
-            
-        log.info(f'finished on {len(res_d)}')
-        return res_d
-    
-    def write_array(self,raw_ar,
-                        #write kwargs
-                       nodata=None, compress=None,
-                       
-                       #function kwargs
-                       logger=None, out_dir=None, tmp_dir=None,ofp=None, 
-                     resname=None,ext='.tif',subdir=False,
-                       **kwargs):
-        """write an array to raster using rio using session defaults
-        
-        nodata = 0
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('write_array',
-                           ext=ext, logger=logger, out_dir=out_dir, tmp_dir=tmp_dir, ofp=ofp,
-                           resname=resname, subdir=subdir)
-        
-        if compress is None:
-            compress = self.compress
-        if nodata is None:
-            nodata = self.nodata
-        
-        #=======================================================================
-        # get kwargs
-        #=======================================================================
-        #pull the session defaults
-        prof_d = self.profile.copy()
-        
-        #update 
-        prof_d.update(dict(compress=compress, nodata=nodata))
-        prof_d.update(kwargs)
-        
-        #=======================================================================
-        # write
-        #=======================================================================
-        log.info(f'writing {str(raw_ar.shape)}  to \n    {ofp}')
- 
-        return write_array2(raw_ar, ofp, **prof_d)       
-    
- 
+
     
 class SpatialBBOXWrkr(object):
     aoi_fp=None
+    crs=None
+    bbox=None
     
     def __init__(self, 
                  #==============================================================
@@ -253,30 +250,149 @@ class SpatialBBOXWrkr(object):
         
         if not aoi_fp is None:
             self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
-        
-
- 
-        
-        
+  
     def _set_aoi(self, aoi_fp):
         assert os.path.exists(aoi_fp)
         
         #open file and get bounds and crs using fiona
-        bbox, crs = get_bbox_and_crs(aoi_fp)
- 
+        bbox, crs = get_bbox_and_crs(aoi_fp) 
             
         self.crs=crs
-        self.bbox = bbox
-        
-        
+        self.bbox = bbox        
         self.aoi_fp=aoi_fp
         
         return self.crs, self.bbox
     
+    def assert_valid_atts(self):
+        #check
+        assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
+        assert hasattr(self.bbox, 'bounds')
+        assert isinstance(self.crs, CRS)
+    
 
         
 class RioSession(RioWrkr, SpatialBBOXWrkr):
+    
+    def __init__(self,   
+    
+                    #default behaviors
+                compression=Compression('NONE'), #matching rasterio naming
+                
+                **kwargs):
+        
+        super().__init__(**kwargs)
+        
+ 
+        
+        #=======================================================================
+        # simple attachments
+        #=======================================================================
+        self.compression=compression        
+        assert isinstance(compression, Compression)
+ 
+    
 
+    def clip_rlays(self, raster_fp_d,
+                   aoi_fp=None, 
+                   crs=None, bbox=None, nodata=None, compress=None,
+                 sfx='clip', **kwargs):
+        """clip a dicrionary of raster filepaths
+        
+        Parameters
+        -----------
+        raster_fp_d: dict
+            {key:filepath to raster}
+            
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, _, resname = self._func_setup('clip_set',  **kwargs)
+     
+        
+        
+        #=======================================================================
+        # retrive clipping parameters
+        #=======================================================================
+        if not aoi_fp is None:
+            log.debug(f'clipping from aoi\n    {aoi_fp}')
+            assert bbox is None
+            assert crs is None        
+            self._set_aoi(aoi_fp)
+        else:
+            pass #should have been set during init
+            
+        crs, bbox, compress, nodata = self._get_defaults(crs=crs, bbox=bbox, nodata=nodata, compress=compress)
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================
+        assert isinstance(raster_fp_d, dict)        
+
+        
+        #=======================================================================
+        # clip each
+        #=======================================================================
+        log.info(f'clipping {len(raster_fp_d)} rasters to \n    {bbox}')
+        res_d = dict()
+ 
+        for key, fp in raster_fp_d.items(): 
+            d={'og_fp':fp}
+            d['clip_fp'], d['stats'] = write_clip(fp,bbox=bbox,crs=crs,
+                                                  ofp=os.path.join(out_dir, f'{key}_{sfx}.tif')
+                                                  )
+            
+            log.debug(f'clipped {key}:\n    {fp}\n    %s'%d['clip_fp'])
+            
+            res_d[key] = d
+            
+        log.info(f'finished on {len(res_d)}')
+        return res_d
+    
+    def write_array(self,raw_ar,
+                        #write kwargs
+                       nodata=None, compress=None,
+                       
+                       #function kwargs
+                       logger=None, out_dir=None, tmp_dir=None,ofp=None, 
+                     resname=None,ext='.tif',subdir=False,
+                       **kwargs):
+        """write an array to raster using rio using session defaults
+        
+        TODO: use _get_defaults
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('write_array',
+                           ext=ext, logger=logger, out_dir=out_dir, tmp_dir=tmp_dir, ofp=ofp,
+                           resname=resname, subdir=subdir)
+        
+        if compress is None:
+            compress = self.compress
+        if nodata is None:
+            nodata = self.nodata
+        
+        #=======================================================================
+        # get kwargs
+        #=======================================================================
+        #pull the session defaults
+        prof_d = self.profile.copy()
+        
+        #update 
+        prof_d.update(dict(compress=compress, nodata=nodata))
+        prof_d.update(kwargs)
+        
+        #=======================================================================
+        # write
+        #=======================================================================
+        log.info(f'writing {str(raw_ar.shape)}  to \n    {ofp}')
+ 
+        return write_array2(raw_ar, ofp, **prof_d)       
+    
+ 
     
     def _get_defaults(self, crs=None, bbox=None, nodata=None, compress=None,
                       as_dict=False):
@@ -286,15 +402,26 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         ----------
         crs, bbox, compress, nodata =RioSession._get_defaults(self)
         """
+        self.assert_valid_atts()
+        
         if crs is None: crs=self.crs
         if bbox is  None: bbox=self.bbox
         if compress is None: compress=self.compress
         if nodata is None: nodata=self.nodata
         
+
+        
+        
         if not as_dict:
             return crs, bbox, compress, nodata
         else:
             return dict(crs=crs, bbox=bbox, compress=compress, nodata=nodata)
+        
+    def assert_valid_atts(self):
+        #check
+        assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
+        assert hasattr(self.bbox, 'bounds')
+        assert isinstance(self.crs, CRS)
         
         
 class GridTypes(object):
