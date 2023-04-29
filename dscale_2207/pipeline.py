@@ -20,14 +20,22 @@ from hp.pd import view
 from hp.basic import dstr
 from hp.rio import (get_bbox, write_clip)
 
-from fdsc.control import Dsc_Session
-from fdsc.eval.control import  Dsc_Eval_Session
+#from fdsc.control import Dsc_Session
+from fdsc.eval.control import Dsc_Eval_Session
 from fdsc.plot.control import Fdsc_Plot_Session
 
+def load_pick(fp):
+    with open(fp, 'rb') as f:
+        d = pickle.load(f)
+    assert isinstance(d, dict)
+    print(f'loaded {len(d)} from \n    {fp}')
+    return d
 
 
-def run_downscale(
+
+def run_downscale_and_eval(
         proj_lib,
+        pick_lib=dict(),
         init_kwargs=dict(),
         method_pars={'CostGrow': {}, 
                          'Basic': {}, 
@@ -36,52 +44,92 @@ def run_downscale(
                          'Schumann14': {},
                          },
         **kwargs):
-    """run all downscaleing methods"""
+    """run all downscaleing methods then evaluate
     
-
-            
-    if 'aoi' in init_kwargs:
-        init_kwargs['aoi_fp'] = init_kwargs.pop('aoi')
+    
+    Pars
+    ----------
+    pick_lib, dict
+        precompiled results
+        
+    """
+ 
     
     #init
-    with Dsc_Session(**init_kwargs) as ses:
-        
-        dem_fp, wse_fp = ses.p0_clip_rasters(proj_lib['dem1'], proj_lib['wse2'])
-        
-        dsc_res_lib = ses.run_dsc_multi(dem_fp, wse_fp, method_pars=method_pars, 
-                                 copy_inputs=False,
-                                 **kwargs)
-        
-        logger = ses.logger
-        
-    return dsc_res_lib, logger
-    
-    
-def run_eval(dsc_res_lib, 
-                    sim1_wse_fp=None,
-                     init_kwargs=dict(),
-                     vali_kwargs=dict(),
-                     **kwargs):
-    """ run evaluation on downscaling results"""
-    assert not 'aoi_fp' in  init_kwargs
-    
     with Dsc_Eval_Session(**init_kwargs) as ses:
+        
+        def get_od(k):
+            return os.path.join(ses.out_dir, k)
+        
+        #=======================================================================
+        # clip
+        #=======================================================================
+        k='0clip'
+        if not k in pick_lib:
+            dem_fp, wse_fp = ses.p0_clip_rasters(proj_lib['dem1'], proj_lib['wse2'], out_dir=get_od(k))
+            pick_lib[k] = ses._write_pick({'dem':dem_fp, 'wse':wse_fp}, resname=ses._get_resname(k))
+        else:
+            d = load_pick(pick_lib[k])
+            dem_fp, wse_fp = d['dem'], d['wse']
+        
+        #=======================================================================
+        # downscale
  
-        #extract filepaths
-        fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
+        k = '1dsc'
+        if not k in pick_lib:        
+            dsc_res_lib = ses.run_dsc_multi(dem_fp, wse_fp, method_pars=method_pars,out_dir=get_od(k))
+            
+            pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
+            
+        else:
+            dsc_res_lib = load_pick(pick_lib[k])
+            
+        #=======================================================================
+        # evalu
+        #=======================================================================
+        k = 'eval'
+        if not k in pick_lib: 
+            #extract filepaths
+            fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
         
-        #add validation sim
-        if not sim1_wse_fp is None:
-            bbox = get_bbox(fp_lib['inputs']['DEM'])
-            wse_fp, _ = write_clip(sim1_wse_fp, bbox=bbox)
-            fp_lib['RIM_hires'] = {'WSE1':wse_fp}
+            #run validation
+            dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
+            
+            pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
+        else:
+            dsc_vali_res_lib= load_pick(pick_lib[k])
         
-        
-        #run validation
-        dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
-        logger=ses.logger
+ 
+    return dsc_vali_res_lib 
     
-    return dsc_vali_res_lib, logger
+    
+#===============================================================================
+# def run_eval(dsc_res_lib, 
+#                     sim1_wse_fp=None,
+#                      init_kwargs=dict(),
+#                      vali_kwargs=dict(),
+#                      **kwargs):
+#     """ run evaluation on downscaling results"""
+#     assert not 'aoi_fp' in  init_kwargs
+#     
+#     with Dsc_Eval_Session(**init_kwargs) as ses:
+#  
+#         #extract filepaths
+#         fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
+#         
+#         #add validation sim
+#         if not sim1_wse_fp is None:
+#             bbox = get_bbox(fp_lib['inputs']['DEM'])
+#             wse_fp, _ = write_clip(sim1_wse_fp, bbox=bbox)
+#             fp_lib['RIM_hires'] = {'WSE1':wse_fp}
+#         
+#         
+#         #run validation
+#         dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
+#         logger=ses.logger
+#     
+#     return dsc_vali_res_lib, logger
+#===============================================================================
     
     
 

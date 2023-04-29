@@ -7,9 +7,9 @@ Ahr case study
 '''
 import os, pickle
 from pyproj.crs import CRS
-from dscale_2207.pipeline import run_downscale, run_eval 
+from dscale_2207.pipeline import run_downscale_and_eval 
 
-debug=False
+debug=True
 
 
 proj_base_dir = r'l:\10_IO\2207_dscale\ins\ahr\aoi13'
@@ -29,7 +29,7 @@ proj_lib = {
     'inun': f(r'obsv\RLP_LfU_HQ_extrm_WCS_20230324_ahr_4647_aoi13.geojson'), 
     'hwm': f(r'obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'),
     'wse1':f(r'fdsc\r04_0416_i3\wd_max_WSE.tif'),
-    'aoi': r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi13_r32_small_0428.geojson',
+    'aoi_fp': r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi13_r32_small_0428.geojson',
     'crs':CRS.from_user_input(4647),
     'index_coln':'fid',
     }
@@ -37,7 +37,7 @@ proj_lib = {
 
 #dev
 if debug:
-    proj_lib['aoi'] = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09T_0117_4647.geojson'
+    proj_lib['aoi_fp'] = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09T_0117_4647.geojson'
     run_name='dev'
 else:
     run_name='r1'
@@ -49,7 +49,7 @@ else:
 #===============================================================================
 #setup init
 init_kwargs = dict(run_name=run_name, relative=False)
-for k in ['proj_name','crs']:
+for k in ['proj_name','crs', 'aoi_fp', 'index_coln']:
     if k in proj_lib:
         init_kwargs[k]=proj_lib[k]
             
@@ -57,15 +57,16 @@ for k in ['proj_name','crs']:
 #precompiled results
 if debug:
     pick_lib = {
+        '0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_0clip.pkl',
+        '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_1downscale.pkl',
+        
  
-        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230427\ahr_aoi13_0427_dev_0427_dscM.pkl',
-        #'eval':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230428\ahr_aoi13_0427_dev_0428_rvmd.pkl',
+ 
  
         }
 else:
     pick_lib={
-        'downscale':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\r1\20230428\ahr_aoi13_0427_r1_0428_dscM.pkl',
-        'eval':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\r1\20230428\ahr_aoi13_0427_r1_0428_rvmd.pkl',
+ 
         }
         
 
@@ -73,51 +74,10 @@ else:
 #===============================================================================
 # run
 #===============================================================================
-def load_pick(fp):
-    with open(fp, 'rb') as f:
-        d = pickle.load(f)
-    assert isinstance(d, dict)
-    print(f'loaded {len(d)} from \n    {fp}')
-    return d
+
     
 
 if __name__=='__main__':
-    dsc_res_lib, pick_fp, dsc_vali_res_lib=None, None, None
+    run_downscale_and_eval(proj_lib, pick_lib=pick_lib, init_kwargs=init_kwargs)
     
-    raise IOError("all the downscale results look the same?")
-
-    #===========================================================================
-    # downscaling
-    #===========================================================================
-    k = 'downscale'
-    if not k in pick_lib:
-        ik = {**{'aoi_fp':proj_lib['aoi']}, **init_kwargs}    
-        dsc_res_lib, init_kwargs['logger'] = run_downscale(proj_lib,init_kwargs=ik)
-        
-    else:
-        dsc_res_lib = load_pick(pick_lib[k])
-
- 
-    #===========================================================================
-    # evaluation
-    #===========================================================================
-    k = 'eval'
-    if not k in pick_lib: 
-        ik = {**{'index_coln':proj_lib['index_coln']}, **init_kwargs}
-        vali_kwargs=dict(hwm_pts_fp=proj_lib['hwm'], inun_fp=proj_lib['inun'], aoi_fp=proj_lib['aoi'])
-         
-        dsc_vali_res_lib, init_kwargs['logger'] = run_eval(dsc_res_lib,
-                                                           sim1_wse_fp= proj_lib['wse1'],
-                                               init_kwargs=ik,vali_kwargs=vali_kwargs)
-    else:        
-        dsc_vali_res_lib = load_pick(pick_lib[k])
-    
-    
- 
-            
-    #===========================================================================
-    # plot
-    #===========================================================================\
-    """ moved to standalone script ahr_plot.py"""
- 
     print('done')

@@ -40,9 +40,10 @@ from fdsc.bufferLoop import BufferGrowLoop
 
 
 
-class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
-        RioSession, WBT_worker):
-    """session controller for downscaling"""
+
+
+class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker):
+    """workaround to avoid subclass conflicts"""
     
     def __init__(self, 
                  run_name='v1', #using v instead of r to avoid resolution confusion
@@ -153,13 +154,12 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
 
     def run_dsc(self,
             dem1_fp,
-            wse2_fp,
-            
+            wse2_fp,            
  
             method='CostGrow',
             downscale=None,
             write_meta=True,
-            subdir=True,
+ 
             rkwargs=dict(),
             debug=None,
                 **kwargs):
@@ -188,7 +188,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc', subdir=subdir, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dsc',  **kwargs)
         if debug is None: debug=__debug__
         
         
@@ -200,9 +200,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         
         skwargs = dict(logger=log, out_dir=out_dir, tmp_dir=tmp_dir)
         start = now()
-        
-        
-        
+ 
         #=======================================================================
         # precheck and load rasters
         #=======================================================================
@@ -241,9 +239,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         HydTypes('WSE').assert_fp(wse1_fp) 
         assert_spatial_equal(wse1_fp, dem1_fp)
         
-
-                    
-            
+    
         #=======================================================================
         # wrap
         #=======================================================================
@@ -264,15 +260,16 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
     def run_dsc_multi(self,
                       dem1_fp,wse2_fp,
                   
-                  method_pars={'CostGrow': {}, 
+                  method_pars={
+                        'CostGrow': {}, 
                          'Basic': {}, 
                          'SimpleFilter': {}, 
                          'BufferGrowLoop': {}, 
                          'Schumann14': {},
                          },
-                  copy_inputs=True,
+ 
                   write_meta=True,
-                  write_pick=True, 
+ 
                   **kwargs):
         """run downscaling on multiple methods
         
@@ -285,7 +282,7 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscM', ext='.pkl', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscM', ext='.xls', **kwargs)
         assert isinstance(method_pars, dict)
         assert set(method_pars.keys()).difference(self.nicknames_d.keys())==set()
         start = now()
@@ -311,17 +308,19 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         # prep inputs
         #=======================================================================
         ins_d = {'DEM':dem1_fp, 'WSE2':wse2_fp}
-        if copy_inputs:
-            odi = os.path.join(out_dir, 'inputs')
-            if not os.path.exists(odi):os.makedirs(odi)
-            
-            for k, fp in ins_d.copy().items():
-                ofpi = os.path.join(odi,  os.path.basename(fp))
-                rshutil.copy(fp, ofpi)
-                
-                #update the references
-                ins_d[f'{k}_raw']=fp
-                ins_d[k] = ofpi
+        #=======================================================================
+        # if copy_inputs:
+        #     odi = os.path.join(out_dir, 'inputs')
+        #     if not os.path.exists(odi):os.makedirs(odi)
+        #     
+        #     for k, fp in ins_d.copy().items():
+        #         ofpi = os.path.join(odi,  os.path.basename(fp))
+        #         rshutil.copy(fp, ofpi)
+        #         
+        #         #update the references
+        #         ins_d[f'{k}_raw']=fp
+        #         ins_d[k] = ofpi
+        #=======================================================================
             
         
         #=======================================================================
@@ -332,40 +331,30 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
 
             d = dict()
             name = self.nicknames_d[method]
-            skwargs = dict(out_dir=os.path.join(out_dir, name), 
-                           logger=self.logger.getChild(name),
-                           tmp_dir=os.path.join(tmp_dir, name),
-                           
-                           )  
+ 
             log.info(f'on {name} w/ {mkwargs}\n\n')
             
- 
-            """not set up super well for sub-classing like this"""
-            with Dsc_Session(obj_name=name,
-                             proj_name=self.proj_name,
-                             run_name=self.run_name,
-                             base_dir=self.base_dir,
-                             **skwargs) as wrkr:
- 
-                d['fp'], d['meta'] = wrkr.run_dsc(dem1_fp, wse2_fp, 
+            d['fp'], d['meta'] = self.run_dsc(dem1_fp, wse2_fp, 
                                                   downscale=downscale,
-                                                  subdir=False,
-                                                  resname=self._get_resname(name), 
-                                                  **skwargs)
+                                                  resname=self._get_resname(name),
+                                                  out_dir=os.path.join(out_dir, method),
+                                                  write_meta=True, 
+                                                  method=method,
+                                                  **mkwargs)
                 
             res_lib[method]=d
             
         log.info(f'finished on {len(res_lib)}\n\n')
+        """
+        print(dstr(res_lib))
+        """
         
         #=======================================================================
         # add relative paths
         #=======================================================================
         for k0, d0 in {k:v['fp'] for k,v in res_lib.items()}.items():
             res_lib[k0]['fp_rel'] = {k0:self._relpath(fp) for k0, fp in d0.items()}
-            #===================================================================
-            # for k1, fp in d0.items(): 
-            #     res_lib[k0]['fp_rel'][k1] = self._relpath(fp)
-            #===================================================================
+ 
         
         #=======================================================================
         # write meta summary
@@ -373,61 +362,19 @@ class Dsc_Session(Session, CostGrow, BufferGrowLoop, Schuman14,BasicDSC,
         if write_meta:
             #collect
             meta_lib = {k:v['meta'].copy() for k,v in res_lib.items()}
-            
-            #===================================================================
-            # with open(r'l:\09_REPOS\03_TOOLS\FloodDownscaler\coms\hp\tests\data\oop\run_dsc_multi_meta_lib_20230327.pkl',
-            #           'wb') as file:
-            #     pickle.dump(meta_lib, file)
-            #===================================================================
  
             #convert
-            self._write_meta(meta_lib)
+            self._write_meta(meta_lib, ofp=ofp)
             
-        #=======================================================================
-        # write results pickle
-        #=======================================================================
-        assert_dsc_res_lib(res_lib)
-        
-        if write_pick:            
- 
-            #===================================================================
-            # write the pick
-            #===================================================================
-            #assert not os.path.exists(ofp)
-            with open(ofp,'wb') as file:
-                pickle.dump(res_lib, file)
-            log.debug('\n'+dstr(res_lib))
-            log.info(f'wrote res_lib pickle to \n    {ofp}')
  
         #=======================================================================
         # wrap
         #=======================================================================
+        assert_dsc_res_lib(res_lib)
         log.info(f'finished in {now() - start}')
         
         return res_lib
  
  
-#===============================================================================
-# def run_downscale(
-#         dem1_rlay_fp,
-#         wse2_rlay_fp,
-#         
-#         aoi_fp=None,
-#         method='CostGrow',
-#         **kwargs):
-#     """downscale/disag the wse (s2) raster to match the dem resolution (s1)
-#     
-#     Parameters
-#     ----------
-#     method: str
-#         downscaling method to apply. see run_dsc
-#         
-#     aoi_fp: str, Optional
-#         filepath to AOI. must be well rounded to the coarse raster
-#     """
-#     
-#     with Dsc_Session(aoi_fp=aoi_fp, **kwargs) as ses:
-#         wse1_dp_fp, meta_d = ses.run_dsc(dem1_rlay_fp, wse2_rlay_fp,  method=method)
-#         
-#     return wse1_dp_fp, meta_d
-#===============================================================================
+class Dsc_Session(Session, RioSession, Dsc_Session_skinny):
+    """session controller for downscaling"""

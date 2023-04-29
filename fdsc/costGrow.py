@@ -50,7 +50,7 @@ class CostGrow(WetPartials):
         """run CostGrow pipeline
         """
         method='CostGrow'
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], subdir=False, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method],  **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         meta_lib=dict()
         assert_type_fp(wse_fp, 'WSE')

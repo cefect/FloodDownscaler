@@ -15,11 +15,11 @@ from hp.hyd import get_wsh_rlay
 from hp.rio import write_clip, is_raster_file, copyr
 
 from fdsc.base import assert_dsc_res_lib, DscBaseWorker, assert_type_fp
-#from fdsc.control import Dsc_Session
+from fdsc.control import Dsc_Session_skinny
 from fperf.pipeline import ValidateSession
  
 
-class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
+class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
     """special methods for validationg downscample inundation rasters"""
     
     def _get_fps_from_dsc_lib(self,
