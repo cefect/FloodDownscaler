@@ -25,14 +25,19 @@ from hp.logr import get_new_console_logger, logging
 #===============================================================================
 # vars
 #===============================================================================
+"""todo: migrate to pure fixtures"""
 temp_dir = os.path.join(tempfile.gettempdir(), __name__, datetime.datetime.now().strftime('%Y%m%d'))
 if not os.path.exists(temp_dir): os.makedirs(temp_dir)
 
-
+"""base crs for testing. different from project crs in definitions.py"""
+crs_default = CRS.from_user_input(3857)
 #===============================================================================
 # fixture-----
 #===============================================================================
 
+@pytest.fixture(scope='session')
+def crs():
+    return crs_default
     
 @pytest.fixture(scope='session')
 def logger():

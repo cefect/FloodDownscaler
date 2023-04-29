@@ -9,7 +9,7 @@ import numpy as np
 import numpy.ma as ma
 import rasterio as rio
 import shapely.geometry as sgeo
-from shapely.geometry.polygon import Polygon
+
  
 #print('rasterio.__version__:%s'%rio.__version__)
 
@@ -33,7 +33,7 @@ import scipy.ndimage
 #import hp.gdal
 from hp.oop import Basic
 from hp.basic import dstr
-from hp.fiona import get_bbox_and_crs
+from hp.fiona import SpatialBBOXWrkr
 #from hp.plot import plot_rast #for debugging
 #import matplotlib.pyplot as plt
 
@@ -187,87 +187,7 @@ class RioWrkr(object):
 
 
     
-class SpatialBBOXWrkr(object):
-    aoi_fp=None
-    crs=None
-    bbox=None
-    
-    def __init__(self, 
-                 #==============================================================
-                 # crs=CRS.from_user_input(25832),
-                 # bbox=
-                 #==============================================================
-                 crs=None, bbox=None, aoi_fp=None,
-                 
-                 #defaults
-                 init_pars=None,
-                 
-                 **kwargs):
-        
-        """"
-        
-        Parameters
-        -----------
-        
-        bbox: shapely.polygon
-            bounds assumed to be on the same crs as the data
-            sgeo.box(0, 0, 100, 100),
-            
-        crs: <class 'pyproj.crs.crs.CRS'>
-            coordinate reference system
-        """
-        if init_pars is None: init_pars=list()
-        
-        #=======================================================================
-        # set aoi
-        #=======================================================================
-        if not aoi_fp is None:
-                        
-            assert bbox is None
-            self._set_aoi(aoi_fp)
-            init_pars.append('aoi_fp')
-            
-            if not crs is None:
-                assert crs==self.crs, f'crs mismatch between aoi {self.crs} and data {crs}'
- 
-        else:
-            self.crs=crs
-            self.bbox = bbox
-            
-        
-            
-        #check
-        if not self.crs is None:
-            assert isinstance(self.crs, CRS)
-            init_pars.append('crs')
-            
-        if not self.bbox is None:
-            assert isinstance(self.bbox, Polygon)
-            init_pars.append('bbox')
-        
-        
-        super().__init__(init_pars=init_pars, **kwargs)
-        
-        if not aoi_fp is None:
-            self.logger.info(f'set crs:{crs.to_epsg()} from {os.path.basename(aoi_fp)}')
-  
-    def _set_aoi(self, aoi_fp):
-        assert os.path.exists(aoi_fp)
-        
-        #open file and get bounds and crs using fiona
-        bbox, crs = get_bbox_and_crs(aoi_fp) 
-            
-        self.crs=crs
-        self.bbox = bbox        
-        self.aoi_fp=aoi_fp
-        
-        return self.crs, self.bbox
-    
-    def assert_valid_atts(self):
-        #check
-        assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
-        assert hasattr(self.bbox, 'bounds')
-        assert isinstance(self.crs, CRS)
+
     
 
         
