@@ -23,7 +23,9 @@ nicknames_d = {'CostGrow':'cgs',
                'Basic':'rsmp',
                'SimpleFilter':'rsmpF', #basic + DEM filter
                'BufferGrowLoop':'bgl', 
-               'Schumann14':'s14'}
+               'Schumann14':'s14',
+               'RIM_hires':'sim1',
+               'RIM_lores':'sim2'}
 
  
 

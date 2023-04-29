@@ -37,6 +37,8 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
         assert_dsc_res_lib(dsc_res_lib)
         
         log.info(f'on {len(dsc_res_lib)} w/ relative={relative}')
+        
+        print(dstr(dsc_res_lib))
         #=======================================================================
         # extract
         #=======================================================================\
@@ -207,7 +209,7 @@ class Dsc_Eval_Session(DscBaseWorker, ValidateSession):
             self._write_meta_vali(res_lib)
  
         if write_pick: 
-            assert not os.path.exists(ofp)
+            #assert not os.path.exists(ofp)
             with open(ofp,'wb') as file:
                 pickle.dump(res_lib, file)
  

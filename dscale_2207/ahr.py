@@ -28,6 +28,7 @@ proj_lib = {
     #evaluation
     'inun': f(r'obsv\RLP_LfU_HQ_extrm_WCS_20230324_ahr_4647_aoi13.geojson'), 
     'hwm': f(r'obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'),
+    'wse1':f(r'fdsc\r04_0416_i3\wd_max_WSE.tif'),
     'aoi': r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi13_r32_small_0428.geojson',
     'crs':CRS.from_user_input(4647),
     'index_coln':'fid',
@@ -83,6 +84,7 @@ def load_pick(fp):
 if __name__=='__main__':
     dsc_res_lib, pick_fp, dsc_vali_res_lib=None, None, None
     
+    raise IOError("all the downscale results look the same?")
 
     #===========================================================================
     # downscaling
@@ -95,6 +97,7 @@ if __name__=='__main__':
     else:
         dsc_res_lib = load_pick(pick_lib[k])
 
+ 
     #===========================================================================
     # evaluation
     #===========================================================================
@@ -102,11 +105,13 @@ if __name__=='__main__':
     if not k in pick_lib: 
         ik = {**{'index_coln':proj_lib['index_coln']}, **init_kwargs}
         vali_kwargs=dict(hwm_pts_fp=proj_lib['hwm'], inun_fp=proj_lib['inun'], aoi_fp=proj_lib['aoi'])
-        
-        dsc_vali_res_lib, init_kwargs['logger'] = run_eval(dsc_res_lib, 
+         
+        dsc_vali_res_lib, init_kwargs['logger'] = run_eval(dsc_res_lib,
+                                                           sim1_wse_fp= proj_lib['wse1'],
                                                init_kwargs=ik,vali_kwargs=vali_kwargs)
     else:        
         dsc_vali_res_lib = load_pick(pick_lib[k])
+    
     
  
             

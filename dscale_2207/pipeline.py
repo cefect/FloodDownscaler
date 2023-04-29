@@ -18,6 +18,7 @@ from pandas import IndexSlice as idx
 
 from hp.pd import view
 from hp.basic import dstr
+from hp.rio import (get_bbox, write_clip)
 
 from fdsc.control import Dsc_Session
 from fdsc.eval.control import  Dsc_Eval_Session
@@ -31,7 +32,7 @@ def run_downscale(
         method_pars={'CostGrow': {}, 
                          'Basic': {}, 
                          'SimpleFilter': {}, 
-                         'BufferGrowLoop': {}, 
+                         #'BufferGrowLoop': {}, 
                          'Schumann14': {},
                          },
         **kwargs):
@@ -56,7 +57,8 @@ def run_downscale(
     return dsc_res_lib, logger
     
     
-def run_eval(dsc_res_lib,
+def run_eval(dsc_res_lib, 
+                    sim1_wse_fp=None,
                      init_kwargs=dict(),
                      vali_kwargs=dict(),
                      **kwargs):
@@ -67,6 +69,13 @@ def run_eval(dsc_res_lib,
  
         #extract filepaths
         fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
+        
+        #add validation sim
+        if not sim1_wse_fp is None:
+            bbox = get_bbox(fp_lib['inputs']['DEM'])
+            wse_fp, _ = write_clip(sim1_wse_fp, bbox=bbox)
+            fp_lib['RIM_hires'] = {'WSE1':wse_fp}
+        
         
         #run validation
         dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
@@ -120,8 +129,11 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
+        """
+        view(hwm_gdf)
+        """
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-  
+   
         #=======================================================================
         # grid plots
         #=======================================================================
@@ -130,6 +142,7 @@ def run_plot(dsc_vali_res_lib,
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
                                          dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)
  
+        return
         #=======================================================================
         # INUNDATION PERFORMANCe
         #======================================================================= 
