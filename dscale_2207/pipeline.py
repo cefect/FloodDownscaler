@@ -36,13 +36,14 @@ def load_pick(fp):
 def run_downscale_and_eval(
         proj_lib,
         pick_lib=dict(),
-        init_kwargs=dict(),
+ 
         method_pars={'CostGrow': {}, 
                          'Basic': {}, 
                          'SimpleFilter': {}, 
                          #'BufferGrowLoop': {}, 
                          'Schumann14': {},
                          },
+        vali_kwargs=dict(),
         **kwargs):
     """run all downscaleing methods then evaluate
     
@@ -56,7 +57,7 @@ def run_downscale_and_eval(
  
     
     #init
-    with Dsc_Eval_Session(**init_kwargs) as ses:
+    with Dsc_Eval_Session(**kwargs) as ses:
         
         def get_od(k):
             return os.path.join(ses.out_dir, k)
@@ -66,6 +67,7 @@ def run_downscale_and_eval(
         #=======================================================================
         k='0clip'
         if not k in pick_lib:
+            """clip using a rounded aoi on the WSE"""
             dem_fp, wse_fp = ses.p0_clip_rasters(proj_lib['dem1'], proj_lib['wse2'], out_dir=get_od(k))
             pick_lib[k] = ses._write_pick({'dem':dem_fp, 'wse':wse_fp}, resname=ses._get_resname(k))
         else:
@@ -74,6 +76,7 @@ def run_downscale_and_eval(
         
         #=======================================================================
         # downscale
+        #=======================================================================
  
         k = '1dsc'
         if not k in pick_lib:        
@@ -89,11 +92,15 @@ def run_downscale_and_eval(
         #=======================================================================
         k = 'eval'
         if not k in pick_lib: 
-            #extract filepaths
+            #extract downscaling filepaths
             fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
+            
+            #add rim simulations
+            fp_lib['RIM_hires'] = ses.clip_rlay(proj_lib['wse1'], bbox=get_bbox(wse_fp))
+ 
         
             #run validation
-            dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
+            dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs,out_dir=get_od(k))
             
             pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
         else:

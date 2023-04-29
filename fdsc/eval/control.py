@@ -38,7 +38,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         
         log.info(f'on {len(dsc_res_lib)} w/ relative={relative}')
         
-        print(dstr(dsc_res_lib))
+        #print(dstr(dsc_res_lib))
         #=======================================================================
         # extract
         #=======================================================================\
@@ -100,7 +100,8 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         assert_type_fp(dem_fp, 'DEM')
         
         #pull WSE rasters
-        pred_wse_fp_d = {k:v['WSE1'] for k,v in fp_lib.items()}
+        pred_wse_fp_d = {k0:v1 for k0,v0 in fp_lib.items() for k1, v1 in v0.items() if 'WSE' in k1}
+        assert len(pred_wse_fp_d)==len(fp_lib), 'missed some?'
         for k,fp in pred_wse_fp_d.items():
             assert_type_fp(fp, 'WSE', msg=k)
         
@@ -116,13 +117,23 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================
         wsh_fp_d = dict()
         log.debug(f'on \n%s'%dstr(pred_wse_fp_d))
-        for k, wse_fp in pred_wse_fp_d.items():
-            fnm = os.path.splitext(os.path.basename(wse_fp))[0]
-            odi = os.path.join(out_dir, k)
-            if not os.path.exists(odi):os.makedirs(odi)
-            wsh_fp_d[k] = get_wsh_rlay(dem_fp, wse_fp, 
-                             ofp=os.path.join(odi, f'{fnm}_WSH.tif'),
-                             )
+        
+        for k, fp_d in fp_lib.items():
+            
+            #retrieve
+            if 'WSH' in fp_d:
+                wsh_fp_d[k] = fp_d['WSH']
+                
+            #construct
+            else:
+                wse_fp = pred_wse_fp_d[k]
+ 
+                fnm = os.path.splitext(os.path.basename(wse_fp))[0]
+                odi = os.path.join(out_dir, k)
+                if not os.path.exists(odi):os.makedirs(odi)
+                wsh_fp_d[k] = get_wsh_rlay(dem_fp, wse_fp, 
+                                 ofp=os.path.join(odi, f'{fnm}_WSH.tif'),
+                                 )
             
         #=======================================================================
         # RUN----------

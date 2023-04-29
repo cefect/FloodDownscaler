@@ -16,9 +16,8 @@ import shapely.geometry as sgeo
 from hp.basic import dstr, now
 from hp.oop import Session
 from hp.rio import (
-    assert_extent_equal,  RioSession,
-    write_array, assert_spatial_equal,   write_clip,
-      get_stats2
+    assert_extent_equal,  RioSession,get_profile,
+    write_array, assert_spatial_equal, write_clip,get_stats2, get_bbox
     )
 from hp.pd import view
  
@@ -56,51 +55,51 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
     # phase0-------  
     #===========================================================================
     def p0_clip_rasters(self, dem_fp, wse_fp, 
-                        bbox=None, crs=None,
+                        clip_kwargs=dict(),
+ 
                         **kwargs):
         #=======================================================================
         # defaults
         #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip', **kwargs) 
-     
-        write_kwargs = RioSession._get_defaults(self, bbox=bbox, crs=crs, as_dict=True)
-        bbox = write_kwargs['bbox']
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip', **kwargs)
         
+        #ensure the profile is set from the dem
+        self._set_profile(rlay_ref_fp=dem_fp)
+ 
         #=======================================================================
         # precheck
         #=======================================================================
-        HydTypes('DEM').assert_fp(dem_fp)
-        HydTypes('WSE').assert_fp(wse_fp)
+
  
         
  
         #=======================================================================
         # clip wse
         #=======================================================================
-        #clip the coarse WSE    
-        wse_clip_fp, wse_stats = write_clip(wse_fp, 
-                                            fancy_window=dict(round_offsets=True, round_lengths=True),
-                                            ofp=os.path.join(out_dir, 'wse2_clip.tif'), 
-                                            **write_kwargs)
-        
-        #clip the fine DEMI by the WSe extents
-        write_kwargs['bounds'] = wse_stats['bounds']
-        write_kwargs['bbox'] = sgeo.box(*wse_stats['bounds'])
-        #print(dstr(write_kwargs))
+        #clip coarse WSE by aoi
+        wse_clip_fp = self.clip_rlay(wse_fp, clip_kwargs={**clip_kwargs, **dict(
+            fancy_window=dict(round_offsets=True, round_lengths=True))},
+                                            ofp=os.path.join(out_dir, 'wse2_clip.tif'),
+                                            ) 
  
-            
-        dem_clip_fp, dem_stats = write_clip(dem_fp,                                            
-                                            ofp=os.path.join(out_dir, 'dem1_clip.tif'), 
-                                            **write_kwargs)
+        #make this the new aoi
+        self.bbox = get_bbox(wse_clip_fp)
+        #round_aoi_fp = self.write_bbox_vlay(get_bbox(wse_clip_fp), out_dir=out_dir)
         
         
+        #=======================================================================
+        # clip DEM
+        #=======================================================================
+        dem_clip_fp = self.clip_rlay(dem_fp, bbox=self.bbox)
  
         #=======================================================================
         # warp
         #=======================================================================
         assert_extent_equal(wse_clip_fp, dem_clip_fp), 'must pre-clip rasters'
+        HydTypes('DEM').assert_fp(dem_clip_fp)
+        HydTypes('WSE').assert_fp(wse_clip_fp)
  
-        log.info(f'clipped rasters and wrote to\n    {tmp_dir}\n    {bbox.bounds}')
+        log.info(f'clipped rasters and wrote to\n    {out_dir}\n    {self.bbox.bounds}')
         return dem_clip_fp, wse_clip_fp 
         
     def p0_load_rasters(self, wse2_rlay_fp, dem1_rlay_fp, crs=None,

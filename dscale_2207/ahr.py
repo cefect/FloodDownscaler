@@ -78,6 +78,6 @@ else:
     
 
 if __name__=='__main__':
-    run_downscale_and_eval(proj_lib, pick_lib=pick_lib, init_kwargs=init_kwargs)
+    run_downscale_and_eval(proj_lib, pick_lib=pick_lib, **init_kwargs)
     
     print('done')
