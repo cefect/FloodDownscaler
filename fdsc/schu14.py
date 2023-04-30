@@ -43,7 +43,7 @@ class Schuman14(DscBaseWorker):
                  buffer_size=1.5,
                  n_jobs=6,
                  r2p_backend='gr',
-                 run_dsc_handle_d=dict(),
+                 run_dsc_handle_d=None,
                  **kwargs):
         """
         Parameters
@@ -53,6 +53,7 @@ class Schuman14(DscBaseWorker):
             for sklearn
         """
         
+        if run_dsc_handle_d is None: run_dsc_handle_d=dict()
         self.buffer_size=buffer_size
         self.n_jobs=n_jobs
         self.r2p_backend=r2p_backend

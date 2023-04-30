@@ -125,7 +125,7 @@ if __name__=='__main__':
     
  
     #run
-    run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
+    result = run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
              
              hwm_scat_kg=dict(
                  fig_mat_kwargs=dict(ncols=3),
@@ -139,7 +139,7 @@ if __name__=='__main__':
              inun_per_kg=dict(box_fp=zoom_aoi),
              )
     
-    print('finished')
+    print('finished w/ \n    '+str(result))
     
     
     

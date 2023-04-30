@@ -37,7 +37,7 @@ class DscBaseWorker(object):
     nicknames_d=nicknames_d
     
     def __init__(self,
-                 run_dsc_handle_d=dict(), 
+                 run_dsc_handle_d=None, 
                  **kwargs):
         """
         Parameters
@@ -46,6 +46,7 @@ class DscBaseWorker(object):
             {methodName: callable function (takes kwargs)}
             
         """
+        if run_dsc_handle_d is None: run_dsc_handle_d=dict()
         #=======================================================================
         # set caller funcs
         #=======================================================================

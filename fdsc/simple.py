@@ -56,7 +56,7 @@ class WetPartials(DscBaseWorker):
         if downscale is None: 
             downscale = self.get_downscale(wse2_fp, dem_fp)
 
-        log.info(f'downscale={downscale} on {os.path.basename(wse2_fp)} w/ {resampling}')
+        log.info(f'downscale={downscale} w/ dem_filter={dem_filter} on {os.path.basename(wse2_fp)} w/ {resampling}')
         #=======================================================================
         # #precheck
         #=======================================================================
@@ -102,8 +102,10 @@ class WetPartials(DscBaseWorker):
 class BasicDSC(WetPartials):
     
     def __init__(self,
-                 run_dsc_handle_d=dict(), 
+                 run_dsc_handle_d=None, 
                  **kwargs):
+        
+        if run_dsc_handle_d is None: run_dsc_handle_d=dict()
         
         run_dsc_handle_d['Basic'] = self.run_rsmp #add your main method to the caller dict
         run_dsc_handle_d['SimpleFilter'] = self.run_rsmpF
@@ -122,13 +124,15 @@ class BasicDSC(WetPartials):
         
     def run_p1(self,wse_fp=None, dem_fp=None, method='Basic', dem_filter=True, **kwargs):
         """just a wrapper for p1_wetPartials"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], subdir=False, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], 
+                                                               subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir, ofp=ofp)
         meta_lib={'smry':dict()}
         downscale = self.downscale
         
         #call pse 1
-        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse_fp, dem_fp, downscale=downscale,dem_filter=dem_filter, **skwargs)
+        wse1_wp_fp, meta_lib['p1_wp'] = self.p1_wetPartials(wse_fp, 
+                dem_fp, downscale=downscale,dem_filter=dem_filter, **skwargs)
         
         
  

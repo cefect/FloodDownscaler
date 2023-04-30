@@ -260,11 +260,11 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
                       dem1_fp,wse2_fp,
                   
                   method_pars={
-                        'CostGrow': {}, 
-                         'Basic': {}, 
-                         'SimpleFilter': {}, 
-                         'BufferGrowLoop': {}, 
-                         'Schumann14': {},
+                        #'CostGrow': {}, 
+                        'Basic': {}, 
+                        'SimpleFilter': {}, 
+                        #'BufferGrowLoop': {}, 
+                        #'Schumann14': {},
                          },
  
                   write_meta=True,
@@ -307,21 +307,7 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
         # prep inputs
         #=======================================================================
         ins_d = {'DEM':dem1_fp, 'WSE2':wse2_fp}
-        #=======================================================================
-        # if copy_inputs:
-        #     odi = os.path.join(out_dir, 'inputs')
-        #     if not os.path.exists(odi):os.makedirs(odi)
-        #     
-        #     for k, fp in ins_d.copy().items():
-        #         ofpi = os.path.join(odi,  os.path.basename(fp))
-        #         rshutil.copy(fp, ofpi)
-        #         
-        #         #update the references
-        #         ins_d[f'{k}_raw']=fp
-        #         ins_d[k] = ofpi
-        #=======================================================================
-            
-        
+ 
         #=======================================================================
         # loop on methods
         #=======================================================================

@@ -30,8 +30,10 @@ class BufferGrowLoop(WetPartials):
 
     def __init__(self,
                  loop_range=range(30),
-                  run_dsc_handle_d=dict(),
+                  run_dsc_handle_d=None,
                  **kwargs):
+        
+        if run_dsc_handle_d is None: run_dsc_handle_d=dict()
         
         self.loop_range = loop_range
         

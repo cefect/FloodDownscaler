@@ -37,11 +37,12 @@ def run_downscale_and_eval(
         proj_lib,
         pick_lib=dict(),
  
-        method_pars={'CostGrow': {}, 
-                         'Basic': {}, 
-                         'SimpleFilter': {}, 
-                         #'BufferGrowLoop': {}, 
-                         'Schumann14': {},
+        method_pars={
+            'CostGrow': {}, 
+            'Basic': {}, 
+            'SimpleFilter': {}, 
+            #'BufferGrowLoop': {}, 
+            'Schumann14': dict(buffer_size=1.5, gridcells=True),
                          },
         vali_kwargs=dict(),
         **kwargs):
@@ -117,35 +118,7 @@ def run_downscale_and_eval(
  
     return dsc_vali_res_lib 
     
-    
-#===============================================================================
-# def run_eval(dsc_res_lib, 
-#                     sim1_wse_fp=None,
-#                      init_kwargs=dict(),
-#                      vali_kwargs=dict(),
-#                      **kwargs):
-#     """ run evaluation on downscaling results"""
-#     assert not 'aoi_fp' in  init_kwargs
-#     
-#     with Dsc_Eval_Session(**init_kwargs) as ses:
-#  
-#         #extract filepaths
-#         fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
-#         
-#         #add validation sim
-#         if not sim1_wse_fp is None:
-#             bbox = get_bbox(fp_lib['inputs']['DEM'])
-#             wse_fp, _ = write_clip(sim1_wse_fp, bbox=bbox)
-#             fp_lib['RIM_hires'] = {'WSE1':wse_fp}
-#         
-#         
-#         #run validation
-#         dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs, **kwargs)
-#         logger=ses.logger
-#     
-#     return dsc_vali_res_lib, logger
-#===============================================================================
-    
+ 
     
 
 def run_plot(dsc_vali_res_lib, 
@@ -201,7 +174,9 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         # grid plots
         #=======================================================================
-        for gridk in ['WSH', 'WSE']:
+        for gridk in [
+            #'WSH', #filters 'Basic'
+            'WSE']:
             fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
                                          dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)

@@ -38,8 +38,10 @@ from fdsc.base import (
 class CostGrow(WetPartials):
     
     def __init__(self,
-                 run_dsc_handle_d=dict(), 
+                 run_dsc_handle_d=None, 
                  **kwargs):
+        
+        if run_dsc_handle_d is None: run_dsc_handle_d=dict()
         
         run_dsc_handle_d['CostGrow'] = self.run_costGrow #add your main method to the caller dict
         
