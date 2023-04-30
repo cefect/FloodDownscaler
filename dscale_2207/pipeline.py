@@ -177,7 +177,7 @@ def run_plot(dsc_vali_res_lib,
         view(hwm_gdf)
         """
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-   
+    
         #=======================================================================
         # grid plots
         #=======================================================================
@@ -188,7 +188,7 @@ def run_plot(dsc_vali_res_lib,
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
                                          dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)
  
-        return
+        
         #=======================================================================
         # INUNDATION PERFORMANCe
         #======================================================================= 

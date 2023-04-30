@@ -13,7 +13,7 @@ plotting for the ahr sim
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'journal'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -48,7 +48,7 @@ def set_doc_style():
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+2,
         'figure.autolayout':False,
-        'figure.figsize':(17*cm,19*cm),#typical textsize for AGU
+        'figure.figsize':(17*cm,19*cm),#typical full-page textsize for AGU
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -136,7 +136,11 @@ if __name__=='__main__':
                  fig_mat_kwargs=dict(ncols=3),
                  ),
              
-             inun_per_kg=dict(box_fp=zoom_aoi),
+             inun_per_kg=dict(
+                 box_fp=zoom_aoi,
+                fig_mat_kwargs=dict(
+                    #=figsize=(25*cm, 25*cm),
+                  )),
              )
     
     print('finished w/ \n    '+str(result))
