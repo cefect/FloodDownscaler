@@ -48,7 +48,7 @@ def set_doc_style():
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+2,
         'figure.autolayout':False,
-        'figure.figsize':(17*cm,19*cm),#typical full-page textsize for AGU
+        'figure.figsize':(19*cm,19*cm),#typical full-page textsize for AGU (with 4cm for caption)
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -128,6 +128,7 @@ if __name__=='__main__':
     result = run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
              
              hwm_scat_kg=dict(
+                 style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
                  fig_mat_kwargs=dict(ncols=3),
                  ),
              

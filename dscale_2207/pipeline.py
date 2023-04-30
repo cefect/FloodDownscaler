@@ -173,11 +173,9 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-        """
-        view(hwm_gdf)
-        """
+  
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-    
+  
         #=======================================================================
         # grid plots
         #=======================================================================
