@@ -111,7 +111,7 @@ def run_downscale_and_eval(
             vali_kwargs.update(d)
         
             #run validation
-            dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs,out_dir=get_od(k))
+            dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib,out_dir=get_od(k), **vali_kwargs)
             
             #write pick
             pick_lib[k] = ses._write_pick(dsc_vali_res_lib, resname=ses._get_resname(k))

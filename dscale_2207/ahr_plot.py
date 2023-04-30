@@ -111,7 +111,7 @@ from dscale_2207.ahr import init_kwargs, pick_lib
 #===============================================================================
 # vars
 #===============================================================================
-init_kwargs['run_name'] = init_kwargs['run_name']+'_plot0428'
+init_kwargs['run_name'] = init_kwargs['run_name']+'p'
 del init_kwargs['aoi_fp']
 
 zoom_aoi = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson'

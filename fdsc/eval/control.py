@@ -11,8 +11,11 @@ import rasterio.shutil
 
 from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
-from hp.hyd import get_wsh_rlay
-from hp.rio import write_clip, is_raster_file, copyr
+from hp.hyd import get_wsh_rlay, HydTypes
+from hp.rio import (
+    write_clip, is_raster_file, copyr, assert_extent_equal, assert_spatial_equal,
+    )
+from hp.riom import write_extract_mask
 
 from fdsc.base import assert_dsc_res_lib, DscBaseWorker, assert_type_fp
 from fdsc.control import Dsc_Session_skinny
@@ -70,160 +73,186 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
     def run_vali_multi_dsc(self,
                            fp_lib,
                            #aoi_fp=None,
-                           vali_kwargs=dict(),
+                           hwm_pts_fp=None,
+                           inun_fp=None,
                            write_meta=True,
                            write_pick=True,
                            copy_inputs=False,  
                            **kwargs):
         """skinny wrapper for test_run_vali_multi using dsc formatted results
         
+        pars
+        --------
+        fp_lib: dict
+            sim_name
+                gridk:filepath
+        
         
         """
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rvmd', ext='.pkl', **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rvali', ext='.pkl', **kwargs)
         #if aoi_fp is None: aoi_fp=self.aoi_fp
         
         #=======================================================================
-        # PRE------
-        #=======================================================================
-        #=======================================================================
         # precheck
-        #=======================================================================
-        
+        #=======================================================================        
         assert set(fp_lib.keys()).difference(self.nicknames_d.keys())==set(['inputs'])
+        
+        
+        #detect the inundation file type
+        if is_raster_file(inun_fp):
+            inun_dkey='INUN_RLAY'
+        else:
+            inun_dkey='INUN_POLY'
+            
+        HydTypes(inun_dkey).assert_fp(inun_fp)
+        
+        #=======================================================================
+        # PREP------
+        #=======================================================================
+
+        
+        """
+        print(dstr(fp_lib))
+        """
+
         
         #=======================================================================
         # separate and type check
-        #=======================================================================
-        
+        #=======================================================================        
         ins_d = fp_lib.pop('inputs')
         dem_fp = ins_d['DEM']
         assert_type_fp(dem_fp, 'DEM')
         
-        #pull WSE rasters
-        pred_wse_fp_d = {k0:v1 for k0,v0 in fp_lib.items() for k1, v1 in v0.items() if 'WSE' in k1}
-        assert len(pred_wse_fp_d)==len(fp_lib), 'missed some?'
-        for k,fp in pred_wse_fp_d.items():
-            assert_type_fp(fp, 'WSE', msg=k)
+        #rename and check WSE
+        log.debug(f'prepping WSE rasters')
+        fp_lib2= {k:dict() for k in fp_lib.keys()}
+        for sim_name, d in fp_lib.copy().items():
+            assert len(d)==1
+            vlast = None
+            for k,v in d.items():
+                #checks
+                assert k=='WSE1'
+                HydTypes('WSE').assert_fp(v)
+                
+                if not vlast is None:
+                    assert_extent_equal(vlast, v, msg=f'{v} extent mismatch')
+                vlast=v
+                
+                #store
+                fp_lib2[sim_name]['WSE'] = v
+                
+                
+        #check inundation
+        if inun_dkey=='INUN_RLAY':
+            assert_extent_equal(vlast, inun_fp, msg=f'{v} extent mismatch')
+                
         
-        
+ 
         #=======================================================================
         # clip
         #=======================================================================
         """even though it would be nicer to only build WSH on the clip
-            easier to keep it on the sub func"""
+            easier to keep it on the sub func
+            
+        force clippiing earlier"""
  
         #=======================================================================
         # get WSH
         #=======================================================================
-        wsh_fp_d = dict()
-        log.debug(f'on \n%s'%dstr(pred_wse_fp_d))
-        
-        for k, fp_d in fp_lib.items():
-            
-            #retrieve
-            if 'WSH' in fp_d:
-                wsh_fp_d[k] = fp_d['WSH']
-                
-            #construct
-            else:
-                wse_fp = pred_wse_fp_d[k]
+        log.debug(f'building WSH rasters from {os.path.basename(dem_fp)}')
+        """dry filtered"""        
+        for sim_name, fp_d in fp_lib2.items():
  
-                fnm = os.path.splitext(os.path.basename(wse_fp))[0]
-                odi = os.path.join(out_dir, k)
-                if not os.path.exists(odi):os.makedirs(odi)
-                wsh_fp_d[k] = get_wsh_rlay(dem_fp, wse_fp, 
-                                 ofp=os.path.join(odi, f'{fnm}_WSH.tif'),
-                                 )
+            wse_fp = fp_d['WSE']
+            fnm = os.path.splitext(os.path.basename(wse_fp))[0]
+            odi = os.path.join(out_dir, sim_name)
+            if not os.path.exists(odi):os.makedirs(odi)
+            fp_d['WSH'] = get_wsh_rlay(dem_fp, wse_fp, 
+                             ofp=os.path.join(odi, f'{fnm}_WSH.tif'),
+                             )
             
         #=======================================================================
         # RUN----------
-        #=======================================================================
+        #======================================================================= 
+        log.info(f'computing validation on {len(fp_lib)} sims')
  
-        res_lib = self.run_vali_multi(wsh_fp_d, **vali_kwargs,logger=log, out_dir=out_dir,
-                                      write_meta=False,  write_pick=False, copy_inputs=copy_inputs)
+        res_lib=dict()
+        for sim_name, fp_d in fp_lib2.items():
+            #===================================================================
+            # setup this observation
+            #===================================================================            
+            logi = log.getChild(sim_name)
+            wse_fp, wsh_fp = fp_d['WSE'], fp_d['WSH']
+            logi.info(f'on {sim_name}: WSH={os.path.basename(wsh_fp)}\n\n')
+            rdi = dict()
+            
+            odi = os.path.join(out_dir, sim_name)
+            if not os.path.exists(odi):os.makedirs(odi)
+            
+            skwargs = dict(logger=logi, resname=sim_name, out_dir=odi, tmp_dir=tmp_dir, subdir=False)
+            
+            
+            #=======================================================================
+            # HWMs--------
+            #======================================================================= 
+                
+            metric, fp, meta  = self.run_vali_hwm(wsh_fp, hwm_pts_fp, **skwargs)
+            rdi['hwm']=dict(metric=metric, fp=fp, meta=meta)
+            
+            #===================================================================
+            # inundation-------
+            #===================================================================
+            #get the observed inundation (transform)
+            inun_rlay_fp = self._get_inun_rlay(inun_fp, wse_fp, **skwargs)
+            
+            #convert the wsh to binary inundation (0=wet)
+            pred_inun_fp = write_extract_mask(wse_fp, invert=True, out_dir=odi)
+            assert_spatial_equal(inun_rlay_fp, pred_inun_fp, msg=sim_name)
+            
+            #run the validation                
+            metric, fp, meta = self.run_vali_inun(
+                true_inun_fp=inun_rlay_fp, pred_inun_fp=pred_inun_fp, **skwargs) 
+            
+            rdi['inun']=dict(metric=metric, fp=fp, meta=meta)
+            
+            
+            #===================================================================
+            # add inputs
+            #===================================================================                
+            rdi['clip'] = {'fp':{**fp_d, **{'inun':inun_rlay_fp, 'DEM':dem_fp}}}
+            rdi['raw'] = rdi['clip'].copy() #matching fperf format
+                           
+            #===================================================================
+            # wrap
+            #===================================================================
+            assert len(rdi)>0
+            log.debug(f'finished on {sim_name} w/ {len(rdi)}')
+            #print(dstr(rdi))
+            res_lib[sim_name] = rdi
+            
+        
+
         
         #=======================================================================
         # POST---------
-        #=======================================================================
-        print(dstr(res_lib))
-        
-        
-        
-        #=======================================================================
-        # add WSE and DEMback into results
-        #=======================================================================
-        #=======================================================================
-        # odi=os.path.join(out_dir, 'inputs')
-        # if not os.path.exists(odi):os.makedirs(odi)
-        #=======================================================================
- 
-        def c(fp, odi): 
-            """copy helper
-            run_vali_multi copies inputs over to out_dir/methodName
-            adds this to res_lib under level1 (see above)
-            """
-            if copy_inputs:
-                """nice to add WSE if this isn't included"""
-                fname = os.path.splitext(os.path.basename(fp))[0]
-                if not 'WSE' in fname:                    
-                    ofp = os.path.join(odi, f'{fname}_WSE.tif')
-                else:
-                    ofp = os.path.join(odi,os.path.basename(fp))
- 
-                 
-                return copyr(fp, ofp)
-            else:
-                return fp
-            
-        #DEM
-        if copy_inputs:
-            dem_fp1 = os.path.join(out_dir, os.path.basename(dem_fp))
-            copyr(dem_fp, dem_fp1)
-        else:
-            dem_fp1 = dem_fp
-            
-        #WSE
-        log.debug('adding wse')
-        for k0, v0 in res_lib.items(): #simName
-            for k1, v1 in v0.items():#validation type
-                if  k1=='raw':
-                    #print(dstr(v1['fp'])) 
- 
-                    v1['fp']['wse'] = c(pred_wse_fp_d[k0], os.path.dirname(list(v1['fp'].values())[0])) #note htese aren't clipped
-                    v1['fp']['dem'] = dem_fp1
-                    #print(v1['fp'].keys())
-                    
-        
-        
+        #=======================================================================        
         for k0, v0 in res_lib.items():
-            log.debug(f'{k0}\n'+dstr(v0['raw']['fp']))
+            log.debug(f'{k0}-------------------\n'+dstr(v0['raw']['fp']))
  
         #=======================================================================
         # add relative paths
         #=======================================================================
+        if self.relative:
+            self._add_rel_fp(res_lib) 
       
-        log.debug(f'adding relative paths w/ relative={self.relative}, base_dir={self.base_dir}')
-        for k0, v0 in res_lib.copy().items(): #simName
-            for k1, v1 in v0.items():#validation type
-                if 'fp' in v1: 
-                    #should over-write                       
-                    v1['fp_rel'] =  {k:self._relpath(fp) for k, fp in v1['fp'].items()}
-                                   
  
         #print(dstr(res_lib))
         #=======================================================================
         # write meta and pick
-        #=======================================================================
-        
+        #=======================================================================        
         if write_meta:
             self._write_meta_vali(res_lib)
  
-        if write_pick: 
-            #assert not os.path.exists(ofp)
-            with open(ofp,'wb') as file:
-                pickle.dump(res_lib, file)
- 
-            log.info(f'wrote res_lib pickle to \n    {ofp}')
         
         #=======================================================================
         # wrap
