@@ -210,7 +210,7 @@ class HydTypes(ErrGridTypes):
 # RASTERS CONVSERIONS -------
 #===============================================================================
 def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
-    """add dem and wse to get a depth grid"""
+    """add dem and wse to get a depth grid (dry filtered)"""
     
     assert_spatial_equal(dem_fp, wse_fp)
     HydTypes('WSE').assert_fp(wse_fp)
@@ -242,7 +242,7 @@ def get_wsh_rlay(dem_fp, wse_fp, out_dir = None, ofp=None):
     #===========================================================================
     return write_array2(wd2M_ar, ofp, masked=False, **get_profile(wse_fp))
 
-def get_wsh_ar(dem_ar, wse_ar):
+def get_wsh_ar(dem_ar, wse_ar, dry_filter=True):
     
     assert_dem_ar(dem_ar)
     assert_wse_ar(wse_ar)
@@ -250,13 +250,20 @@ def get_wsh_ar(dem_ar, wse_ar):
     #simple subtract
     wd_ar1 = wse_ar-dem_ar
     
-    #filter dry    
+    #filter dry (wse NULLS)  
     wd_ar2 = np.where(wd_ar1.mask, 0.0, wd_ar1.data)
+ 
  
     
     #filter negatives
+    if dry_filter:
+        wd_ar3_data = np.where(wd_ar2<0.0, 0.0, wd_ar2.data)
+    else:
+        """this will faill type expectations"""
+        wd_ar3_data  = wd_ar2.data
+        
     wd_ar3 = ma.array(
-        np.where(wd_ar2<0.0, 0.0, wd_ar2.data),
+        wd_ar3_data,
         mask=np.full(wd_ar1.shape, False),
         fill_value=-9999)
     
