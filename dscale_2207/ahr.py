@@ -59,14 +59,15 @@ if debug:
     pick_lib = {
         #=======================================================================
         '0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_0clip.pkl',
-        # '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_1dsc.pkl',
+        '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_1dsc.pkl',
         # '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\dev\\20230429\\ahr_aoi13_0427_dev_0429_2eval.pkl' 
         #=======================================================================
         }
 else:
     pick_lib=    {'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230429\\ahr_aoi13_0427_r1_0429_0clip.pkl',
 '1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230429\\ahr_aoi13_0427_r1_0429_1dsc.pkl',
-'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230429\\ahr_aoi13_0427_r1_0429_2eval.pkl'}
+'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230430\\ahr_aoi13_0427_r1_0430_2eval.pkl',
+}
         
 
 

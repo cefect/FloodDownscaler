@@ -18,7 +18,7 @@ from pandas import IndexSlice as idx
 
 from hp.pd import view
 from hp.basic import dstr
-from hp.rio import (get_bbox, write_clip)
+from hp.rio import (get_bbox, write_clip, write_resample)
 
 #from fdsc.control import Dsc_Session
 from fdsc.eval.control import Dsc_Eval_Session
@@ -96,8 +96,15 @@ def run_downscale_and_eval(
             #extract downscaling filepaths
             fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
             
-            #add rim simulations
-            fp_lib['RIM_hires'] = {'WSE1':ses.clip_rlay(proj_lib['wse1'], bbox=get_bbox(wse_fp))}
+            #add rim simulations (hires)
+            ses.bbox = get_bbox(wse_fp)
+            fp_lib['RIM_hires'] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
+            
+            #add rim (lowres)
+            wse2_fp = ses.clip_rlay(proj_lib['wse2']) 
+            fp_lib['RIM_lores'] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
+                                          scale=ses.get_downscale(wse2_fp, dem_fp))}
+            
             
             #extract validation data from project lib (re-key to match fperf.pipeline.run_vali_multi()
             d = {{'inun':'inun_fp', 'hwm':'hwm_pts_fp'}[k]:proj_lib[k] for k in ['inun', 'hwm']}
