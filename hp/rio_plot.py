@@ -115,7 +115,7 @@ class RioPlotr(Plotr):
         elif 'CONFU' in gridk:
             #spacing='proportional'
             spacing = 'uniform'
-            label = 'CONFU'
+            label = 'Confusion'
             fmt = None
             #fmt = matplotlib.ticker.FuncFormatter(lambda x, p:cc_di[x])
             #cax=cax_bot

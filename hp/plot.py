@@ -635,7 +635,7 @@ class Plotr(object):
         #=======================================================================
         if add_stamp:
  
-            txt = '%s (%s)'%(os.path.basename(ofp), datetime.datetime.now().strftime('%Y-%m-%d'))
+            txt = '%s %s (%s)'%(os.path.basename(ofp), fig.get_size_inches(), datetime.datetime.now().strftime('%Y-%m-%d'))
             fig.text(1,0, txt, fontsize=2, color='black', alpha=0.5, ha='right', va='bottom')
         #=======================================================================
         # #write the file
