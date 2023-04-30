@@ -90,22 +90,30 @@ def run_downscale_and_eval(
         #=======================================================================
         # evalu
         #=======================================================================
-        k = 'eval'
+        k = '2eval'
         if not k in pick_lib: 
             #extract downscaling filepaths
             fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib)
             
             #add rim simulations
-            fp_lib['RIM_hires'] = ses.clip_rlay(proj_lib['wse1'], bbox=get_bbox(wse_fp))
- 
+            fp_lib['RIM_hires'] = {'WSE1':ses.clip_rlay(proj_lib['wse1'], bbox=get_bbox(wse_fp))}
+            
+            #extract validation data from project lib (re-key to match fperf.pipeline.run_vali_multi()
+            d = {{'inun':'inun_fp', 'hwm':'hwm_pts_fp'}[k]:proj_lib[k] for k in ['inun', 'hwm']}
+            vali_kwargs.update(d)
         
             #run validation
             dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs,out_dir=get_od(k))
             
+            #write pick
             pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
         else:
             dsc_vali_res_lib= load_pick(pick_lib[k])
         
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    print(f'finished w/ pick_lib\n    {dstr(pick_lib)}')
  
     return dsc_vali_res_lib 
     

@@ -77,8 +77,8 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
         # clip wse
         #=======================================================================
         #clip coarse WSE by aoi
-        wse_clip_fp = self.clip_rlay(wse_fp, clip_kwargs={**clip_kwargs, **dict(
-            fancy_window=dict(round_offsets=True, round_lengths=True))},
+        wse_clip_fp = self.clip_rlay(wse_fp, 
+             clip_kwargs={**clip_kwargs, **dict(fancy_window=dict(round_offsets=True, round_lengths=True))},
                                             ofp=os.path.join(out_dir, 'wse2_clip.tif'),
                                             ) 
  
@@ -90,7 +90,7 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
         #=======================================================================
         # clip DEM
         #=======================================================================
-        dem_clip_fp = self.clip_rlay(dem_fp, bbox=self.bbox)
+        dem_clip_fp = self.clip_rlay(dem_fp, bbox=self.bbox, ofp=os.path.join(out_dir, 'dem1_clip.tif'))
  
         #=======================================================================
         # warp
@@ -339,7 +339,7 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
                                                   out_dir=os.path.join(out_dir, method),
                                                   write_meta=True, 
                                                   method=method,
-                                                  **mkwargs)
+                                                  rkwargs=mkwargs)
                 
             res_lib[method]=d
             
