@@ -188,10 +188,12 @@ def logger():
 #===============================================================================
 # fixtuires
 #===============================================================================
-@pytest.fixture(scope='function')
-def xds(proj_name):
-    """retrieve componenet dataarrays by project name, then assemble a dataset"""
-    return xr.Dataset({
-        'dem':get_xda(proj_lib[proj_name]['dem']),
-        'wse':get_xda(proj_lib[proj_name]['wse'])})
+#===============================================================================
+# @pytest.fixture(scope='function')
+# def xds(proj_name):
+#     """retrieve componenet dataarrays by project name, then assemble a dataset"""
+#     return xr.Dataset({
+#         'dem':get_xda(proj_lib[proj_name]['dem']),
+#         'wse':get_xda(proj_lib[proj_name]['wse'])})
+#===============================================================================
     

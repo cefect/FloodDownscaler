@@ -21,7 +21,7 @@ from fdsc.control import Dsc_Session as Session
 from hp.tests.tools.rasters import get_rlay_fp
 
 from tests.conftest import (
-     proj_lib,get_aoi_fp,par_algoMethodKwargs,
+     proj_lib,get_aoi_fp, 
     par_method_kwargs,temp_dir,
  
     )
