@@ -76,8 +76,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
                            hwm_pts_fp=None,
                            inun_fp=None,
                            write_meta=True,
-                           write_pick=True,
-                           copy_inputs=False,  
+  
                            **kwargs):
         """skinny wrapper for test_run_vali_multi using dsc formatted results
         
@@ -109,13 +108,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================
         # PREP------
         #=======================================================================
-
-        
-        """
-        print(dstr(fp_lib))
-        """
-
-        
+ 
         #=======================================================================
         # separate and type check
         #=======================================================================        
@@ -219,7 +212,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
             #===================================================================
             # add inputs
             #===================================================================                
-            rdi['clip'] = {'fp':{**fp_d, **{'inun':inun_rlay_fp, 'DEM':dem_fp}}}
+            rdi['clip'] = {'fp':{**fp_d, **{inun_dkey:inun_fp, 'DEM':dem_fp}}}
             rdi['raw'] = rdi['clip'].copy() #matching fperf format
                            
             #===================================================================
@@ -230,9 +223,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
             #print(dstr(rdi))
             res_lib[sim_name] = rdi
             
-        
-
-        
+ 
         #=======================================================================
         # POST---------
         #=======================================================================        
