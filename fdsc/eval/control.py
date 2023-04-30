@@ -193,7 +193,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
             rdi['hwm']=dict(metric=metric, fp=fp, meta=meta)
             
             #===================================================================
-            # inundation-------
+            # inundation (0=wet)-------
             #===================================================================
             #get the observed inundation (transform)
             inun_rlay_fp = self._get_inun_rlay(inun_fp, wse_fp, **skwargs)

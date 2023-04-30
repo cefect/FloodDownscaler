@@ -89,7 +89,7 @@ def run_downscale_and_eval(
             dsc_res_lib = load_pick(pick_lib[k])
             
         #=======================================================================
-        # evalu
+        # eval-----------
         #=======================================================================
         k = '2eval'
         if not k in pick_lib: 
@@ -165,8 +165,9 @@ def run_plot(dsc_vali_res_lib,
         if dem_fp is None:
             """not sure why this is 'clipped' but not on the clip level"""
             dem_fp = default_fp_d['DEM']
+            
         if inun_fp is None:
-            inun_fp = default_fp_d['inun']
+            inun_fp = default_fp_d['INUN_POLY']
             
         
         #=======================================================================
