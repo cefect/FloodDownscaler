@@ -207,37 +207,32 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         assert isinstance(compress, Compression)
         
         
-    def clip_rlay(self, fp,
-                  aoi_fp=None, 
-                  bbox=None,
-                  crs=None,
-                  clip_kwargs=None,
-                  **kwargs):
-        """skinny clip a single raster
-        
-        Pars
-        -----------
-        aoi_fp: str
-            filepath to aoi polygon.
-            optional for setting excplicitly.
-            aoi_fp passed to init is already set
-        """
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('clip',  **kwargs)
-        if clip_kwargs is  None: clip_kwargs=dict()
-        
+
+    def _clip_pre(self, aoi_fp=None, bbox=None, crs=None, clip_kwargs=None, **kwargs):
+        #======================================================================= 
+            # defaults 
+            #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname= self._func_setup('clip', **kwargs)
+        if clip_kwargs is None:
+            clip_kwargs = dict()
         if not aoi_fp is None:
             self._set_aoi(aoi_fp)
-            
-        if bbox is None: bbox=self.bbox
-        if crs is None: crs=self.crs
-            
-        #=======================================================================
-        # update clipping kwargs
-        #=======================================================================
+        if bbox is None:
+            bbox = self.bbox
+        if crs is None:
+            crs = self.crs
+    #=======================================================================
+    # update clipping kwargs
+    #=======================================================================
         clip_kwargs.update(dict(bbox=bbox, crs=crs))
+        return ofp, clip_kwargs, log, out_dir
+
+    def clip_rlay(self, fp, **kwargs):
+        """skinny clip a single raster
+        
+
+        """
+        ofp, clip_kwargs, log, out_dir = self._clip_pre(**kwargs)
             
         ofp, stats_d = write_clip(fp, ofp=ofp, **clip_kwargs)
         
@@ -248,11 +243,43 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         
         return ofp
         
+    def clip_rlays(self, fp_d,
+ 
+                  sfx='clip', 
+                  **kwargs):
+        """skinny clip a single raster
         
+        Pars
+        -----------
+        aoi_fp: str
+            filepath to aoi polygon.
+            optional for setting excplicitly.
+            aoi_fp passed to init is already set
+        """
+        ofp, clip_kwargs, log, out_dir = self._clip_pre(**kwargs)
+            
+        #=======================================================================
+        # clip each
+        #=======================================================================
+        log.info(f'clipping {len(fp_d)} rasters to \n    %s'%clip_kwargs['bbox'])
+        res_d = dict()
+ 
+        for key, fp in fp_d.items(): 
+            d={'og_fp':fp}
+            d['clip_fp'], d['stats'] = write_clip(fp,ofp=os.path.join(out_dir, f'{key}_{sfx}.tif'),
+                                                  **clip_kwargs)
+            
+            log.debug(f'clipped {key}:\n    {fp}\n    %s'%d['clip_fp'])
+            
+            res_d[key] = d
+            
+        log.info(f'finished on {len(res_d)}')
+        return res_d
+ 
  
     
 
-    def clip_rlays(self, raster_fp_d,
+    def xxxclip_rlays(self, raster_fp_d,
                    aoi_fp=None, 
                    crs=None, bbox=None, nodata=None, compress=None,
                  sfx='clip', **kwargs):
@@ -362,7 +389,7 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         ----------
         crs, bbox, compress, nodata =RioSession._get_defaults(self)
         """
-        self.assert_valid_atts()
+        self.assert_atts()
         
         if crs is None: crs=self.crs
         if bbox is  None: bbox=self.bbox

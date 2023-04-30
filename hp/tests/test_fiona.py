@@ -42,5 +42,5 @@ def aoi_fp(tmpdir_factory, crs):
 #===============================================================================
 @pytest.mark.dev
 def test_init(ses):
-    ses.assert_valid_atts()    
+    ses.assert_atts()    
     print(dstr(ses.bbox))

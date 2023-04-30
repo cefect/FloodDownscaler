@@ -120,8 +120,10 @@ class SpatialBBOXWrkr(object):
     
     def assert_atts(self):
         #check
-        assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
-        assert hasattr(self.bbox, 'bounds')
+        if not self.bbox is None: #optionakl
+            assert isinstance(self.bbox, sgeo.Polygon), f'bad bbox type: {type(self.bbox)}'
+            assert hasattr(self.bbox, 'bounds')
+            
         assert isinstance(self.crs, CRS) or isinstance(self.crs, CRS_rasterio), f'bad type on crs ({type(self.crs)})'
         
     def write_bbox_vlay(self,bbox,crs=None,
