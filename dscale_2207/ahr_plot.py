@@ -105,39 +105,38 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 # imports
 #===============================================================================
-from dscale_2207.pipeline import run_plot
-from dscale_2207.ahr import load_pick, init_kwargs, pick_lib
+from dscale_2207.pipeline import run_plot, load_pick
+from dscale_2207.ahr import init_kwargs, pick_lib
 
 #===============================================================================
 # vars
 #===============================================================================
 init_kwargs['run_name'] = init_kwargs['run_name']+'_plot0428'
+del init_kwargs['aoi_fp']
 
-ahr_aoi_fp = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson'
+zoom_aoi = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson'
 
 #===============================================================================
 # run
 #===============================================================================
 if __name__=='__main__':
     #load the eval results pickle
-    dsc_vali_res_lib = load_pick(pick_lib['eval'])
+    dsc_vali_res_lib = load_pick(pick_lib['2eval'])
     
-    #update init pars
-    ik = {**init_kwargs, **env_kwargs}
-    
+ 
     #run
-    run_plot(dsc_vali_res_lib, init_kwargs = ik,
+    run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
              
              hwm_scat_kg=dict(
                  fig_mat_kwargs=dict(ncols=3),
                  ),
              
              grids_mat_kg=dict(
-                 aoi_fp=ahr_aoi_fp,
+                 aoi_fp=zoom_aoi,
                  fig_mat_kwargs=dict(ncols=3),
                  ),
              
-             inun_per_kg=dict(box_fp=ahr_aoi_fp),
+             inun_per_kg=dict(box_fp=zoom_aoi),
              )
     
     print('finished')

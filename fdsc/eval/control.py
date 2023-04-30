@@ -201,8 +201,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================
         # add relative paths
         #=======================================================================
-
-                
+      
         log.debug(f'adding relative paths w/ relative={self.relative}, base_dir={self.base_dir}')
         for k0, v0 in res_lib.copy().items(): #simName
             for k1, v1 in v0.items():#validation type

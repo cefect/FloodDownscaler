@@ -106,7 +106,7 @@ def run_downscale_and_eval(
             dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib, vali_kwargs=vali_kwargs,out_dir=get_od(k))
             
             #write pick
-            pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
+            pick_lib[k] = ses._write_pick(dsc_vali_res_lib, resname=ses._get_resname(k))
         else:
             dsc_vali_res_lib= load_pick(pick_lib[k])
         
@@ -165,6 +165,7 @@ def run_plot(dsc_vali_res_lib,
         #extract filepaths
         serx = ses.load_run_serx(dsc_vali_res_lib = dsc_vali_res_lib)
         """
+        dsc_vali_res_lib.keys()
         view(serx)
         serx.index.names
         serx.index.unique('analysis')
