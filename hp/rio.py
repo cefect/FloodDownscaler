@@ -227,13 +227,23 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         clip_kwargs.update(dict(bbox=bbox, crs=crs))
         return ofp, clip_kwargs, log, out_dir
 
-    def clip_rlay(self, fp, **kwargs):
+    def clip_rlay(self, fp, ofp=None, **kwargs):
         """skinny clip a single raster
         
 
         """
-        ofp, clip_kwargs, log, out_dir = self._clip_pre(**kwargs)
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        _, clip_kwargs, log, out_dir = self._clip_pre(**kwargs)
+        
+        if ofp is None: 
+            fname = os.path.splitext( os.path.basename(fp))[0] + '_clip.tif'
+            ofp = os.path.join(os.path.dirname(fp),fname)
             
+        #=======================================================================
+        # clip
+        #=======================================================================
         ofp, stats_d = write_clip(fp, ofp=ofp, **clip_kwargs)
         
         #=======================================================================
@@ -277,65 +287,6 @@ class RioSession(RioWrkr, SpatialBBOXWrkr):
         return res_d
  
  
-    
-
-    def xxxclip_rlays(self, raster_fp_d,
-                   aoi_fp=None, 
-                   crs=None, bbox=None, nodata=None, compress=None,
-                 sfx='clip', **kwargs):
-        """clip a dicrionary of raster filepaths
-        
-        Parameters
-        -----------
-        raster_fp_d: dict
-            {key:filepath to raster}
-            
-        """
-        
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        log, tmp_dir, out_dir, _, resname = self._func_setup('clip_set',  **kwargs)
-     
-        
-        
-        #=======================================================================
-        # retrive clipping parameters
-        #=======================================================================
-        if not aoi_fp is None:
-            log.debug(f'clipping from aoi\n    {aoi_fp}')
-            assert bbox is None
-            assert crs is None        
-            self._set_aoi(aoi_fp)
-        else:
-            pass #should have been set during init
-            
-        crs, bbox, compress, nodata = self._get_defaults(crs=crs, bbox=bbox, nodata=nodata, compress=compress)
-        
-        #=======================================================================
-        # precheck
-        #=======================================================================
-        assert isinstance(raster_fp_d, dict)        
-
-        
-        #=======================================================================
-        # clip each
-        #=======================================================================
-        log.info(f'clipping {len(raster_fp_d)} rasters to \n    {bbox}')
-        res_d = dict()
- 
-        for key, fp in raster_fp_d.items(): 
-            d={'og_fp':fp}
-            d['clip_fp'], d['stats'] = write_clip(fp,bbox=bbox,crs=crs,
-                                                  ofp=os.path.join(out_dir, f'{key}_{sfx}.tif')
-                                                  )
-            
-            log.debug(f'clipped {key}:\n    {fp}\n    %s'%d['clip_fp'])
-            
-            res_d[key] = d
-            
-        log.info(f'finished on {len(res_d)}')
-        return res_d
     
     def write_array(self,raw_ar,
                         #write kwargs
