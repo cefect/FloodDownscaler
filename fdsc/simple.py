@@ -26,7 +26,7 @@ from hp.riom import write_extract_mask, write_array_mask
  
 
 from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d,  assert_partial_wet, assert_type_fp, DscBaseWorker
+    assert_dem_ar, assert_wse_ar, rlay_extract, assert_partial_wet, assert_type_fp, DscBaseWorker
     )
 
 
@@ -124,7 +124,7 @@ class BasicDSC(WetPartials):
         
     def run_p1(self,wse_fp=None, dem_fp=None, method='Basic', dem_filter=True, **kwargs):
         """just a wrapper for p1_wetPartials"""
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], 
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(self.nicknames_d[method], 
                                                                subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir, ofp=ofp)
         meta_lib={'smry':dict()}

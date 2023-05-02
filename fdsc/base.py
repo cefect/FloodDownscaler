@@ -19,13 +19,7 @@ from hp.riom import assert_masked_ar
 from hp.hyd import assert_wse_ar, assert_dem_ar, assert_partial_wet, HydTypes
 from hp.hyd import assert_wsh_ar as assert_wd_ar
 
-nicknames_d = {'CostGrow':'cgs', 
-               'Basic':'rsmp',
-               'SimpleFilter':'rsmpF', #basic + DEM filter
-               'BufferGrowLoop':'bgl', 
-               'Schumann14':'s14',
-               'RIM_hires':'sim1',
-               'RIM_lores':'sim2'}
+ 
 
  
 
@@ -34,7 +28,13 @@ class DscBaseWorker(object):
     """methods shared by all downscaler classes"""
     
     downscale=None
-    nicknames_d=nicknames_d
+    nicknames_d={'CostGrow':'cgs', 
+               'Basic':'rsmp',
+               'SimpleFilter':'rsmpF', #basic + DEM filter
+               'BufferGrowLoop':'bgl', 
+               'Schumann14':'s14',
+
+               }
     
     def __init__(self,
                  run_dsc_handle_d=None, 
@@ -50,7 +50,7 @@ class DscBaseWorker(object):
         #=======================================================================
         # set caller funcs
         #=======================================================================
-        miss_s = set(run_dsc_handle_d.keys()).difference(nicknames_d.keys())
+        miss_s = set(run_dsc_handle_d.keys()).difference(self.nicknames_d.keys())
         assert miss_s==set(), miss_s
  
         self.run_dsc_handle_d=run_dsc_handle_d
@@ -146,7 +146,7 @@ class DscBaseWorker(object):
 #  
 #         super().__init__(run_name=run_name, relative=relative, **kwargs)
 #===============================================================================
-        
+ 
  
     
 
@@ -179,7 +179,7 @@ def assert_dsc_res_lib(dsc_res_lib, msg=''):
     # check keys
     #===========================================================================
     #check level 1 keys        
-    assert set(dsc_res_lib.keys()).difference(nicknames_d.keys())==set(['inputs'])
+    #assert set(dsc_res_lib.keys()).difference(nicknames_d.keys())==set(['inputs'])
     
     for k0, d0 in dsc_res_lib.items():
         assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set()

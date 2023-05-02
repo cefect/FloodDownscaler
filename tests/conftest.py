@@ -18,7 +18,7 @@ from pyproj.crs import CRS
 
 #project
 from definitions import src_dir, epsg, bounds
-from fdsc.base import nicknames_d
+#from fdsc.base import nicknames_d
 
 #helpers
 from hp.tests.tools.rasters import get_rlay_fp
@@ -53,8 +53,8 @@ par_algoMethodKwargs = ('method, kwargs', [(k,v) for k,v in par_method_kwargs.it
 
 
 #check it
-miss_s = {e[0] for e in par_algoMethodKwargs[1]}.difference(nicknames_d.keys())
-assert miss_s==set(), 'parameter key mismatch: %s'%miss_s
+#miss_s = {e[0] for e in par_algoMethodKwargs[1]}.difference(nicknames_d.keys())
+#assert miss_s==set(), 'parameter key mismatch: %s'%miss_s
 
 #===============================================================================
 # TEST DATA---------

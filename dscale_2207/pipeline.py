@@ -60,6 +60,13 @@ def run_downscale_and_eval(
     #init
     with Dsc_Eval_Session(**kwargs) as ses:
         
+        ses.nicknames_d.update({
+               'Hydrodyn. (s1)':'sim1',
+               'Hydrodyn. (s2)':'sim2',
+            })
+        
+        nd = {v:k for k,v in ses.nickanmes_d.items()}
+        
         def get_od(k):
             return os.path.join(ses.out_dir, k)
         
@@ -98,11 +105,11 @@ def run_downscale_and_eval(
             
             #add rim simulations (hires)
             ses.bbox = get_bbox(wse_fp)
-            fp_lib['RIM_hires'] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
+            fp_lib[nd['s1']] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
             
             #add rim (lowres)
             wse2_fp = ses.clip_rlay(proj_lib['wse2']) 
-            fp_lib['RIM_lores'] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
+            fp_lib[nd['s1']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
                                           scale=ses.get_downscale(wse2_fp, dem_fp))}
             
             

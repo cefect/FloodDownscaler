@@ -20,7 +20,6 @@ import matplotlib
 
  
  
-from fdsc.base import nicknames_d
 from fperf.plot.base import PostBase
 
  
@@ -33,7 +32,7 @@ class Fdsc_Plot_Base(PostBase):
     
     #confusion_color_d = {'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'}
     
-    nicknames_d = nicknames_d.copy()
+    #nicknames_d = nicknames_d.copy()
     
     rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'WSE2':'Hydrodyn. (s2)'}
     

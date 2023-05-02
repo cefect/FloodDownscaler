@@ -22,7 +22,7 @@ from hp.rio import (
 from fdsc.simple import WetPartials
 
 from fdsc.base import (
-    assert_dem_ar, assert_wse_ar, rlay_extract, nicknames_d, assert_partial_wet
+    assert_dem_ar, assert_wse_ar, rlay_extract, assert_partial_wet
     )
 
 
@@ -47,7 +47,7 @@ class BufferGrowLoop(WetPartials):
         """run CostGrow pipeline
         """
         method = 'BufferGrowLoop'
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup(nicknames_d[method], subdir=False, **kwargs)
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(self.nicknames_d[method], subdir=False, **kwargs)
         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
         meta_lib = dict()
         
