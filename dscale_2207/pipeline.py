@@ -24,6 +24,12 @@ from hp.rio import (get_bbox, write_clip, write_resample)
 from fdsc.eval.control import Dsc_Eval_Session
 from fdsc.plot.control import Fdsc_Plot_Session
 
+
+nickname_d2 = {
+               'Hydrodyn. (s1)':'sim1',
+               'Hydrodyn. (s2)':'sim2',
+            }
+
 def load_pick(fp):
     with open(fp, 'rb') as f:
         d = pickle.load(f)
@@ -60,12 +66,9 @@ def run_downscale_and_eval(
     #init
     with Dsc_Eval_Session(**kwargs) as ses:
         
-        ses.nicknames_d.update({
-               'Hydrodyn. (s1)':'sim1',
-               'Hydrodyn. (s2)':'sim2',
-            })
+        ses.nicknames_d.update(nickname_d2)
         
-        nd = {v:k for k,v in ses.nickanmes_d.items()}
+        nd = {v:k for k,v in ses.nicknames_d.items()}
         
         def get_od(k):
             return os.path.join(ses.out_dir, k)
@@ -105,11 +108,11 @@ def run_downscale_and_eval(
             
             #add rim simulations (hires)
             ses.bbox = get_bbox(wse_fp)
-            fp_lib[nd['s1']] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
+            fp_lib[nd['sim1']] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
             
             #add rim (lowres)
             wse2_fp = ses.clip_rlay(proj_lib['wse2']) 
-            fp_lib[nd['s1']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
+            fp_lib[nd['sim1']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
                                           scale=ses.get_downscale(wse2_fp, dem_fp))}
             
             
@@ -148,7 +151,11 @@ def run_plot(dsc_vali_res_lib,
     res_d = dict()
     
     with Fdsc_Plot_Session(**init_kwargs) as ses:
+        ses.nicknames_d.update(nickname_d2)
+                
         log = ses.logger
+        nd = {v:k for k,v in ses.nicknames_d.items()}
+        
         #extract filepaths
         serx = ses.load_run_serx(dsc_vali_res_lib = dsc_vali_res_lib)
         """
@@ -181,9 +188,9 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-  
+   
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-  
+   
         #=======================================================================
         # grid plots
         #=======================================================================
@@ -199,7 +206,8 @@ def run_plot(dsc_vali_res_lib,
         # INUNDATION PERFORMANCe
         #======================================================================= 
         fp_df, metric_lib = ses.collect_inun_data(serx, 'WSH', raw_coln='raw')
-        res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df.loc[:, ['WSH', 'CONFU']], 
+        l = [nd[k] for k in ['sim1', 'rsmp', 'rsmpF', 'cgs', 's14']] #get order
+        res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df.loc[l, ['WSH', 'CONFU']], 
                                                     metric_lib=metric_lib, **inun_per_kg)
         
         #=======================================================================
