@@ -1151,7 +1151,7 @@ def write_clip(raw_fp,
         
         #crs check/load
         if not crs is None:
-            assert crs==ds.crs, f'mismatch crs={crs} and \n    {os.path.basename(raw_fp)}'
+            assert crs==ds.crs, f'mismatch crs={crs} (ds.crs={ds.crs}) on\n    {raw_fp}'
         else:
             crs = ds.crs
         
