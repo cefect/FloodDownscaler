@@ -65,7 +65,7 @@ def run_downscale_and_eval(
     
     #init
     with Dsc_Eval_Session(**kwargs) as ses:
-        
+        log = ses.logger
         ses.nicknames_d.update(nickname_d2)
         
         nd = {v:k for k,v in ses.nicknames_d.items()}
@@ -84,7 +84,7 @@ def run_downscale_and_eval(
         else:
             d = load_pick(pick_lib[k])
             dem_fp, wse_fp = d['dem'], d['wse']
-        
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n')
         #=======================================================================
         # downscale
         #=======================================================================
@@ -97,7 +97,7 @@ def run_downscale_and_eval(
             
         else:
             dsc_res_lib = load_pick(pick_lib[k])
-            
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n') 
         #=======================================================================
         # eval-----------
         #=======================================================================
@@ -112,7 +112,7 @@ def run_downscale_and_eval(
             
             #add rim (lowres)
             wse2_fp = ses.clip_rlay(proj_lib['wse2']) 
-            fp_lib[nd['sim1']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
+            fp_lib[nd['sim2']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
                                           scale=ses.get_downscale(wse2_fp, dem_fp))}
             
             
@@ -162,7 +162,7 @@ def run_plot(dsc_vali_res_lib,
         dsc_vali_res_lib.keys()
         view(serx)
         serx.index.names
-        serx.index.unique('analysis')
+        serx.index.unique('simName')
         serx['clip']
         print(dstr(dsc_vali_res_lib))
         """
@@ -170,7 +170,11 @@ def run_plot(dsc_vali_res_lib,
         #fix some grid names
         serx = serx.rename({'wsh':'WSH', 'wse':'WSE', 'dem':'DEM'}, level=3)
  
+        #set display order
+        sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
+        sim_order_l2 = [nd[k] for k in sim_order_l1] #fancy names
         
+        serx = serx.loc[idx[:, :, sim_order_l2, :]]
         #=======================================================================
         # pull inputs from library
         #=======================================================================
@@ -188,9 +192,9 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-   
+    
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-   
+    
         #=======================================================================
         # grid plots
         #=======================================================================
@@ -204,11 +208,18 @@ def run_plot(dsc_vali_res_lib,
         
         #=======================================================================
         # INUNDATION PERFORMANCe
-        #======================================================================= 
+        #=======================================================================
+        #prep data 
         fp_df, metric_lib = ses.collect_inun_data(serx, 'WSH', raw_coln='raw')
-        l = [nd[k] for k in ['sim1', 'rsmp', 'rsmpF', 'cgs', 's14']] #get order
-        res_d['inun_perf'] = ses.plot_inun_perf_mat(fp_df.loc[l, ['WSH', 'CONFU']], 
-                                                    metric_lib=metric_lib, **inun_per_kg)
+                
+        sim_order_l2.pop('Hydrodyn. (s2)') #remove this... plot basic instead
+        dfi = fp_df.loc[sim_order_l2, ['WSH', 'CONFU']] 
+        
+        #plot
+        res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 
+                                rowLabels_d={nd['rsmp']:'Basic/Hydrodyn. (s2)'},
+                                #arrow_kwargs=dict(xy_loc = (0.66, 0.55)),
+                                **inun_per_kg)
         
         #=======================================================================
         # wrap

@@ -19,16 +19,16 @@ def f(fp_rel):
     return fp
     
 proj_lib = {
-    'proj_name': 'ahr_aoi13_0427',
+    'proj_name': 'ahr_aoi13_0506',
     
     #primary inputs
-    'wse2': f(r'fdsc\r32_0415_i4\wd_max_WSE.tif'),
+    'wse2': f(r'fdsc\r32_v10_i06_0506\wd_max_WSE.tif'),
     'dem1': f(r'r04\rim2d\dem005_r04_aoi13_0415.asc'), 
  
     #evaluation
     'inun': f(r'obsv\RLP_LfU_HQ_extrm_WCS_20230324_ahr_4647_aoi13.geojson'), 
     'hwm': f(r'obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'),
-    'wse1':f(r'fdsc\r04_0416_i3\wd_max_WSE.tif'),
+    'wse1':f(r'fdsc\r04_b4_i05_0508\wd_max_WSE.tif'),
     'aoi_fp': r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi13_r32_small_0428.geojson',
     'crs':CRS.from_user_input(4647),
     'index_coln':'fid',
@@ -40,7 +40,7 @@ if debug:
     proj_lib['aoi_fp'] = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09T_0117_4647.geojson'
     run_name='dev'
 else:
-    run_name='r1'
+    run_name='r2'
 
 
 
@@ -58,16 +58,13 @@ for k in ['proj_name','crs', 'aoi_fp', 'index_coln']:
 if debug:
     pick_lib = {
         #=======================================================================
-        #'0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_0clip.pkl',
-        #'1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0427\dev\20230429\ahr_aoi13_0427_dev_0429_1dsc.pkl',
+        '0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230510\ahr_aoi13_0506_dev_0510_0clip.pkl',
+        '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230510\ahr_aoi13_0506_dev_0510_1dsc.pkl',
         # '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\dev\\20230429\\ahr_aoi13_0427_dev_0429_2eval.pkl' 
         #=======================================================================
         }
 else:
-    pick_lib=        {'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230502\\ahr_aoi13_0427_r1_0502_0clip.pkl',
-'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230502\\ahr_aoi13_0427_r1_0502_1dsc.pkl',
-'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\r1\\20230502\\ahr_aoi13_0427_r1_0502_2eval.pkl'}
-
+    pick_lib={}
 
 #===============================================================================
 # run
