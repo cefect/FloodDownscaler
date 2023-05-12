@@ -193,6 +193,7 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
       
+        hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
       
         #=======================================================================

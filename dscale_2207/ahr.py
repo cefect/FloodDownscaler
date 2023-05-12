@@ -22,7 +22,7 @@ proj_lib = {
     'proj_name': 'ahr_aoi13_0506',
     
     #primary inputs
-    'wse2': f(r'fdsc\r32_v10_i06_0506\wd_max_WSE.tif'),
+    'wse2': f(r'fdsc\r32_b10_i65_0511\wd_max_WSE.tif'),
     'dem1': f(r'r04\rim2d\dem005_r04_aoi13_0415.asc'), 
  
     #evaluation
@@ -64,9 +64,9 @@ if debug:
         #=======================================================================
         }
 else:
-    pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230510\\ahr_aoi13_0506_r2_0510_0clip.pkl',
-'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230510\\ahr_aoi13_0506_r2_0510_1dsc.pkl',
-'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230510\\ahr_aoi13_0506_r2_0510_2eval.pkl'}
+    pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
+'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_1dsc.pkl',
+'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_2eval.pkl'}
 
 #===============================================================================
 # run
