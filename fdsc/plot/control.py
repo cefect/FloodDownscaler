@@ -10,8 +10,9 @@ plotting downsample performance results
 import logging, os, copy, datetime, pickle, pprint, math
 import numpy as np
 import pandas as pd
-import rasterio as rio
-import geopandas as gpd
+from pandas import IndexSlice as idx
+
+ 
  
 
 from rasterio.plot import show
@@ -168,6 +169,76 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
         log.info(f'collected runtimes for {len(res_lib)} (in seconds): \n{dstr}')
         
         return res_lib
+    
+    def plot_grids_mat_fdsc(self, serx, gridk,dem_fp, inun_fp,
+                            grids_mat_kg=dict(),
+                            **kwargs):
+        """wrapper for plot_grids_mat to add custom arrows"""
+        
+        #=======================================================================
+        # setup
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup(
+            f'grids{gridk.upper()}', ext='.'+self.output_format, **kwargs)
+        
+        #=======================================================================
+        # data prep
+        #=======================================================================
+        fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
+        
+        #=======================================================================
+        # plot
+        #=======================================================================
+        ax_d, fig = self.plot_grids_mat(fp_d, gridk=gridk, 
+                                     dem_fp=dem_fp,inun_fp=inun_fp, 
+                                     #arrow_kwargs_lib={'flow1':dict(xy_loc = (0.66, 0.55))},
+                                     **grids_mat_kg)
+        
+        #=======================================================================
+        # add custom arrows
+        #=======================================================================
+        def add_annot(ax, txt, xy_loc):
+            ax.annotate(txt,
+                    xy=xy_loc,
+                    xycoords='axes fraction',
+                    #xytext=(xy_loc[0]-0.25, xy_loc[1]),
+                    textcoords='axes fraction',
+                    #arrowprops=dict(facecolor='black', shrink=0.08, alpha=0.7),
+                    bbox=dict(boxstyle="circle,pad=0.3", fc="black", lw=0.0,alpha=0.9 ),
+                    color='white',
+                    )
+            
+            log.debug(f'added {txt} at {str(xy_loc)}')
+            
+ 
+        #wet-partials
+        add_annot(ax_d['r0']['c1'], 'A', (0.2, 0.35))
+        
+        #dry-partials
+        add_annot(ax_d['r0']['c2'], 'B', (0.75, 0.7))
+        
+        #Cost Grow limits
+        add_annot(ax_d['r1']['c0'], 'C', (0.75, 0.85))
+ 
+        #Schuymann isolated
+        add_annot(ax_d['r1']['c1'], 'D', (0.56, 0.89))
+        
+        #flow on RR tracks
+        add_annot(ax_d['r1']['c2'], 'E', (0.25, 0.81))
+        
+
+        
+
+ 
+
+        
+
+        """
+        plt.show()
+        """
+        
+        
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
                 
         
             

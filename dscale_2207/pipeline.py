@@ -192,21 +192,22 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-      
+       
         hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-      
+       
         #=======================================================================
         # grid plots
         #=======================================================================
         for gridk in [
             #'WSH', #filters 'Basic'
             'WSE']:
-            fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
-            res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat(fp_d, gridk=gridk, 
-                                         dem_fp=dem_fp,inun_fp=inun_fp, **grids_mat_kg)
+
+            
+            res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
+                                                                   grids_mat_kg=grids_mat_kg)
  
-        
+ 
         #=======================================================================
         # INUNDATION PERFORMANCe
         #=======================================================================
@@ -225,7 +226,8 @@ def run_plot(dsc_vali_res_lib,
         #plot
         res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 
                                 rowLabels_d={nd['rsmp']:'Basic/Hydrodyn. (s2)'},
-                                #arrow_kwargs=dict(xy_loc = (0.66, 0.55)),
+                                #arrow_kwargs_lib={'flow1':dict(xy_loc = (0.66, 0.55))},
+ 
                                 **inun_per_kg)
         
         #=======================================================================
