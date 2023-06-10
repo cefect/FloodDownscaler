@@ -62,7 +62,7 @@ class HydTypes(ErrGridTypes):
     load_fp: retrieve pythonic data (e.g., np.array, gpd.GeoDataFrame)
     
  
-    
+    subclass each type?
     """
     
     
@@ -188,6 +188,43 @@ class HydTypes(ErrGridTypes):
         #check
         HydTypes('WSE').assert_fp(ofp)        
         return ofp
+    
+    #===========================================================================
+    # CALCULATORS
+    #===========================================================================
+    def WSH_stats(self, fp=None, **kwargs):
+        """compute stats specific to a WSH grid"""
+        #=======================================================================
+        # setup
+        #=======================================================================
+        if fp is None:
+            fp=self.fp
+            
+        assert self.dkey=='WSH'
+        
+        res_d=dict()
+        
+        with rasterio.open(fp, mode='r') as ds:
+            pixelArea = ds.res[0]*ds.res[1]
+            mar = ds.read(1, window=None, masked=True)
+            
+            assert not np.any(mar.mask)
+            
+ 
+            #=======================================================
+            # simple mean
+            #=======================================================
+            res_d['mean'] = mar.mean()
+            #===================================================================
+            # inundation area
+            #===================================================================
+            res_d['posi_area'] = np.sum(mar>0) * (pixelArea) #non-nulls times pixel area
+            #===================================================================
+            # volume
+            #===================================================================
+            res_d['vol'] = mar.sum() * pixelArea
+        
+        return res_d
         
         
 
