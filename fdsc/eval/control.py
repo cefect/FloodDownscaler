@@ -8,12 +8,14 @@ running evaluation on downscaling results
 import os, pickle, shutil
 
 import rasterio.shutil
+from rasterio.enums import Resampling
 
 from hp.basic import dstr
 from hp.fiona import get_bbox_and_crs
 from hp.hyd import get_wsh_rlay, HydTypes
 from hp.rio import (
     write_clip, is_raster_file, copyr, assert_extent_equal, assert_spatial_equal,
+    write_resample,
     )
 from hp.riom import write_extract_mask
 
@@ -100,7 +102,9 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #loop and ad by level 
         cnt=0
         for k0, d0 in dsc_res_lib.items():
-            if k0=='inputs':continue
+            if k0=='inputs':
+                #d0['inputs1']['fp']
+                continue
             if level==1:
                 raise IOError('not implemented')
                 #res_d[k0] = get_fpd(d0)
@@ -324,19 +328,49 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         log.info(f'building WSH grids on {len(fp_lib)}')
         
         assert set(fp_lib.keys()).difference(self.nicknames_d.keys())==set(['inputs'])
+        
+ 
         #=======================================================================
         # loop and build for each
         #=======================================================================
         for k0, d0 in fp_lib.items():
+            res_d[k0]=dict()
+            #===================================================================
+            # handle raw course (and get inputs)
+            #===================================================================
             if k0=='inputs':
-                ins_d = d0.copy()
+                ins_d = d0['inputs1'].copy()
+                
+                #===============================================================
+                # #build the course DEM
+                # scale = self.get_resolution_ratio(ins_d['WSE2'], ins_d['DEM1'])
+                # dem2_fp = write_resample(ins_d['DEM1'], resampling=Resampling.average, 
+                #     scale=1/scale, ofp=os.path.join(tmp_dir, f'DEM2_{scale}.tif'))
+                # 
+                # #get paths
+                # odi= os.path.join(out_dir, k0) #matching that of run_dsc_multi_mRes
+                # if not os.path.exists(odi):os.makedirs(odi)
+                # 
+                # wsh2_fp=get_wsh_rlay(
+                #         dem2_fp, ins_d['WSE2'], 
+                #         ofp=os.path.join(odi, f'WSH_{k0}_{scale}.tif'),
+                #         )
+                # 
+                # print(dstr(ins_d))
+                #===============================================================
                 continue
             
             if level==1:
                 raise IOError('not implemented')
  
+            #===================================================================
+            # build WSH for each downscale
+            #===================================================================
             elif level==2:
-                res_d[k0]=dict()
+                #add the raw
+                #res_d[k0]['d00']=wsh2_fp
+                
+                
                 for k1, d1 in d0.items():
                     #get paths
                     odi= os.path.join(out_dir, k0, k1) #matching that of run_dsc_multi_mRes
@@ -344,16 +378,21 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
                     
                     #build from DEM
                     res_d[k0][k1]=get_wsh_rlay(
-                        ins_d['inputs1'][k1], d1['WSE1'], 
+                        ins_d[k1], d1['WSE1'], 
                         ofp=os.path.join(odi, f'WSH_{k0}{k1}.tif'),
                         )
                         
                     cnt+=1
+                    
+
                       
         #=======================================================================
         # wrap  
         #=======================================================================
         log.info(f'finished writing {cnt} to \n    {out_dir}')
+        """
+        print(dstr(res_d))
+        """
         
         return res_d
  

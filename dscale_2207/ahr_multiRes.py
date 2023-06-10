@@ -26,16 +26,17 @@ from dscale_2207.ahr import init_kwargs, proj_lib, debug
 #===============================================================================
 # parametesr
 #===============================================================================
+ 
 
 
 #precompiled results
 if debug:
     pick_lib = {
         '0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\r2\20230609\ahr_aoi13_0506_r2_0609_0clip.pkl',
-        '1dems':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\r2\20230609\ahr_aoi13_0506_r2_0609_1dems.pkl',
-        '2dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230609\ahr_aoi13_0506_dev_0609_2dsc.pkl',
+        '1dems': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\dev\\20230610\\ahr_aoi13_0506_dev_0610_1dems.pkl',
+        '2dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230610\ahr_aoi13_0506_dev_0610_2dsc.pkl',
         '3wsh':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230610\ahr_aoi13_0506_dev_0610_3wsh.pkl',
-        '4stats':'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\dev\\20230610\\ahr_aoi13_0506_dev_0610_4stats.pkl'
+ 
  
         }
     dsc_l=[2**1, 6, 2**3]

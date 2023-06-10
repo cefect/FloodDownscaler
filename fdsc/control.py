@@ -479,14 +479,17 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
         ins_d.update({dskey(dsc_d[k]):v for k,v in dem_fp_d.items()})
         
 
-            
+        meta_d = {'start':start, 'dem_fp_d':dem_fp_d.copy(), 'dsc_d':dsc_d,
+                  'dscale_nm_d':{dskey(v):v for k,v in dsc_d.items()},
+                  }
+        
  
         #=======================================================================
         # loop on methods
         #=======================================================================
         res_lib = {'inputs':{'inputs1':{'fp':ins_d, 
                                         'fp_rel':{k0:self._relpath(fp) for k0, fp in ins_d.items()},
-                                        'meta':{'start':start, 'dem_fp_d':dem_fp_d.copy()}}}}        
+                                        'meta':meta_d}}}        
         
         for method, mkwargs in method_pars.items(): 
             name = self.nicknames_d[method]
@@ -501,7 +504,7 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
                 # setup
                 #===============================================================
  
-                downscale=self.get_resolution_ratio(wse2_fp, dem1_fp) #WSE2 to WSE1
+                downscale=dsc_d[dem_scale] #WSE2 to WSE1
                 dsc_str = dskey(downscale)
                 resname_i=self._get_resname(f'{name}_{dsc_str}')
                 odi=os.path.join(out_dir, method, dsc_str)
@@ -518,12 +521,18 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
                 #===============================================================
                 # #build downscaled WSE2
                 #===============================================================
-                d=dict() 
-                d['fp'], d['meta'] = self.run_dsc(dem1_fp, wse2_fp, 
-                                          downscale=downscale,resname=resname_i,out_dir=odi,
-                                          write_meta=True, 
-                                          method=method,
-                                          rkwargs=mkwargs)
+                d=dict()
+                if downscale!=1.0: 
+                    d['fp'], d['meta'] = self.run_dsc(dem1_fp, wse2_fp, 
+                                              downscale=downscale,resname=resname_i,out_dir=odi,
+                                              write_meta=True, 
+                                              method=method,
+                                              rkwargs=mkwargs)
+                else:
+                    #no downscaling, just copy
+                    ofpi = os.path.join(odi, f'wse2_copy_{method}_{dsc_str}.tif')
+                    rshutil.copy(wse2_fp, ofpi)
+                    d['fp'], d['meta'] = {'WSE1':ofpi}, {'smry':{}}
  
                 #===============================================================
                 # post
@@ -562,6 +571,9 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
  
         assert_dsc_res_lib(res_lib, level=2) 
         log.info(f'finished in {now() - start}')
+        """
+        print(res_lib['CostGrow'].keys())
+        """
         
         return res_lib
  

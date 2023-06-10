@@ -25,6 +25,7 @@ from fdsc.eval.control import Dsc_Eval_Session
 from fdsc.plot.control import Fdsc_Plot_Session
 
 
+
 nickname_d2 = {
                'Hydrodyn. (s1)':'sim1',
                'Hydrodyn. (s2)':'sim2',
@@ -170,7 +171,7 @@ def run_downscale_and_eval_multiRes(
         
         def get_od(k):
             return os.path.join(ses.out_dir, k)
-        
+        print(proj_lib.keys())
         #=======================================================================
         # clip
         #=======================================================================
@@ -191,7 +192,8 @@ def run_downscale_and_eval_multiRes(
         if not k in pick_lib: 
             #build aggregated DEMs
             downscale_base = ses.get_resolution_ratio(wse_fp, dem_fp)
-            dem_scale_l = [downscale_base/e for e in dsc_l] #change to be relative to the DEM1
+            dem_scale_l = [downscale_base] + [downscale_base/e for e in dsc_l] #change to be relative to the DEM1
+            
             
             dem_fp_d = ses.build_agg_dem(dem_fp, dem_scale_l, logger=log, out_dir=get_od(k))
             
@@ -209,6 +211,16 @@ def run_downscale_and_eval_multiRes(
         if not k in pick_lib:        
             dsc_res_lib = ses.run_dsc_multi_mRes(wse_fp, dem_fp_d, method_pars=method_pars,out_dir=get_od(k))
             
+            #add some upper level meta
+            """
+            print(dstr(dsc_res_lib['inputs']['inputs1']))
+            """
+            dsc_res_lib['inputs']['inputs1']['meta']['dsc_l']=dsc_l.copy()
+            dsc_res_lib['inputs']['inputs1']['fp']['DEM1']=dem_fp
+            
+            #add inputs
+            
+            #write pick
             pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
             
         else:
@@ -222,6 +234,10 @@ def run_downscale_and_eval_multiRes(
         if not k in pick_lib:
             #extract the filepaths        
             fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib, level=2)
+            
+            """
+            print(dstr(fp_lib))
+            """
             
             #build WSH
             wsh_lib = ses.build_wsh(fp_lib, out_dir=get_od(k))
@@ -246,6 +262,9 @@ def run_downscale_and_eval_multiRes(
             
             #extract the filepaths        
             fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib2, level=2)
+            """
+            print(dstr(fp_lib))
+            """
             
             #compute stats
             stats_lib = ses.run_stats_multiRes(fp_lib, out_dir=get_od(k))
@@ -374,8 +393,56 @@ def run_plot(dsc_vali_res_lib,
     return res_d
             
 
-    
+def run_plot_multires(dsc_res_lib, 
+                      sim_color_d = {'cgs': '#e41a1c', 'rsmp': '#ff7f00', 'rsmpF': '#999999'},
  
+             init_kwargs=dict(),
+ 
+             ):
+    """ plot downscaling and grid stat results for multi-Res"""
+    assert not 'aoi_fp' in  init_kwargs
+    
+    res_d = dict()
+    
+    from fdsc.plot.multiRes import Fdsc_MultiRes_Plot_Session as Session
+    
+    with Session(**init_kwargs) as ses:
+        log = ses.logger
+        #=======================================================================
+        # data setup
+        #=======================================================================
+        ses.nicknames_d.update(nickname_d2)
+                
+        
+        nd = {v:k for k,v in ses.nicknames_d.items()}
+        
+        #extract filepaths
+        serx = ses.load_run_serx_multiRes_stats(dsc_res_lib)
+ 
+        #fix some grid names
+        lvl_d = {lvlName:i for i, lvlName in enumerate(serx.index.names)}
+        serx = serx.rename({'WSH1':'WSH'}, level=lvl_d['dataType'])
+ 
+        #set display order
+        sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
+        sim_order_l2 = [k for k in sim_order_l1 if k in serx.index.unique('simName')]
+        
+        #=======================================================================
+        # plot stats  
+        #=======================================================================
+        serx1 = serx.loc[idx[:, :, 'WSH',:]].loc[idx[sim_order_l2,:,['vol']]].reorder_levels(
+            ['varName', 'simName', 'dscale']) #row, col, xval
+        
+        serx1 = serx.loc[idx[:,:,'WSH','vol']].loc[idx[sim_order_l2, :]].reorder_levels(
+            ['simName', 'dscale']) #color, xval, yval
+        
+        #reshape into simple df
+        df = serx1.to_frame().unstack()        
+        df.columns = df.columns.droplevel(0)
+ 
+ 
+        ses.plot_multiRes_stats_single(df, color_d=sim_color_d)
+        
         
         
     
