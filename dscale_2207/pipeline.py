@@ -136,6 +136,142 @@ def run_downscale_and_eval(
     return dsc_vali_res_lib 
     
  
+
+def run_downscale_and_eval_multiRes(
+        proj_lib,dsc_l,
+        pick_lib=dict(),
+ 
+        method_pars={
+            'CostGrow': {}, 
+            'Basic': {}, 
+            'SimpleFilter': {}, 
+            #'BufferGrowLoop': {}, 
+            #'Schumann14': dict(buffer_size=1.5, gridcells=True),
+                         },
+        vali_kwargs=dict(),
+        **kwargs):
+    """run all downscaleing methods then evaluate
+    
+    
+    Pars
+    ----------
+    pick_lib, dict
+        precompiled results
+        
+    """
+ 
+    
+    #init
+    with Dsc_Eval_Session(**kwargs) as ses:
+        log = ses.logger
+        ses.nicknames_d.update(nickname_d2)
+        
+        nd = {v:k for k,v in ses.nicknames_d.items()}
+        
+        def get_od(k):
+            return os.path.join(ses.out_dir, k)
+        
+        #=======================================================================
+        # clip
+        #=======================================================================
+        k='0clip'
+        if not k in pick_lib:
+            """clip using a rounded aoi on the WSE"""
+            dem_fp, wse_fp = ses.p0_clip_rasters(proj_lib['dem1'], proj_lib['wse2'], out_dir=get_od(k))
+            pick_lib[k] = ses._write_pick({'dem':dem_fp, 'wse':wse_fp}, resname=ses._get_resname(k))
+        else:
+            d = load_pick(pick_lib[k])
+            dem_fp, wse_fp = d['dem'], d['wse']
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n')
+        
+        #=======================================================================
+        # Agg DEMs
+        #=======================================================================
+        k='1dems'
+        if not k in pick_lib: 
+            #build aggregated DEMs
+            downscale_base = ses.get_resolution_ratio(wse_fp, dem_fp)
+            dem_scale_l = [downscale_base/e for e in dsc_l] #change to be relative to the DEM1
+            
+            dem_fp_d = ses.build_agg_dem(dem_fp, dem_scale_l, logger=log, out_dir=get_od(k))
+            
+            pick_lib[k] = ses._write_pick(dem_fp_d, resname=ses._get_resname(k))
+            
+        else:
+            dem_fp_d = load_pick(pick_lib[k])
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n') 
+        
+        #=======================================================================
+        # downscale
+        #=======================================================================
+ 
+        k = '2dsc'
+        if not k in pick_lib:        
+            dsc_res_lib = ses.run_dsc_multi_mRes(wse_fp, dem_fp_d, method_pars=method_pars,out_dir=get_od(k))
+            
+            pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
+            
+        else:
+            dsc_res_lib = load_pick(pick_lib[k])
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n')
+        
+        #=======================================================================
+        # depth grids 
+        #=======================================================================
+        k='3wsh'
+        if not k in pick_lib:
+            #extract the filepaths        
+            fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib, level=2)
+            
+            #build WSH
+            wsh_lib = ses.build_wsh(fp_lib, out_dir=get_od(k))
+            
+            #add back to the results container
+            dsc_res_lib2 = ses._add_fps_to_dsc_lib(dsc_res_lib, wsh_lib, 'WSH1')
+
+            #write
+            pick_lib[k] = ses._write_pick(dsc_res_lib2, resname=ses._get_resname(k))
+            
+        else:
+            dsc_res_lib2 = load_pick(pick_lib[k])
+            
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n')
+        
+        #=======================================================================
+        # volume stats-----------
+        #=======================================================================
+        
+        k='4stats'
+        if not k in pick_lib:  
+            
+            #extract the filepaths        
+            fp_lib = ses._get_fps_from_dsc_lib(dsc_res_lib2, level=2)
+            
+            #compute stats
+            stats_lib = ses.run_stats_multiRes(fp_lib, out_dir=get_od(k))
+            
+            #update
+            dsc_res_lib3 = dsc_res_lib2.copy()
+            for k0, d0 in stats_lib.items():
+                for k1, d1 in d0.items():
+                    dsc_res_lib3[k0][k1]['grid_stats'] = d1.copy()
+
+ 
+            #write
+            pick_lib[k] = ses._write_pick(dsc_res_lib3, resname=ses._get_resname(k))
+            
+        else:
+            dsc_res_lib3 = load_pick(pick_lib[k])
+        log.info(f'finished {k} w/ {pick_lib[k]}\n\n') 
+        
+ 
+        
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    print(f'finished w/ pick_lib\n    {dstr(pick_lib)}')
+ 
+    return dsc_res_lib3 
     
 
 def run_plot(dsc_vali_res_lib, 

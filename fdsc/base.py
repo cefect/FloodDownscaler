@@ -170,7 +170,7 @@ def rlay_extract(fp,
     return stats_d, ar
     
 
-def assert_dsc_res_lib(dsc_res_lib, msg=''):
+def assert_dsc_res_lib(dsc_res_lib, level=1, msg=''):
     if not __debug__: # true if Python was not started with an -O option
         return
     assert isinstance(dsc_res_lib, dict)
@@ -182,7 +182,15 @@ def assert_dsc_res_lib(dsc_res_lib, msg=''):
     #assert set(dsc_res_lib.keys()).difference(nicknames_d.keys())==set(['inputs'])
     
     for k0, d0 in dsc_res_lib.items():
-        assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set()
+        if level==1:
+            assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), k0
+        elif level==2:
+            for k1, d1 in d0.items():
+                assert set(d1.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), k0+k1
+                
+        else:
+            raise KeyError(level)
+                
         
 def assert_type_fp(fp, dkey, **kwargs):
     return HydTypes(dkey).assert_fp(fp, **kwargs)

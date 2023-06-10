@@ -11,13 +11,16 @@ import numpy.ma as ma
  
 import rasterio as rio
 from rasterio import shutil as rshutil
+from rasterio.enums import Resampling, Compression
+
 import shapely.geometry as sgeo
 
 from hp.basic import dstr, now
 from hp.oop import Session
 from hp.rio import (
     assert_extent_equal,  RioSession,get_profile,
-    write_array, assert_spatial_equal, write_clip,get_stats2, get_bbox
+    write_array, assert_spatial_equal, write_clip,get_stats2, get_bbox,
+    write_resample, get_meta
     )
 from hp.pd import view
  
@@ -356,6 +359,208 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
         # wrap
         #=======================================================================
         assert_dsc_res_lib(res_lib)
+        log.info(f'finished in {now() - start}')
+        
+        return res_lib
+    
+
+    def build_agg_dem(self, dem1_fp, rescale_l, **kwargs):
+        """build a set of new target (hi-res) DEM1
+        
+        Parameters
+        ----------
+        dsc_l: list
+            downscales RELATIVE to WSE2
+            
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, _, resname = self._func_setup('dem_rsmp', ext='.tif', subdir=True,
+                                                               **kwargs)
+        
+        log.info(f'building {len(rescale_l)} DEMs from {os.path.basename(dem1_fp)}\n\n')
+        dem_fp_d, meta_d = dict(), dict()
+ 
+        #=======================================================================
+        # loop each scale
+        #=======================================================================
+        for i, scale in enumerate(rescale_l):
+            log.info(f'({i+1}/{len(rescale_l)}) w/ scale={scale}\n')
+            rsmp_fp = os.path.join(out_dir, f'DEM_rsmp_d{scale*10:.0f}.tif')
+            
+            #===================================================================
+            # build
+            #===================================================================
+            #take original
+            if scale == 1:
+                rshutil.copy(dem1_fp, rsmp_fp)
+ 
+            else:
+                _ = write_resample(dem1_fp, resampling=Resampling.average, 
+                    scale=1/scale, ofp=rsmp_fp) #build a new one
+                
+            #===================================================================
+            # #checks
+            #===================================================================
+            meta_d[scale]=get_meta(rsmp_fp)
+            HydTypes('DEM').assert_fp(rsmp_fp)
+            assert_extent_equal(rsmp_fp, dem1_fp), 'resampling issue'
+            
+            dem_fp_d[scale] = rsmp_fp
+            
+            log.debug(f'finished scale={scale} w/\n    {meta_d[scale]}')
+                
+        log.info(f'finished on {len(dem_fp_d)} to \n    {out_dir}')
+        
+        return dem_fp_d
+
+    def run_dsc_multi_mRes(self,
+                      wse2_fp, dem_fp_d,
+                  
+                  method_pars={
+                        #'CostGrow': {}, 
+                        'Basic': {}, 
+                        'SimpleFilter': {}, 
+                        #'BufferGrowLoop': {}, 
+                        #'Schumann14': {},
+                         },
+ 
+                  write_meta=True,
+ 
+                  **kwargs):
+        """run downscaling on multiple methods and multi downscales
+        
+        Pars
+        ------
+        dsc_l: list
+            downscales to build
+            
+        method_pars: dict
+            method name: kwargs
+        """
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('dscMd', ext='.xls', **kwargs)
+        assert isinstance(method_pars, dict)
+        assert set(method_pars.keys()).difference(self.nicknames_d.keys())==set()
+        start = now()
+        
+        log.info(f'looping on {len(method_pars)}x{len(dem_fp_d)}:\n    {list(method_pars.keys())}')
+ 
+        #=======================================================================
+        # precheck
+        #=======================================================================
+         
+        HydTypes('WSE').assert_fp(wse2_fp) 
+ 
+ 
+        
+        #=======================================================================
+        # build common pars
+        #=======================================================================
+        def dskey(downscale):
+            """converting downscale to more readble key"""
+            return f'd{downscale*10:.0f}'
+ 
+        log.info(f'on \n    WSE:{os.path.basename(wse2_fp)}')
+        
+        #re-key dems
+        dsc_d = dict()
+        for dem_scale, fp in dem_fp_d.items():
+            dsc_d[dem_scale]=self.get_resolution_ratio(wse2_fp, fp)
+        
+        #=======================================================================
+        # prep inputs
+        #=======================================================================
+        ins_d = {'WSE2':wse2_fp}
+        ins_d.update({dskey(dsc_d[k]):v for k,v in dem_fp_d.items()})
+        
+
+            
+ 
+        #=======================================================================
+        # loop on methods
+        #=======================================================================
+        res_lib = {'inputs':{'inputs1':{'fp':ins_d, 
+                                        'fp_rel':{k0:self._relpath(fp) for k0, fp in ins_d.items()},
+                                        'meta':{'start':start, 'dem_fp_d':dem_fp_d.copy()}}}}        
+        
+        for method, mkwargs in method_pars.items(): 
+            name = self.nicknames_d[method]
+            log.info(f'{method} {name} w/ {mkwargs}----------\n\n')
+            res_d=dict()
+            
+            #===================================================================
+            # loop on scales
+            #===================================================================
+            for i, (dem_scale, dem1_fp) in enumerate(dem_fp_d.items()):
+                #===============================================================
+                # setup
+                #===============================================================
+ 
+                downscale=self.get_resolution_ratio(wse2_fp, dem1_fp) #WSE2 to WSE1
+                dsc_str = dskey(downscale)
+                resname_i=self._get_resname(f'{name}_{dsc_str}')
+                odi=os.path.join(out_dir, method, dsc_str)
+                if not os.path.exists(odi):os.makedirs(odi)
+ 
+                log.info(f'({i+1}/{len(dem_fp_d)}) on {name} w/ downscale={downscale}\n    {dem1_fp}')
+                
+                #===============================================================
+                # precheck
+                #===============================================================
+                HydTypes('DEM').assert_fp(dem1_fp)
+                assert_extent_equal(wse2_fp, dem1_fp)
+                
+                #===============================================================
+                # #build downscaled WSE2
+                #===============================================================
+                d=dict() 
+                d['fp'], d['meta'] = self.run_dsc(dem1_fp, wse2_fp, 
+                                          downscale=downscale,resname=resname_i,out_dir=odi,
+                                          write_meta=True, 
+                                          method=method,
+                                          rkwargs=mkwargs)
+ 
+                #===============================================================
+                # post
+                #===============================================================
+                #add relative filepaths
+                d['fp_rel'] = {k0:self._relpath(fp) for k0, fp in d['fp'].items()}
+                
+                #store
+                res_d[dsc_str]=d
+                    
+            res_lib[method]=res_d
+            log.debug(f'finished {method}')
+            
+        log.info(f'finished on {len(res_lib)}\n\n')
+ 
+        #=======================================================================
+        # write meta summary
+        #=======================================================================
+        if write_meta:
+            #collect
+            meta_lib=dict()
+            for k0, d0 in res_lib.items():
+                #meta_lib[k0]=dict()
+                for k1, d1 in d0.items():
+                    meta_lib[k0+k1]=d1['meta']
+                    
+            #meta_lib = {k:v['meta'].copy() for k,v in res_lib.items()}
+ 
+            #write
+            self._write_meta(meta_lib, ofp=ofp)
+            
+ 
+        #=======================================================================
+        # wrap
+        #=======================================================================
+ 
+        assert_dsc_res_lib(res_lib, level=2) 
         log.info(f'finished in {now() - start}')
         
         return res_lib

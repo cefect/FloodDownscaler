@@ -64,9 +64,11 @@ if debug:
         #=======================================================================
         }
 else:
-    pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
-'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_1dsc.pkl',
-'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_2eval.pkl'}
+    pick_lib={
+        '0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
+        '1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_1dsc.pkl',
+        '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_2eval.pkl',
+        }
 
 #===============================================================================
 # run

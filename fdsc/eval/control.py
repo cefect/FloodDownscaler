@@ -27,6 +27,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
     
     def _get_fps_from_dsc_lib(self,
                              dsc_res_lib,
+                             level=1,
                              relative=None, base_dir=None,
                              **kwargs):
         """extract paramter container for post from dsc results formatted results library"""
@@ -37,7 +38,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================
         # precheck
         #=======================================================================
-        assert_dsc_res_lib(dsc_res_lib)
+        assert_dsc_res_lib(dsc_res_lib, level=level)
         
         log.info(f'on {len(dsc_res_lib)} w/ relative={relative}')
         
@@ -46,26 +47,85 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         # extract
         #=======================================================================\
         res_d = dict()
-        for k0, d0 in dsc_res_lib.items():
-            #select the 
+        
+        #worker
+        def get_fpd(d0):
             if relative:
                 fp_d = d0['fp_rel']
-                res_d[k0] = {k:os.path.join(base_dir, v) for k,v in fp_d.items() if not '_raw' in k}
+                return {k:os.path.join(base_dir, v) for k,v in fp_d.items() if not '_raw' in k}
             else:
-                res_d[k0]=d0['fp']
+                return d0['fp']
+                
+        #loop and extract by level 
+        for k0, d0 in dsc_res_lib.items():
+            if level==1:
+                res_d[k0] = get_fpd(d0)
+            elif level==2:
+                res_d[k0]=dict()
+                for k1, d1 in d0.items():
+                    res_d[k0][k1] = get_fpd(d1)
+                    
+            else:
+                raise KeyError(level)
+                
+
                 
         
 
         #=======================================================================
         # check
         #=======================================================================
-        for simName, d0 in res_d.items():
+        def checkit(d0, simName):
             for k, v in d0.items():
                 assert os.path.exists(v), f'bad file on {simName}.{k}\n    {v}'
+                
+        for simName, d0 in res_d.items():
+            if level==1:
+                checkit(d0, simName)
+            elif level==2:
+                for k1, d1 in d0.items():
+                    checkit(d1, simName)
+
                 
         log.debug('\n'+dstr(res_d))
         
         return res_d
+    
+    def _add_fps_to_dsc_lib(self, dsc_res_lib, fp_lib, gkey, level=2, **kwargs):
+        """add some filepaths"""
+        
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('afps',  **kwargs)
+        
+        
+        #loop and ad by level 
+        cnt=0
+        for k0, d0 in dsc_res_lib.items():
+            if k0=='inputs':continue
+            if level==1:
+                raise IOError('not implemented')
+                #res_d[k0] = get_fpd(d0)
+            elif level==2:
+                
+                for k1, d1 in d0.items():
+                    
+                    
+                    
+                    #print(fp_lib[k0][k1])
+                    assert not gkey in d1['fp']
+                    d1['fp'].update({gkey:fp_lib[k0][k1]})
+                    
+                    #print(k0, k1, '\n', dstr(d1['fp']))
+                    cnt+=1
+ 
+                    
+            else:
+                raise KeyError(level)
+            
+        log.info(f'updated {cnt} filepaths')
+        
+        return dsc_res_lib
+        
+ 
     
 
 
@@ -249,6 +309,120 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         # wrap
         #=======================================================================
         log.info(f'finished on \n    {res_lib.keys()}')
+        return res_lib
+    
+    def build_wsh(self, fp_lib, level=2, **kwargs):
+        
+        """build corresponding depths"""
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('bWSH',  **kwargs)
+        
+        res_d=dict()
+        cnt=0
+        log.info(f'building WSH grids on {len(fp_lib)}')
+        
+        assert set(fp_lib.keys()).difference(self.nicknames_d.keys())==set(['inputs'])
+        #=======================================================================
+        # loop and build for each
+        #=======================================================================
+        for k0, d0 in fp_lib.items():
+            if k0=='inputs':
+                ins_d = d0.copy()
+                continue
+            
+            if level==1:
+                raise IOError('not implemented')
+ 
+            elif level==2:
+                res_d[k0]=dict()
+                for k1, d1 in d0.items():
+                    #get paths
+                    odi= os.path.join(out_dir, k0, k1) #matching that of run_dsc_multi_mRes
+                    if not os.path.exists(odi):os.makedirs(odi)
+                    
+                    #build from DEM
+                    res_d[k0][k1]=get_wsh_rlay(
+                        ins_d['inputs1'][k1], d1['WSE1'], 
+                        ofp=os.path.join(odi, f'WSH_{k0}{k1}.tif'),
+                        )
+                        
+                    cnt+=1
+                      
+        #=======================================================================
+        # wrap  
+        #=======================================================================
+        log.info(f'finished writing {cnt} to \n    {out_dir}')
+        
+        return res_d
+ 
+                    
+    
+    def run_stats_multiRes(self,
+                           fp_lib,
+                           level=2,
+  
+                           **kwargs):
+        """compute grid stats
+        
+        pars
+        --------
+        fp_lib: dict
+            sim_name
+                downscale_str
+                    gridk:filepath
+        
+        
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rstats', ext='.pkl', **kwargs)
+ 
+
+        
+        res_lib=dict()
+        cnt=0
+        log.info(f'building WSH grids on {len(fp_lib)}')
+        
+        #=======================================================================
+        # precheck
+        #=======================================================================        
+        assert set(fp_lib.keys()).difference(self.nicknames_d.keys())==set(['inputs'])
+        
+        #=======================================================================
+        # loop and build for each
+        #=======================================================================
+        for k0, d0 in fp_lib.items():
+            if k0=='inputs':
+                ins_d = d0.copy()
+                continue
+            
+            if level==1:
+                raise IOError('not implemented')
+ 
+            elif level==2:
+                res_lib[k0]=dict()
+                for k1, d1 in d0.items():
+                    res_lib[k0][k1]=dict()
+ 
+                    
+                    for gridk, fp in d1.items():
+                        if gridk=='WSH1':
+                            #extract
+                            with HydTypes('WSH', fp=fp) as wrkr:
+                                res_lib[k0][k1][gridk] = wrkr.WSH_stats()
+                                
+                            
+                            cnt+=1
+ 
+ 
+        #=======================================================================
+        # wrap  
+        #=======================================================================
+        log.info(f'finished computing on {cnt} grids')
+        
         return res_lib
             
         
