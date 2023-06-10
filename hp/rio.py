@@ -414,7 +414,7 @@ class GridTypes(object):
                          
 
     def assert_fp(self, fp=None, msg=''):
-        """check the file matches the dkey hydro expectations"""
+        """check the file matches the dkey expectations"""
         if not __debug__: # true if Python was not started with an -O option
             return 
         #__tracebackhide__ = True
@@ -1044,6 +1044,7 @@ def write_resample(rlay_fp,
                 'found masked nulls... resampling wont handle this?'
          
             out_shape=(dataset.count,int(dataset.height * scale),int(dataset.width * scale))
+            print(out_shape)
  
             
             data_rsmp = dataset.read(1,
@@ -1063,34 +1064,46 @@ def write_resample(rlay_fp,
             #===========================================================================
             # resample nulls
             #===========================================================================
-            """opaque handling of nulls
-            msk_rsmp = dataset.read_masks(1, 
+ 
+            mar_raw = dataset.read_masks(1) #0=masked, 255=noMask
+            
+            if np.any(mar_raw==0):
+
+                
+                #downsample.disag. (zoom in)
+                if scale>1.0:
+                    #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
+                    msk_rsmp = scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
+         
+         
+                #upsample. aggregate (those with ALL nulls)
+                else:
+                    """see also  hp.np.apply_block_reduce
+                    
+                    only works with downscales that are a power of 2?
+                    """
+                    #check shape
+                    #assert np.all(np.array(out_shape[1:])%2==0), 'can only aggregate nulls with even shape?'
+                    assert scale%1.0==0, 'only works for even scales'
+     
+                    #stack windows into axis 1 and 3
+     
+                    downscale = int(1/scale)
+                    mar1 = mar_raw.reshape(mar_raw.shape[0]//downscale, 
+                                           downscale, 
+                                           mar_raw.shape[1]//downscale, 
+                                           downscale)
+                    
+         
+                    #those where the max of the children equals exactly the null value
+                    msk_rsmp = np.where(np.max(mar1, axis=(1,3))==0, 0,255)
+            else:
+                """no nulls... allow more flexible aggregation (shape doesn't need to be divisible by 2)"""
+                msk_rsmp = dataset.read_masks(1, 
                     out_shape=out_shape,
                     resampling=Resampling.nearest, #doesnt bleed
-                )""" 
-            mar_raw = dataset.read_masks(1)
-            
-            #downsample.disag. (zoom in)
-            if scale>1.0:
-                #msk_rsmp = skimage.transform.resize(mar_raw, (out_shape[1], out_shape[2]), order=0, mode='constant')
-                msk_rsmp = scipy.ndimage.zoom(mar_raw, scale, order=0, mode='reflect',   grid_mode=True)
-     
-     
-            #upsample. aggregate (those with ALL nulls)
-            else:
-                """see also  hp.np.apply_block_reduce"""
-                mar_raw.shape
-                #stack windows into axis 1 and 3
- 
-                downscale = int(1/scale)
-                mar1 = mar_raw.reshape(mar_raw.shape[0]//downscale, 
-                                       downscale, 
-                                       mar_raw.shape[1]//downscale, 
-                                       downscale)
+                    )
                 
-     
-                #those where the max of the children equals exactly the null value
-                msk_rsmp = np.where(np.max(mar1, axis=(1,3))==0, 0,255)
         
             #===============================================================================
             # coerce transformed nulls
