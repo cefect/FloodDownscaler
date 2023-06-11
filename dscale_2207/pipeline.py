@@ -10,7 +10,7 @@ import os, pickle
 import pandas as pd
 from pandas import IndexSlice as idx
 
-
+cm = 1 / 2.54
 
 #===============================================================================
 # IMPORTS------
@@ -427,6 +427,10 @@ def run_plot_multires(dsc_res_lib,
         sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
         sim_order_l2 = [k for k in sim_order_l1 if k in serx.index.unique('simName')]
         
+        
+        #get resolution keys
+        
+        
         #=======================================================================
         # plot stats  
         #=======================================================================
@@ -440,8 +444,13 @@ def run_plot_multires(dsc_res_lib,
         df = serx1.to_frame().unstack()        
         df.columns = df.columns.droplevel(0)
  
+        #secondary axis
+        dsc_res_d = serx.loc[idx['rsmp', :, 'meta', 'resolution']].to_dict()
  
-        ses.plot_multiRes_stats_single(df, color_d=sim_color_d)
+        ses.plot_multiRes_stats_single(df, color_d=sim_color_d, base_scale=dsc_res_d[1.0],
+                                       subplots_kwargs=dict(figsize=(19*cm, 10*cm)))
+                                       
+                                       
         
         
         

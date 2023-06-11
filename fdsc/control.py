@@ -532,7 +532,8 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
                     #no downscaling, just copy
                     ofpi = os.path.join(odi, f'wse2_copy_{method}_{dsc_str}.tif')
                     rshutil.copy(wse2_fp, ofpi)
-                    d['fp'], d['meta'] = {'WSE1':ofpi}, {'smry':{}}
+                    d['fp']={'WSE1':ofpi}
+                    d['meta'] ={'dem_raw':get_meta(dem1_fp)} #needed later
  
                 #===============================================================
                 # post
