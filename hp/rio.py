@@ -1175,7 +1175,7 @@ def write_clip(raw_fp,
             """
             if fancy_window is None:
                 window = rasterio.windows.from_bounds(*bbox.bounds, transform=ds.transform)
-            else:
+            else: #get a well rounded window from a bbox
                 window, _ = get_window(ds, bbox, **fancy_window)
  
         else: 
