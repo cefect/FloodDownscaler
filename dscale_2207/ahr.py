@@ -30,6 +30,7 @@ proj_lib = {
     'hwm': f(r'obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'),
     'wse1':f(r'fdsc\r04_b4_i05_0508\wd_max_WSE.tif'),
     'aoi_fp': r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi13_r32_small_0428.geojson',
+    'aoiZ_fp':r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson',
     'crs':CRS.from_user_input(4647),
     'index_coln':'fid',
     }
@@ -43,7 +44,7 @@ else:
     run_name='r2'
 
 
-
+ 
 #===============================================================================
 # #build parameters
 #===============================================================================
@@ -59,16 +60,15 @@ if debug:
     pick_lib = {
         #=======================================================================
         '0clip':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230510\ahr_aoi13_0506_dev_0510_0clip.pkl',
-        '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230510\ahr_aoi13_0506_dev_0510_1dsc.pkl',
-        # '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0427\\dev\\20230429\\ahr_aoi13_0427_dev_0429_2eval.pkl' 
+        '1dsc':r'L:\10_IO\fdsc\outs\ahr_aoi13_0506\dev\20230612\ahr_aoi13_0506_dev_0612_1dsc.pkl',
+        '2eval': r'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\dev\\20230612\\ahr_aoi13_0506_dev_0612_2eval.pkl',
         #=======================================================================
         }
 else:
-    pick_lib={
-        '0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
-        '1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_1dsc.pkl',
-        '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_2eval.pkl',
-        }
+    pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
+'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_1dsc.pkl',
+'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_2eval.pkl',
+'3evalF': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_3evalF.pkl'}
 
 #===============================================================================
 # run

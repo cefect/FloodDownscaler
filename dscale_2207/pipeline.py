@@ -29,6 +29,7 @@ from fdsc.plot.control import Fdsc_Plot_Session
 nickname_d2 = {
                'Hydrodyn. (s1)':'sim1',
                'Hydrodyn. (s2)':'sim2',
+               'inputs':'inputs',
             }
 
 def load_pick(fp):
@@ -39,6 +40,48 @@ def load_pick(fp):
     return d
 
 
+def get_fps_dsc_vali_res_lib(res_lib):
+    """
+    slice to 'fp' on lvl 2 to prep inputs for run_vali_multi_dsc_aoi()
+    """
+    
+    """
+    print(res_lib.keys())
+    for k0, d0 in res_lib.items():
+        print(d0.keys())
+        for k1, d1 in d0.items():
+            print(d1.keys())
+            break
+        break
+    """
+    fp_lib=dict()
+    for k0, d0 in res_lib.items():
+        fp_lib[k0]=dict()
+ 
+        for k1, d1 in d0.items():
+            if k1=='clip':continue
+            fp_lib[k0][k1]=d1['fp']
+            
+    # compress level 1
+    #get just the inputs needed for another validation
+    fp_lib2=dict()
+    for k0, d0 in fp_lib.items():
+        """
+        print(dstr(d0))
+        """
+ 
+        
+        fp_lib2[k0]={
+            **{k:v for k,v in d0['raw'].items() if not k in ['INUN_POLY']}, #remove this as not a sim layer
+            **{'INUN_RLAY':d0['inun']['pred_inun_fp']}, #add this with better name
+            }
+            
+        
+ 
+    #print(dstr(fp_lib2))
+    return fp_lib2
+    
+    
 
 def run_downscale_and_eval(
         proj_lib,
@@ -75,7 +118,7 @@ def run_downscale_and_eval(
             return os.path.join(ses.out_dir, k)
         
         #=======================================================================
-        # clip
+        # clip----
         #=======================================================================
         k='0clip'
         if not k in pick_lib:
@@ -87,12 +130,16 @@ def run_downscale_and_eval(
             dem_fp, wse_fp = d['dem'], d['wse']
         log.info(f'finished {k} w/ {pick_lib[k]}\n\n')
         #=======================================================================
-        # downscale
+        # downscale------
         #=======================================================================
  
         k = '1dsc'
         if not k in pick_lib:        
             dsc_res_lib = ses.run_dsc_multi(dem_fp, wse_fp, method_pars=method_pars,out_dir=get_od(k))
+            
+            #switch to short keys
+            dsc_res_lib = {{v1:k1 for k1,v1 in nd.items()}[k]:v for k,v in dsc_res_lib.items()}
+            print(dsc_res_lib.keys())
             
             pick_lib[k] = ses._write_pick(dsc_res_lib, resname=ses._get_resname(k))
             
@@ -102,6 +149,12 @@ def run_downscale_and_eval(
         #=======================================================================
         # eval-----------
         #=======================================================================
+        
+        #extract validation data from project lib (re-key to match fperf.pipeline.run_vali_multi()
+        d = {{'inun':'inun_fp', 'hwm':'hwm_pts_fp'}[k]:proj_lib[k] for k in ['inun', 'hwm']}
+        vali_kwargs.update(d)
+            
+            
         k = '2eval'
         if not k in pick_lib: 
             #extract downscaling filepaths
@@ -109,32 +162,48 @@ def run_downscale_and_eval(
             
             #add rim simulations (hires)
             ses.bbox = get_bbox(wse_fp)
-            fp_lib[nd['sim1']] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
+            fp_lib['sim1'] = {'WSE1':ses.clip_rlay(proj_lib['wse1'])}
             
             #add rim (lowres)
             wse2_fp = ses.clip_rlay(proj_lib['wse2']) 
-            fp_lib[nd['sim2']] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
-                                          scale=ses.get_downscale(wse2_fp, dem_fp))}
+            fp_lib['sim2'] = {'WSE1':write_resample(wse2_fp, ofp=get_od('wse2_clip_rsmp.tif'), 
+                                          scale=ses.get_downscale(wse2_fp, dem_fp))}      
             
-            
-            #extract validation data from project lib (re-key to match fperf.pipeline.run_vali_multi()
-            d = {{'inun':'inun_fp', 'hwm':'hwm_pts_fp'}[k]:proj_lib[k] for k in ['inun', 'hwm']}
-            vali_kwargs.update(d)
-        
-            #run validation
+                  
+            #run validation 
             dsc_vali_res_lib= ses.run_vali_multi_dsc(fp_lib,out_dir=get_od(k), **vali_kwargs)
             
             #write pick
             pick_lib[k] = ses._write_pick(dsc_vali_res_lib, resname=ses._get_resname(k))
         else:
             dsc_vali_res_lib= load_pick(pick_lib[k])
+            
+        #=======================================================================
+        # eval focus---------
+        #=======================================================================
+        k='3evalF'
+        if not k in pick_lib:
+            #get filepaths
+            fp_lib = get_fps_dsc_vali_res_lib(dsc_vali_res_lib)
+            
+            #run validation w/ clip
+            dsc_vali_res_lib2 = ses.run_vali_multi_dsc_aoi(fp_lib,out_dir=get_od(k),
+                                                           aoi_fp=proj_lib['aoiZ_fp'], **vali_kwargs)
+            
+            """keeping this separate from unclipped results (dsc_vali_res_lib))"""
+            
+            #write pick
+            pick_lib[k] = ses._write_pick(dsc_vali_res_lib2, resname=ses._get_resname(k)) 
+            
+        else:
+            dsc_vali_res_lib2= load_pick(pick_lib[k])
         
     #===========================================================================
     # wrap
     #===========================================================================
     print(f'finished w/ pick_lib\n    {dstr(pick_lib)}')
  
-    return dsc_vali_res_lib 
+    return 
     
  
 
@@ -310,6 +379,7 @@ def run_plot(dsc_vali_res_lib,
                 
         log = ses.logger
         nd = {v:k for k,v in ses.nicknames_d.items()}
+        ses.rowLabels_d=nd #display fancy labels on plots
         
         #extract filepaths
         serx = ses.load_run_serx(dsc_vali_res_lib = dsc_vali_res_lib)
@@ -320,16 +390,17 @@ def run_plot(dsc_vali_res_lib,
         serx.index.unique('simName')
         serx['clip']
         print(dstr(dsc_vali_res_lib))
+        view(serx.loc[idx[:, 'fp', :, :]])
         """
  
         #fix some grid names
-        serx = serx.rename({'wsh':'WSH', 'wse':'WSE', 'dem':'DEM'}, level=3)
+        #serx = serx.rename({'wsh':'WSH', 'wse':'WSE', 'dem':'DEM'}, level=3)
  
         #set display order
         sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
-        sim_order_l2 = [nd[k] for k in sim_order_l1] #fancy names
+        #sim_order_l2 = [nd[k] for k in sim_order_l1] #fancy names
         
-        serx = serx.loc[idx[:, :, sim_order_l2, :]]
+        serx = serx.loc[idx[:, :, sim_order_l1, :]]
         #=======================================================================
         # pull inputs from library
         #=======================================================================
@@ -375,12 +446,12 @@ def run_plot(dsc_vali_res_lib,
             metric_lib[k] = {k:d[k] for k in ml}
         
                 
-        sim_order_l2.remove('Hydrodyn. (s2)') #remove this... plot basic instead
-        dfi = fp_df.loc[sim_order_l2, ['WSH', 'CONFU']] 
+        sim_order_l1.remove('sim2') #remove this... plot basic instead
+        dfi = fp_df.loc[sim_order_l1, ['WSH', 'CONFU']] 
         
         #plot
         res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 
-                                rowLabels_d={nd['rsmp']:'Basic/Hydrodyn. (s2)'},
+                                rowLabels_d={**nd, **{'rsmp':'Basic/Hydrodyn. (s2)'}},
                                 #arrow_kwargs_lib={'flow1':dict(xy_loc = (0.66, 0.55))},
  
                                 **inun_per_kg)
@@ -391,7 +462,100 @@ def run_plot(dsc_vali_res_lib,
         log.info(f'finished on\n{dstr(res_d)}')
         
     return res_d
+
+
+def run_plot_inun_aoi(dsc_vali_res_lib, 
+ 
+             init_kwargs=dict(),
+ 
+             inun_per_kg=dict(),
+             ):
+    """ plot downscaling and evalu results"""
+    assert not 'aoi_fp' in  init_kwargs
+    
+    res_d = dict()
+    
+    with Fdsc_Plot_Session(**init_kwargs) as ses:
+        ses.nicknames_d.update(nickname_d2)
+                
+        log = ses.logger
+        nd = {v:k for k,v in ses.nicknames_d.items()}
+        ses.rowLabels_d=nd #display fancy labels on plots
+        
+        #extract filepaths
+        serx = ses.load_run_serx(dsc_vali_res_lib = dsc_vali_res_lib) 
+ 
+        #set display order
+        sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']        
+        serx = serx.loc[idx[:, :, sim_order_l1, :]]
+        
+        #=======================================================================
+        # pull inputs from library
+        #=======================================================================
+        #=======================================================================
+        # mdex = serx.index
+        # default_fp_d = serx['raw']['fp'][mdex.unique('simName')[0]].to_dict()
+        # if dem_fp is None:
+        #     """not sure why this is 'clipped' but not on the clip level"""
+        #     dem_fp = default_fp_d['DEM']
+        #     
+        # if inun_fp is None:
+        #     inun_fp = default_fp_d['INUN_POLY']
+        #=======================================================================
             
+        
+        #=======================================================================
+        # HWM performance (all)
+        #=======================================================================
+       #========================================================================
+       #  hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
+       # 
+       #  hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
+       #  res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
+       #========================================================================
+       
+        #=======================================================================
+        # grid plots
+        #=======================================================================
+#===============================================================================
+#         for gridk in [
+#             #'WSH', #filters 'Basic'
+#             'WSE']:
+# 
+#             
+#             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
+#                                                                    grids_mat_kg=grids_mat_kg)
+#===============================================================================
+ 
+ 
+        #=======================================================================
+        # INUNDATION PERFORMANCe
+        #=======================================================================
+        #prep data 
+        fp_df, metric_lib = ses.collect_inun_data(serx, 'WSH', raw_coln='raw')
+        
+        #reorder
+        ml = ['criticalSuccessIndex','hitRate', 'falseAlarms', 'errorBias']        
+        for k, d in metric_lib.copy().items():
+            metric_lib[k] = {k:d[k] for k in ml}
+        
+                
+        sim_order_l1.remove('sim2') #remove this... plot basic instead
+        dfi = fp_df.loc[sim_order_l1, ['WSH', 'CONFU']] 
+        
+        #plot
+        res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 
+                                rowLabels_d={**nd, **{'rsmp':'Basic/Hydrodyn. (s2)'}},
+                                #arrow_kwargs_lib={'flow1':dict(xy_loc = (0.66, 0.55))},
+ 
+                                **inun_per_kg)
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished on\n{dstr(res_d)}')
+        
+    return res_d
 
 def run_plot_multires(dsc_res_lib, 
                       sim_color_d = {'cgs': '#e41a1c', 'rsmp': '#ff7f00', 'rsmpF': '#999999'},

@@ -149,6 +149,14 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         fp_lib: dict
             sim_name
                 gridk:filepath
+                
+        Returns
+        -----
+        dict (seee load_run_serx() for conversion to multi-index series)
+            simName
+                analysis (hwm, inun, clip, raw) (clip and raw are the same...)
+                    dataType (metric, fp, meta)
+                        varName
         
         
         """
@@ -158,7 +166,7 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================
         # precheck
         #=======================================================================        
-        assert set(fp_lib.keys()).difference(self.nicknames_d.keys())==set(['inputs'])
+        assert set(fp_lib.keys()).difference(self.nicknames_d.values())==set()
         
         
         #detect the inundation file type
@@ -293,6 +301,199 @@ class Dsc_Eval_Session(ValidateSession, Dsc_Session_skinny):
         #=======================================================================        
         for k0, v0 in res_lib.items():
             log.debug(f'{k0}-------------------\n'+dstr(v0['raw']['fp']))
+ 
+        #=======================================================================
+        # add relative paths
+        #=======================================================================
+        if self.relative:
+            self._add_rel_fp(res_lib) 
+      
+ 
+        #print(dstr(res_lib))
+        #=======================================================================
+        # write meta and pick
+        #=======================================================================        
+        if write_meta:
+            self._write_meta_vali(res_lib)
+ 
+        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        log.info(f'finished on \n    {res_lib.keys()}')
+        return res_lib
+    
+    def run_vali_multi_dsc_aoi(self,
+                           fp_lib,
+                           aoi_fp=None,
+                           hwm_pts_fp=None,
+                           inun_fp=None,
+                           write_meta=True,
+  
+                           **kwargs):
+        """skinny wrapper for test_run_vali_multi using dsc formatted results
+            using a focus aoi (and no building)
+        
+        pars
+        --------
+        fp_lib: dict
+            outputs from run_vali_multi_dsc() subset to just the inputs (see get_fps_dsc_vali_res_lib())
+            simName
+                gridKey: filepath
+                    
+                
+                
+        Returns
+        -----
+        dict (seee load_run_serx() for conversion to multi-index series)
+            simName
+                analType (hwm, inun, clip, raw) (clip and raw are the same...)
+                    dataType (metric, fp, meta)
+                        varName
+        
+        
+        """
+        #print(dstr(fp_lib))
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        log, tmp_dir, out_dir, ofp, resname = self._func_setup('rvaliA', ext='.pkl', **kwargs)
+        #if aoi_fp is None: aoi_fp=self.aoi_fp
+ 
+
+        #=======================================================================
+        # precheck
+        #=======================================================================        
+        assert set(fp_lib.keys()).difference(self.nicknames_d.values())==set()
+        
+        
+        #detect the inundation file type
+        if is_raster_file(inun_fp):
+            inun_dkey='INUN_RLAY'
+        else:
+            inun_dkey='INUN_POLY'
+            
+        HydTypes(inun_dkey).assert_fp(inun_fp)
+        
+        #=======================================================================
+        # PREP------
+        #=======================================================================
+        #build container skeleton
+        res_lib={simName:{analType:dict() for analType in ['clip']} for simName in fp_lib.keys()}
+        
+        #add raw
+        for simName, d0 in res_lib.items():
+            d0['raw']={'fp':fp_lib[simName]}
+        #print(dstr(res_lib))
+        #=======================================================================
+        # clip
+        #=======================================================================
+        """promote this to a separate step?"""
+  
+        log.info(f'clipping {len(fp_lib)} w/ {os.path.basename(aoi_fp)}')
+        
+        bbox, crs = get_bbox_and_crs(aoi_fp)  #set spatial bounds from this
+        
+        def get_ofp(simName, gkey):
+            odi = os.path.join(out_dir, simName)
+            if not os.path.exists(odi):os.makedirs(odi)
+            return os.path.join(odi, f'{resname}_{simName}_{gkey}.tif')
+ 
+        
+        fp_lib2=dict() 
+        
+        for simName, fp_d in fp_lib.items():
+            meta_d, rfp_d=dict(), dict()
+ 
+            for gkey, fp in fp_d.items():
+                HydTypes(gkey).assert_fp(fp, msg=simName)
+                
+                #clip
+                ofp, stats_d = write_clip(fp, ofp=get_ofp(simName, f'{gkey}_clip'), 
+                                          bbox=bbox, crs=crs, 
+                                          fancy_window=dict(round_offsets=True, round_lengths=True),
+                                          )
+                
+                meta_d[gkey]=stats_d
+                rfp_d[gkey]=ofp
+                
+            #store
+            fp_lib2[simName]=rfp_d.copy()
+            res_lib[simName]['clip']['fp']=rfp_d.copy()
+            res_lib[simName]['clip']['meta']=meta_d.copy()
+        
+        #print(dstr(res_lib))
+            
+ 
+        #=======================================================================
+        # RUN----------
+        #======================================================================= 
+        log.info(f'computing validation on {len(fp_lib)} sims')
+ 
+ 
+ 
+        for simName, fp_d in fp_lib2.items():
+            #print(f'{simName}-------------\n\n{dstr(fp_d)}')
+            #===================================================================
+            # setup this observation
+            #===================================================================            
+            logi = log.getChild(simName)
+            wse_fp, wsh_fp = fp_d['WSE'], fp_d['WSH']
+            logi.info(f'on {simName}: WSH={os.path.basename(wsh_fp)}\n\n')
+            rdi = dict()
+            
+            odi = os.path.join(out_dir, simName)
+            if not os.path.exists(odi):os.makedirs(odi)
+            
+            skwargs = dict(logger=logi, resname=simName, out_dir=odi, tmp_dir=tmp_dir, subdir=False)
+            
+            
+            #=======================================================================
+            # HWMs--------
+            #======================================================================= 
+            """skipping this because there are no obsv within the aoi
+            metric, fp, meta  = self.run_vali_hwm(wsh_fp, hwm_pts_fp, **skwargs)
+            rdi['hwm']=dict(metric=metric, fp=fp, meta=meta)
+            """
+            
+            #===================================================================
+            # inundation (0=wet)-------
+            #===================================================================
+            """
+            print(dstr(fp_d))
+            """
+            #get the observed inundation (transform)
+            inun_rlay_fp = self._get_inun_rlay(inun_fp, wse_fp, **skwargs)
+            
+            #convert the wsh to binary inundation (0=wet)
+            pred_inun_fp = fp_d['INUN_RLAY']
+            assert_spatial_equal(inun_rlay_fp, pred_inun_fp, msg=simName)
+            
+            #run the validation                
+            metric, fp, meta = self.run_vali_inun(
+                true_inun_fp=inun_rlay_fp, pred_inun_fp=pred_inun_fp, **skwargs) 
+            
+            rdi['inun']=dict(metric=metric, fp=fp, meta=meta)
+            
+ 
+                           
+            #===================================================================
+            # wrap
+            #===================================================================
+            assert len(rdi)>0
+            log.debug(f'finished on {simName} w/ {len(rdi)}')
+            #print(dstr(rdi))
+            #print(res_lib[simName].keys())
+            res_lib[simName].update(rdi)
+            
+ 
+        #=======================================================================
+        # POST---------
+        #=======================================================================
+        #log inputs        
+        #for k0, v0 in res_lib.items():
+            #log.debug(f'{k0}-------------------\n'+dstr(v0['raw']['fp']))
+            #print(f'{k0}-------------------\n'+dstr(v0))
  
         #=======================================================================
         # add relative paths

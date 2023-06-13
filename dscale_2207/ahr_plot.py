@@ -13,7 +13,7 @@ plotting for the ahr sim
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'journal'
+env_type = 'draft'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -105,9 +105,10 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 #===============================================================================
 # imports
 #===============================================================================
-from dscale_2207.pipeline import run_plot, load_pick, run_plot_multires
-from dscale_2207.ahr import init_kwargs, pick_lib
-
+from dscale_2207.pipeline import run_plot, load_pick, run_plot_multires, run_plot_inun_aoi
+from dscale_2207.ahr import init_kwargs, pick_lib, proj_lib, debug
+if debug:print('DEBUGGING!!!!\n\n\n')
+zoom_aoi = proj_lib['aoiZ_fp']
 #===============================================================================
 # vars
 #===============================================================================
@@ -122,31 +123,44 @@ del init_kwargs['aoi_fp']
 def plot_lvl1():    
     """main plots for downscaling from 32m to 4m"""
     
-    zoom_aoi = r'l:\10_IO\2207_dscale\ins\ahr\aoi13\aoi09t_zoom0308_4647.geojson'
+    
     
     #load the eval results pickle
     dsc_vali_res_lib = load_pick(pick_lib['2eval'])
     
  
- 
-    return run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
-             
-             hwm_scat_kg=dict(
-                 style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
-                 fig_mat_kwargs=dict(ncols=3),
-                 ),
-             
-             grids_mat_kg=dict(
-                 aoi_fp=zoom_aoi,
-                 fig_mat_kwargs=dict(ncols=3),
-                 ),
-             
-             inun_per_kg=dict(
-                 box_fp=zoom_aoi,
-                fig_mat_kwargs=dict(
-                    #=figsize=(25*cm, 25*cm),
-                  )),
-             )
+    #run original (full aoi) pipeline
+    #===========================================================================
+    # res_d1= run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
+    #           
+    #          hwm_scat_kg=dict(
+    #              style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
+    #              fig_mat_kwargs=dict(ncols=3),
+    #              ),
+    #           
+    #          grids_mat_kg=dict(
+    #              aoi_fp=zoom_aoi,
+    #              fig_mat_kwargs=dict(ncols=3),
+    #              ),
+    #           
+    #          inun_per_kg=dict(
+    #              box_fp=zoom_aoi,
+    #             fig_mat_kwargs=dict(
+    #                 #=figsize=(25*cm, 25*cm),
+    #               )),
+    #          )
+    #===========================================================================
+    
+     
+    
+    #run with clipped aoi
+    run_plot_inun_aoi(
+        load_pick(pick_lib['3evalF']),
+        init_kwargs = {**init_kwargs, **env_kwargs},
+        inun_per_kg=dict(),
+        )
+        
+                      
     
     
     
@@ -164,9 +178,9 @@ def plot_multiRes():
     
     
 if __name__=='__main__':
-    #plot_lvl1()
+    plot_lvl1()
     
-    plot_multiRes()
+    #plot_multiRes()
     
     
     print('finished ')

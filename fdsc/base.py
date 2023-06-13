@@ -183,10 +183,10 @@ def assert_dsc_res_lib(dsc_res_lib, level=1, msg=''):
     
     for k0, d0 in dsc_res_lib.items():
         if level==1:
-            assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), k0
+            assert set(d0.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), f'{k0}: {d0.keys()}'
         elif level==2:
             for k1, d1 in d0.items():
-                assert set(d1.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), k0+k1
+                assert set(d1.keys()).difference(['fp', 'meta', 'fp_rel'])==set(), f'{k0}.{k1}: {d0.keys()}'
                 
         else:
             raise KeyError(level)
