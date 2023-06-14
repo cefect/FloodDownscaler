@@ -23,21 +23,32 @@ from matplotlib_scalebar.scalebar import ScaleBar
 import earthpy.spatial as es #for plotting hillshades
 
 #colormaps
-from palettable.colorbrewer.sequential import BuPu_3
+"""
+https://jiffyclub.github.io/palettable/colorbrewer/sequential/#
+"""
+from palettable.colorbrewer.sequential import BuPu_3, Blues_9, Purples_9
 
 from hp.plot import Plotr, get_dict_str
 from hp.rio import confusion_codes
 
 class RioPlotr(Plotr):
-    """grid plotting"""
+    """grid plotting
+    
+    TODO: combine this with coms.hyd.HydTypes"""
     
     
     #standard styles for grids
+    """
+    WSH and WSE colors:
+        best to avoid complex color scales that might interfere with other colors  you're using
+            scales w/ more sequences (e.g., Blues_9 vs Blues_3) provide greater contrast
+        some scenarios maybe it's nice to use the fancier scales?
+    """
     grid_styles_lib={
         'hillshade':dict(cmap=plt.cm.copper, norm=None),
         'DEM':dict(cmap = 'plasma', norm = None),
-        'WSH':dict(cmap = 'viridis_r', norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
-        'WSE':dict(cmap = BuPu_3.mpl_colormap, norm = None), #May lead to inconsistent color styles
+        'WSH':dict(cmap = Blues_9.mpl_colormap, norm = matplotlib.colors.Normalize(vmin=0, vmax=4)),
+        'WSE':dict(cmap = Purples_9.mpl_colormap, norm = None), #May lead to inconsistent color styles
         }
     
     #confusion colors
