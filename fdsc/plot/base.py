@@ -27,14 +27,15 @@ from fperf.plot.base import PostBase
 class Fdsc_Plot_Base(PostBase):
     """base worker"""
     
-    sim_color_d = {'CostGrow': '#e41a1c', 'Basic': '#377eb8', 'SimpleFilter': '#984ea3', 'Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
-    
+    """not used... was also on fperf.plot.pipeline.PostSession()
+    sim_color_d = {'CostGrow': '#e41a1c','Basic': '#377eb8','SimpleFilter': '#984ea3','Schumann14': '#ffff33', 'WSE2': '#f781bf', 'WSE1': '#999999'}
+    """
     
     #confusion_color_d = {'FN':'#c700fe', 'FP':'red', 'TP':'#00fe19', 'TN':'white'}
     
     #nicknames_d = nicknames_d.copy()
     
-    rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'WSE2':'Hydrodyn. (s2)'}
+    #rowLabels_d = {'WSE1':'Hydrodyn. (s1)', 'WSE2':'Hydrodyn. (s2)'}
     
     def __init__(self, 
                  run_name = None,

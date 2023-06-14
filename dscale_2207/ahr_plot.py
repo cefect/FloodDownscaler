@@ -13,7 +13,7 @@ plotting for the ahr sim
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'journal'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -48,7 +48,7 @@ def set_doc_style():
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+2,
         'figure.autolayout':False,
-        'figure.figsize':(19*cm,19*cm),#typical full-page textsize for AGU (with 4cm for caption)
+        'figure.figsize':(17.7*cm,18*cm),#typical full-page textsize for Copernicus (with 4cm for caption)
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -130,35 +130,35 @@ def plot_lvl1():
     
  
     #run original (full aoi) pipeline
-    #===========================================================================
-    # res_d1= run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
-    #           
-    #          hwm_scat_kg=dict(
-    #              style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
-    #              fig_mat_kwargs=dict(ncols=3),
-    #              ),
-    #           
-    #          grids_mat_kg=dict(
-    #              aoi_fp=zoom_aoi,
-    #              fig_mat_kwargs=dict(ncols=3),
-    #              ),
-    #           
-    #          inun_per_kg=dict(
-    #              box_fp=zoom_aoi,
-    #             fig_mat_kwargs=dict(
-    #                 #=figsize=(25*cm, 25*cm),
-    #               )),
-    #          )
-    #===========================================================================
+    res_d1= run_plot(dsc_vali_res_lib, init_kwargs = {**init_kwargs, **env_kwargs},
+               
+             hwm_scat_kg=dict(
+                 style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
+                 fig_mat_kwargs=dict(ncols=3),
+                 ),
+               
+             grids_mat_kg=dict(
+                 aoi_fp=zoom_aoi,
+                 fig_mat_kwargs=dict(ncols=3),
+                 ),
+               
+             inun_per_kg=dict(
+                 box_fp=zoom_aoi,
+                fig_mat_kwargs=dict(
+                    #=figsize=(25*cm, 25*cm),
+                  )),
+             )
     
      
     
     #run with clipped aoi
-    run_plot_inun_aoi(
-        load_pick(pick_lib['3evalF']),
-        init_kwargs = {**init_kwargs, **env_kwargs},
-        inun_per_kg=dict(),
-        )
+    #===========================================================================
+    # run_plot_inun_aoi(
+    #     load_pick(pick_lib['3evalF']),
+    #     init_kwargs = {**init_kwargs, **env_kwargs},
+    #     inun_per_kg=dict(),
+    #     )
+    #===========================================================================
         
                       
     

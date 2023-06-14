@@ -27,8 +27,8 @@ from fdsc.plot.control import Fdsc_Plot_Session
 
 
 nickname_d2 = {
-               'Hydrodyn. (s1)':'sim1',
-               'Hydrodyn. (s2)':'sim2',
+               'Hydro. (s1)':'sim1',
+               'Hydro. (s2)':'sim2',
                'inputs':'inputs',
             }
 
@@ -378,25 +378,27 @@ def run_plot(dsc_vali_res_lib,
         ses.nicknames_d.update(nickname_d2)
                 
         log = ses.logger
+        
+        #setup labels
+        """the base nicknames_d lives on fdsc.base.DscBaseWorker
+        this was applied inconsitently, (many things are keyed by the fancy name)... so I'm not touching it
+        """
         nd = {v:k for k,v in ses.nicknames_d.items()}
+        nd.update({'rsmp':'Resample', 'rsmpF':'TerrainFilter'}) #set new labels
         ses.rowLabels_d=nd #display fancy labels on plots
         
         #extract filepaths
         serx = ses.load_run_serx(dsc_vali_res_lib = dsc_vali_res_lib)
-        """
-        dsc_vali_res_lib.keys()
-        view(serx)
-        serx.index.names
-        serx.index.unique('simName')
-        serx['clip']
-        print(dstr(dsc_vali_res_lib))
-        view(serx.loc[idx[:, 'fp', :, :]])
-        """
+ 
  
         #fix some grid names
         #serx = serx.rename({'wsh':'WSH', 'wse':'WSE', 'dem':'DEM'}, level=3)
  
         #set display order
+        """if this changes, need to update:
+            intext sub-figure references (e.g., Fig 1a)
+            plot_grids_mat_fdsc call out labels
+        """
         sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
         #sim_order_l2 = [nd[k] for k in sim_order_l1] #fancy names
         
@@ -409,27 +411,26 @@ def run_plot(dsc_vali_res_lib,
         if dem_fp is None:
             """not sure why this is 'clipped' but not on the clip level"""
             dem_fp = default_fp_d['DEM']
-            
+             
         if inun_fp is None:
             inun_fp = default_fp_d['INUN_POLY']
-            
-        
+             
+         
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-       
+        
         hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-       
+        
         #=======================================================================
         # grid plots
         #=======================================================================
         for gridk in [
-            #'WSH', #filters 'Basic'
-            'WSE']:
-
-            
+            #'WSH', #doesn't have 'Basic/Resample'
+            'WSE']: 
+             
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
                                                                    grids_mat_kg=grids_mat_kg)
  
@@ -451,7 +452,7 @@ def run_plot(dsc_vali_res_lib,
         
         #plot
         res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 
-                                rowLabels_d={**nd, **{'rsmp':'Basic/Hydrodyn. (s2)'}},
+                                rowLabels_d={**nd, **{'rsmp':'Resample/Hydro. (s2)'}},
                                 #arrow_kwargs_lib={'flow1':dict(xy_loc = (0.66, 0.55))},
  
                                 **inun_per_kg)
