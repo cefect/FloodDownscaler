@@ -140,6 +140,7 @@ def plot_lvl1():
              grids_mat_kg=dict(
                  aoi_fp=zoom_aoi,
                  fig_mat_kwargs=dict(ncols=3),
+                 vmin=87.5, vmax=91.0,
                  ),
                
              inun_per_kg=dict(

@@ -13,7 +13,7 @@ import rasterio as rio
 
 from hp.oop import Session
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2
+    assert_rlay_simple, _get_meta, assert_spatial_equal, get_ds_attr, write_array2
     )
 from hp.riom import assert_masked_ar
 from hp.hyd import assert_wse_ar, assert_dem_ar, assert_partial_wet, HydTypes
@@ -161,7 +161,7 @@ def rlay_extract(fp,
     """load rlay data and arrays"""
     with rio.open(fp, mode='r') as ds:
         assert_rlay_simple(ds)
-        stats_d = get_stats(ds) 
+        stats_d = _get_meta(ds) 
  
         ar = ds.read(1, window=window, masked=masked)
         
