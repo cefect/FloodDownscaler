@@ -399,7 +399,8 @@ def run_plot(dsc_vali_res_lib,
             intext sub-figure references (e.g., Fig 1a)
             plot_grids_mat_fdsc call out labels
         """
-        sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
+        sim_order_l1 = ['sim2', 'cgs','rsmp', 'rsmpF',  's14', 'sim1']
+        #sim_order_l1 = ['sim2', 'rsmp', 'rsmpF', 'cgs', 's14', 'sim1']
         #sim_order_l2 = [nd[k] for k in sim_order_l1] #fancy names
         
         serx = serx.loc[idx[:, :, sim_order_l1, :]]
@@ -447,8 +448,8 @@ def run_plot(dsc_vali_res_lib,
             metric_lib[k] = {k:d[k] for k in ml}
         
                 
-        sim_order_l1.remove('sim2') #remove this... plot basic instead
-        dfi = fp_df.loc[sim_order_l1, ['WSH', 'CONFU']] 
+        #sim_order_l1.remove('sim2') #remove this... plot basic instead
+        dfi = fp_df.loc[['rsmp', 'cgs','rsmpF', 's14', 'sim1'], ['WSH', 'CONFU']] 
         
         #plot
         res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 

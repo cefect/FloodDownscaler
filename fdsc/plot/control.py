@@ -211,14 +211,14 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
             log.debug(f'added {txt} at {str(xy_loc)}')
             
  
-        #wet-partials
-        add_annot(ax_d['r0']['c1'], 'A', (0.2, 0.35))
+        #wet-partials (Resample)
+        add_annot(ax_d['r0']['c2'], 'A', (0.2, 0.35))
         
-        #dry-partials
-        add_annot(ax_d['r0']['c2'], 'B', (0.75, 0.7))
+        #dry-partials (TerrainFilter)
+        add_annot(ax_d['r1']['c0'], 'B', (0.75, 0.7))
         
         #Cost Grow limits
-        add_annot(ax_d['r1']['c0'], 'C', (0.75, 0.85))
+        add_annot(ax_d['r0']['c1'], 'C', (0.75, 0.85))
  
         #Schuymann isolated
         add_annot(ax_d['r1']['c1'], 'D', (0.56, 0.89))
