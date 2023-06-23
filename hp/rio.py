@@ -827,7 +827,7 @@ def get_window(ds, bbox,
     return window, ds.window_transform(window)
     
 
-def get_stats(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
+def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
     d = dict()
     for attn in att_l:        
         d[attn] = getattr(ds, attn)
@@ -840,7 +840,7 @@ def get_stats2(rlay, **kwargs):
 
 def get_meta(rlay, **kwargs):
 
-    return rlay_apply(rlay, lambda x:get_stats(x, **kwargs))
+    return rlay_apply(rlay, lambda x:_get_meta(x, **kwargs))
 
 def get_ds_attr(rlay, stat):
     return rlay_apply(rlay, lambda ds:getattr(ds, stat))
@@ -862,7 +862,7 @@ def get_write_kwargs( obj,
     # load from filepath
     #=======================================================================
     if isinstance(obj, str) or isinstance(obj,rasterio.io.DatasetReader):
-        stats_d  = rlay_apply(obj, get_stats, att_l=att_l+['dtypes'])
+        stats_d  = rlay_apply(obj, _get_meta, att_l=att_l+['dtypes'])
     elif isinstance(obj, dict):
         stats_d = obj
 
@@ -878,7 +878,7 @@ def get_write_kwargs( obj,
     return rlay_kwargs
 
 def get_shape(obj):
-    d = rlay_apply(obj, get_stats, att_l=['height', 'width'])
+    d = rlay_apply(obj, _get_meta, att_l=['height', 'width'])
     
     return (d['height'], d['width'])
 
@@ -939,6 +939,19 @@ def get_xy_coords(transform, shape):
 def get_bbox(rlay_obj):
     bounds = get_ds_attr(rlay_obj, 'bounds')
     return sgeo.box(*bounds)
+
+def get_data_stats(fp, **kwargs):
+    
+    ar = load_array(fp, **kwargs)
+    
+    return {
+        'max':ar.max(),
+        'min':ar.min(),
+        'mean':ar.mean(), #not sure how mask is treated
+        'mask':ar.mask.sum(),
+        'size':ar.size,
+        }
+    
  
     
 def rlay_to_polygons(rlay_fp, convert_to_binary=True,
@@ -1185,7 +1198,7 @@ def write_clip(raw_fp,
         transform = rasterio.windows.transform(window, ds.transform)
         
         #get stats
-        stats_d = get_stats(ds)
+        stats_d = _get_meta(ds)
         #stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
             
         #load the windowed data
@@ -1336,7 +1349,7 @@ def write_mosaic(fp1, fp2, ofp=None):
         transform = rasterio.windows.transform(window, ds.transform)
         
         #get stats
-        stats_d = get_stats(ds)
+        stats_d = _get_meta(ds)
         stats_d['bounds'] = rio.windows.bounds(window, transform=transform)
             
         #load the windowed data
@@ -1446,7 +1459,7 @@ def assert_extent_equal(left, right,  msg='',):
  
     __tracebackhide__ = True
     
-    f= lambda ds, att_l=['crs',  'bounds']:get_stats(ds, att_l=att_l) 
+    f= lambda ds, att_l=['crs',  'bounds']:_get_meta(ds, att_l=att_l) 
     
     ld = rlay_apply(left, f)
     rd = rlay_apply(right, f)
@@ -1465,7 +1478,7 @@ def assert_extent_equal(left, right,  msg='',):
 
 
 def is_spatial_equal(left, right):
-    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l)
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:_get_meta(ds, att_l=att_l)
     
     ld = rlay_apply(left, f)
     rd = rlay_apply(right, f)
@@ -1485,7 +1498,7 @@ def assert_spatial_equal(left, right,  msg='',):
     __tracebackhide__ = True     
     
  
-    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:get_stats(ds, att_l=att_l)
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:_get_meta(ds, att_l=att_l)
     
     ld = rlay_apply(left, f)
     rd = rlay_apply(right, f)
@@ -1510,7 +1523,7 @@ def assert_ds_attribute_match(rlay,
         return
     __tracebackhide__ = True
     
-    stats_d = rlay_apply(rlay, get_stats)
+    stats_d = rlay_apply(rlay, _get_meta)
     
     chk_d = {'crs':crs, 'height':height, 'width':width, 'transform':transform, 'nodata':nodata, 'bounds':bounds}
     

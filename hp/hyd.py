@@ -37,7 +37,7 @@ import geopandas as gpd
  
 
 from hp.rio import (
-    assert_rlay_simple, get_stats, assert_spatial_equal, get_ds_attr, write_array2, 
+    assert_rlay_simple, assert_spatial_equal, get_ds_attr, write_array2, 
     load_array, get_profile, is_raster_file, rlay_ar_apply, ErrGridTypes
     )
 
