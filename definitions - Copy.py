@@ -25,4 +25,5 @@ os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
 #spatial (mostly for testing)
 epsg = 3857
 bounds = (0, 0, 100, 100)
+bbox=bounds
 
