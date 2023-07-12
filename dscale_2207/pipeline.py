@@ -421,7 +421,7 @@ def run_plot(dsc_vali_res_lib,
         # HWM performance (all)
         #=======================================================================
         hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
-        
+         
         hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
         
@@ -431,7 +431,7 @@ def run_plot(dsc_vali_res_lib,
         for gridk in [
             #'WSH', #doesn't have 'Basic/Resample'
             'WSE']: 
-             
+              
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
                                                                    grids_mat_kg=grids_mat_kg)
  
@@ -449,7 +449,8 @@ def run_plot(dsc_vali_res_lib,
         
                 
         #sim_order_l1.remove('sim2') #remove this... plot basic instead
-        dfi = fp_df.loc[['rsmp', 'cgs','rsmpF', 's14', 'sim1'], ['WSH', 'CONFU']] 
+        #dfi = fp_df.loc[['rsmp', 'cgs','rsmpF', 's14', 'sim1'], ['WSH', 'CONFU']] 
+        dfi = fp_df.loc[['rsmp', 'cgs','s14', 'sim1'], ['WSH', 'CONFU']]
         
         #plot
         res_d['inun_perf'] = ses.plot_inun_perf_mat(dfi,metric_lib=metric_lib, 

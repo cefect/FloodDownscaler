@@ -13,7 +13,7 @@ plotting for the ahr sim
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'journal'
+env_type = 'present'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -134,19 +134,20 @@ def plot_lvl1():
                
              hwm_scat_kg=dict(
                  style_default_d=dict(marker='o', fillstyle='none', alpha=0.8, color='black'),
-                 fig_mat_kwargs=dict(ncols=3),
+                 fig_mat_kwargs=dict(ncols=3, total_fig_width=24*cm),
                  ),
                
              grids_mat_kg=dict(
                  aoi_fp=zoom_aoi,
                  fig_mat_kwargs=dict(ncols=3),
                  vmin=87.5, vmax=91.0,
+ 
                  ),
                
              inun_per_kg=dict(
                  box_fp=zoom_aoi,
                 fig_mat_kwargs=dict(
-                    #=figsize=(25*cm, 25*cm),
+                    figsize=(25*cm, 23*cm),
                   )),
              )
     

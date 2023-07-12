@@ -172,6 +172,7 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
     
     def plot_grids_mat_fdsc(self, serx, gridk,dem_fp, inun_fp,
                             grids_mat_kg=dict(),
+                            transparent=True,
                             **kwargs):
         """wrapper for plot_grids_mat to add custom arrows"""
         
@@ -228,7 +229,8 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
         
 
  
-        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
+        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600, 
+                               transparent=transparent)
     
 
 
