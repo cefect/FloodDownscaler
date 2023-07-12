@@ -164,6 +164,7 @@ def run_toy_0205(
     # setup downsample parameters
     #===========================================================================
     if pars_lib is None:
+        """where do these come from? data seems to be from hp.tests.data.toy_rasters.py"""
         fp_d = {
             #'none_wse1':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\none\FloodDownscaler_test_0205_dsc.tif',
             #'nodp':r'l:\10_IO\2207_dscale\outs\fdsc\toy\200230205\wetPartialsOnly\FloodDownscaler_test_0205_dsc.tif',
@@ -193,17 +194,15 @@ def run_toy_0205(
     #===========================================================================
     # build toy inputs
     #===========================================================================
-    #===========================================================================
-    # from tests.test_dsc import dem1_ar, wse2_ar, get_rlay_fp
-    # dem1_fp = get_rlay_fp(dem1_ar, 'dem1') 
-    # wse2_fp = get_rlay_fp(wse2_ar, 'wse2')
-    #     
-    # # add these
-    # pars_lib.update(
-    #     {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
-    #      'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
-    #     )
-    #===========================================================================
+    from tests.test_dsc import toy_d
+    dem1_fp, wse2_fp = toy_d['dem1'], toy_d['wse2']
+ 
+         
+    # add these
+    pars_lib.update(
+        {'dem1':{'fp':dem1_fp, 'cmap':'copper_r', 'norm':matplotlib.colors.Normalize(vmin=1.0, vmax=6.0)},
+         'wse2':{**{'fp':wse2_fp}, **wse_plot_kwargs}}
+        )
     
     #===========================================================================
     # run
