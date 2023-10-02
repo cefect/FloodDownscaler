@@ -3,7 +3,7 @@ Created on Mar. 28, 2023
 
 @author: cefect
 
-plotting for the ahr sim
+main runner for plotting the ahr sim results
 '''
 
 #===============================================================================
@@ -13,7 +13,7 @@ plotting for the ahr sim
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'journal'
+env_type = 'draft'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -121,7 +121,12 @@ del init_kwargs['aoi_fp']
 # run
 #===============================================================================
 def plot_lvl1():    
-    """main plots for downscaling from 32m to 4m"""
+    """main plots for downscaling from 32m to 4m
+    run plotting pipeline
+        plot_HWM_scatter
+        plot_grids_mat_fdsc
+        plot_inun_perf_mat
+    """
     
     
     

@@ -19,7 +19,7 @@ from hp.basic import dstr, now
 from hp.oop import Session
 from hp.rio import (
     assert_extent_equal,  RioSession,get_profile,
-    write_array, assert_spatial_equal, write_clip,get_stats2, get_bbox,
+    write_array, assert_spatial_equal, write_clip,get_meta, get_bbox,
     write_resample, get_meta
     )
 from hp.pd import view
@@ -213,8 +213,8 @@ class Dsc_Session_skinny(CostGrow, BufferGrowLoop, Schuman14,BasicDSC,WBT_worker
             HydTypes('WSE').assert_fp(wse2_fp)
  
  
-        meta_lib['wse_raw'] = get_stats2(wse2_fp)
-        meta_lib['dem_raw'] = get_stats2(dem1_fp)
+        meta_lib['wse_raw'] = get_meta(wse2_fp)
+        meta_lib['dem_raw'] = get_meta(dem1_fp)
         
         if downscale is None:
             downscale = self.get_downscale(wse2_fp, dem1_fp)

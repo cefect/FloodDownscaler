@@ -4,6 +4,7 @@ Created on Jan. 9, 2023
 @author: cefect
 
 plot a raster as a table/grid
+    manuscripts toy grids
 '''
 import os, logging, sys, pprint
  

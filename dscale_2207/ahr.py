@@ -3,7 +3,7 @@ Created on Mar. 28, 2023
 
 @author: cefect
 
-Ahr case study
+main runner for downscaling Ahr case study
 '''
 import os, pickle
 from pyproj.crs import CRS
@@ -65,10 +65,19 @@ if debug:
         #=======================================================================
         }
 else:
-    pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
-'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_1dsc.pkl',
-'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_2eval.pkl',
-'3evalF': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_3evalF.pkl'}
+    
+    #submit 1
+#===============================================================================
+#     pick_lib={'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230511\\ahr_aoi13_0506_r2_0511_0clip.pkl',
+# '1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_1dsc.pkl',
+# '2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_2eval.pkl',
+# '3evalF': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20230612\\ahr_aoi13_0506_r2_0612_3evalF.pkl'}
+#===============================================================================
+    
+    pick_lib =     {'0clip': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20231002\\ahr_aoi13_0506_r2_1002_0clip.pkl',
+'1dsc': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20231002\\ahr_aoi13_0506_r2_1002_1dsc.pkl',
+'2eval': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20231002\\ahr_aoi13_0506_r2_1002_2eval.pkl',
+'3evalF': 'L:\\10_IO\\fdsc\\outs\\ahr_aoi13_0506\\r2\\20231002\\ahr_aoi13_0506_r2_1002_3evalF.pkl'}
 
 #===============================================================================
 # run
@@ -77,6 +86,8 @@ else:
     
 
 if __name__=='__main__':
-    run_downscale_and_eval(proj_lib, pick_lib=pick_lib, **init_kwargs)
+    run_downscale_and_eval(proj_lib, 
+                           #pick_lib=pick_lib, 
+                           **init_kwargs)
     
     print('done')

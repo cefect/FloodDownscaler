@@ -1,5 +1,10 @@
 # FloodDownscaler
 
+## TODO:
+integrate coms
+split case study from downscaling tool
+split definitions from parameters (which should go in the case study)
+
 ## Related projects
 
  
