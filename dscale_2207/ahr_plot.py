@@ -13,7 +13,7 @@ main runner for plotting the ahr sim results
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'draft'
+env_type = 'journal'
 cm = 1 / 2.54
 
 if env_type == 'journal': 

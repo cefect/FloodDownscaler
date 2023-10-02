@@ -15,9 +15,9 @@ cm = 1 / 2.54
 #===============================================================================
 # IMPORTS------
 #===============================================================================
-
+ 
 from hp.pd import view
-from hp.basic import dstr
+from hp.basic import dstr, today_str
 from hp.rio import (get_bbox, write_clip, write_resample)
 
 #from fdsc.control import Dsc_Session
@@ -425,8 +425,9 @@ def run_plot(dsc_vali_res_lib,
         hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
         res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
         
+        return
         #=======================================================================
-        # grid plots
+        # aoi zoom grid plots-----
         #=======================================================================
         for gridk in [
             #'WSH', #doesn't have 'Basic/Resample'
@@ -434,6 +435,21 @@ def run_plot(dsc_vali_res_lib,
              
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
                                                                    grids_mat_kg=grids_mat_kg)
+            
+                
+        
+            #=======================================================================
+            # aoi2 (for supplement
+            #=======================================================================
+            fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
+            ax_d, fig = ses.plot_grids_mat(fp_d, gridk=gridk, dem_fp=dem_fp,inun_fp=inun_fp,
+                                           aoi_fp=r'l:\02_WORK\NRC\2207_dscale\04_CALC\ahr\aoi\aoi10t_zoom1002.gpkg', 
+                                           fig_mat_kwargs=dict(ncols=3),vmin=92.5, vmax=95.5,
+                                           )
+            
+            res_d[f'grids_mat_{gridk}2']=ses.output_fig(fig, ofp=os.path.join(ses.out_dir, f'grids_mat_aoi2_{today_str}.pdf'), logger=log, dpi=600)
+            
+ 
  
  
         #=======================================================================
