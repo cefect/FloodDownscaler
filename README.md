@@ -6,9 +6,9 @@ split case study from downscaling tool
 split definitions from parameters (which should go in the case study)
 
 ## Related projects
-
+[rimpy](https://git.gfz-potsdam.de/bryant/rimpy): Tools for building, calibrating, and visualizing RIM2D models
  
-[2207_dscale2](https://github.com/cefect/2207_dscale2): project for generating analog inundation grids with LISFLOOD. Eventually submodule in this tool?
+[2207_dscale2](https://github.com/cefect/2207_dscale2): **OLD** project for generating analog inundation grids with LISFLOOD. 
 
 [FloodPolisher](https://github.com/cefect/FloodPolisher): mid-2022 inundation downscaling work using simple growth. pyqgis. Should incorporate a version of this into this project. 
 
