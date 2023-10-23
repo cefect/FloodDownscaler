@@ -265,6 +265,7 @@ class CostGrow(WetPartials):
         #fillnodata in wse (for source)
         wse_fp1 = os.path.join(tmp_dir, f'wse1_fnd.tif')
         assert self.convert_nodata_to_zero(wse_fp, wse_fp1) == 0
+        
         #build cost friction (constant)
         cost_fric_fp = os.path.join(tmp_dir, f'cost_fric.tif')
         assert self.new_raster_from_base(wse_fp, cost_fric_fp, value=1.0, data_type='float') == 0

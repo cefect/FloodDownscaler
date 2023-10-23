@@ -64,8 +64,8 @@ class DscBaseWorker(object):
  
 
     def get_resolution_ratio(self, 
-                             fp1, #high res
-                             fp2, #low res
+                             fp1,#coarse
+                             fp2, #fine
                              ):
         s1 = get_ds_attr(fp1, 'res')[0]
         s2 = get_ds_attr(fp2, 'res')[0]

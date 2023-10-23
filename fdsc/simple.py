@@ -139,20 +139,5 @@ class BasicDSC(WetPartials):
         return wse1_wp_fp, meta_lib
         
         
-#===============================================================================
-# class TwoPhaseDSC(WetPartials):
-#     """methods common to simple two phase downsamplers"""
-#     
-#     def _func_setup_dsc(self, dkey, wse1_fp, dem_fp, **kwargs):
-#         log, tmp_dir, out_dir, ofp, resname = self._func_setup(dkey, subdir=False, **kwargs)
-#         skwargs = dict(logger=log, out_dir=tmp_dir, tmp_dir=tmp_dir)
-#         assert_spatial_equal(dem_fp, wse1_fp)
-#         meta_lib = {'smry':{'wse1_fp':os.path.basename(wse1_fp), 'dem_fp':dem_fp, 'ofp':ofp}}
-#         start = now()
-#         return skwargs, meta_lib, log, ofp, start
-#===============================================================================
-    
-
-
  
 
