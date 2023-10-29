@@ -420,12 +420,14 @@ def run_plot(dsc_vali_res_lib,
         #=======================================================================
         # HWM performance (all)
         #=======================================================================
-        hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
+        #=======================================================================
+        # hwm_gdf = ses.collect_HWM_data(serx['hwm']['fp'],write=False)
+        # 
+        # hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
+        # res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
+        #=======================================================================
         
-        hwm_scat_kg.update(dict(metaKeys_l = ['rvalue','rmse']))
-        res_d['hwm_scat'] = ses.plot_HWM_scatter(hwm_gdf, **hwm_scat_kg)
-        
-        return
+         
         #=======================================================================
         # aoi zoom grid plots-----
         #=======================================================================
@@ -433,11 +435,22 @@ def run_plot(dsc_vali_res_lib,
             #'WSH', #doesn't have 'Basic/Resample'
             'WSE']: 
              
+            #presentation
+            fp_d = serx['raw']['fp'].loc[idx[:, gridk]].to_dict()
+            fmk = grids_mat_kg.pop('fig_mat_kwargs') #skip this one... no matrix
+            ses.plot_grids_mat_fdsc_present(fp_d,
+                                gridk=gridk,dem_fp=dem_fp, inun_fp=inun_fp,
+                                figsize=(22*cm, 17*cm),
+                                **grids_mat_kg)
+            
+            return
+        
+            #Figure 6. Downscale and hydrodynamic model W SE detail results
             res_d[f'grids_mat_{gridk}'] = ses.plot_grids_mat_fdsc(serx, gridk, dem_fp, inun_fp,
                                                                    grids_mat_kg=grids_mat_kg)
             
-                
-        
+            
+ 
             #=======================================================================
             # aoi2 (for supplement
             #=======================================================================
@@ -451,7 +464,7 @@ def run_plot(dsc_vali_res_lib,
             
  
  
- 
+        
         #=======================================================================
         # INUNDATION PERFORMANCe
         #=======================================================================

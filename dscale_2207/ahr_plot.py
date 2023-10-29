@@ -13,7 +13,7 @@ main runner for plotting the ahr sim results
 #===============================================================================
 # setup matplotlib----------
 #===============================================================================
-env_type = 'journal'
+env_type = 'present'
 cm = 1 / 2.54
 
 if env_type == 'journal': 
@@ -81,7 +81,7 @@ elif env_type=='present':
         output_format='svg',add_stamp=True,add_subfigLabel=False,transparent=False
         )   
  
-    font_size=12
+    font_size=14
  
     matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
      

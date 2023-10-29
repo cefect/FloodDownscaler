@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from pandas import IndexSlice as idx
 
- 
+import geopandas as gpd
  
 
 from rasterio.plot import show
@@ -230,10 +230,194 @@ class Fdsc_Plot_Session(Fdsc_Plot_Base, DscBaseWorker, PostSession):
  
         return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
     
-
-
+ 
+    def plot_grids_mat_fdsc_present(self,
+                          fp_d,
+                          gridk=None, #for formatting by grid type
+                          mod_keys=None,
+                          
+                          dem_fp=None,
+                          inun_fp=None,
+                          aoi_fp=None,
+                          
+                          output_format=None,rowLabels_d=None,add_subfigLabel=None,
+                          colorBar_bottom_height=0.15,
+ 
+                          vmin=None, vmax=None,
+                          show_kwargs=None,
+                          #fig_mat_kwargs=dict(),
+                          arrow_kwargs_lib=dict(),
+                          inun_kwargs = dict(facecolor='none', 
+                                             edgecolor='black', 
+                                             linewidth=0.75, 
+                                             linestyle='dashed'),
+                          figsize=None,
+                          **kwargs):
+        """plot individual grids (for presentations)
+            
+        """
+        #=======================================================================
+        # defaults
+        #=======================================================================
+        if output_format is None: output_format=self.output_format
+        if gridk is None:
+            dkey = 'grids'
+        else:
+            dkey = f'grids{gridk.upper()}'
+        log, tmp_dir, out_dir, _, resname = self._func_setup(dkey, ext='.'+output_format, **kwargs)
         
+        
+ 
+            
+ 
+        
+        #list of model values
+        if mod_keys is None:
+            mod_keys = list(fp_d.keys())
+            #mod_keys = ['WSE2', 'Basic', 'SimpleFilter', 'Schumann14', 'CostGrow','WSE1']            
+        assert set(mod_keys).difference(fp_d.keys())==set()
+        
+        #model fancy labels
+        if rowLabels_d is None:
+            rowLabels_d=self.rowLabels_d
+            
+        if rowLabels_d is None:
+            rowLabels_d = dict()
+            
+        #add any missing
+        for k in mod_keys:
+            if not k in rowLabels_d:
+                rowLabels_d[k] = k
+            
+        #bounding box
+        rmeta_d = get_meta(dem_fp)  #spatial meta from dem for working with points
+        
+        if aoi_fp is None:
+            bbox, crs=get_bbox(dem_fp), self.crs
+        else:            
+            bbox, crs=get_bbox_and_crs(aoi_fp)
+            log.info(f'using aoi from \'{os.path.basename(aoi_fp)}\'')
+            
+        
+        
+               
+        assert crs.to_epsg()==rmeta_d['crs'].to_epsg(), f'aoi does not match project crs %s'%rmeta_d['crs'].to_epsg()
+            
+        log.info(f'plotting {len(fp_d)} on {mod_keys}')
+ 
+       
+        res_d=dict()
+        
+        #=======================================================================
+        # plot loop-----
+        #=======================================================================
+        
+        for modk, fp in fp_d.items():
+            
+            #===================================================================
+            # setup
+            #===================================================================
+            log.info(f'plotting  {modk}')
+            
+            fig = plt.figure(figsize=figsize,
+                     tight_layout=False,
+                     constrained_layout = False,
+                     )
+            
+            ax = fig.add_subplot()
+            
+ 
+            
+            #===============================================================
+            # plot it
+            #===============================================================
+            # DEM raster 
+            self._ax_raster_show(ax,  dem_fp, bbox=bbox,gridk='hillshade')
+            
+            # focal raster
+ 
+            self._ax_raster_show(ax,  fp, bbox=bbox,gridk=gridk, 
+                                         alpha=0.9, show_kwargs=show_kwargs,
+                                 vmin=vmin, vmax=vmax)
+            
+            #log.debug(get_data_stats(fp))
+            #inundation                
+            gdf = gpd.read_file(inun_fp)
+            assert gdf.geometry.crs==crs, f'crs mismatch: {gdf.geometry.crs}\n    {inun_fp}'
+            
+            #boundary 
+            gdf.clip(bbox.bounds).plot(ax=ax,**inun_kwargs)
+            
+            #===============================================================
+            # label
+            #=============================================================== 
+            ax.text(0.95, 0.05, 
+                        rowLabels_d[modk], 
+                        transform=ax.transAxes, va='bottom', ha='right',
+                        size=matplotlib.rcParams['axes.titlesize'],
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                        )
+            
+            #===============================================================
+            # #scale bar
+            #===============================================================
+            self._add_scaleBar_northArrow(ax)
+ 
+            #=======================================================================
+            # colorbar-------
+            #=======================================================================
+            
+            #only adding the colorbar to the first layer
+            
+            #get axis image
+            l= [obj for obj in ax.get_children() if isinstance(obj, AxesImage)]
+            axImg = l[1] #focal is the second
+                    
+            log.debug(f'adding colorbar')
+            
+            #get parameters
+            _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
+            shared_kwargs = dict(orientation='vertical',
+                                 extend='both', #pointed ends
+                                 #shrink=0.8,
+                                 ticklocation='top',
+                                 )
+ 
+            
+            #add blanks
+            if not modk=='sim2':
                 
+                fmt = matplotlib.ticker.FuncFormatter(lambda x, p:'')
+                label=''
+            
+            #add the bar
+            cbar = fig.colorbar(axImg,label=label,format=fmt, spacing=spacing,
+                                     **shared_kwargs)
+            
+            
+            #===============================================================
+            # wrap
+            #===============================================================
+            
+            # hide labels
+            ax.get_xaxis().set_ticks([])
+            ax.get_yaxis().set_ticks([])
+            
+            
+            res_d[modk] = self.output_fig(fig, 
+                            ofp=os.path.join(out_dir, f'map_{modk}.svg'), 
+                            transparent=True,
+                            logger=log, dpi=600)
+            
+            plt.close('all')
+            
+        log.info(f'finished on {len(res_d)}\n    {out_dir}')
+        
+        return res_d
+        
+        
+ 
+         
         
             
          

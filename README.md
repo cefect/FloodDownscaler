@@ -1,9 +1,7 @@
 # FloodDownscaler
 
-## TODO:
-integrate coms
-split case study from downscaling tool
-split definitions from parameters (which should go in the case study)
+Flood hazard grid downscaling project for HESS publication.
+For deployment version, see [FloodDownscaler2](https://github.com/cefect/FloodDownscaler2)
 
 ## Related projects
 [rimpy](https://git.gfz-potsdam.de/bryant/rimpy): Tools for building, calibrating, and visualizing RIM2D models
