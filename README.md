@@ -3,6 +3,16 @@
 Flood hazard grid downscaling project for HESS publication.
 For deployment version, see [FloodDownscaler2](https://github.com/cefect/FloodDownscaler2)
 
+## Use
+
+### Figures
+toy example grids
+`dscale_2207.plot_grid.run_toy_0205()`
+
+remaining figures are here:
+`dscale_2207.ahr_plot.plot_lvl1()`
+
+
 ## Related projects
 [rimpy](https://git.gfz-potsdam.de/bryant/rimpy): Tools for building, calibrating, and visualizing RIM2D models
  
@@ -13,6 +23,8 @@ For deployment version, see [FloodDownscaler2](https://github.com/cefect/FloodDo
 [FloodRescaler](https://github.com/cefect/FloodRescaler): public repo with simple QGIS tools included in Agg publication. Eventually incorporate downscaling scripts into here? 
 
 [2112_agg_pub](https://github.com/cefect/2112_agg_pub): public repo of analysis for aggregation paper. 
+
+
 
 ## Submodules
 
