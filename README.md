@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10214837.svg)](https://doi.org/10.5281/zenodo.10214837)
+
 # FloodDownscaler
 
 Flood hazard grid downscaling project for HESS publication.
