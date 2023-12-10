@@ -8,4 +8,4 @@
 [submodule "fperf"]
 	path = fperf
 	url = https://github.com/cefect/fperf
-    branch = FloodDownscaler
+	branch = FloodDownscaler
