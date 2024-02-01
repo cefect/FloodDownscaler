@@ -63,4 +63,30 @@ build whitebox-tools using rust
     takes a while
 add submodules to pythonpath (see above)
 
-create and customize a definitions.py file (see the copy)
+create and customize a definitions.py file (see below example)
+
+### definitions.py
+
+```
+import os
+
+src_dir = os.path.dirname(os.path.abspath(__file__))
+src_name = os.path.basename(src_dir)
+
+#location of logging configuration file
+logcfg_file=os.path.join(src_dir, r'coms\logger.conf')
+
+#default working directory
+wrk_dir = r'L:\10_IO\fdsc'
+
+#whitebox exe location
+wbt_dir = os.path.join(src_dir, r'whitebox-tools\target\release')
+
+#specify the latex install directory
+os.environ['PATH'] += R";C:\Program Files\MiKTeX\miktex\bin\x64"
+ 
+#spatial (mostly for testing)
+epsg = 3857
+bounds = (0, 0, 100, 100)
+bbox=bounds
+```
