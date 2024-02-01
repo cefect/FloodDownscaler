@@ -1,7 +1,3 @@
-[submodule "coms"]
-	path = coms
-	url = https://github.com/cefect/coms.git
-	branch = FloodDownscaler
 [submodule "whitebox-tools"]
 	path = whitebox-tools
 	url = https://github.com/cefect/whitebox-tools.git
