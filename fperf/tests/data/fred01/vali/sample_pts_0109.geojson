@@ -1,0 +1,12 @@
+{
+"type": "FeatureCollection",
+"name": "sample_pts_0109",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3979" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 5 }, "geometry": { "type": "Point", "coordinates": [ 2164150.172962226904929, 138758.771371769398684 ] } },
+{ "type": "Feature", "properties": { "id": 1 }, "geometry": { "type": "Point", "coordinates": [ 2164656.67793240537867, 139051.852882703795331 ] } },
+{ "type": "Feature", "properties": { "id": 2 }, "geometry": { "type": "Point", "coordinates": [ 2164764.892644135281444, 139045.840954274346586 ] } },
+{ "type": "Feature", "properties": { "id": 3 }, "geometry": { "type": "Point", "coordinates": [ 2164776.916500994004309, 139205.157057654083474 ] } },
+{ "type": "Feature", "properties": { "id": 4 }, "geometry": { "type": "Point", "coordinates": [ 2164622.860834990162402, 138834.671968190872576 ] } }
+]
+}
