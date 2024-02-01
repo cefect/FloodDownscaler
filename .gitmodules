@@ -1,7 +1,3 @@
 [submodule "whitebox-tools"]
 	path = whitebox-tools
 	url = https://github.com/cefect/whitebox-tools.git
-[submodule "fperf"]
-	path = fperf
-	url = https://github.com/cefect/fperf
-	branch = FloodDownscaler
