@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10214837.svg)](https://doi.org/10.5281/zenodo.10214837)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10607407.svg)](https://doi.org/10.5281/zenodo.10607407)
 
 # FloodDownscaler
 
